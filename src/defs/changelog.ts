@@ -6,9 +6,21 @@ export interface ChangelogEntry {
   changes: string[];
 }
 
-export const CURRENT_VERSION = "0.2.17";
+export const CURRENT_VERSION = "0.2.18";
 
 export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
+  {
+  version: "0.2.18",
+  date: "2026-08-30",
+  title: "THE GITHUB UPDATE",
+  category: "Sistema",
+  changes: [
+    "Se inicializó un repositorio Git para H.I.S. Future, permitiendo llevar un historial real de cambios del proyecto.",
+    "Se creó el primer commit oficial del proyecto con el estado actual de H.I.S. Future.",
+    "Se configuró la rama principal como main y se vinculó el proyecto con su repositorio remoto en GitHub.",
+    "El repositorio quedó preparado para registrar futuros cambios mediante commits sin depender únicamente del changelog interno de la aplicación.",
+  ],
+},
   {
     version: CURRENT_VERSION,
     date: "2026-08-30",
