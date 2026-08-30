@@ -1,0 +1,2283 @@
+/* Ajusta el tamano y el desbordamiento global de la aplicacion. */
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+}
+
+/* Hace que padding y border formen parte del tamano total de cada elemento. */
+* {
+  box-sizing: border-box;
+}
+
+/* Contenedor principal de la pantalla de inicio. */
+.home-screen {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #121417;
+  color: #ffffff;
+  font-family: "Acumin Variable Concept", "Segoe UI", sans-serif;
+  user-select: none;
+}
+
+/* Permite seleccionar texto dentro de campos editables. */
+.home-screen input,
+.home-screen textarea,
+.home-screen [contenteditable="true"] {
+  user-select: text;
+}
+
+/* Barra superior de la pantalla de inicio; cambia su altura y padding para mover su contenido. */
+.home-titlebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 42px;
+  padding-left: 20px;
+  user-select: none;
+}
+
+/* Espacio flexible que empuja los controles de la barra superior hacia la derecha. */
+.home-titlebar > div:first-child {
+  flex: 1;
+  align-self: stretch;
+}
+
+/* Grupo de botones de ventana de la barra superior. */
+.home-titlebar__controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 100%;
+}
+
+/* Tamano y posicion de cada boton de control de ventana. */
+.home-titlebar__controls button {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  padding: 8px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transform: translateY(-2px);
+}
+
+/* Fondo del boton cuando el cursor pasa por encima. */
+.home-titlebar__controls button:hover {
+  background: #20252a;
+}
+
+/* Color especial del boton de cerrar al pasar el cursor. */
+.home-titlebar__controls button:last-child:hover {
+  background: #d84d4d;
+}
+
+/* Imagen que ocupa cada boton de control. */
+.home-titlebar__controls img {
+  width: 100%;
+  height: 100%;
+}
+
+/* Texto descriptivo bajo la marca; max-width controla su ancho. */
+.home-screen__copy {
+  max-width: 480px;
+  margin: 14px 0 0;
+  color: #bfbfbf;
+  font-size: 19px;
+  font-weight: 200;
+  line-height: 1.12;
+}
+
+/* Zona central de la pantalla de inicio; padding controla sus margenes laterales. */
+.home-screen__content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 0 3.4vw 32px;
+}
+
+/* Nombre de la aplicacion en la pantalla de inicio. */
+.home-screen__brand {
+  margin: 0;
+  color: #4dd8c0;
+  font-size: clamp(32px, 3.6vw, 52px);
+  font-weight: 400;
+  line-height: 1;
+}
+
+/* Divide el contenido en columna de proyectos y columna de recientes. */
+.home-screen__columns {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(420px, 1.02fr);
+  gap: 6vw;
+  margin-top: 28px;
+}
+
+/* Columna que contiene los proyectos recientes. */
+.home-screen__recent {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  gap: 28px;
+}
+
+/* Titulos de las columnas principales. */
+.home-screen__columns h2 {
+  margin: 0;
+  color: #ffffff;
+  font-size: clamp(30px, 3.6vw, 52px);
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* Grupo de acciones para crear o abrir proyectos. */
+.home-screen__actions {
+  display: flex;
+  gap: 20px;
+  margin-top: 26px;
+}
+
+/* Boton grafico de proyecto nuevo; width y height controlan su tamano. */
+.home-project-button {
+  position: relative;
+  width: 62px;
+  height: 62px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+/* Estado visual de espera de los botones de proyecto. */
+.home-project-button:disabled,
+.home-recent-card:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+/* Imagen de fondo del boton grafico de proyecto. */
+.home-project-button img:first-child {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* Icono centrado sobre el fondo del boton de proyecto. */
+.home-project-button img:last-child {
+  position: absolute;
+  inset: 22%;
+  width: 56%;
+  height: 56%;
+}
+
+/* Ilumina el fondo del boton de proyecto al pasar el cursor. */
+.home-project-button:hover:not(:disabled) img:first-child {
+  filter: brightness(1.1);
+}
+
+/* Lista desplazable de proyectos recientes. */
+.home-recent-list {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  width: 100%;
+  gap: 10px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Marco que contiene el panel decorativo de proyectos recientes. */
+.home-recent-panel {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Imagen decorativa de fondo del panel reciente. */
+.home-recent-panel__background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 809px;
+  height: 682px;
+  pointer-events: none;
+}
+
+/* Contenido colocado encima del fondo del panel reciente. */
+.home-recent-panel__content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  width: 100%;
+  min-height: 0;
+  min-width: 0;
+  padding: 24px 24px;
+  flex-direction: column;
+  align-items: flex-start;
+  overflow: hidden;
+}
+
+/* Fila individual de un proyecto reciente. */
+.home-recent-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-height: 34px;
+  min-width: 0;
+  width: 100%;
+}
+
+/* Circulo de color de cada proyecto reciente. */
+.home-recent-card__circle {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  pointer-events: none;
+}
+
+/* Nombre del proyecto reciente; max-width y overflow controlan el texto largo. */
+.home-recent-card__name {
+  min-width: 0;
+  flex: 1;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  color: #000000;
+  background: transparent;
+  cursor: pointer;
+  font-size: 30px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  text-align: left;
+}
+
+/* Subraya el nombre del proyecto al pasar el cursor. */
+.home-recent-card__name:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+/* Mensajes de estado y error debajo de las acciones. */
+.home-screen__status,
+.home-screen__error {
+  margin-top: 18px;
+  font-size: 13px;
+}
+
+/* Texto de estado normal. */
+.home-screen__status {
+  color: #9da3aa;
+}
+
+/* Caja visual para mostrar errores. */
+.home-screen__error {
+  padding: 10px 12px;
+  border-left: 2px solid #e87878;
+  color: #f0a1a1;
+  background: #251b1e;
+}
+
+/* Fondo y centrado del dialogo modal. */
+.home-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgb(0 0 0 / 65%);
+}
+
+/* Caja interior del modal; width y padding controlan su tamano. */
+.home-modal__card {
+  width: min(100%, 460px);
+  padding: 28px;
+  border: 1px solid #363b42;
+  border-radius: 8px;
+  background: #1b1f24;
+}
+
+/* Etiqueta superior del campo del modal. */
+.home-modal__label {
+  color: #4dd8c0;
+  font-family: "Acumin Variable Concept", "Segoe UI", sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* Campo de texto del modal. */
+.home-modal__input {
+  width: 100%;
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid #424850;
+  border-radius: 4px;
+  outline: none;
+  color: #e8e9ea;
+  background: #121417;
+  font: inherit;
+}
+
+/* Borde del campo cuando esta enfocado. */
+.home-modal__input:focus {
+  border-color: #4dd8c0;
+}
+
+/* Texto de ayuda debajo del campo del modal. */
+.home-modal__hint {
+  margin: 12px 0 0;
+  color: #9da3aa;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* Botones del modal alineados hacia la derecha. */
+.home-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 28px;
+}
+
+/* Boton generico de la pantalla de inicio. */
+.home-screen__button {
+  min-height: 40px;
+  padding: 0 16px;
+  border: 1px solid #363b42;
+  border-radius: 4px;
+  color: #e8e9ea;
+  background: #20242a;
+  cursor: pointer;
+  font: inherit;
+}
+
+/* Borde del boton generico al pasar el cursor. */
+.home-screen__button:hover:not(:disabled) {
+  border-color: #4dd8c0;
+}
+
+/* Variante principal del boton generico. */
+.home-screen__button--primary {
+  border-color: #4dd8c0;
+  color: #0f1918;
+  background: #4dd8c0;
+}
+
+/* Estado deshabilitado del boton generico. */
+.home-screen__button:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+/* Ajustes de la pantalla de inicio para ventanas estrechas. */
+@media (max-width: 820px) {
+  .home-screen__columns {
+    grid-template-columns: 1fr;
+    gap: 54px;
+  }
+
+  .home-recent-list {
+    max-height: 360px;
+    flex: none;
+  }
+}
+
+/* Tamano de las barras de desplazamiento en navegadores WebKit. */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+/* Segunda capa de ajustes visuales de la pantalla de inicio. */
+.home-screen {
+  position: relative;
+  background: #121417;
+  color: #4dd8c0;
+  font-family: "Acumin Variable Concept", "Segoe UI", sans-serif;
+}
+
+.home-titlebar {
+  height: 40px;
+  padding: 0 12px 0 16px;
+}
+
+/* Identidad de la aplicacion dentro de la barra superior. */
+.home-titlebar__identity {
+  display: flex;
+  align-items: center;
+  align-self: stretch;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* Icono de la identidad de la aplicacion. */
+.home-titlebar__identity > img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
+
+/* Tamano del nombre junto al icono de la barra superior. */
+.home-titlebar__identity .home-screen__brand {
+  flex: 0 0 auto;
+  margin: 0;
+  font-size: 24px;
+  line-height: 1;
+}
+
+/* Separacion entre los controles superiores en la capa visual final. */
+.home-titlebar__controls {
+  gap: 2px;
+}
+
+/* Tamano final de los botones superiores. */
+.home-titlebar__controls button {
+  width: 30px;
+  height: 30px;
+  padding: 7px;
+}
+
+/* Posicion final del contenido principal de inicio. */
+.home-screen__content {
+  position: relative;
+  padding: 0 3.05vw 32px 2.35vw;
+}
+
+/* Tamano final de la marca de inicio. */
+.home-screen__brand {
+  font-size: 31px;
+  font-weight: 400;
+  line-height: 1;
+}
+
+/* Tamano y separacion final de las dos columnas de inicio. */
+.home-screen__columns {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: clamp(40px, 6vw, 120px);
+  margin-top: 26px;
+}
+
+/* Columna izquierda que contiene las acciones de proyecto. */
+.home-screen__projects {
+  min-width: 0;
+}
+
+/* Imagen decorativa HIS del bloque de acciones. */
+.home-screen__his-panel {
+  display: block;
+  width: min(100%, 330px);
+  height: auto;
+  margin: 0 0 35px;
+}
+
+/* Alineacion final de las acciones de inicio. */
+.home-screen__actions {
+  display: grid;
+  gap: 18px;
+  margin: 0;
+}
+
+/* Cada accion de inicio: icono a la izquierda y texto a la derecha. */
+.home-action {
+  display: grid;
+  grid-template-columns: 68px minmax(0, 1fr);
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+  color: #4dd8c0;
+  font-family: inherit;
+  font-size: clamp(19px, 1.8vw, 31px);
+  font-weight: 500;
+  line-height: 1.08;
+  text-align: left;
+}
+
+/* Solo este boton es clicable; el texto de la accion permanece fuera del boton. */
+.home-action__button {
+  display: block;
+  width: 68px;
+  height: 68px;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+
+/* Cuadro que contiene el icono de una accion. */
+.home-action__asset {
+  display: grid;
+  width: 68px;
+  height: 68px;
+  place-items: center;
+  background: #4dd8c0;
+}
+
+/* Tamano del icono dentro del cuadro de accion. */
+.home-action__asset img {
+  width: 74%;
+  height: 74%;
+  object-fit: contain;
+}
+
+/* Tamano especial del icono de la segunda accion. */
+.home-action:nth-child(2) .home-action__asset img {
+  width: 62%;
+  height: 72%;
+}
+
+/* Tamano especial del icono de la tercera accion. */
+.home-action:nth-child(3) .home-action__asset img {
+  width: 100%;
+  height: 100%;
+}
+
+/* La accion de desarrollo no usa fondo de color. */
+.home-action--dev .home-action__asset {
+  background: transparent;
+}
+
+/* Brillo del icono cuando el cursor pasa por encima del boton. */
+.home-action__button:hover:not(:disabled) .home-action__asset,
+.home-settings:hover {
+  filter: brightness(1.12);
+}
+
+/* Separacion superior de la accion de desarrollo. */
+.home-action--dev {
+  margin-top: 0;
+}
+
+/* Estado de espera del boton de desarrollo. */
+.home-action--dev .home-action__button:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+/* Etiqueta pequena que acompana la accion de desarrollo. */
+.home-action--dev b {
+  display: inline-block;
+  margin-left: 9px;
+  padding: 3px 7px;
+  color: #121417;
+  background: #4dd8c0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  vertical-align: middle;
+}
+
+/* Columna final de proyectos recientes. */
+.home-screen__recent {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  min-width: 0;
+  min-height: 0;
+  gap: 0;
+}
+
+/* Composicion comun: panel y decoraciones se mueven juntos desde el mismo ancla. */
+.home-recent-composition {
+  position: relative;
+  width: min(100%, 821px, calc((100vh - 260px) * 1.14986));
+  flex: 0 1 auto;
+  transform: translateY(calc(clamp(90px, 10vh, 110px) + 76px));
+}
+
+/* PANEL COMPLETO DE RECIENTES: su centro queda anclado en la columna derecha. */
+.home-recent-panel {
+  position: relative;
+  width: min(100%, 821px, calc((100vh - 260px) * 1.14986));
+  height: auto;
+  max-width: 100%;
+  aspect-ratio: 821 / 714;
+  flex: 0 0 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Elementos decorativos que flotan sobre el panel reciente. */
+.home-recent-decoration {
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* asset_3_line.svg fijado a la esquina superior izquierda junto a las cajas. */
+.home-recent-decoration--lines {
+  top: -102px;
+  left: 0;
+  width: 90px;
+  height: 69px;
+  aspect-ratio: 90 / 69;
+}
+
+/* Caja normal fijada a la esquina superior derecha, separada del panel. */
+.home-recent-decoration--box {
+  top: -102px;
+  right: 0;
+  width: 78px;
+  height: 78px;
+}
+
+/* Caja alter pegada a la caja normal y separada del panel. */
+.home-recent-decoration--alter-box {
+  top: -102px;
+  right: 78px;
+  width: 78px;
+  height: 78px;
+}
+
+/* IMAGEN EXACTA: project_panel_background_alter_1.svg, el fondo turquesa del panel de recientes. */
+/* Conserva la proporcion 821:714 y ocupa la caja completa sin deformarse. */
+.home-recent-panel__background {
+  display: block;
+  position: absolute;
+  inset: 0;
+  top: 0px;
+  left: 0px;
+  width: 100%;
+  height: 100%;
+  aspect-ratio: 821 / 714;
+  object-fit: contain;
+}
+
+/* Padding y tamano final del contenido del panel reciente. */
+.home-recent-panel__content {
+  position: absolute;
+  inset: 0;
+  height: auto;
+  min-height: 0;
+  overflow: hidden;
+  padding: 39px 22px 22px;
+}
+
+/* Separacion y orden de las filas recientes. */
+.home-recent-list {
+  gap: 12px;
+  align-content: start;
+  grid-auto-rows: max-content;
+}
+
+/* Alineacion final de cada fila reciente. */
+.home-recent-card {
+  align-items: center;
+  gap: 10px;
+  min-height: 36px;
+}
+
+/* Tamano final del circulo de cada fila reciente. */
+.home-recent-card__circle {
+  width: 25px;
+  height: 25px;
+}
+
+/* Tipografia del nombre y la fecha de cada proyecto reciente. */
+.home-recent-card__name,
+/* Evita que la fecha se encoja o salte de linea. */
+.home-recent-card time {
+  color: #121417;
+  font-family: inherit;
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* Espacio modular entre el nombre del proyecto y su fecha. */
+.home-recent-card time {
+  flex-shrink: 0;
+  margin-left: clamp(16px, 2vw, 32px);
+  white-space: nowrap;
+}
+
+/* El texto de recientes mantiene 30px aunque la ventana aumente de ancho. */
+.home-recent-card__name,
+.home-recent-card time {
+  text-size-adjust: none;
+  -webkit-text-size-adjust: none;
+}
+
+/* Boton para borrar un proyecto reciente. */
+.home-recent-card__delete {
+  display: grid;
+  flex: 0 0 auto;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  padding: 5px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+/* Icono del boton de borrar. */
+.home-recent-card__delete img {
+  width: 100%;
+  height: 100%;
+}
+
+/* Brillo del boton de borrar al pasar el cursor. */
+.home-recent-card__delete:hover {
+  filter: brightness(1.12);
+}
+
+/* Boton de configuracion fijo en la esquina inferior izquierda. */
+.home-settings {
+  position: absolute;
+  left: 2.35vw;
+  bottom: 25px;
+  width: 76px;
+  height: 83px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+/* Imagen del boton de configuracion. */
+.home-settings img {
+  width: 100%;
+  height: 100%;
+}
+
+/* Ajustes de inicio para pantallas medianas. */
+@media (max-width: 1100px) {
+  .home-screen__columns {
+    grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+    gap: 4vw;
+  }
+
+  .home-action {
+    grid-template-columns: 58px minmax(0, 1fr);
+    gap: 13px;
+    font-size: clamp(17px, 1.9vw, 26px);
+  }
+
+  .home-action__button,
+  .home-action__asset {
+    width: 58px;
+    height: 58px;
+  }
+}
+
+/* Ajustes de inicio para pantallas pequenas y moviles. */
+@media (max-width: 820px) {
+  .home-screen {
+    overflow-y: auto;
+  }
+
+  .home-screen__content {
+    padding: 0 24px 110px;
+  }
+
+  .home-screen__columns {
+    grid-template-columns: 1fr;
+    gap: 34px;
+  }
+
+  .home-screen__his-panel {
+    width: min(100%, 330px);
+    margin-bottom: 24px;
+  }
+
+  .home-recent-panel {
+    width: min(100%, calc((100vh - 260px) * 1.14986));
+  }
+
+  .home-recent-decoration--box,
+  .home-recent-decoration--alter-box {
+    top: -78px;
+    width: 60px;
+    height: 60px;
+  }
+
+  .home-recent-decoration--lines {
+    top: -78px;
+    width: 60px;
+    height: auto;
+  }
+
+  .home-recent-decoration--box {
+    right: 0;
+  }
+
+  .home-recent-decoration--alter-box {
+    right: 60px;
+  }
+
+  .home-recent-card time {
+    font-size: 16px;
+    margin-left: 12px;
+  }
+
+  .home-settings {
+    left: 24px;
+    bottom: 22px;
+  }
+}
+
+/* Color del canal de la barra de desplazamiento. */
+::-webkit-scrollbar-track {
+  background: #121417;
+}
+
+/* Color y forma del control de la barra de desplazamiento. */
+::-webkit-scrollbar-thumb {
+  background: #2a2e33;
+  border-radius: 4px;
+}
+
+/* Contenedor general del espacio de trabajo del editor. */
+.app-workspace {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100%;
+  overflow: hidden;
+  background: #121417;
+  color: #e8e9ea;
+  font-family: ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Barra superior del espacio de trabajo. */
+.workspace-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 40px;
+  flex-shrink: 0;
+  padding: 0 10px 0 14px;
+  background: #16181c;
+  border-bottom: 1px solid #23262b;
+}
+
+/* Grupos izquierdo y de vistas dentro de la barra superior. */
+.workspace-header__left,
+/* Separacion interna de los botones de vista. */
+.workspace-header__views {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.workspace-header__views {
+  gap: 4px;
+}
+
+/* Elimina sombras predeterminadas de controles del espacio de trabajo. */
+.workspace-header button,
+.workspace-sidebar button {
+  box-shadow: none;
+}
+
+/* Boton para ocultar la barra lateral. */
+.workspace-sidebar__hide {
+  padding: 4px 6px;
+  border: none;
+  color: #5a5f66;
+  background: transparent;
+  cursor: pointer;
+  font-family: ui-monospace, "SF Mono", "Cascadia Code", monospace;
+  font-size: 12px;
+}
+
+/* Botones para cambiar entre vistas. */
+.workspace-header__views button {
+  padding: 5px 10px;
+  border: none;
+  border-radius: 3px;
+  color: #5a5f66;
+  background: transparent;
+  cursor: pointer;
+  font-family: ui-monospace, "SF Mono", "Cascadia Code", monospace;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+}
+
+/* Vista actualmente seleccionada. */
+.workspace-header__views button.is-active {
+  color: #4dd8c0;
+  background: #1e2226;
+}
+
+/* Boton de plantilla rapida en la barra superior. */
+.workspace-header__quick-template {
+  padding: 5px 10px;
+  border: 1px solid #363b42;
+  border-radius: 3px;
+  color: #7a7f87;
+  background: transparent;
+  cursor: pointer;
+  font-family: ui-monospace, "SF Mono", "Cascadia Code", monospace;
+  font-size: 9px;
+  letter-spacing: 0.06em;
+}
+
+/* Estado hover de la plantilla rapida. */
+.workspace-header__quick-template:hover {
+  border-color: #4dd8c0;
+  color: #4dd8c0;
+}
+
+/* Marca temporal del control de desarrollo. */
+.workspace-header__quick-template b {
+  margin-left: 4px;
+  color: #d8b34d;
+  font-size: 8px;
+}
+
+/* Fuente tecnica compartida por etiquetas pequenas. */
+.workspace-header__version,
+.workspace-sidebar__count,
+.workspace-sidebar__create,
+.editor-page__type {
+  font-family: ui-monospace, "SF Mono", "Cascadia Code", monospace;
+}
+
+/* Version mostrada en la barra superior. */
+.workspace-header__version {
+  color: #3e4247;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+}
+
+.workspace-header__right,
+/* Grupo de controles de ventana del espacio de trabajo. */
+.workspace-header__window-controls {
+  display: flex;
+  align-items: center;
+}
+
+/* Zona derecha de la barra superior. */
+.workspace-header__right {
+  height: 100%;
+  gap: 12px;
+}
+
+/* Tamano y posicion de cada control de ventana. */
+.workspace-header__window-controls button {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  padding: 8px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transform: translateY(-2px);
+}
+
+/* Fondo de los controles al pasar el cursor. */
+.workspace-header__window-controls button:hover {
+  background: #20252a;
+}
+
+/* Fondo del control de cerrar. */
+.workspace-header__window-controls button:last-child:hover {
+  background: #d84d4d;
+}
+
+/* Iconos de los controles de ventana. */
+.workspace-header__window-controls img {
+  width: 100%;
+  height: 100%;
+}
+
+/* Separacion entre controles de ventana. */
+.workspace-header__window-controls {
+  gap: 4px;
+}
+
+/* Area inferior que contiene barra lateral y contenido principal. */
+.workspace-body {
+  position: relative;
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* Barra lateral del espacio de trabajo; width controla su anchura. */
+.workspace-sidebar {
+  display: flex;
+  flex-direction: column;
+  width: 260px;
+  flex-shrink: 0;
+  background: #16181c;
+  border-right: 1px solid #23262b;
+}
+
+/* Cabecera de la barra lateral. */
+.workspace-sidebar__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 72px;
+  gap: 10px;
+  padding: 14px;
+  border-bottom: 1px solid #1f2226;
+}
+
+/* Avatar del proyecto en la barra lateral. */
+.workspace-sidebar__project-avatar {
+  display: grid;
+  width: 68px;
+  align-self: stretch;
+  flex: 0 0 68px;
+  place-items: center;
+  margin: -14px 2px -14px -14px;
+  color: #121417;
+  background-position: center;
+  background-size: cover;
+  cursor: pointer;
+  font-size: 25px;
+  font-weight: 600;
+}
+
+/* Campo de archivo invisible usado para cambiar el avatar. */
+.workspace-sidebar__project-avatar input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+}
+
+/* Nombre del proyecto en la barra lateral. */
+.workspace-sidebar__title {
+  max-width: 130px;
+  overflow: hidden;
+  margin-bottom: 2px;
+  color: #f2f3f4;
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Contador pequeno de elementos del proyecto. */
+.workspace-sidebar__count {
+  color: #4a4e54;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+}
+
+/* Color del boton que oculta la barra lateral. */
+.workspace-sidebar__hide {
+  color: #4a4e54;
+}
+
+/* Pestaña flotante para volver a mostrar la barra lateral. */
+.workspace-sidebar__show {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 10;
+  width: 24px;
+  height: 48px;
+  padding: 0;
+  border: 1px solid #343940;
+  border-right: 1px solid #343940;
+  border-left: none;
+  border-radius: 0 4px 4px 0;
+  color: #7a7f87;
+  background: #1a1d21;
+  cursor: pointer;
+  font-size: 18px;
+}
+
+/* Estado hover de la pestaña para mostrar la barra lateral. */
+.workspace-sidebar__show:hover {
+  border-color: #4dd8c0;
+  color: #4dd8c0;
+}
+
+/* Boton circular de configuracion de la barra lateral. */
+.workspace-sidebar__settings {
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+  padding: 0;
+  border: 1px solid #424850;
+  border-radius: 50%;
+  color: #7a7f87;
+  background: transparent;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 18px;
+}
+
+/* Estado activo o hover de configuracion. */
+.workspace-sidebar__settings:hover,
+.workspace-sidebar__settings.is-active {
+  border-color: #4dd8c0;
+  color: #4dd8c0;
+}
+
+/* Navegacion vertical de secciones del proyecto. */
+.project-sidebar__tabs {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 0;
+}
+
+/* Cada boton de seccion de la navegacion vertical. */
+.project-sidebar__tabs button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border: none;
+  border-left: 2px solid transparent;
+  color: #7a7f87;
+  background: transparent;
+  cursor: pointer;
+  font-family: ui-monospace, "SF Mono", "Cascadia Code", monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-align: left;
+}
+
+/* Seccion activa o resaltada de la navegacion vertical. */
+.project-sidebar__tabs button:hover,
+.project-sidebar__tabs button.is-active {
+  border-left-color: #4dd8c0;
+  color: #4dd8c0;
+  background: #1e2226;
+}
+
+/* Icono pequeno de una seccion del proyecto. */
+.project-sidebar__icon {
+  display: grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  font-size: 9px;
+}
+
+/* Contenedor principal de la vista de papelera. */
+.trash-view {
+  width: min(100%, 760px);
+  min-height: 100%;
+  margin: 0 auto;
+  padding: 64px 48px;
+}
+
+/* Cabecera de la papelera y sus acciones. */
+.trash-view__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+/* Titulo de la papelera. */
+.trash-view h1 {
+  margin: 8px 0 32px;
+  color: #f2f3f4;
+  font-size: 30px;
+  font-weight: 500;
+}
+
+/* Grupo de acciones de la papelera. */
+.trash-view__actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* Boton individual de accion de la papelera. */
+.trash-view__actions button {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  padding: 8px;
+  border: 1px solid #363b42;
+  border-radius: 4px;
+  background: #1a1d21;
+  cursor: pointer;
+}
+
+/* Borde de acciones normales al pasar el cursor. */
+.trash-view__actions button:hover {
+  border-color: #4dd8c0;
+}
+
+/* Borde de la accion destructiva al pasar el cursor. */
+.trash-view__actions button:last-child:hover {
+  border-color: #d84d4d;
+}
+
+/* Iconos de las acciones de la papelera. */
+.trash-view__actions img {
+  width: 100%;
+  height: 100%;
+}
+
+/* Lista de elementos enviados a la papelera. */
+.trash-view__list {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid #2a2e33;
+}
+
+/* Fila individual de la papelera; grid-template-columns controla sus columnas. */
+.trash-view__item {
+  display: grid;
+  grid-template-columns: 20px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  padding: 8px 4px;
+  border-bottom: 1px solid #1f2226;
+  color: #c7c9cc;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+/* Boton de nombre dentro de cada fila de papelera. */
+.trash-view__item button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+/* Texto de fila al pasar el cursor. */
+.trash-view__item button:hover {
+  color: #f2f3f4;
+}
+
+/* Punto de color que indica el tipo del elemento. */
+.trash-view__type-dot {
+  width: 9px;
+  height: 9px;
+  flex: 0 0 9px;
+  border-radius: 50%;
+}
+
+/* Ajuste de posicion para mostrar avisos dentro de la pagina de papelera. */
+.editor-page--trash {
+  position: relative;
+}
+
+/* Aviso flotante de nodo eliminado; top y right controlan su posicion. */
+.trash-node-warning {
+  position: absolute;
+  top: 28px;
+  right: 28px;
+  max-width: 260px;
+  padding: 9px 12px;
+  border: 1px solid #6b5430;
+  border-radius: 4px;
+  color: #d8b34d;
+  background: #241f16;
+  font-size: 11px;
+}
+
+/* Fondo de la fila al pasar el cursor. */
+.trash-view__item:hover {
+  background: #1a1d21;
+}
+
+/* Color de las casillas de seleccion de la papelera. */
+.trash-view__item input {
+  accent-color: #4dd8c0;
+}
+
+/* Metadatos pequenos de cada elemento de papelera. */
+.trash-view__item small {
+  color: #5a5f66;
+  font-family: ui-monospace, "SF Mono", "Cascadia Code", monospace;
+  font-size: 8px;
+  letter-spacing: 0.08em;
+}
+
+/* Mensaje mostrado cuando la papelera esta vacia. */
+.trash-view__empty {
+  padding: 18px 0;
+  color: #5a5f66;
+  font-size: 13px;
+}
+
+/* Boton para crear un elemento desde la barra lateral. */
+.workspace-sidebar__create {
+  padding: 10px 14px;
+  border: none;
+  border-bottom: 1px solid #1f2226;
+  color: #4dd8c0;
+  background: transparent;
+  cursor: pointer;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-align: left;
+}
+
+/* Barra de pestañas de la barra lateral. */
+.workspace-sidebar__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  border-bottom: 1px solid #1f2226;
+}
+
+/* Cada pestaña de la barra lateral. */
+.workspace-sidebar__tabs button {
+  flex: 1 1 33%;
+  min-height: 34px;
+  padding: 7px 5px;
+  border: none;
+  color: #5a5f66;
+  background: transparent;
+  cursor: pointer;
+  font-family: ui-monospace, "SF Mono", "Cascadia Code", monospace;
+  font-size: 8px;
+  letter-spacing: 0.06em;
+}
+
+/* Pestaña activa de la barra lateral. */
+.workspace-sidebar__tabs button.is-active {
+  color: #4dd8c0;
+  box-shadow: inset 0 -2px #4dd8c0;
+}
+
+/* Zona desplazable de los paneles de nodos. */
+.node-panels {
+  flex: 1;
+  overflow-y: auto;
+}
+
+/* Titulo de un grupo de paneles de nodos. */
+.node-panels__heading {
+  padding: 14px 12px 8px;
+  color: #5a5f66;
+  font-family: ui-monospace, "SF Mono", "Cascadia Code", monospace;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+}
+
+/* Lista vertical de paneles de nodos. */
+.node-panels__list {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Boton individual de seleccion de nodo. */
+.node-panels__list button {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 9px 12px;
+  border: none;
+  border-left: 2px solid transparent;
+  color: #c7c9cc;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+/* Nodo seleccionado o resaltado en la lista. */
+.node-panels__list button:hover,
+.node-panels__list button.is-selected {
+  border-left-color: #4dd8c0;
+  background: #1e2226;
+}
+
+/* Tipo o metadato pequeno del nodo. */
+.node-panels__list small {
+  color: #5a5f66;
+  font-family: ui-monospace, "SF Mono", "Cascadia Code", monospace;
+  font-size: 8px;
+  letter-spacing: 0.08em;
+}
+
+/* Mensaje cuando no hay nodos disponibles. */
+.node-panels__empty {
+  padding: 12px;
+  color: #5a5f66;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* Separador arrastrable entre barra lateral y contenido; width controla su zona. */
+.workspace-resizer {
+  width: 4px;
+  flex-shrink: 0;
+  cursor: col-resize;
+}
+
+/* Contenido principal del espacio de trabajo. */
+.workspace-main {
+  flex: 1;
+  overflow-y: auto;
+  background: #121417;
+}
+
+/* Variante del contenido que ocupa el lienzo grafico. */
+.workspace-main--graph {
+  overflow: hidden;
+}
+
+/* Contenedor visible de la vista de grafo. */
+.graph-view {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+  padding: 30px 34px;
+  overflow: hidden;
+}
+
+/* Barra de herramientas superpuesta al grafo. */
+.graph-view__toolbar {
+  position: relative;
+  z-index: 4;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+/* Etiqueta pequena sobre el titulo del grafo. */
+.graph-view__eyebrow {
+  color: #5a5f66;
+  font-family: ui-monospace, "SF Mono", "Cascadia Code", monospace;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+}
+
+/* Titulo principal de la vista de grafo. */
+.graph-view h1 {
+  margin: 8px 0 0;
+  color: #f2f3f4;
+  font-size: 28px;
+  font-weight: 500;
+}
+
+/* Referencia de posicion para el menu del grafo. */
+.graph-view__menu-wrap {
+  position: relative;
+}
+
+/* Boton que abre el menu del grafo. */
+.graph-view__menu-button {
+  width: 36px;
+  height: 36px;
+  border: 1px solid #343940;
+  border-radius: 4px;
+  color: #c7c9cc;
+  background: #1a1d21;
+  cursor: pointer;
+  font-size: 22px;
+  line-height: 1;
+}
+
+/* Estado hover del boton de menu del grafo. */
+.graph-view__menu-button:hover {
+  border-color: #4dd8c0;
+  color: #4dd8c0;
+}
+
+/* Menu desplegable del grafo; top y right lo colocan respecto al boton. */
+.graph-view__menu {
+  position: absolute;
+  top: 44px;
+  right: 0;
+  width: 180px;
+  padding: 12px;
+  border: 1px solid #343940;
+  border-radius: 5px;
+  background: #1a1d21;
+  box-shadow: 0 10px 26px rgb(0 0 0 / 35%);
+}
+
+/* Titulo interno del menu del grafo. */
+.graph-view__menu-title {
+  margin-bottom: 10px;
+  color: #5a5f66;
+  font-family: ui-monospace, "SF Mono", "Cascadia Code", monospace;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+}
+
+/* Etiqueta con interruptor de opciones del grafo. */
+.graph-view__toggle {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: #e8e9ea;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+/* Color del interruptor de opciones del grafo. */
+.graph-view__toggle input {
+  accent-color: #4dd8c0;
+}
+
+/* Lienzo grande y arrastrable del grafo; width, height y transform controlan su escala. */
+.graph-view__canvas {
+  position: relative;
+  width: 5000px;
+  min-width: 5000px;
+  min-height: 3200px;
+  height: 3200px;
+  margin-top: -8px;
+  transform-origin: top left;
+  cursor: grab;
+  touch-action: none;
+}
+
+/* Cursor mientras se arrastra el lienzo. */
+.graph-view__canvas:active {
+  cursor: grabbing;
+}
+
+/* SVG que dibuja las conexiones del grafo. */
+.graph-view__canvas svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+/* Linea normal entre nodos del grafo. */
+.graph-edge {
+  stroke: #8d969b;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  opacity: 0.42;
+}
+
+/* Linea especial que representa una relacion conceptual. */
+.graph-edge--concept {
+  stroke: #4dd8c0;
+  stroke-dasharray: 4 6;
+  opacity: 0.28;
+}
+
+/* Atenua los elementos que no pertenecen al nodo activo. */
+.graph-view--node-active .graph-edge,
+.graph-view--node-active .graph-node:not(.graph-node--active) {
+  opacity: 0.16;
+}
+
+/* Mantiene visible el nodo activo. */
+.graph-view--node-active .graph-node--active {
+  opacity: 1;
+}
+
+/* Nodo normal del grafo; width, min-height y padding controlan su caja. */
+.graph-node {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  width: 132px;
+  min-height: 112px;
+  transform: translate(-50%, -50%);
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  align-items: center;
+  padding: 8px;
+  border: none;
+  border-radius: 0;
+  color: #e8e9ea;
+  background: transparent;
+  cursor: pointer;
+  text-align: center;
+}
+
+/* Mantiene transparente el fondo del nodo al pasar el cursor. */
+.graph-node:hover:not(:disabled) {
+  background: transparent;
+}
+
+/* Circulo visual que representa un nodo. */
+.graph-node__dot {
+  display: block;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 auto;
+  border: 4px solid #121417;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgb(232 233 234 / 30%), 0 6px 18px rgb(0 0 0 / 28%);
+}
+
+/* Resalta el circulo del nodo al pasar el cursor. */
+.graph-node:hover .graph-node__dot {
+  box-shadow: 0 0 0 2px #e8e9ea, 0 6px 18px rgb(0 0 0 / 32%);
+}
+
+/* Miniatura reutilizada por los nodos de imagen del grafo. */
+.graph-node__image {
+  display: block;
+  width: 46px;
+  height: 46px;
+  flex: 0 0 auto;
+  border: 4px solid #121417;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgb(232 233 234 / 30%), 0 6px 18px rgb(0 0 0 / 28%);
+  object-fit: cover;
+}
+
+/* Forma triangular usada para nodos conceptuales. */
+.graph-node__dot--concept {
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+  border-radius: 0;
+}
+
+/* Nombre del nodo dentro del grafo. */
+.graph-node strong {
+  max-width: 124px;
+  overflow: hidden;
+  color: #dfe2e3;
+  font-size: 13px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Variante conceptual del nodo, con mayor tamano y cursor de arrastre. */
+.graph-node--concept {
+  width: 140px;
+  min-height: 128px;
+  color: #4dd8c0;
+  cursor: grab;
+}
+
+/* Cursor durante el arrastre de un nodo. */
+.graph-node--concept:active,
+.graph-node:active {
+  cursor: grabbing;
+}
+
+/* Tamano del indicador de los nodos conceptuales. */
+.graph-node--concept .graph-node__dot {
+  width: 50px;
+  height: 50px;
+  border-width: 5px;
+}
+
+/* Texto de los nodos conceptuales. */
+.graph-node--concept strong {
+  color: #4dd8c0;
+  font-size: 14px;
+}
+
+/* Identificador pequeno mostrado bajo el nombre del nodo. */
+.graph-node span {
+  font-family: ui-monospace, "SF Mono", "Cascadia Code", monospace;
+  font-size: 8px;
+  letter-spacing: 0.08em;
+}
+
+/* Mensaje centrado cuando el grafo no tiene contenido. */
+.graph-view__empty {
+  display: grid;
+  min-height: 500px;
+  place-items: center;
+  color: #5a5f66;
+  font-size: 13px;
+}
+
+/* Ajustes del grafo para pantallas pequenas. */
+@media (max-width: 700px) {
+  .graph-view {
+    padding: 24px 18px;
+    overflow: auto;
+  }
+
+  .graph-view__canvas {
+    min-width: 760px;
+  }
+}
+
+/* Estado vacio general del contenido del espacio de trabajo. */
+.workspace-empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  height: 100%;
+  gap: 10px;
+  color: #4a4e54;
+  font-size: 13px;
+}
+
+/* Contenedor de la pagina de configuracion del proyecto. */
+.project-settings {
+  display: flex;
+  width: min(100%, 760px);
+  min-height: 100%;
+  margin: 0 auto;
+  padding: 80px 48px;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Cabecera visual de configuracion con imagen y texto. */
+.project-settings__hero {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  text-align: left;
+}
+
+/* Grupo del boton volver y el titulo de configuracion. */
+.project-settings__heading {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+/* Boton para regresar desde configuracion. */
+.project-settings__back {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  place-items: center;
+  padding: 7px;
+  border: 1px solid #363b42;
+  border-radius: 4px;
+  background: #1a1d21;
+  cursor: pointer;
+}
+
+/* Estado hover del boton volver. */
+.project-settings__back:hover {
+  border-color: #4dd8c0;
+}
+
+/* Icono del boton volver. */
+.project-settings__back img {
+  width: 100%;
+  height: 100%;
+}
+
+/* Imagen o avatar grande del proyecto. */
+.project-settings__image {
+  display: grid;
+  width: 128px;
+  height: 128px;
+  flex: 0 0 128px;
+  place-items: center;
+  border-radius: 8px;
+  color: #121417;
+  background-position: center;
+  background-size: cover;
+  font-size: 48px;
+  font-weight: 600;
+}
+
+/* Etiqueta tecnica sobre el titulo de configuracion. */
+.project-settings__eyebrow {
+  margin-bottom: 8px;
+  color: #4dd8c0;
+  font-family: ui-monospace, "SF Mono", "Cascadia Code", monospace;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+}
+
+/* Nombre grande del proyecto en configuracion. */
+.project-settings h1 {
+  max-width: 430px;
+  margin: 0;
+  color: #f2f3f4;
+  font-size: 34px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+/* Campo de configuracion; margin-top controla su distancia de la cabecera. */
+.project-settings__field {
+  display: flex;
+  width: min(100%, 430px);
+  margin-top: 64px;
+  gap: 14px;
+  flex-direction: column;
+  color: #9da3aa;
+  font-size: 12px;
+}
+
+/* Selector de opciones del proyecto. */
+.project-settings__field select {
+  padding: 11px 12px;
+  border: 1px solid #363b42;
+  border-radius: 4px;
+  outline: none;
+  color: #e8e9ea;
+  background: #1a1d21;
+  cursor: pointer;
+  font: inherit;
+}
+
+/* Borde del selector cuando esta enfocado. */
+.project-settings__field select:focus {
+  border-color: #4dd8c0;
+}
+
+/* Ajustes de configuracion y papelera para moviles pequenos. */
+@media (max-width: 560px) {
+  .project-settings {
+    align-items: stretch;
+    padding: 48px 24px;
+  }
+
+  .project-settings__hero {
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .project-settings__image {
+    width: 84px;
+    height: 84px;
+    flex-basis: 84px;
+    font-size: 32px;
+  }
+
+  .project-settings h1 {
+    font-size: 25px;
+  }
+
+  .trash-view {
+    padding: 48px 24px;
+  }
+}
+
+/* Pagina que contiene el editor de texto; padding controla su posicion interna. */
+.editor-page {
+  width: 100%;
+  max-width: none;
+  min-height: 100%;
+  padding: 36px 36px 36px 96px;
+}
+
+/* Tipo del nodo encima del titulo del editor. */
+.editor-page__type {
+  margin-bottom: 8px;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+}
+
+/* Titulo del nodo en el editor. */
+.editor-page__title {
+  margin: 0 0 20px;
+  color: #f2f3f4;
+  font-size: 26px;
+  font-weight: 500;
+}
+
+/* Boton generico del menu contextual. */
+.ctx-menu-btn {
+  padding: 8px 12px;
+  border: none;
+  border-radius: 3px;
+  color: #c7c9cc;
+  background: transparent;
+  cursor: pointer;
+  font-family: ui-sans-serif, -apple-system, sans-serif;
+  font-size: 12px;
+  text-align: left;
+}
+
+/* Estado hover normal del menu contextual. */
+.ctx-menu-btn:hover {
+  color: #121417;
+  background: #4dd8c0;
+}
+
+/* Estado hover destructivo del menu contextual. */
+.ctx-menu-btn.danger:hover {
+  color: #f2f3f4;
+  background: #d84d4d;
+}
+
+/* Encabezados escritos dentro del contenido del editor. */
+.editor-content h1,
+.editor-content h2,
+.editor-content h3,
+.editor-content h4 {
+  margin-top: 1em;
+  margin-bottom: 0.5em;
+  color: #f2f3f4;
+  font-weight: bold;
+}
+
+/* Tamano del encabezado de nivel 1. */
+.editor-content h1 { font-size: 2em; }
+/* Tamano del encabezado de nivel 2. */
+.editor-content h2 { font-size: 1.5em; }
+/* Tamano del encabezado de nivel 3. */
+.editor-content h3 { font-size: 1.17em; }
+/* Tamano y color del encabezado de nivel 4. */
+.editor-content h4 { color: #c7c9cc; font-size: 1em; }
+
+/* Linea horizontal insertada en el editor. */
+.editor-content hr {
+  margin: 18px 0;
+  border: none;
+  border-top: 1px solid rgb(232 233 234 / 35%);
+}
+
+/* Espacio reservado para un separador editable. */
+.editor-content [data-divider] {
+  min-height: 24px;
+  padding: 4px 0;
+}
+
+/* Bloque de referencia externa dentro del editor. */
+.editor-content [data-globe] {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 10px;
+  min-height: 56px;
+  margin: 12px 0;
+  padding: 12px;
+  background: #1a1d21;
+  border: 1px solid #343940;
+  border-radius: 4px;
+}
+
+.editor-page-index {
+  display: grid;
+  gap: 8px;
+  margin: 14px 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  user-select: none;
+  cursor: default;
+}
+
+.editor-page-index__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0;
+  color: #e8e9ea;
+  cursor: pointer;
+  user-select: none;
+  border: none;
+  background: transparent;
+}
+
+.editor-page-index__item:hover,
+.editor-page-index__item:focus-visible {
+  color: #4dd8c0;
+  outline: none;
+  background: transparent;
+}
+
+.editor-page-index__marker {
+  color: #7a7f87;
+}
+
+.editor-page-index__label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.editor-page-index__empty {
+  color: #7a7f87;
+  font-size: 13px;
+}
+
+/* Icono de una referencia externa. */
+.editor-content [data-globe-icon] {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  color: #d8b34d;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* Impide seleccionar accidentalmente el separador. */
+.editor-content [data-divider] { user-select: none; }
+
+/* Imagen del icono de referencia externa. */
+.editor-content [data-globe-icon] img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  cursor: pointer;
+}
+
+/* Contenido textual flexible de la referencia externa. */
+.editor-content [data-globe-content] { min-width: 0; }
+
+/* Imagenes del editor; max-width evita que desborden. */
+.editor-content img {
+  max-width: 100%;
+  height: auto;
+  cursor: nwse-resize;
+}
+/* Altura minima del area editable. */
+.editor-content { min-height: 24px; }
+/* Margen vertical de los parrafos. */
+.editor-content p { margin: 0.5em 0; }
+/* Estilo del texto en negrita. */
+.editor-content b { color: #e8e9ea; font-weight: bold; }
+/* Estilo del texto en cursiva. */
+.editor-content i { color: #c7c9cc; font-style: italic; }
+/* Estilo del texto resaltado. */
+.editor-content mark { color: #121417; background: #d8b34d; }
+/* Codigo en linea dentro del editor. */
+.editor-content code {
+  padding: 2px 4px;
+  color: #d8b34d;
+  background: #1a1d21;
+  border-radius: 3px;
+  font-family: ui-monospace, "SF Mono", "Cascadia Code", monospace;
+  font-size: 0.9em;
+}
+/* Bloque de codigo con desplazamiento horizontal. */
+.editor-content pre {
+  padding: 10px 12px;
+  overflow-x: auto;
+  color: #d8dadd;
+  background: #1a1d21;
+  border: 1px solid #2a2e33;
+  border-radius: 4px;
+  white-space: pre-wrap;
+}
+
+/* Vista dedicada para recursos de imagen. */
+.image-node-view {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) minmax(280px, 0.8fr);
+  gap: 28px;
+  min-height: 420px;
+}
+.image-node-view__preview {
+  display: grid;
+  min-height: 280px;
+  place-items: center;
+  padding: 0;
+  background: transparent;
+}
+.image-node-view__preview img {
+  max-width: 100%;
+  max-height: min(560px, 60vh);
+  object-fit: contain;
+}
+.image-node-view__panel { min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.image-node-view__panel::before {
+  content: "DETALLES DEL RECURSO";
+  color: #7a7f87;
+  font: 10px ui-monospace, "SF Mono", "Cascadia Code", monospace;
+  letter-spacing: 0.08em;
+}
+.image-node-view__description {
+  width: 100%;
+  padding: 8px 8px;
+  border: 1px solid #343940;
+  border-radius: 4px;
+  outline: none;
+  color: #f2f3f4;
+  background: #1a1d21;
+  font-size: 12px;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 60px;
+}
+.image-node-view__description::placeholder { color: #7a7f87; }
+.image-node-view__description:focus { border-color: #4dd8c0; }
+.image-node-view__title {
+  width: 100%;
+  padding: 0 0 10px;
+  border: none;
+  border-bottom: 1px solid #343940;
+  outline: none;
+  color: #f2f3f4;
+  background: transparent;
+  font-size: 24px;
+}
+.image-node-view__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 18px 0 12px;
+}
+.image-node-view__actions button,
+.image-node-view__button {
+  padding: 7px 10px;
+  border: 1px solid #343940;
+  border-radius: 3px;
+  color: #e8e9ea;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  text-decoration: none;
+  transition: border-color 120ms ease, color 120ms ease, background 120ms ease, transform 120ms ease;
+}
+.image-node-view__actions button:hover,
+.image-node-view__button:hover {
+  border-color: #4dd8c0;
+  color: #4dd8c0;
+  background: rgba(77, 216, 192, 0.05);
+  transform: translateY(-1px);
+}
+.image-node-view__actions .is-danger:hover { border-color: #d84d4d; color: #d87878; }
+.image-node-view__button input { display: none; }
+.image-node-view__button[style*="background"] {
+  background: rgba(77, 216, 192, 0.08);
+}
+.image-node-view__message { margin-bottom: 14px; color: #d8b34d; font-size: 12px; }
+.image-node-view__metadata {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.8fr) minmax(0, 1.2fr);
+  gap: 8px 14px;
+  margin: 0;
+  font-size: 12px;
+}
+.image-node-view__metadata dt { color: #7a7f87; }
+.image-node-view__metadata dd { margin: 0; color: #c7c9cc; overflow-wrap: anywhere; }
+.image-node-view__empty { color: #d87878; }
+.changelog-list { display: grid; gap: 18px; max-width: 720px; margin-top: 24px; }
+.changelog-entry { padding: 16px 0; border-top: 1px solid #343940; }
+.changelog-entry__meta { color: #4dd8c0; font: 11px ui-monospace, "SF Mono", "Cascadia Code", monospace; letter-spacing: 0.08em; }
+.changelog-entry h2 { margin: 8px 0 10px; color: #f2f3f4; font-size: 18px; }
+.changelog-entry ul { margin: 0; padding-left: 18px; color: #c7c9cc; font-size: 13px; line-height: 1.7; }
+@media (max-width: 760px) {
+  .image-node-view { grid-template-columns: 1fr; }
+}
+/* Tabla insertada en el contenido. */
+.editor-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+}
+/* Celdas y encabezados de la tabla. */
+.editor-content th,
+.editor-content td {
+  padding: 6px 8px;
+  border: 1px solid #343940;
+  text-align: left;
+  vertical-align: top;
+}
+/* Encabezado de tabla. */
+.editor-content th { color: #f2f3f4; background: #1a1d21; }
+/* Indicador visual de una mencion dentro del editor. */
+.editor-content .editor-mention::before { content: "•"; margin-right: 4px; }
+/* Imagen asociada a una mencion. */
+.editor-content .editor-mention {
+  display: inline-flex;
+  align-items: center;
+  min-height: 42px;
+  max-width: 100%;
+  vertical-align: middle;
+}
+.editor-content .editor-mention img {
+  display: block;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  border-radius: 3px;
+  object-fit: contain;
+  vertical-align: middle;
+}
+.editor-content .editor-mention[data-mention-mode="full"] {
+  display: block;
+  width: 100%;
+  min-height: 0;
+  margin: 10px 0;
+}
+.editor-content .editor-mention[data-mention-mode="full"]::before { display: none; }
+.editor-content .editor-mention[data-mention-mode="full"] img {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: none;
+  flex: 0 1 auto;
+  object-fit: contain;
+}
+.editor-content .editor-mention[data-mention-mode="full"][data-mention-align="center"] img { margin-left: auto; margin-right: auto; }
+.editor-content .editor-mention[data-mention-mode="full"][data-mention-align="right"] img { margin-left: auto; margin-right: 0; }
+/* Cursor de una mencion eliminada. */
+.editor-content [data-deleted-mention="true"] { cursor: pointer; }
+/* Color de seleccion de texto del editor. */
+.editor-content ::selection { color: #e8e9ea; background: rgba(77, 216, 192, 0.35); }
+/* Borde de una linea seleccionada. */
+.editor-content [data-line-selected="true"] { outline: 1px solid #4dd8c0; outline-offset: 3px; }
+/* Evita seleccionar caracteres mientras se dibuja el cuadro de bloques. */
+.editor-content[data-block-selecting="true"] { user-select: none; }
+/* Desactiva gestos de toque en el control de linea. */
+[data-line-control="true"] { touch-action: none; }
+/* Apariencia temporal de una linea durante el arrastre. */
+.editor-content [data-line-dragging="true"] {
+  opacity: 0.42;
+  transition: opacity 140ms ease;
+}
+/* Apariencia del destino posible durante el arrastre. */
+.editor-content [data-line-drop-target="true"] {
+  opacity: 0.72;
+  transition: opacity 140ms ease, outline-color 140ms ease;
+}
+/* Texto de placeholder superpuesto al editor. */
+.editor-placeholder-overlay {
+  position: fixed;
+  color: #5a5f66;
+  pointer-events: none;
+  z-index: 18;
+}
+
+/* Linea que indica donde se soltara un bloque. */
+.editor-line-preview {
+  position: fixed;
+  height: 1px;
+  border-top: 2px solid #4dd8c0;
+  pointer-events: none;
+  opacity: 0.72;
+  z-index: 24;
+  transition: top 140ms ease, opacity 140ms ease;
+}
+
+/* Marco de seleccion de un bloque completo. */
+.editor-block-selection {
+  position: fixed;
+  pointer-events: none;
+  border: 1px solid #4dd8c0;
+  background: rgb(77 216 192 / 18%);
+  z-index: 29;
+}
+
+
+/* Ajuste generado por el editor visual para este elemento concreto. */
+.lui-300f78b9 {
+  margin-left: 0px;
+  margin-top: 1px;
+}

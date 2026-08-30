@@ -1,0 +1,11 @@
+{
+  "_generated": true,
+  "schemaVersion": 1,
+  "atomComponentsPaths": [],
+  "compositeComponentsPaths": [
+    "src\\components"
+  ],
+  "pagesPaths": [
+    "src\\screens"
+  ]
+}
