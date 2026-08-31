@@ -6,9 +6,21 @@ export interface ChangelogEntry {
   changes: string[];
 }
 
-export const CURRENT_VERSION = "0.2.23";
+export const CURRENT_VERSION = "0.2.24";
 
 export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
+  {
+  version: "0.2.24",
+  date: "2026-08-31",
+  title: "UNDO/REDO POR PÁGINA",
+  category: "Fix",
+  changes: [
+    "Se corrigió un bug donde el historial de undo/redo de una Página podía mantenerse al cambiar a otro Nodo - Página.",
+    "Ahora el historial de cambios de portada e icono se reinicia correctamente al cambiar de página, evitando que Ctrl+Z o Ctrl+Y afecten accidentalmente al Nodo - Página equivocado.",
+    "Se reforzó el aislamiento del historial de edición para que cada Nodo - Página mantenga únicamente sus propios cambios recientes.",
+    "Se validó la corrección con una compilación limpia mediante npm run build.",
+  ],
+},
   {
     version: "0.2.23",
     date: "2026-08-31",

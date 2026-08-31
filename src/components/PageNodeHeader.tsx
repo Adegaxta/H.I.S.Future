@@ -35,6 +35,12 @@ export default function PageNodeHeader({
     metaRef.current = next;
   }, [node.content]);
 
+  // El historial de undo/redo es por página: al cambiar de nodo no debe arrastrarse a otro.
+  useEffect(() => {
+    undoRef.current = [];
+    redoRef.current = [];
+  }, [node.id]);
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (!(event.ctrlKey || event.metaKey) || !["z", "y"].includes(event.key.toLowerCase())) return;

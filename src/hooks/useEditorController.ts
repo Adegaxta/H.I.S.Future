@@ -1728,12 +1728,12 @@ export function useEditorController({
         range.insertNode(fragment);
         const nextLine = lastInserted || originalNextLine;
         if (nextLine && nextLine !== originalNextLine) {
-          const nextRange = document.createRange();
-          nextRange.selectNodeContents(nextLine);
-          nextRange.collapse(true);
-          selection?.removeAllRanges();
-          selection?.addRange(nextRange);
-        }
+  const nextRange = document.createRange();
+  nextRange.selectNodeContents(nextLine);
+  nextRange.collapse(true);
+  selection?.removeAllRanges();
+  selection?.addRange(nextRange);
+}
       } else {
         document.execCommand("insertHTML", false, clean);
       }

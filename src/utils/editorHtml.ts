@@ -1,3 +1,5 @@
+import draftAsset from "../assets/icons/draft.svg";
+
 const SAFE_URL = /^(https?:|data:image\/|blob:)/i;
 
 export function escapeHtml(value: string): string {
@@ -116,9 +118,17 @@ function safeInlineStyle(style: string): string {
   return declarations.join("; ");
 }
 
+function hasCalloutStyle(element: HTMLElement): boolean {
+  const style = element.getAttribute("style") || "";
+  const hasBackground = /background(?:-color)?\s*:\s*(?!transparent\b|none\b)[^;]+/i.test(style);
+  const hasRounding = /border-radius\s*:\s*[^;]+/i.test(style);
+  const hasPadding = /padding\s*:\s*[^;]+/i.test(style);
+  return hasBackground && (hasRounding || hasPadding);
+}
+
 function isCallout(element: HTMLElement): boolean {
   const marker = `${element.className} ${element.getAttribute("data-block-type") || ""}`;
-  return /callout|globe|toggle|highlight-block|card|note|quote/i.test(marker);
+  return /callout|globe|toggle|highlight-block|card|note|quote/i.test(marker) || hasCalloutStyle(element);
 }
 
 function getAnytypeMarker(element: HTMLElement): string {
@@ -169,17 +179,26 @@ function anytypeGlobeToHtml(element: HTMLElement): string | null {
   const looksLikeGlobe =
     /callout|globe|toggle|card|note|quote|highlight-block|highlight|bubble|pill/i.test(marker) ||
     element.matches("[data-globe], [data-callout], [data-toggle], .globe, .callout, .toggle, .note, .quote, .highlight-block, .card") ||
-    !!element.querySelector("[data-emoji], .emoji, .icon, svg, img, [data-callout-icon]");
+    !!element.querySelector("[data-emoji], .emoji, .icon, svg, img, [data-callout-icon]") ||
+    hasCalloutStyle(element);
   if (!looksLikeGlobe) return null;
   const icon =
     element.querySelector<HTMLElement>("[data-emoji], [data-callout-icon], .emoji, .icon, svg, img, span") ||
     element.querySelector<HTMLElement>("p strong, p b");
-  const content = Array.from(element.childNodes)
-    .filter((child) => child !== icon && !(icon && child instanceof Node && icon.contains(child)))
-    .map((child) => sanitizeEditorHtml(child.textContent || ""))
-    .join("");
+  const content = sanitizeEditorHtml(
+    Array.from(element.childNodes)
+      .filter((child) => child !== icon && !(icon && child instanceof Node && icon.contains(child)))
+      .map((child) =>
+        child.nodeType === Node.ELEMENT_NODE
+          ? (child as HTMLElement).outerHTML
+          : escapeHtml(child.textContent || ""),
+      )
+      .join(""),
+  );
   const fallback = element.innerHTML.trim() ? element.innerHTML : "<p>Contenido</p>";
-  const iconHtml = icon ? sanitizeEditorHtml(icon.outerHTML) : "Draft";
+  const iconHtml = icon
+    ? sanitizeEditorHtml(icon.outerHTML)
+    : `<img src="${draftAsset}" alt="Draft" />`;
   const body = content || fallback;
   return `<div data-globe="true"><span data-globe-icon="true" contenteditable="false">${iconHtml}</span><div data-globe-content="true">${body}</div></div>`;
 }
@@ -259,7 +278,7 @@ export function sanitizeEditorHtml(html: string): string {
         const iconContent = icon ? visit(icon) : "";
         const style = safeInlineStyle(element.getAttribute("style") || "");
         const safeStyle = style ? ` style="${escapeHtml(style)}"` : "";
-        return `<div data-globe="true"${safeStyle}><span data-globe-icon="true" contenteditable="false">${iconContent || "Draft"}</span><div data-globe-content="true">${content}</div></div>`;
+        return `<div data-globe="true"${safeStyle}><span data-globe-icon="true" contenteditable="false">${iconContent || `<img src="${draftAsset}" alt="Draft" />`}</span><div data-globe-content="true">${content}</div></div>`;
       }
     }
     const children = Array.from(element.childNodes).map(visit).join("");
