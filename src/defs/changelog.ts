@@ -6,9 +6,21 @@ export interface ChangelogEntry {
   changes: string[];
 }
 
-export const CURRENT_VERSION = "0.2.26";
+export const CURRENT_VERSION = "0.2.27";
 
 export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
+  {
+    version: "0.2.27",
+    date: "2026-08-31",
+    title: "SELECCIÓN Y ARRASTRE DEL CUADRO",
+    category: "Fix",
+    changes: [
+      "Se aisló la lógica del cuadro de selección y del arrastre asociado dentro del hook de selector, dejando el controlador como coordinador del editor.",
+      "La selección múltiple por rectángulo queda con una responsabilidad única, más fácil de mantener y de extender con nuevas reglas sin tocar la edición del contenido.",
+      "Se reforzó la consistencia del flujo de pointerdown/pointermove/pointerup para que el selector no mezcle su lógica con el borrado ni con el control de bloques.",
+      "Se validó la refactorización con una compilación limpia mediante npm run build.",
+    ],
+  },
   {
     version: "0.2.26",
     date: "2026-08-31",

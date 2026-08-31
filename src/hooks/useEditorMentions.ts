@@ -359,19 +359,6 @@ export function useEditorMentions({
     syncContent();
   }, [imageResizeRef, isMentionImage, syncContent]);
 
-  const onEditorSelectionMove = useCallback((event: PointerEvent<HTMLDivElement>) => {
-    const start = blockSelectionRef.current;
-    if (!start) return;
-    const left = Math.min(start.x, event.clientX);
-    const top = Math.min(start.y, event.clientY);
-    setBlockSelection({
-      left,
-      top,
-      width: Math.abs(event.clientX - start.x),
-      height: Math.abs(event.clientY - start.y),
-    });
-  }, [blockSelectionRef, setBlockSelection]);
-
   return {
     createMention,
     insertMentionWithSpacing,
@@ -380,7 +367,6 @@ export function useEditorMentions({
     onEditorPointerDown,
     onEditorPointerMove,
     onEditorPointerUp,
-    onEditorSelectionMove,
     alignImage,
     isMentionImage,
   };

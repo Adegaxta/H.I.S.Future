@@ -453,7 +453,7 @@ export function useEditorController({
     !block.textContent?.trim() &&
     !block.querySelector("img, .editor-mention");
 
-  const { isTextEntryElement, selectAllBlocks, updateSelectionToolbar: updateSelectionToolbarFromHook, updatePlaceholder: updatePlaceholderFromHook } = useEditorSelection({
+  const { isTextEntryElement, selectAllBlocks, updateSelectionToolbar: updateSelectionToolbarFromHook, updatePlaceholder: updatePlaceholderFromHook, finalizeSelectionBox, onEditorSelectionMove } = useEditorSelection({
     editorRef,
     blockSelector,
     textLineSelector,
@@ -468,6 +468,9 @@ export function useEditorController({
     isLineEmpty,
     clearLineSelection,
     clearNativeSelection,
+    blockSelectionRef,
+    blockSelection,
+    setBlockSelection,
   });
   const updatePlaceholder = updatePlaceholderFromHook;
   const updateSelectionToolbar = updateSelectionToolbarFromHook;
@@ -538,7 +541,6 @@ export function useEditorController({
     onMentionPointerDown,
     onEditorPointerDown,
     onEditorPointerMove,
-    onEditorSelectionMove,
     alignImage,
   } = mentionController;
 
@@ -1059,6 +1061,15 @@ export function useEditorController({
         return;
       }
     }
+    const selectedBlocks = selectedLineBlocks.filter((line) => line.isConnected);
+    if (
+      (event.key === "Delete" || event.key === "Backspace") &&
+      selectedBlocks.length > 0
+    ) {
+      event.preventDefault();
+      deleteSelectedLine();
+      return;
+    }
     if (
       lineActionBlock &&
       (event.key === "Delete" || event.key === "Backspace")
@@ -1253,26 +1264,7 @@ export function useEditorController({
   };
 
   const onEditorPointerUp = () => {
-    if (blockSelectionRef.current && blockSelection) {
-      const editor = editorRef.current;
-      if (editor && blockSelection.width > 6 && blockSelection.height > 6) {
-        const selected = Array.from(editor.querySelectorAll<HTMLElement>(textLineSelector)).filter((block) => {
-          const rect = block.getBoundingClientRect();
-          return rect.right >= blockSelection.left && rect.left <= blockSelection.left + blockSelection.width && rect.bottom >= blockSelection.top && rect.top <= blockSelection.top + blockSelection.height;
-        });
-        if (selected.length) {
-          clearLineSelection();
-          selected.forEach((block) =>
-            block.setAttribute("data-line-selected", "true"),
-          );
-          setSelectedLineBlocks(selected);
-          const selection = window.getSelection();
-          selection?.removeAllRanges();
-        }
-      }
-    }
-    blockSelectionRef.current = null;
-    setBlockSelection(null);
+    finalizeSelectionBox();
     if (!imageResizeRef.current) return;
     if (isMentionImageLegacy(imageResizeRef.current.image)) {
       imageResizeRef.current = null;
