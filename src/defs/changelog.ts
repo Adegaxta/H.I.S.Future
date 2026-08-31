@@ -6,9 +6,22 @@ export interface ChangelogEntry {
   changes: string[];
 }
 
-export const CURRENT_VERSION = "0.2.21";
+export const CURRENT_VERSION = "0.2.22";
 
 export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
+  {
+    version: "0.2.22",
+    date: "2026-08-31",
+    title: "PORTADA UPDATE",
+    category: "Editor",
+    changes: [
+      "Se agregó el sistema modular de portada e icono para los Nodos - Página, usando referencias a Nodos - Imagen del proyecto.",
+      "Ahora es posible elegir una imagen existente desde una galería o cargar una imagen externa, que se convierte automáticamente en un Nodo - Imagen.",
+      "La portada ocupa una franja horizontal amplia sin deformar la imagen, mientras el icono aparece a la izquierda del título en un tamaño mayor.",
+      "Se añadió la descripción persistente de la página con el placeholder 'Añadir descripción...' y el control para ocultarla o mostrarla.",
+      "Se ajustó la posición de Nodo - Página y sus botones para alinearlos con el título, y se evitó mostrar el placeholder de comandos al hacer click directamente en divisores.",
+    ],
+  },
   {
     version: "0.2.21",
     date: "2026-08-31",

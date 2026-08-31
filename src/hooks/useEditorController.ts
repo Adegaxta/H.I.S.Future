@@ -2021,6 +2021,7 @@ export function useEditorController({
     finishLineDrag,
     lineActionBlock,
     setLineActionBlock,
+    setPlaceholderBlock,
     deleteSelectedLine,
     alignImage,
     openLineCommands,

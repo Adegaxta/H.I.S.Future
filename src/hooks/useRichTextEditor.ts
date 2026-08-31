@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import type { FormEventHandler, FocusEventHandler, RefObject } from "react";
 import type { NodeItem } from "../types/nodes";
+import { getPageMeta, setPageMeta } from "../utils/pageMeta";
 
 interface UseRichTextEditorOptions {
   node: NodeItem | undefined;
@@ -54,7 +55,11 @@ export function useRichTextEditor({
   const syncContent = () => {
     cancelScheduled();
     if (editorRef.current && node) {
-      onContentChange(node.id, editorRef.current.innerHTML);
+      const html = editorRef.current.innerHTML;
+      const content = node.content.includes("<!--hisfuture-page-meta:")
+        ? setPageMeta(html, getPageMeta(node.content))
+        : html;
+      onContentChange(node.id, content);
     }
   };
 

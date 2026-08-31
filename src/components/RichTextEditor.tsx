@@ -599,7 +599,9 @@ export default function RichTextEditor({
           controller.updatePlaceholder();
         }}
         onClick={(event) => {
-                    const indexItem = (event.target as HTMLElement).closest<HTMLElement>("[data-page-index-item]");
+          const target = event.target as HTMLElement;
+          const clickedDivider = Boolean(target.closest("[data-divider]"));
+          const indexItem = target.closest<HTMLElement>("[data-page-index-item]");
           if (indexItem) {
             event.preventDefault();
             event.stopPropagation();
@@ -623,7 +625,8 @@ export default function RichTextEditor({
           if (!readOnly && controller.ensureEditorLine()) {
             controller.syncContent();
           }
-          controller.updatePlaceholder();
+          if (clickedDivider) controller.setPlaceholderBlock?.(null);
+          else controller.updatePlaceholder();
         }}
         onKeyDown={readOnly ? undefined : controller.onKeyDown}
         onBeforeInput={

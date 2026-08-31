@@ -10,6 +10,7 @@ import SidebarTree from "./SidebarTree";
 import NodePanels from "./NodePanels";
 import RichTextEditor from "./RichTextEditor";
 import ImageNodeView from "./ImageNodeView";
+import PageNodeHeader from "./PageNodeHeader";
 import GraphView from "./GraphView";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { CHANGELOG_ENTRIES, CURRENT_VERSION } from "../defs/changelog";
@@ -847,14 +848,56 @@ export default function AppWorkspace({
 
           {projectTab !== "settings" && view === "list" && selectedNode && selectedType && (
             <div className="editor-page">
-              <div
-                className="editor-page__type"
-                style={{ color: getNodeDefinition(selectedType).color }}
-              >
-                {getNodeDisplayLabel(selectedType)}
-              </div>
-              <h1 className="editor-page__title">{selectedNode.name}</h1>
-              {selectedNode.type === "imagen" ? (
+              {selectedNode.type === "pagina" ? (
+                <>
+                  <PageNodeHeader
+                    node={selectedNode}
+                    nodes={workspace.nodes}
+                    onContentChange={workspace.updateContent}
+                    onImageFileUpload={(file) => createImageNodeFromFile(file, selectedNode.parentId)}
+                  />
+                  <RichTextEditor
+                    node={selectedNode}
+                    nodes={workspace.nodes}
+                    deletedNodes={workspace.deletedNodes}
+                    editorRef={editorRef}
+                    onContentChange={workspace.updateContent}
+                    setSelectedId={(id) => workspace.setSelectedId(id)}
+                    setExpanded={workspace.setExpanded}
+                    pendingNodeDrop={workspace.pendingEditorNodeDrop}
+                    onNodeDropHandled={workspace.clearPendingEditorNodeDrop}
+                    onOpenDeletedNode={(id) => {
+                      setProjectTab("settings");
+                      setSettingsPanel("trash");
+                      setSelectedTrashNodeId(id);
+                    }}
+                    onImageFilePaste={async (file: File, parentId?: string | null) => {
+                      return createImageNodeFromFile(file, parentId ?? selectedNode.parentId ?? null);
+                    }}
+                    onOpenNodeView={(id) => {
+                      setSelectedTrashNodeId(null);
+                      setProjectTab("workspace");
+                      setView("list");
+                      workspace.setSelectedId(id);
+                    }}
+                    style={{
+                      display: "block",
+                      width: "100%",
+                      minHeight: 0,
+                      minWidth: 0,
+                      padding: 0,
+                      border: "none",
+                      resize: "none",
+                      background: "transparent",
+                      color: "#E8E9EA",
+                      fontSize: "14px",
+                      fontFamily: "inherit",
+                      lineHeight: "1.6",
+                      outline: "none",
+                    }}
+                  />
+                </>
+              ) : selectedNode.type === "imagen" ? (
                 <ImageNodeView
                   node={selectedNode}
                   onContentChange={updateImageContent}
