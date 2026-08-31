@@ -384,25 +384,64 @@ export function useEditorBlocks({
   const updateLineControlAt = useCallback((clientX: number, clientY: number) => {
     const editor = editorRef.current;
     if (!editor) return;
-    let block = getLineControlBlock(document.elementFromPoint(clientX, clientY));
-    if (!block)
+
+    const elementsUnderPointer = Array.from(document.elementsFromPoint(clientX, clientY));
+    let block = elementsUnderPointer
+      .map((element) => element.closest(blockSelector) as HTMLElement | null)
+      .find((candidate): candidate is HTMLElement => {
+        if (!candidate || candidate === editor || !editor.contains(candidate)) return false;
+        return isRootEditorBlock(candidate);
+      }) ?? null;
+
+    if (!block) {
+      block = getLineControlBlock(document.elementFromPoint(clientX, clientY));
+    }
+    if (!block) {
       block = Array.from(editor.querySelectorAll<HTMLElement>(blockSelector)).find((candidate) => {
         if (!isRootEditorBlock(candidate)) return false;
         const rect = candidate.getBoundingClientRect();
         return clientY >= rect.top && clientY <= rect.bottom;
       }) || null;
+    }
+
     if (!block) {
       controls.setLineControl(null);
       return;
     }
+
     if (block.matches("[data-divider]")) setPlaceholderBlock(null);
+
     const rect = block.getBoundingClientRect();
+    const blockMid = rect.top + rect.height / 2;
+    const pointerInside = clientY >= rect.top && clientY <= rect.bottom;
+    let before = clientY < blockMid;
+
+    if (pointerInside && Math.abs(clientY - blockMid) <= Math.min(12, rect.height * 0.08)) {
+      before = clientY <= blockMid;
+    }
+
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0 && selection.anchorNode && block.contains(selection.anchorNode) && !pointerInside) {
+      const range = selection.getRangeAt(0);
+      const anchorRect = range.getBoundingClientRect();
+      const hasCaretRect = anchorRect && (anchorRect.width > 0 || anchorRect.height > 0);
+      if (hasCaretRect) {
+        before = anchorRect.top + anchorRect.height / 2 < blockMid;
+      } else if (selection.anchorNode.nodeType === Node.TEXT_NODE) {
+        const anchorElement = selection.anchorNode.parentElement;
+        if (anchorElement && block.contains(anchorElement)) {
+          const anchorBounds = anchorElement.getBoundingClientRect();
+          before = anchorBounds.top + anchorBounds.height / 2 < blockMid;
+        }
+      }
+    }
+
     controls.setLineControl({
       block,
       top: rect.top,
-      left: Math.max(8, rect.left - 56),
-      before: clientY < rect.top + rect.height / 2,
-      nearLeft: clientX <= rect.left + 18,
+      left: Math.max(8, rect.left - 30),
+      before,
+      nearLeft: clientX <= rect.left + 140,
       hasContent: !isLineEmpty(block),
       inside: false,
       pointerY: clientY,

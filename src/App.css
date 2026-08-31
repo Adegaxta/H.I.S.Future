@@ -2364,7 +2364,7 @@ body,
 .editor-content [data-globe-content] p,
 .editor-content [data-globe-content] blockquote,
 .editor-content [data-globe-content] li {
-  margin: 1.1em 0;
+  margin: 0.7em 0;
 }
 /* Estilo del texto en negrita. */
 .editor-content b { font-weight: bold; }
@@ -2567,6 +2567,7 @@ body,
 .editor-content[data-block-selecting="true"] { user-select: none; }
 /* Desactiva gestos de toque en el control de linea. */
 [data-line-control="true"] { touch-action: none; }
+[data-line-gutter="true"] { pointer-events: none; }
 /* Apariencia temporal de una linea durante el arrastre. */
 .editor-content [data-line-dragging="true"] {
   opacity: 0.42;

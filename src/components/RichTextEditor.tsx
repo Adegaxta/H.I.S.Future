@@ -373,6 +373,7 @@ export default function RichTextEditor({
             width: "124px",
             height: `${Math.max(28, controller.lineControl.block.getBoundingClientRect().height)}px`,
             zIndex: 23,
+            pointerEvents: "none",
           }}
         />
       )}
@@ -448,7 +449,7 @@ export default function RichTextEditor({
                 controller.lineControl.block.getBoundingClientRect().top,
               ),
             ),
-            left: controller.lineControl.left,
+            left: Math.max(8, controller.lineControl.block.getBoundingClientRect().left - 30),
             width: "24px",
             height: `${Math.max(24, controller.lineControl.block.getBoundingClientRect().height)}px`,
             padding: 0,

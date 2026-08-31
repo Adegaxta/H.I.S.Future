@@ -6,9 +6,21 @@ export interface ChangelogEntry {
   changes: string[];
 }
 
-export const CURRENT_VERSION = "0.2.28";
+export const CURRENT_VERSION = "0.2.29";
 
 export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
+  {
+    version: "0.2.29",
+    date: "2026-08-31",
+    title: "DETECCIÓN DE BLOQUE ACTUAL EN POINTERMOVE",
+    category: "Fix",
+    changes: [
+      "Se corrigió la causa por la que el bloque objetivo quedaba pegado al primero detectado durante los movimientos del cursor entre líneas consecutivas del editor.",
+      "La reevaluación del bloque actual pasa a basarse en la posición real del puntero en cada pointermove, evitando que un gutter o bloque anterior intercepte la detección del siguiente objetivo.",
+      "La lógica de control de líneas ya no queda bloqueada por un bloque previo, ni por el historial de entrada del puntero, y permite cambiar de objetivo con el movimiento real del cursor entre bloques contiguos.",
+      "Se validó la corrección con una compilación limpia mediante npm run build.",
+    ],
+  },
   {
     version: "0.2.28",
     date: "2026-08-31",
