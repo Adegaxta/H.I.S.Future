@@ -2,13 +2,25 @@ export interface ChangelogEntry {
   version: string;
   date: string;
   title: string;
-  category: "Editor" | "Imágenes" | "Persistencia" | "Sistema";
+  category: "Editor" | "Imágenes" | "Persistencia" | "Sistema" | "Fix";
   changes: string[];
 }
 
-export const CURRENT_VERSION = "0.2.18";
+export const CURRENT_VERSION = "0.2.19";
 
 export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
+  {
+  version: "0.2.19",
+  date: "2026-08-30",
+  title: "TEXT & INDEX FIXES",
+  category: "Fix",
+  changes: [
+    "Se corrigió el formato de texto en negrita para que conserve su color base en lugar de cambiar a blanco.",
+    "Se cambió el color base del texto del editor de gris a blanco.",
+    "Se corrigió el índice para permitir hacer clic correctamente en sus entradas.",
+    "Se mejoró el funcionamiento del índice para evitar errores durante la navegación."
+  ],
+},
   {
   version: "0.2.18",
   date: "2026-08-30",

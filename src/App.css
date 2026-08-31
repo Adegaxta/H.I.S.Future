@@ -2049,7 +2049,7 @@ body,
 /* Margen vertical de los parrafos. */
 .editor-content p { margin: 0.5em 0; }
 /* Estilo del texto en negrita. */
-.editor-content b { color: #e8e9ea; font-weight: bold; }
+.editor-content b { font-weight: bold; }
 /* Estilo del texto en cursiva. */
 .editor-content i { color: #c7c9cc; font-style: italic; }
 /* Estilo del texto resaltado. */

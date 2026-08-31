@@ -106,15 +106,22 @@ export function useEditorController({
     const block = element.closest(blockSelector) as HTMLElement | null;
     return block && block !== editor && editor.contains(block) ? block : null;
   };
-  const getTextEditorBlock = (source: Node | null) => {
+    const getTextEditorBlock = (source: Node | null) => {
     const editor = editorRef.current;
     if (!editor || !source) return null;
     const element =
       source.nodeType === Node.ELEMENT_NODE
         ? (source as HTMLElement)
         : source.parentElement;
-    const block = element?.closest(textLineSelector) as HTMLElement | null;
-    return block && editor.contains(block) ? block : null;
+    if (!element) return null;
+    const direct = element.closest(textLineSelector) as HTMLElement | null;
+    if (direct && editor.contains(direct)) return direct;
+    const globeContent = element.closest("[data-globe-content]") as HTMLElement | null;
+    if (globeContent && editor.contains(globeContent)) {
+      const fallback = globeContent.querySelector<HTMLElement>(textLineSelector);
+      if (fallback) return fallback;
+    }
+    return null;
   };
   const getLineControlBlock = (source: Node | null) => {
     const editor = editorRef.current;
@@ -1029,90 +1036,62 @@ export function useEditorController({
       name.textContent = label;
       row.appendChild(name);
 
-      const focusHeading = () => {
-        const editor = editorRef.current;
-        if (!editor) return;
-        const candidates = Array.from(
-  editor.querySelectorAll<HTMLElement>("h1, h2, h3, h4, h5, h6, [data-heading], .editor-heading, .heading"),
-).filter((heading) => {
-  if (heading.closest("[data-page-index]")) return false;
-  if (heading.closest("[data-globe]")) return false;
-  return true;
-});
-        const matching = candidates.find((heading) => heading.id === id || heading.dataset.pageIndexId === id)
-          ?? candidates[index]
-          ?? document.getElementById(id);
-        if (!matching) return;
-        const target = document.getElementById(id) || matching;
-        if (!target.id) target.id = id;
-        target.setAttribute("tabindex", "-1");
-        const selection = window.getSelection();
-        selection?.removeAllRanges();
-        if (document.activeElement instanceof HTMLElement && document.activeElement !== document.body) {
-          (document.activeElement as HTMLElement).blur();
-        }
-        if (editor instanceof HTMLElement) editor.blur();
-        target.blur();
-        const rect = target.getBoundingClientRect();
-        const targetTop = rect.top + window.scrollY - 96;
-        const distance = Math.max(0, targetTop - window.scrollY);
-
-        if (distance > 2600) {
-          window.scrollTo({ top: targetTop, behavior: "auto" });
-        } else if (distance > 900) {
-          const acceleratedTop = window.scrollY + Math.min(
-            distance,
-            200 + Math.pow(distance / 260, 1.9) * 18,
-          );
-          window.scrollTo({ top: acceleratedTop, behavior: "auto" });
-        } else {
-          window.scrollTo({ top: targetTop, behavior: "smooth" });
-        }
-
-        target.scrollIntoView({ block: "start", behavior: "smooth" });
-        const previous = target.style.boxShadow;
-        const previousBg = target.style.background;
-        const highlightMs = Math.min(2200, 500 + Math.pow(Math.max(0, distance) / 260, 1.55) * 90);
-        target.style.boxShadow = "0 0 0 2px rgba(77, 216, 192, 0.7)";
-        target.style.background = "rgba(77, 216, 192, 0.08)";
-        window.setTimeout(() => {
-          target.style.boxShadow = previous;
-          target.style.background = previousBg;
-        }, highlightMs);
-      };
-
-      row.addEventListener("pointerdown", (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        const selection = window.getSelection();
-        selection?.removeAllRanges();
-        if (document.activeElement instanceof HTMLElement && document.activeElement !== document.body) {
-          (document.activeElement as HTMLElement).blur();
-        }
-        const editor = editorRef.current;
-        if (editor instanceof HTMLElement) editor.blur();
-      });
-      row.addEventListener("mousedown", (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-      });
-      row.addEventListener("click", (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        const selection = window.getSelection();
-        selection?.removeAllRanges();
-        focusHeading();
-      });
-      row.addEventListener("keydown", (event) => {
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          focusHeading();
-        }
-      });
-      block.appendChild(row);
+            
+            block.appendChild(row);
     });
 
     return block;
+  };
+
+    const focusPageIndexEntry = (id: string) => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    const candidates = Array.from(
+      editor.querySelectorAll<HTMLElement>("h1, h2, h3, h4, h5, h6, [data-heading], .editor-heading, .heading"),
+    ).filter((heading) => {
+      if (heading.closest("[data-page-index]")) return false;
+      if (heading.closest("[data-globe]")) return false;
+      return true;
+    });
+    const matching = candidates.find((heading) => heading.id === id || heading.dataset.pageIndexId === id)
+      ?? document.getElementById(id);
+    if (!matching) return;
+    const target = document.getElementById(id) || matching;
+    if (!target.id) target.id = id;
+    target.setAttribute("tabindex", "-1");
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    if (document.activeElement instanceof HTMLElement && document.activeElement !== document.body) {
+      (document.activeElement as HTMLElement).blur();
+    }
+    if (editor instanceof HTMLElement) editor.blur();
+    target.blur();
+    const rect = target.getBoundingClientRect();
+    const targetTop = rect.top + window.scrollY - 96;
+    const distance = Math.max(0, targetTop - window.scrollY);
+
+    if (distance > 2600) {
+      window.scrollTo({ top: targetTop, behavior: "auto" });
+    } else if (distance > 900) {
+      const acceleratedTop = window.scrollY + Math.min(
+        distance,
+        200 + Math.pow(distance / 260, 1.9) * 18,
+      );
+      window.scrollTo({ top: acceleratedTop, behavior: "auto" });
+    } else {
+      window.scrollTo({ top: targetTop, behavior: "smooth" });
+    }
+
+    target.scrollIntoView({ block: "start", behavior: "smooth" });
+    const previous = target.style.boxShadow;
+    const previousBg = target.style.background;
+    const highlightMs = Math.min(2200, 500 + Math.pow(Math.max(0, distance) / 260, 1.55) * 90);
+    target.style.boxShadow = "0 0 0 2px rgba(77, 216, 192, 0.7)";
+    target.style.background = "rgba(77, 216, 192, 0.08)";
+    window.setTimeout(() => {
+      target.style.boxShadow = previous;
+      target.style.background = previousBg;
+    }, highlightMs);
   };
 
   const insertNodeMention = (nodeId: string, x: number, y: number) => {
@@ -1519,6 +1498,13 @@ export function useEditorController({
     dismissEditorMenus();
   };
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    const indexItem = (event.target as HTMLElement).closest<HTMLElement>("[data-page-index-item]");
+    if (indexItem && (event.key === "Enter" || event.key === " ")) {
+      event.preventDefault();
+      const id = indexItem.dataset.pageId;
+      if (id) focusPageIndexEntry(id);
+      return;
+    }
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z" && !event.shiftKey) {
       if (restoreStructuralUndo()) {
         event.preventDefault();
@@ -2056,5 +2042,7 @@ export function useEditorController({
     focusOrCreatePageLine,
     clearStructuralUndo,
     buildPageIndexBlock,
+    focusPageIndexEntry,
+    
   };
 }

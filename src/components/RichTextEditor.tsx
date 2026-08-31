@@ -598,6 +598,14 @@ export default function RichTextEditor({
           controller.updatePlaceholder();
         }}
         onClick={(event) => {
+                    const indexItem = (event.target as HTMLElement).closest<HTMLElement>("[data-page-index-item]");
+          if (indexItem) {
+            event.preventDefault();
+            event.stopPropagation();
+            const id = indexItem.dataset.pageId;
+            if (id) controller.focusPageIndexEntry(id);
+            return;
+          }
           if (!readOnly && event.target === event.currentTarget) {
             controller.focusOrCreatePageLine(event.clientY);
           }
