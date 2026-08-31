@@ -613,16 +613,20 @@ export default function RichTextEditor({
             if (id) controller.focusPageIndexEntry(id);
             return;
           }
-          if (!readOnly && event.target === event.currentTarget) {
+          if (!readOnly && event.target === event.currentTarget && controller.selectedLineBlocks.length === 0) {
             controller.focusOrCreatePageLine(event.clientY);
           }
           const clickedBlock = controller.getEditorBlock?.(event.target as Node) ?? null;
           if (!readOnly && clickedBlock && clickedBlock.matches("p, h1, h2, h3, h4, blockquote, li, [data-page-index]")) {
             const currentSelected = controller.selectedLineBlocks.filter((line) => line.isConnected);
-            if (!(event.ctrlKey || event.metaKey) && currentSelected.length > 0) {
-              controller.clearLineSelection?.();
-              controller.setSelectedLineBlocks?.([]);
-              controller.setLineActionBlock?.(null);
+            if (currentSelected.length > 0) {
+              const isWithinCurrentSelection = currentSelected.includes(clickedBlock);
+              if (!(event.ctrlKey || event.metaKey) && !isWithinCurrentSelection) {
+                controller.clearLineSelection?.();
+                controller.setSelectedLineBlocks?.([]);
+                controller.setLineActionBlock?.(null);
+              }
+              return;
             }
           }
           changeGlobeIcon(event);

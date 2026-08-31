@@ -6,9 +6,22 @@ export interface ChangelogEntry {
   changes: string[];
 }
 
-export const CURRENT_VERSION = "0.2.27";
+export const CURRENT_VERSION = "0.2.28";
 
 export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
+  {
+    version: "0.2.28",
+    date: "2026-08-31",
+    title: "BLOQUES DE TEXTO Y BORRADO DE SELECCIÓN",
+    category: "Fix",
+    changes: [
+      "Se ajustó la separación visual de los bloques de texto para que cada bloque normal quede más claro sin afectar a los títulos ni a la estructura del editor.",
+      "La separación se aplicó tanto a los bloques de texto normales del editor como a los contenidos textuales que viven dentro de los globos, manteniendo una lectura más limpia y consistente.",
+      "Se corrigió la eliminación con Supr / Backspace para que borre los bloques seleccionados reales del editor y no deje el estado de selección colgando ni borre texto dentro del bloque equivocadamente.",
+      "Se reforzó la gestión de selección múltiple para que el borrado use los bloques marcados y no falle cuando no hay un bloque de acción activo.",
+      "Se validó el resultado con una compilación limpia mediante npm run build.",
+    ],
+  },
   {
     version: "0.2.27",
     date: "2026-08-31",

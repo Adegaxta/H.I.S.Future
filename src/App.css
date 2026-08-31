@@ -2235,8 +2235,8 @@ body,
 .editor-content h2,
 .editor-content h3,
 .editor-content h4 {
-  margin-top: 1em;
-  margin-bottom: 0.5em;
+  margin-top: 1.15em;
+  margin-bottom: 0.65em;
   color: #f2f3f4;
   font-weight: bold;
 }
@@ -2252,15 +2252,15 @@ body,
 
 /* Linea horizontal insertada en el editor. */
 .editor-content hr {
-  margin: 18px 0;
+  margin: 12px 0;
   border: none;
-  border-top: 1px solid rgb(232 233 234 / 35%);
+  border-top: 1px solid rgb(232 233 234 / 25%);
 }
 
 /* Espacio reservado para un separador editable. */
 .editor-content [data-divider] {
-  min-height: 24px;
-  padding: 4px 0;
+  min-height: 18px;
+  padding: 2px 0;
 }
 
 /* Bloque de referencia externa dentro del editor. */
@@ -2357,8 +2357,15 @@ body,
 }
 /* Altura minima del area editable. */
 .editor-content { min-height: 24px; }
-/* Margen vertical de los parrafos. */
-.editor-content p { margin: 0.5em 0; }
+/* Separacion clara para bloques de texto normales y dentro de globos; no afecta a titulos. */
+.editor-content p,
+.editor-content blockquote,
+.editor-content li,
+.editor-content [data-globe-content] p,
+.editor-content [data-globe-content] blockquote,
+.editor-content [data-globe-content] li {
+  margin: 1.1em 0;
+}
 /* Estilo del texto en negrita. */
 .editor-content b { font-weight: bold; }
 /* Estilo del texto en cursiva. */

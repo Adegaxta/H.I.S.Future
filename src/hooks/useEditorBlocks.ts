@@ -186,9 +186,9 @@ export function useEditorBlocks({
 
   const deleteSelectedLine = useCallback(() => {
     const blocks = selectedLineBlocks.filter((line) => line.isConnected);
-    const targets = blocks.includes(lineActionBlock!)
+    const targets = blocks.length
       ? blocks
-      : lineActionBlock
+      : lineActionBlock && lineActionBlock.isConnected
         ? [lineActionBlock]
         : [];
     if (!targets.length) return;
@@ -298,14 +298,15 @@ export function useEditorBlocks({
 
     const computed = getComputedStyle(block);
     const clone = block.cloneNode(true) as HTMLElement;
+    const rect = block.getBoundingClientRect();
     clone.removeAttribute("data-line-dragging");
     clone.removeAttribute("data-line-selected");
     clone.removeAttribute("data-line-drop-target");
     clone.style.pointerEvents = "none";
     clone.style.position = "relative";
     clone.style.margin = "0";
-    clone.style.display = "inline-block";
-    clone.style.width = "auto";
+    clone.style.display = "block";
+    clone.style.width = `${Math.max(rect.width, 120)}px`;
     clone.style.minWidth = "0";
     clone.style.maxWidth = "none";
     clone.style.minHeight = "0";
@@ -330,13 +331,14 @@ export function useEditorBlocks({
       node.removeAttribute("data-line-drop-target");
     });
 
-    const opacity = 0.28 + Math.min(block.getBoundingClientRect().height / 220, 0.46);
+    const opacity = 0.28 + Math.min(rect.height / 220, 0.46);
     preview.innerHTML = "";
     preview.appendChild(clone);
     preview.style.opacity = String(Math.min(0.9, opacity));
     preview.style.transform = "none";
     preview.style.left = `${x + 18}px`;
     preview.style.top = `${y + 18}px`;
+    preview.style.width = `${Math.max(rect.width, 120)}px`;
     preview.style.boxShadow = "none";
     preview.style.border = "none";
     preview.style.background = "transparent";

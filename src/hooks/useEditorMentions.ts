@@ -288,7 +288,21 @@ export function useEditorMentions({
         getTextEditorBlock(selection.focusNode) === targetBlock,
     );
     const isTextInteraction = Boolean(targetBlock && !targetBlock.matches("[data-divider]"));
-    if (!image && !isTextInteraction && (!hasActiveTextCaret || selectedLineBlocks.length > 0)) {
+    const editorSurfaceHit = !target.closest(
+      "button, [data-line-control], [data-page-index-item], [data-page-index], [data-mention-id], .editor-mention, [data-no-resize='true'], img, [data-globe-icon]",
+    );
+    const isPrimaryMouseDragStart = event.button === 0 &&
+      (event.buttons & 1) === 1 &&
+      !image &&
+      editorSurfaceHit &&
+      (!hasActiveTextCaret || selectedLineBlocks.length > 0) &&
+      !isTextInteraction;
+    if (isPrimaryMouseDragStart) {
+      const selection = window.getSelection();
+      selection?.removeAllRanges();
+      if (document.activeElement instanceof HTMLElement && editorRef.current?.contains(document.activeElement)) {
+        document.activeElement.blur();
+      }
       blockSelectionRef.current = { x: event.clientX, y: event.clientY };
       setBlockSelection(null);
       event.currentTarget.setPointerCapture(event.pointerId);

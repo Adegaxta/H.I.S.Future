@@ -30,7 +30,7 @@ interface EditorControllerOptions {
 
 const blockSelector =
   "p, h1, h2, h3, h4, blockquote, li, [data-divider], [data-globe], [data-page-index]";
-const textLineSelector = "p, h1, h2, h3, h4, blockquote, li, [data-divider], [data-page-index]";
+const textLineSelector = "p, h1, h2, h3, h4, blockquote, li, [data-divider], [data-globe], [data-page-index]";
 
 export function useEditorController({
   node,
@@ -334,10 +334,27 @@ export function useEditorController({
       }
     };
     const handleKeyDown = (event: globalThis.KeyboardEvent) => {
-      if (document.visibilityState === "hidden" || !document.hasFocus()) {
+      if (document.visibilityState === "hidden") {
         return;
       }
-      if (event.key === "Escape") dismissEditorMenus();
+      const blocks = selectedLineBlocks.filter((line) => line.isConnected);
+      const hasSelectionMode = blocks.length > 0;
+      if (event.key === "Escape") {
+        dismissEditorMenus();
+        return;
+      }
+      const isTextInput =
+        event.target instanceof HTMLElement &&
+        (event.target.closest("input, textarea") || event.target.isContentEditable);
+      if ((event.key === "Delete" || event.key === "Backspace") && hasSelectionMode && !isTextInput) {
+        event.preventDefault();
+        event.stopPropagation();
+        deleteSelectedLine();
+        return;
+      }
+      if (!document.hasFocus() && !hasSelectionMode) {
+        return;
+      }
     };
     document.addEventListener("pointerdown", handlePointerDown);
     document.addEventListener("keydown", handleKeyDown);
@@ -1005,8 +1022,14 @@ export function useEditorController({
     const iconSelection = selection?.anchorNode?.parentElement?.closest(
       "[data-globe-icon]",
     );
+    const selectedBlocks = selectedLineBlocks.filter((line) => line.isConnected);
+    if ((event.key === "Delete" || event.key === "Backspace") && selectedBlocks.length > 0) {
+      event.preventDefault();
+      event.stopPropagation();
+      deleteSelectedLine();
+      return;
+    }
     if (event.key === "Tab") {
-      const selectedBlocks = selectedLineBlocks.filter((line) => line.isConnected);
       if (selectedBlocks.length) {
         event.preventDefault();
         selectedBlocks.forEach((block) => {
@@ -1060,15 +1083,6 @@ export function useEditorController({
         selectAllBlocks();
         return;
       }
-    }
-    const selectedBlocks = selectedLineBlocks.filter((line) => line.isConnected);
-    if (
-      (event.key === "Delete" || event.key === "Backspace") &&
-      selectedBlocks.length > 0
-    ) {
-      event.preventDefault();
-      deleteSelectedLine();
-      return;
     }
     if (
       lineActionBlock &&

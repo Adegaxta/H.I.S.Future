@@ -155,8 +155,17 @@ export function useEditorSelection({
 
       if (selected.length) {
         clearLineSelection();
-        selected.forEach((block) => block.setAttribute("data-line-selected", "true"));
+        selected.forEach((block) => {
+          block.setAttribute("data-line-selected", "true");
+          if (!block.matches("[data-divider], [data-globe], [data-page-index]")) block.contentEditable = "false";
+        });
         setSelectedLineBlocks(selected);
+        const selection = window.getSelection();
+        selection?.removeAllRanges();
+        if (document.activeElement instanceof HTMLElement && editor.contains(document.activeElement)) {
+          document.activeElement.blur();
+        }
+      } else {
         const selection = window.getSelection();
         selection?.removeAllRanges();
       }
@@ -168,7 +177,14 @@ export function useEditorSelection({
 
   const onEditorSelectionMove = useCallback((event: PointerEvent<HTMLDivElement>) => {
     const start = blockSelectionRef.current;
-    if (!start) return;
+    if (!start || (event.buttons & 1) === 0) {
+      blockSelectionRef.current = null;
+      setBlockSelection(null);
+      return;
+    }
+    const deltaX = Math.abs(event.clientX - start.x);
+    const deltaY = Math.abs(event.clientY - start.y);
+    if (deltaX < 8 && deltaY < 8) return;
     const left = Math.min(start.x, event.clientX);
     const top = Math.min(start.y, event.clientY);
     setBlockSelection({
