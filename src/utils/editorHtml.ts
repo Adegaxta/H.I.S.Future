@@ -252,6 +252,7 @@ export function sanitizeEditorHtml(html: string): string {
     "data-mention-mode",
     "data-mention-id",
     "data-mention-align",
+    "data-no-resize",
     "href",
     "rowspan",
     "src",

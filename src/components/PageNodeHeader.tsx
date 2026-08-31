@@ -3,6 +3,7 @@ import type { NodeItem } from "../types/nodes";
 import { getNodeDefinition, getNodeDisplayLabel } from "../defs/nodeTypes";
 import { getImageResourceInfo } from "../utils/imageResource";
 import { DEFAULT_PAGE_META, getPageMeta, setPageMeta, type PageMeta } from "../utils/pageMeta";
+import { useNodeScopedEditorHistory } from "../hooks/useEditorHistory";
 
 interface PageNodeHeaderProps {
   node: NodeItem;
@@ -24,8 +25,7 @@ export default function PageNodeHeader({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [headerPositionOpen, setHeaderPositionOpen] = useState(false);
   const [textPositionOpen, setTextPositionOpen] = useState(false);
-  const undoRef = useRef<PageMeta[]>([]);
-  const redoRef = useRef<PageMeta[]>([]);
+  const history = useNodeScopedEditorHistory<PageMeta>(node.id, 50);
   const metaRef = useRef(meta);
   const settingsRef = useRef<HTMLSpanElement>(null);
 
@@ -35,31 +35,25 @@ export default function PageNodeHeader({
     metaRef.current = next;
   }, [node.content]);
 
-  // El historial de undo/redo es por página: al cambiar de nodo no debe arrastrarse a otro.
-  useEffect(() => {
-    undoRef.current = [];
-    redoRef.current = [];
-  }, [node.id]);
-
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (!(event.ctrlKey || event.metaKey) || !["z", "y"].includes(event.key.toLowerCase())) return;
       if ((event.target as HTMLElement | null)?.closest(".editor-content")) return;
-      const history = event.key.toLowerCase() === "z" && !event.shiftKey ? undoRef : redoRef;
-      const target = history.current.pop();
-      if (!target) return;
+
+      const isUndo = event.key.toLowerCase() === "z" && !event.shiftKey;
+      const current = metaRef.current;
+      const next = isUndo ? history.undo(current) : history.redo(current);
+      if (next === undefined) return;
+
       event.preventDefault();
       event.stopPropagation();
-      const current = metaRef.current;
-      const opposite = event.key.toLowerCase() === "z" && !event.shiftKey ? redoRef : undoRef;
-      opposite.current.push(current);
-      metaRef.current = target;
-      setMeta(target);
-      onContentChange(node.id, setPageMeta(node.content, target));
+      metaRef.current = next;
+      setMeta(next);
+      onContentChange(node.id, setPageMeta(node.content, next));
     };
     window.addEventListener("keydown", onKeyDown, true);
     return () => window.removeEventListener("keydown", onKeyDown, true);
-  }, [node.content, node.id, onContentChange]);
+  }, [history, node.content, node.id, onContentChange]);
 
   useEffect(() => {
     if (!settingsOpen) return;
@@ -93,8 +87,7 @@ export default function PageNodeHeader({
 
   const updateMeta = (next: PageMeta) => {
     if (JSON.stringify(next) === JSON.stringify(metaRef.current)) return;
-    undoRef.current.push(metaRef.current);
-    redoRef.current = [];
+    history.push(metaRef.current);
     metaRef.current = next;
     setMeta(next);
     onContentChange(node.id, setPageMeta(node.content, next));

@@ -6,9 +6,34 @@ export interface ChangelogEntry {
   changes: string[];
 }
 
-export const CURRENT_VERSION = "0.2.24";
+export const CURRENT_VERSION = "0.2.26";
 
 export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
+  {
+    version: "0.2.26",
+    date: "2026-08-31",
+    title: "EDITOR MODULAR Y HISTORIAL POR PÁGINA",
+    category: "Fix",
+    changes: [
+      "Se separó la lógica de menciones, selección y bloques del controlador principal para dejar un editor más claro y mantenible sin duplicar responsabilidades.",
+      "Se corrigió la duplicación de funciones y eventos en el controlador, dejando la lógica de pointer y resize centralizada en el flujo correcto del editor.",
+      "Se reforzó el aislamiento del historial de edición por Nodo - Página para evitar que Ctrl+Z o Ctrl+Y reapliquen metadatos o cambios de otra página.",
+      "Se consolidó la gestión de menciones con icono, espacio fijo alrededor de @ y protección de elementos con no-resize para evitar comportamientos raros al pasar el cursor o editar contenido.",
+      "Se validó la solución con una compilación limpia mediante npm run build.",
+    ],
+  },
+  {
+    version: "0.2.25",
+    date: "2026-08-31",
+    title: "MENTIONES CON ICONO Y ESPACIO FIJO",
+    category: "Editor",
+    changes: [
+      "Se eliminó el punto inicial que aparecía delante de las menciones con @ y se sustituyó por el icono del nodo referenciado cuando está disponible, especialmente en Nodos - Página.",
+      "Las menciones insertadas con @ ahora conservan exactamente un espacio antes y después para evitar empalmes visuales raros entre palabras y referencias.",
+      "Se reforzó el comportamiento del Ctrl+Z para que cada Nodo - Página conserve su propio historial sin arrastrar cambios de otra página.",
+      "La configuración predeterminada de Nodo - Página sigue siendo 200% de ancho, cabecera izquierda y texto centrado para conservar el estilo moderno solicitado.",
+    ],
+  },
   {
   version: "0.2.24",
   date: "2026-08-31",

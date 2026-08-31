@@ -2502,24 +2502,36 @@ body,
 }
 /* Encabezado de tabla. */
 .editor-content th { color: #f2f3f4; background: #1a1d21; }
-/* Indicador visual de una mencion dentro del editor. */
-.editor-content .editor-mention::before { content: "•"; margin-right: 4px; }
-/* Imagen asociada a una mencion. */
+/* Menciones dentro del editor. */
 .editor-content .editor-mention {
   display: inline-flex;
   align-items: center;
+  gap: 0.35em;
   min-height: 42px;
   max-width: 100%;
   vertical-align: middle;
+  white-space: nowrap;
+  cursor: pointer;
 }
 .editor-content .editor-mention img {
   display: block;
-  width: 42px;
-  height: 42px;
-  flex: 0 0 42px;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 14px;
   border-radius: 3px;
   object-fit: contain;
   vertical-align: middle;
+  cursor: pointer;
+}
+.editor-content .editor-mention__icon {
+  display: block;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  border-radius: 4px;
+  object-fit: contain;
+  vertical-align: middle;
+  cursor: pointer;
 }
 .editor-content .editor-mention[data-mention-mode="full"] {
   display: block;

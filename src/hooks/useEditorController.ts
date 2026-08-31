@@ -3,15 +3,15 @@ import type {
   ClipboardEvent,
   DragEvent,
   KeyboardEvent,
-  MouseEvent,
-  PointerEvent,
   RefObject,
 } from "react";
+import { useEditorHistory, useNodeScopedEditorHistory } from "./useEditorHistory";
+import { useEditorSelection } from "./useEditorSelection";
 import type { NodeItem, PickerState } from "../types/nodes";
-import { getNodeDefinition } from "../defs/nodeTypes";
-import { getEffectiveNodeType } from "../utils/nodeTree";
 import { formatPastedText, sanitizeEditorHtml } from "../utils/editorHtml";
 import { useBlockControls } from "./useBlockControls";
+import { useEditorBlocks } from "./useEditorBlocks";
+import { useEditorMentions } from "./useEditorMentions";
 import { useEditorPickers } from "./useEditorPickers";
 import { useRichTextEditor } from "./useRichTextEditor";
 import draftAsset from "../assets/icons/draft.svg";
@@ -66,12 +66,9 @@ export function useEditorController({
   const lastPointerRef = useRef({ x: 0, y: 0 });
   const scrollFrameRef = useRef<number | null>(null);
   const blockSelectionRef = useRef<{ x: number; y: number } | null>(null);
-  const duplicateDragRef = useRef(false);
-  const dragPreviewRef = useRef<HTMLDivElement | null>(null);
   const generatedLinesRef = useRef<HTMLElement[]>([]);
-  const structuralUndoRef = useRef<string[]>([]);
-  const editorUndoRef = useRef<string[]>([]);
-  const editorRedoRef = useRef<string[]>([]);
+  const structuralHistory = useEditorHistory<string>(20);
+  const editorHistory = useNodeScopedEditorHistory<string>(node.id, 50);
   const [blockSelection, setBlockSelection] = useState<{
     left: number;
     top: number;
@@ -80,7 +77,7 @@ export function useEditorController({
   } | null>(null);
   const pickers = useEditorPickers(nodes);
   const controls = useBlockControls();
-    const { syncContent, scheduleContentSync } = useRichTextEditor({
+  const { syncContent, scheduleContentSync } = useRichTextEditor({
     node,
     onContentChange,
     editorRef,
@@ -192,6 +189,7 @@ export function useEditorController({
         line.removeAttribute("data-line-selected");
         if (!isNonEditableBlockType(line)) line.contentEditable = "true";
       });
+
   const toggleLineSelection = (block: HTMLElement) => {
     clearNativeSelection();
     setSelectedLineBlocks((current) => {
@@ -217,28 +215,6 @@ export function useEditorController({
     });
   };
 
-  const isTextEntryElement = (element: Element | null) => {
-    if (!element) return false;
-    if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) return true;
-    return element instanceof HTMLElement && element.isContentEditable;
-  };
-  const selectAllBlocks = () => {
-    const editor = editorRef.current;
-    if (!editor) return;
-    const blocks = Array.from(editor.querySelectorAll<HTMLElement>(blockSelector)).filter(isRootEditorBlock);
-    if (!blocks.length) return;
-    clearNativeSelection();
-    clearLineSelection();
-    blocks.forEach((block) => {
-      block.setAttribute("data-line-selected", "true");
-      block.contentEditable = "false";
-    });
-    setSelectedLineBlocks(blocks);
-    setLineActionBlock(null);
-    controls.setLineControl(null);
-    editor.focus();
-  };
-
   const rememberGeneratedLine = (line: HTMLElement) => {
     generatedLinesRef.current = [
       ...generatedLinesRef.current.filter((item) => item.isConnected),
@@ -252,15 +228,13 @@ export function useEditorController({
     const editor = editorRef.current;
     if (!editor) return;
     clearTransientEditorState();
-    structuralUndoRef.current = [
-      ...structuralUndoRef.current.slice(-19),
-      editor.innerHTML,
-    ];
+    structuralHistory.push(editor.innerHTML);
   };
   const restoreStructuralUndo = () => {
     const editor = editorRef.current;
-    const previous = structuralUndoRef.current.pop();
-    if (!editor || previous === undefined) return false;
+    if (!editor) return false;
+    const previous = structuralHistory.undo(editor.innerHTML);
+    if (previous === undefined) return false;
     clearTransientEditorState();
     controls.clearBlockControls();
     setSelectedLineBlocks([]);
@@ -275,19 +249,13 @@ export function useEditorController({
   const pushEditorHistory = () => {
     const editor = editorRef.current;
     if (!editor) return;
-    const current = editor.innerHTML;
-    const previous = editorUndoRef.current[editorUndoRef.current.length - 1];
-    if (previous === current) return;
-    editorUndoRef.current = [...editorUndoRef.current.slice(-49), current];
-    editorRedoRef.current = [];
+    editorHistory.push(editor.innerHTML);
   };
   const restoreEditorUndo = () => {
     const editor = editorRef.current;
-    if (!editor || !editorUndoRef.current.length) return false;
-    const current = editor.innerHTML;
-    const previous = editorUndoRef.current.pop();
+    if (!editor) return false;
+    const previous = editorHistory.undo(editor.innerHTML);
     if (previous === undefined) return false;
-    editorRedoRef.current = [...editorRedoRef.current.slice(-49), current];
     editor.innerHTML = previous;
     editor.focus();
     syncContent();
@@ -296,11 +264,9 @@ export function useEditorController({
   };
   const restoreEditorRedo = () => {
     const editor = editorRef.current;
-    if (!editor || !editorRedoRef.current.length) return false;
-    const current = editor.innerHTML;
-    const next = editorRedoRef.current.pop();
+    if (!editor) return false;
+    const next = editorHistory.redo(editor.innerHTML);
     if (next === undefined) return false;
-    editorUndoRef.current = [...editorUndoRef.current.slice(-49), current];
     editor.innerHTML = next;
     editor.focus();
     syncContent();
@@ -308,7 +274,7 @@ export function useEditorController({
     return true;
   };
   const clearStructuralUndo = () => {
-    structuralUndoRef.current = [];
+    structuralHistory.reset();
   };
   const normalizeDividers = () => {
     const editor = editorRef.current;
@@ -416,63 +382,6 @@ export function useEditorController({
     return () => document.removeEventListener("copy", handleCopy);
   }, [selectedLineBlocks]);
 
-  const updatePlaceholder = () => {
-    const selection = window.getSelection();
-    const editor = editorRef.current;
-    if (!editor) return;
-    if (!selection?.rangeCount) {
-      const line = editor.querySelector<HTMLElement>(
-        "[data-globe-content] p, " + textLineSelector,
-      );
-      if (
-        line &&
-        (isRootEditorBlock(line) || line.closest("[data-globe-content]")) &&
-        isLineEmpty(line)
-      ) {
-        setPlaceholderBlock(line);
-      }
-      return;
-    }
-    const block = getTextEditorBlock(selection.focusNode) || getEditorBlock(selection.focusNode);
-    if (
-      block &&
-      !block.matches("[data-divider]") &&
-      !block.textContent?.trim() &&
-      !block.querySelector("img, .editor-mention")
-    ) {
-      setPlaceholderBlock(block);
-    } else {
-      setPlaceholderBlock(null);
-    }
-  };
-  const updateSelectionToolbar = () => {
-    const selection = window.getSelection();
-    const editor = editorRef.current;
-    if (
-      !selection ||
-      !editor ||
-      controls.isDraggingLine ||
-      !selection.rangeCount ||
-      selection.isCollapsed ||
-      !selection.toString().trim() ||
-      !editor.contains(selection.getRangeAt(0).commonAncestorContainer)
-    ) {
-      setSelectionToolbar(null);
-      return;
-    }
-    const rect = selection.getRangeAt(0).getBoundingClientRect();
-    const toolbarWidth = 190;
-    setSelectionToolbar({
-      left: Math.min(
-        Math.max(8, rect.left + (rect.width - toolbarWidth) / 2),
-        window.innerWidth - toolbarWidth - 8,
-      ),
-      top:
-        rect.top - 48 >= 8
-          ? rect.top - 48
-          : Math.min(window.innerHeight - 48, rect.bottom + 8),
-    });
-  };
   const applyTextFormat = (
     command: "bold" | "italic" | "underline" | "strikeThrough",
   ) => {
@@ -539,333 +448,107 @@ export function useEditorController({
     syncContent();
     updateSelectionToolbar();
   };
-  const insertLine = (block: HTMLElement, before: boolean) => {
-    const editor = editorRef.current;
-    if (!editor || !editor.contains(block)) return;
-    captureStructuralUndo();
-    const line = document.createElement("p");
-    line.removeAttribute("style");
-    line.appendChild(document.createElement("br"));
-    block.parentNode?.insertBefore(line, before ? block : block.nextSibling);
-    const range = document.createRange();
-    range.selectNodeContents(line);
-    range.collapse(true);
-    const selection = window.getSelection();
-    selection?.removeAllRanges();
-    selection?.addRange(range);
-    editor.focus();
-    rememberGeneratedLine(line);
-    updatePlaceholder();
-    line.scrollIntoView({ block: "nearest" });
-    syncContent();
-    controls.setLineControl(null);
-  };
-  const ensureEditorLine = () => {
-    const editor = editorRef.current;
-    const hasRootBlock = Array.from(
-      editor?.querySelectorAll<HTMLElement>(blockSelector) || [],
-    ).some((line) => isRootEditorBlock(line));
-    if (!editor || hasRootBlock) return false;
-    const line = document.createElement("p");
-    line.appendChild(document.createElement("br"));
-    editor.appendChild(line);
-    const range = document.createRange();
-    range.selectNodeContents(line);
-    range.collapse(true);
-    const selection = window.getSelection();
-    selection?.removeAllRanges();
-    selection?.addRange(range);
-    editor.focus();
-    return true;
-  };
   const isLineEmpty = (block: HTMLElement) =>
     !block.matches("[data-divider]") &&
     !block.textContent?.trim() &&
     !block.querySelector("img, .editor-mention");
-  const removeLine = (block: HTMLElement) => {
-    const editor = editorRef.current;
-    if (!editor || !editor.contains(block)) return;
-    captureStructuralUndo();
-    const globeContent = block.closest("[data-globe-content]") as HTMLElement | null;
-    const rootCandidates = globeContent
-      ? Array.from(globeContent.querySelectorAll<HTMLElement>(textLineSelector))
-      : Array.from(editor.querySelectorAll<HTMLElement>(textLineSelector)).filter(
-          (line) => line !== block && isRootEditorBlock(line),
-        );
-    const candidates = rootCandidates.filter((line) => line !== block);
-    const nextLine = candidates.find(
-      (line) => block.compareDocumentPosition(line) & Node.DOCUMENT_POSITION_FOLLOWING,
-    );
-    const previousLine = [...candidates].reverse().find(
-      (line) => block.compareDocumentPosition(line) & Node.DOCUMENT_POSITION_PRECEDING,
-    );
-    block.remove();
-    const focusLine = nextLine || previousLine;
-    if (!candidates.length) {
-      const line = document.createElement("p");
-      line.removeAttribute("style");
-      line.appendChild(document.createElement("br"));
-      if (globeContent) {
-        globeContent.appendChild(line);
-      } else {
-        editor.appendChild(line);
-      }
-    } else if (focusLine && !focusLine.matches("[data-divider]")) {
-      const range = document.createRange();
-      range.selectNodeContents(focusLine);
-      range.collapse(true);
-      const selection = window.getSelection();
-      selection?.removeAllRanges();
-      selection?.addRange(range);
-    }
-    editor.focus();
-    generatedLinesRef.current = generatedLinesRef.current.filter(
-      (line) => line !== block,
-    );
-    clearLineSelection();
-    controls.clearBlockControls();
-    setPlaceholderBlock(null);
-    syncContent();
-  };
-  const hasTextLineAfter = (block: HTMLElement) => {
-    const editor = editorRef.current;
-    if (!editor) return false;
-    const lines = Array.from(
-      editor.querySelectorAll<HTMLElement>(
-        "p, h1, h2, h3, h4, blockquote, li, [data-divider]",
-      ),
-    );
-    const blockIndex = lines.indexOf(block);
-    return lines
-      .slice(blockIndex + 1)
-      .some((line) => Boolean(line.textContent?.trim()));
-  };
-  const deleteSelectedLine = () => {
-    const blocks = selectedLineBlocks.filter((line) => line.isConnected);
-    const targets = blocks.includes(lineActionBlock!)
-      ? blocks
-      : lineActionBlock
-        ? [lineActionBlock]
-        : [];
-    if (!targets.length) return;
-    targets.forEach((block) => removeLine(block));
-    pickers.setPickerPosition(null);
-    pickers.setSlashPicker(null);
-    setLineActionBlock(null);
-  };
-  const openLineCommands = (block: HTMLElement, anchor?: HTMLElement) => {
-    const range = document.createRange();
-    if (block.matches("[data-globe], [data-divider]")) range.selectNode(block);
-    else range.selectNodeContents(block);
-    range.collapse(true);
-    const selection = window.getSelection();
-    selection?.removeAllRanges();
-    selection?.addRange(range);
-    editorRef.current?.focus();
-    setSelectionToolbar(null);
-    const selected = selectedLineBlocks.filter((line) => line.isConnected);
-    if (!selected.includes(block)) {
-      clearLineSelection();
-      setSelectedLineBlocks([]);
-      block.setAttribute("data-line-selected", "true");
-    }
-    setLineActionBlock(block);
-    const rect = block.getBoundingClientRect();
-    const anchorRect = anchor?.getBoundingClientRect() || rect;
-    pickers.setSlashPicker(
-      block.matches("[data-divider]")
-        ? null
-        : { query: "", hasTrigger: false },
-    );
-    pickers.setSlashPickerIndex(0);
-    pickers.setCallPicker(null);
-    pickers.setPickerPosition({
-      top: Math.min(window.innerHeight - 236, anchorRect.bottom + 8),
-      left: Math.min(window.innerWidth - 236, Math.max(8, anchorRect.left)),
-    });
-  };
-  const duplicateLine = (target: HTMLElement, before: boolean, inside = false) => {
-    const dragged = controls.draggedLineRef.current;
-    if (!dragged) return;
-    const draggedLines = controls.draggedLinesRef.current.length
-      ? controls.draggedLinesRef.current
-      : [dragged];
-    if (draggedLines.includes(target)) return;
-    captureStructuralUndo();
-    const clones = draggedLines.map((line) => {
-      const clone = line.cloneNode(true) as HTMLElement;
-      clone.removeAttribute("data-line-dragging");
-      clone.removeAttribute("data-line-selected");
-      clone.removeAttribute("data-line-drop-target");
-      clone.querySelectorAll("[id]").forEach((node) => node.removeAttribute("id"));
-      clone.querySelectorAll("[data-page-index-id]").forEach((node) => node.removeAttribute("data-page-index-id"));
-      clone.querySelectorAll("[data-line-dragging], [data-line-selected], [data-line-drop-target]").forEach((node) => {
-        node.removeAttribute("data-line-dragging");
-        node.removeAttribute("data-line-selected");
-        node.removeAttribute("data-line-drop-target");
-      });
-      return clone;
-    });
-    if (inside) {
-      const content = target.matches("[data-globe]")
-        ? target.querySelector<HTMLElement>("[data-globe-content]")
-        : target;
-      clones.forEach((line) => content?.appendChild(line));
-    } else {
-      const reference = before ? target : target.nextSibling;
-      clones.forEach((line) => target.parentNode?.insertBefore(line, reference));
-    }
-    clones.forEach((line) => {
-      line.removeAttribute("data-line-dragging");
-      line.removeAttribute("data-line-selected");
-      if (line.matches("[data-divider]")) line.contentEditable = "false";
-    });
-    target.removeAttribute("data-line-drop-target");
-    syncContent();
-    controls.draggedLineRef.current = null;
-    controls.draggedLinesRef.current = [];
-    setSelectedLineBlocks([]);
-  };
 
-  const updateDragPreview = (block: HTMLElement, x: number, y: number) => {
-    const preview = dragPreviewRef.current ?? document.createElement("div");
-    if (!dragPreviewRef.current) {
-      preview.setAttribute("aria-hidden", "true");
-      preview.style.position = "fixed";
-      preview.style.pointerEvents = "none";
-      preview.style.zIndex = "99999";
-      preview.style.left = "0px";
-      preview.style.top = "0px";
-      preview.style.transformOrigin = "left top";
-      preview.style.padding = "0";
-      preview.style.margin = "0";
-      preview.style.border = "none";
-      preview.style.background = "transparent";
-      preview.style.boxShadow = "none";
-      preview.style.borderRadius = "0";
-      preview.style.display = "inline-block";
-      document.body.appendChild(preview);
-      dragPreviewRef.current = preview;
-    }
+  const { isTextEntryElement, selectAllBlocks, updateSelectionToolbar: updateSelectionToolbarFromHook, updatePlaceholder: updatePlaceholderFromHook } = useEditorSelection({
+    editorRef,
+    blockSelector,
+    textLineSelector,
+    setSelectedLineBlocks,
+    setLineActionBlock,
+    setSelectionToolbar,
+    setPlaceholderBlock,
+    controls,
+    getEditorBlock,
+    getTextEditorBlock,
+    isRootEditorBlock,
+    isLineEmpty,
+    clearLineSelection,
+    clearNativeSelection,
+  });
+  const updatePlaceholder = updatePlaceholderFromHook;
+  const updateSelectionToolbar = updateSelectionToolbarFromHook;
 
-    const computed = getComputedStyle(block);
-    const clone = block.cloneNode(true) as HTMLElement;
-    clone.removeAttribute("data-line-dragging");
-    clone.removeAttribute("data-line-selected");
-    clone.removeAttribute("data-line-drop-target");
-    clone.style.pointerEvents = "none";
-    clone.style.position = "relative";
-    clone.style.margin = "0";
-    clone.style.display = "inline-block";
-    clone.style.width = "auto";
-    clone.style.minWidth = "0";
-    clone.style.maxWidth = "none";
-    clone.style.minHeight = "0";
-    clone.style.height = "auto";
-    clone.style.overflow = "visible";
-    clone.style.filter = "none";
-    clone.style.padding = "0";
-    clone.style.border = "none";
-    clone.style.background = "transparent";
-    clone.style.boxShadow = "none";
-    clone.style.borderRadius = "0";
-    clone.style.fontSize = computed.fontSize;
-    clone.style.fontFamily = computed.fontFamily;
-    clone.style.fontWeight = computed.fontWeight;
-    clone.style.lineHeight = computed.lineHeight;
-    clone.style.letterSpacing = computed.letterSpacing;
-    clone.style.textTransform = computed.textTransform;
-    clone.style.whiteSpace = computed.whiteSpace;
-    clone.querySelectorAll("[data-line-dragging], [data-line-selected], [data-line-drop-target]").forEach((node) => {
-      node.removeAttribute("data-line-dragging");
-      node.removeAttribute("data-line-selected");
-      node.removeAttribute("data-line-drop-target");
-    });
+  const editorBlocks = useEditorBlocks({
+    editorRef,
+    blockSelector,
+    textLineSelector,
+    selectedLineBlocks,
+    lineActionBlock,
+    setSelectedLineBlocks,
+    setLineActionBlock,
+    setPlaceholderBlock,
+    setSelectionToolbar,
+    controls,
+    imageResizeRef,
+    lastPointerRef,
+    pickers,
+    getEditorBlock,
+    getLineControlBlock,
+    isRootEditorBlock,
+    clearLineSelection,
+    syncContent,
+    updatePlaceholder,
+    captureStructuralUndo,
+    isLineEmpty,
+  });
 
-    const textColor = computed.color || "#E8E9EA";
-    const opacity = 0.28 + Math.min(block.getBoundingClientRect().height / 220, 0.46);
-    preview.innerHTML = "";
-    preview.appendChild(clone);
-    preview.style.opacity = String(Math.min(0.9, opacity));
-    preview.style.transform = "none";
-    preview.style.left = `${x + 18}px`;
-    preview.style.top = `${y + 18}px`;
-    preview.style.boxShadow = "none";
-    preview.style.border = "none";
-    preview.style.background = "transparent";
-    preview.style.color = textColor;
-  };
+  const {
+    insertLine,
+    ensureEditorLine,
+    removeLine,
+    deleteSelectedLine,
+    openLineCommands,
+    moveLine,
+    updateLineControlAt,
+    updateLineControl,
+    startLineDrag,
+    moveLineDrag,
+    finishLineDrag,
+  } = editorBlocks;
 
-  const clearDragPreview = () => {
-    if (dragPreviewRef.current) {
-      dragPreviewRef.current.remove();
-      dragPreviewRef.current = null;
-    }
-  };
+  const mentionController = useEditorMentions({
+    editorRef,
+    nodes,
+    deletedNodes,
+    selectedLineBlocks,
+    lineActionBlock,
+    setExpanded,
+    setSelectedId,
+    onOpenDeletedNode,
+    setFocusedNodeId,
+    syncContent,
+    imageResizeRef,
+    getTextEditorBlock,
+    getLineControlBlock,
+    blockSelectionRef,
+    setBlockSelection,
+    controls,
+    toggleLineSelection,
+    captureStructuralUndo,
+  });
 
-  const moveLine = (target: HTMLElement, before: boolean, inside = false) => {
-    const dragged = controls.draggedLineRef.current;
-    if (!dragged || dragged === target || dragged.contains(target)) return;
-    const draggedLines = controls.draggedLinesRef.current.length
-      ? controls.draggedLinesRef.current
-      : [dragged];
-    if (draggedLines.includes(target)) return;
-    captureStructuralUndo();
-    draggedLines.forEach((line) => line.remove());
-    if (inside) {
-      const content = target.matches("[data-globe]")
-        ? target.querySelector<HTMLElement>("[data-globe-content]")
-        : target;
-      draggedLines.forEach((line) => content?.appendChild(line));
-    }
-    else {
-      const reference = before ? target : target.nextSibling;
-      draggedLines.forEach((line) => target.parentNode?.insertBefore(line, reference));
-    }
-    draggedLines.forEach((line) => {
-      line.removeAttribute("data-line-dragging");
-      line.removeAttribute("data-line-selected");
-    });
-    target.removeAttribute("data-line-drop-target");
-    syncContent();
-    controls.draggedLineRef.current = null;
-    controls.draggedLinesRef.current = [];
-    setSelectedLineBlocks([]);
-  };
-  const updateLineControlAt = (clientX: number, clientY: number) => {
-    const editor = editorRef.current;
-    if (!editor) return;
-    let block = getLineControlBlock(document.elementFromPoint(clientX, clientY));
-    if (!block)
-      block =
-        Array.from(editor.querySelectorAll<HTMLElement>(blockSelector)).find(
-          (candidate) => {
-            if (!isRootEditorBlock(candidate)) return false;
-            const rect = candidate.getBoundingClientRect();
-            return clientY >= rect.top && clientY <= rect.bottom;
-          },
-        ) || null;
-    if (!block) {
-      controls.setLineControl(null);
-      return;
-    }
-    if (block.matches("[data-divider]")) setPlaceholderBlock(null);
-    const rect = block.getBoundingClientRect();
-    controls.setLineControl({
-      block,
-      top: rect.top,
-      left: Math.max(8, rect.left - 56),
-      before: clientY < rect.top + rect.height / 2,
-      nearLeft: clientX <= rect.left + 18,
-      hasContent: !isLineEmpty(block),
-      inside: false,
-      pointerY: clientY,
-    });
-  };
-  const updateLineControl = (event: MouseEvent<HTMLDivElement>) => {
-    lastPointerRef.current = { x: event.clientX, y: event.clientY };
-    if (controls.isDraggingLine) return;
-    updateLineControlAt(event.clientX, event.clientY);
+  const {
+    createMention,
+    insertMentionWithSpacing,
+    insertNodeMention,
+    onMentionPointerDown,
+    onEditorPointerDown,
+    onEditorPointerMove,
+    onEditorSelectionMove,
+    alignImage,
+  } = mentionController;
+
+  const isMentionImageLegacy = (element: HTMLElement | null) => {
+    if (!element) return false;
+    return Boolean(
+      element.closest("[data-mention-id]") ||
+      element.closest(".editor-mention") ||
+      element.classList.contains("editor-mention__icon"),
+    );
   };
   useEffect(() => {
     const handlePointerMove = (event: globalThis.PointerEvent) => {
@@ -889,36 +572,8 @@ export function useEditorController({
         scrollFrameRef.current = null;
       }
     };
-  }, []);
-  const createMention = (target: NodeItem, imageMode: "inserted" | "full" = "inserted") => {
-    const mention = document.createElement("span");
-    mention.contentEditable = "false";
-    mention.className = "editor-mention";
-    mention.dataset.mentionId = target.id;
-    mention.title = target.name;
-    mention.setAttribute("aria-label", target.name);
-    if (target.type === "imagen") mention.dataset.mentionMode = imageMode;
-    mention.style.color = getNodeDefinition(
-      getEffectiveNodeType(nodes, target),
-    ).color;
-    if (deletedNodes.some((item) => item.id === target.id)) {
-      mention.style.color = "#D84D4D";
-      mention.style.opacity = "0.6";
-    }
-    mention.style.textDecoration = "underline";
-    mention.style.textUnderlineOffset = "3px";
-    mention.style.cursor = "pointer";
-    if (target.type === "imagen") {
-      const source = new DOMParser().parseFromString(target.content, "text/html").querySelector("img")?.getAttribute("src");
-      if (source) {
-        const image = document.createElement("img");
-        image.src = source;
-        image.alt = target.name;
-        mention.appendChild(image);
-      } else mention.textContent = target.name;
-    } else mention.textContent = target.name;
-    return mention;
-  };
+  }, [updateLineControlAt]);
+
 
   const getCurrentPageIndexEntries = (scopeRoot?: HTMLElement | null) => {
     const editor = editorRef.current;
@@ -1099,34 +754,6 @@ export function useEditorController({
     }, highlightMs);
   };
 
-  const insertNodeMention = (nodeId: string, x: number, y: number) => {
-    const target = nodes.find((item) => item.id === nodeId);
-    if (!target) return;
-    const editor = editorRef.current;
-    if (!editor) return;
-    editor.focus();
-
-    const point = document.caretRangeFromPoint?.(x, y);
-    const range = point || document.createRange();
-    if (!point) {
-      range.selectNodeContents(editor);
-      range.collapse(false);
-    }
-    const mention = createMention(target);
-    const space = document.createTextNode(" ");
-    range.deleteContents();
-    range.insertNode(mention);
-    range.setStartAfter(mention);
-    range.collapse(true);
-    range.insertNode(space);
-    range.setStartAfter(space);
-    range.collapse(true);
-    const selection = window.getSelection();
-    selection?.removeAllRanges();
-    selection?.addRange(range);
-    syncContent();
-    controls.clearBlockControls();
-  };
 
   const onEditorDrop = (event: DragEvent<HTMLDivElement>) => {
     const nodeId = event.dataTransfer.getData("application/x-hisfuture-node") ||
@@ -1172,135 +799,6 @@ export function useEditorController({
       pointerY: event.clientY,
     });
   };
-  const startLineDrag = (
-    block: HTMLElement,
-    event: PointerEvent<HTMLButtonElement>,
-  ) => {
-    event.preventDefault();
-    event.stopPropagation();
-    setSelectionToolbar(null);
-    duplicateDragRef.current = event.altKey;
-    if (isLineEmpty(block)) {
-      if (!hasTextLineAfter(block)) removeLine(block);
-      else openLineCommands(block);
-      return;
-    }
-    const selected = selectedLineBlocks.filter((line) => line.isConnected);
-    const draggedLines = selected.includes(block) ? selected : [block];
-    controls.draggedLinesRef.current = draggedLines;
-    controls.draggedLineRef.current = block;
-    controls.didDragLineRef.current = false;
-    controls.lineDropRef.current = null;
-    draggedLines.forEach((line) => line.setAttribute("data-line-dragging", "true"));
-    event.currentTarget.setPointerCapture(event.pointerId);
-    document.body.style.cursor = duplicateDragRef.current ? "copy" : "grabbing";
-    updateDragPreview(block, event.clientX, event.clientY);
-    controls.setIsDraggingLine(true);
-  };
-  const moveLineDrag = (event: PointerEvent<HTMLButtonElement>) => {
-    const dragged = controls.draggedLineRef.current;
-    const editor = editorRef.current;
-    if (!dragged || !editor) return;
-    event.preventDefault();
-    updateDragPreview(dragged, event.clientX, event.clientY);
-    const drop = getLineDrop(
-      document.elementFromPoint(event.clientX, event.clientY),
-      event.clientX,
-      event.clientY,
-    );
-    const target = drop?.block;
-    if (!target || target === dragged) return;
-    controls.didDragLineRef.current = true;
-    const rect = target.getBoundingClientRect();
-    const inside = drop.inside;
-    const before = drop.before;
-    editor
-      .querySelector("[data-line-drop-target]")
-      ?.removeAttribute("data-line-drop-target");
-    target.setAttribute("data-line-drop-target", "true");
-    controls.lineDropRef.current = { block: target, before, inside };
-    controls.setLineControl({
-      block: target,
-      top: rect.top + Math.max(0, (rect.height - 24) / 2),
-      left: Math.max(8, rect.left - 68),
-      before,
-      nearLeft: false,
-      hasContent: true,
-      inside,
-    });
-  };
-  const finishLineDrag = (
-    block: HTMLElement,
-    event: PointerEvent<HTMLButtonElement>,
-  ) => {
-    if (!controls.draggedLineRef.current) return;
-    event.preventDefault();
-    completeLineDrag(block, true);
-  };
-  const completeLineDrag = (block: HTMLElement, commit: boolean) => {
-    const dragged = controls.draggedLineRef.current;
-    if (!dragged) return;
-    const drop = controls.lineDropRef.current;
-    if (commit && controls.didDragLineRef.current && drop) {
-      if (duplicateDragRef.current) {
-        duplicateLine(drop.block, drop.before, drop.inside);
-      } else {
-        moveLine(drop.block, drop.before, drop.inside);
-      }
-    }
-    controls.draggedLinesRef.current.forEach((line) => {
-      line.removeAttribute("data-line-dragging");
-      line.removeAttribute("data-line-selected");
-    });
-    dragged.removeAttribute("data-line-dragging");
-    editorRef.current
-      ?.querySelector("[data-line-drop-target]")
-      ?.removeAttribute("data-line-drop-target");
-    controls.draggedLineRef.current = null;
-    controls.lineDropRef.current = null;
-    clearDragPreview();
-    document.body.style.cursor = "default";
-    controls.setIsDraggingLine(false);
-    controls.setLineControl(null);
-    if (commit && !controls.didDragLineRef.current && !duplicateDragRef.current) openLineCommands(block);
-    duplicateDragRef.current = false;
-    controls.didDragLineRef.current = false;
-  };
-  useEffect(() => {
-    if (!controls.isDraggingLine) return;
-    const finish = () => {
-      const dragged = controls.draggedLineRef.current;
-      if (dragged) completeLineDrag(dragged, true);
-    };
-    const cancel = () => {
-      const dragged = controls.draggedLineRef.current;
-      if (dragged) completeLineDrag(dragged, false);
-    };
-    const updateDuplicateMode = (nextAlt: boolean) => {
-      duplicateDragRef.current = nextAlt;
-      document.body.style.cursor = nextAlt ? "copy" : "grabbing";
-    };
-    const onKeyDown = (event: Event) => {
-      const keyboardEvent = event as unknown as KeyboardEvent;
-      if (keyboardEvent.key === "Alt") updateDuplicateMode(true);
-    };
-    const onKeyUp = (event: Event) => {
-      const keyboardEvent = event as unknown as KeyboardEvent;
-      if (keyboardEvent.key === "Alt") updateDuplicateMode(false);
-    };
-    document.addEventListener("pointerup", finish, true);
-    document.addEventListener("pointercancel", cancel, true);
-    document.addEventListener("keydown", onKeyDown as EventListener, true);
-    document.addEventListener("keyup", onKeyUp as EventListener, true);
-    window.addEventListener("blur", cancel);
-    return () => {
-      document.removeEventListener("pointerup", finish, true);
-      document.removeEventListener("pointercancel", cancel, true);
-      document.removeEventListener("keydown", onKeyDown as EventListener, true);
-      document.removeEventListener("keyup", onKeyUp as EventListener, true);
-      window.removeEventListener("blur", cancel);
-    };
-  }, [controls.isDraggingLine]);
   const executePickerAction = (
     type: "slash" | "mention",
     value: string,
@@ -1324,35 +822,8 @@ export function useEditorController({
       range.setStart(textNode, selection.focusOffset - length);
       range.setEnd(textNode, selection.focusOffset);
       range.deleteContents();
-      const mention = document.createElement("span");
-      mention.contentEditable = "false";
-      mention.className = "editor-mention";
-      mention.dataset.mentionId = target.id;
-      mention.title = target.name;
-      mention.setAttribute("aria-label", target.name);
-      if (target.type === "imagen") mention.dataset.mentionMode = imageMode;
-      mention.style.color = getNodeDefinition(
-        getEffectiveNodeType(nodes, target),
-      ).color;
-      mention.style.textDecoration = "underline";
-      mention.style.textUnderlineOffset = "3px";
-      mention.style.cursor = "pointer";
-      if (target.type === "imagen") {
-        const source = new DOMParser().parseFromString(target.content, "text/html").querySelector("img")?.getAttribute("src");
-        if (source) {
-          const image = document.createElement("img");
-          image.src = source;
-          image.alt = target.name;
-          mention.appendChild(image);
-        } else mention.textContent = target.name;
-      } else mention.textContent = target.name;
-      const space = document.createTextNode(" ");
-      range.insertNode(mention);
-      range.setStartAfter(mention);
-      range.collapse(true);
-      range.insertNode(space);
-      range.setStartAfter(space);
-      range.collapse(true);
+      const mention = createMention(target, imageMode);
+      insertMentionWithSpacing(range, mention);
       selection.removeAllRanges();
       selection.addRange(range);
       syncContent();
@@ -1754,14 +1225,8 @@ export function useEditorController({
           const range = selection?.rangeCount ? selection.getRangeAt(0) : null;
           if (!selection || !range) return;
           const mention = createMention(target, "full");
-          const space = document.createTextNode(" ");
           range.deleteContents();
-          range.insertNode(mention);
-          range.setStartAfter(mention);
-          range.collapse(true);
-          range.insertNode(space);
-          range.setStartAfter(space);
-          range.collapse(true);
+          insertMentionWithSpacing(range, mention);
           selection.removeAllRanges();
           selection.addRange(range);
           syncContent();
@@ -1786,144 +1251,7 @@ export function useEditorController({
     const text = event.clipboardData.getData("text/plain");
     insert(formatPastedText(text));
   };
-  const onMentionPointerDown = (event: PointerEvent<HTMLDivElement>) => {
-    const target = (event.target as HTMLElement).closest<HTMLElement>(
-      "[data-mention-id]",
-    );
-    const id = target?.dataset.mentionId;
-    const mentioned = nodes.find((item) => item.id === id);
-    const deletedMention = deletedNodes.find((item) => item.id === id);
-    if (!id || (!mentioned && !deletedMention)) return;
-    event.preventDefault();
-    event.stopPropagation();
-    if (deletedMention) {
-      onOpenDeletedNode(deletedMention.id);
-      return;
-    }
-    if (mentioned?.type === "imagen") return;
-    const expanded: Record<string, boolean> = {};
-    let current: NodeItem | undefined = mentioned;
-    while (current?.parentId) {
-      expanded[current.parentId] = true;
-      current = nodes.find((item) => item.id === current?.parentId);
-    }
-    setExpanded((value) => ({ ...value, ...expanded }));
-    setFocusedNodeId(id);
-    if (mentioned && mentioned.type === "pagina")
-      setSelectedId(id);
-  };
-  const onEditorPointerDown = (event: PointerEvent<HTMLDivElement>) => {
-    const target = event.target as HTMLElement;
-    if (target.closest("[data-globe-icon]")) {
-      event.preventDefault();
-      event.stopPropagation();
-      return;
-    }
-    if (target.closest("[data-page-index-item]")) {
-      event.preventDefault();
-      event.stopPropagation();
-      return;
-    }
-    if (target.closest("[data-page-index]")) {
-      event.stopPropagation();
-    }
-    const line = getLineControlBlock(event.target as Node);
-    if ((event.ctrlKey || event.metaKey) && line) {
-      event.preventDefault();
-      event.stopPropagation();
-      toggleLineSelection(line);
-      return;
-    }
-    const image = target.closest<HTMLImageElement>("img");
-    const imageMention = image?.closest<HTMLElement>("[data-mention-id]");
-    const isInsertedMention = Boolean(imageMention) && imageMention?.dataset.mentionMode !== "full";
-    if (event.button !== 2 && image && editorRef.current?.contains(image) && !isInsertedMention) {
-      event.preventDefault();
-      event.stopPropagation();
-      imageResizeRef.current = {
-        image,
-        startX: event.clientX,
-        startWidth: image.getBoundingClientRect().width,
-      };
-      document.body.style.cursor = "ew-resize";
-      return;
-    }
-    const selection = window.getSelection();
-    const targetBlock = getTextEditorBlock(event.target as Node);
-    const hasActiveTextCaret = Boolean(
-      selection &&
-        selection.rangeCount &&
-        selection.isCollapsed &&
-        targetBlock &&
-        selection.focusNode &&
-        editorRef.current?.contains(selection.focusNode) &&
-        getTextEditorBlock(selection.focusNode) === targetBlock,
-    );
-    const isTextInteraction = Boolean(targetBlock && !targetBlock.matches("[data-divider]"));
-    if (!image && !isTextInteraction && (!hasActiveTextCaret || selectedLineBlocks.length > 0)) {
-      blockSelectionRef.current = { x: event.clientX, y: event.clientY };
-      setBlockSelection(null);
-      event.currentTarget.setPointerCapture(event.pointerId);
-      event.preventDefault();
-    }
-    onMentionPointerDown(event);
-  };
 
-  const alignImage = (alignment: "left" | "center" | "right") => {
-    const selected = selectedLineBlocks.filter((line) => line.isConnected);
-    const blocks = selected.includes(lineActionBlock!)
-      ? selected
-      : lineActionBlock
-        ? [lineActionBlock]
-        : [];
-    const imageBlocks = blocks.filter((block) =>
-      Array.from(block.querySelectorAll("img")).some((image) => {
-        if (image.closest("[data-globe-icon]")) return false;
-        const mention = image.closest<HTMLElement>("[data-mention-id]");
-        return !mention || mention.dataset.mentionMode === "full";
-      }),
-    );
-    if (!imageBlocks.length) return;
-    captureStructuralUndo();
-    imageBlocks.forEach((block) => {
-      const fullMentions = Array.from(
-        block.querySelectorAll<HTMLElement>('[data-mention-id][data-mention-mode="full"]'),
-      );
-      if (fullMentions.length) {
-        fullMentions.forEach((mention) => {
-          mention.dataset.mentionAlign = alignment;
-          const image = mention.querySelector<HTMLImageElement>("img");
-          if (!image) return;
-          image.style.marginLeft = alignment === "right" || alignment === "center" ? "auto" : "0";
-          image.style.marginRight = alignment === "left" || alignment === "center" ? "auto" : "0";
-        });
-      } else {
-        block.style.textAlign = alignment;
-      }
-    });
-    syncContent();
-  };
-  const onEditorPointerMove = (event: PointerEvent<HTMLDivElement>) => {
-    const resize = imageResizeRef.current;
-    if (!resize) return;
-    event.preventDefault();
-    const width = Math.max(40, resize.startWidth + event.clientX - resize.startX);
-    resize.image.style.width = `${width}px`;
-    resize.image.style.maxWidth = "none";
-    return;
-  };
-  const onEditorSelectionMove = (event: PointerEvent<HTMLDivElement>) => {
-    const start = blockSelectionRef.current;
-    if (!start) return;
-    const left = Math.min(start.x, event.clientX);
-    const top = Math.min(start.y, event.clientY);
-    setBlockSelection({
-      left,
-      top,
-      width: Math.abs(event.clientX - start.x),
-      height: Math.abs(event.clientY - start.y),
-    });
-  };
   const onEditorPointerUp = () => {
     if (blockSelectionRef.current && blockSelection) {
       const editor = editorRef.current;
@@ -1946,6 +1274,11 @@ export function useEditorController({
     blockSelectionRef.current = null;
     setBlockSelection(null);
     if (!imageResizeRef.current) return;
+    if (isMentionImageLegacy(imageResizeRef.current.image)) {
+      imageResizeRef.current = null;
+      document.body.style.cursor = "default";
+      return;
+    }
     imageResizeRef.current = null;
     document.body.style.cursor = "default";
     syncContent();

@@ -17,6 +17,7 @@ function hasAlignableImage(block: Element | null): boolean {
   if (!block) return false;
   return Array.from(block.querySelectorAll("img")).some((image) => {
     if (image.closest("[data-globe-icon]")) return false;
+    if (image.closest(".editor-mention") || image.closest("[data-mention-id]") || image.closest("[data-no-resize='true']")) return false;
     const mention = image.closest<HTMLElement>("[data-mention-id]");
     return !mention || mention.dataset.mentionMode === "full";
   });
