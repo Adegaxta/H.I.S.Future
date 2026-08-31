@@ -3,6 +3,9 @@ export interface PageMeta {
   iconNodeId: string | null;
   coverNodeId: string | null;
   hideDescription: boolean;
+  blockWidth: number;
+  headerPosition: "left" | "center" | "right";
+  textPosition: "left" | "center" | "right";
 }
 
 const META_PREFIX = "<!--hisfuture-page-meta:";
@@ -13,6 +16,9 @@ export const DEFAULT_PAGE_META: PageMeta = {
   iconNodeId: null,
   coverNodeId: null,
   hideDescription: false,
+  blockWidth: 200,
+  headerPosition: "left",
+  textPosition: "center",
 };
 
 export function getPageMeta(content: string): PageMeta {
@@ -27,6 +33,15 @@ export function getPageMeta(content: string): PageMeta {
       iconNodeId: typeof parsed.iconNodeId === "string" ? parsed.iconNodeId : null,
       coverNodeId: typeof parsed.coverNodeId === "string" ? parsed.coverNodeId : null,
       hideDescription: parsed.hideDescription === true,
+      blockWidth: typeof parsed.blockWidth === "number"
+        ? Math.min(200, Math.max(100, parsed.blockWidth))
+        : DEFAULT_PAGE_META.blockWidth,
+      headerPosition: parsed.headerPosition === "center" || parsed.headerPosition === "right"
+        ? parsed.headerPosition
+        : DEFAULT_PAGE_META.headerPosition,
+      textPosition: parsed.textPosition === "left" || parsed.textPosition === "right"
+        ? parsed.textPosition
+        : DEFAULT_PAGE_META.textPosition,
     };
   } catch {
     return { ...DEFAULT_PAGE_META };

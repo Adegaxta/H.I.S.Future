@@ -12,6 +12,7 @@ import RichTextEditor from "./RichTextEditor";
 import ImageNodeView from "./ImageNodeView";
 import PageNodeHeader from "./PageNodeHeader";
 import GraphView from "./GraphView";
+import { getPageMeta } from "../utils/pageMeta";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { CHANGELOG_ENTRIES, CURRENT_VERSION } from "../defs/changelog";
 import {
@@ -110,6 +111,13 @@ export default function AppWorkspace({
   const selectedTrashNode = workspace.deletedNodes.find(
     (node) => node.id === selectedTrashNodeId,
   );
+  // El ancho y la posición de bloques de Nodo Página solo afectan el texto, no la cabecera.
+  const pageMeta = selectedNode?.type === "pagina" ? getPageMeta(selectedNode.content) : null;
+  const textBlockMargin = pageMeta?.textPosition === "right"
+    ? { marginLeft: "auto", marginRight: 0 }
+    : pageMeta?.textPosition === "left"
+      ? { marginLeft: 0, marginRight: "auto" }
+      : { marginLeft: "auto", marginRight: "auto" };
 
   useEffect(() => {
     if (workspace.selectedId) setSelectedTrashNodeId(null);
@@ -882,7 +890,8 @@ export default function AppWorkspace({
                     }}
                     style={{
                       display: "block",
-                      width: "100%",
+                      width: pageMeta ? `${pageMeta.blockWidth / 2}%` : "100%",
+                      ...textBlockMargin,
                       minHeight: 0,
                       minWidth: 0,
                       padding: 0,

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { CSSProperties, RefObject } from "react";
 import type { NodeItem } from "../types/nodes";
 import { getNodeDefinition } from "../defs/nodeTypes";
@@ -183,17 +183,20 @@ export default function RichTextEditor({
     const frame = requestAnimationFrame(() => controller.updatePlaceholder());
     return () => cancelAnimationFrame(frame);
   }, [node.id]);
+  // Ref indirecta: evita que el MutationObserver quede con un closure viejo
+  // de `controller`/`node` (que revertía metadata reciente de la cabecera).
+  const repairRef = useRef(() => {});
+  repairRef.current = () => {
+    const dividersChanged = controller.repairEditorLines();
+    if (controller.ensureEditorLine()) controller.syncContent();
+    else if (dividersChanged) controller.syncContent();
+    controller.updatePlaceholder();
+  };
   useEffect(() => {
     const editor = editorRef.current;
     if (!editor || readOnly) return;
-    const repair = () => {
-      const dividersChanged = controller.repairEditorLines();
-      if (controller.ensureEditorLine()) controller.syncContent();
-      else if (dividersChanged) controller.syncContent();
-      controller.updatePlaceholder();
-    };
-    repair();
-    const observer = new MutationObserver(repair);
+    repairRef.current();
+    const observer = new MutationObserver(() => repairRef.current());
     observer.observe(editor, { childList: true, subtree: true });
     return () => observer.disconnect();
   }, [editorRef, node.id, readOnly]);

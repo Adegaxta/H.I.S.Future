@@ -6,9 +6,22 @@ export interface ChangelogEntry {
   changes: string[];
 }
 
-export const CURRENT_VERSION = "0.2.22";
+export const CURRENT_VERSION = "0.2.23";
 
 export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
+  {
+    version: "0.2.23",
+    date: "2026-08-31",
+    title: "CABECERA Y BLOQUES MODULARES",
+    category: "Editor",
+    changes: [
+      "Se separaron los ajustes de la cabecera y los bloques de texto de los Nodos - Página: cada uno conserva su propia posición.",
+      "Se agregó Posición de Bloques de Texto con opciones izquierda, centro y derecha; el valor inicial es centro.",
+      "El ancho de bloques ahora afecta solo al contenido del editor y, al reducirse, se centra de forma predeterminada sin modificar la cabecera.",
+      "Se corrigió la persistencia de los ajustes de página para que las reparaciones internas del editor no reviertan cambios recientes de ancho o posición.",
+      "Los menús de configuración se cierran al hacer click fuera o pulsar Escape, y sus submenús se mantienen dentro de la ventana.",
+    ],
+  },
   {
     version: "0.2.22",
     date: "2026-08-31",
