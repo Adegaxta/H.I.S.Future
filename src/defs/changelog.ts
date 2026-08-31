@@ -10,6 +10,17 @@ export const CURRENT_VERSION = "0.2.19";
 
 export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
   {
+  version: "0.2.20",
+  date: "2026-08-30",
+  title: "EDITOR FIX",
+  category: "Fix",
+  changes: [
+    "Se corrigió un problema que hacía que el cursor saltara fuera de los globos al crear nuevas líneas mediante Enter.",
+    "Se mejoró la detección del contenido raíz del editor para reconocer correctamente globos y divisores como bloques válidos.",
+    "Se evitó la creación innecesaria de párrafos fantasma que podían robar el foco y dejar líneas inutilizables."
+  ],
+},
+  {
   version: "0.2.19",
   date: "2026-08-30",
   title: "TEXT & INDEX FIXES",

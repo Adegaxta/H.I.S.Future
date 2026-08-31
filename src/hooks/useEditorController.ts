@@ -562,10 +562,10 @@ export function useEditorController({
   };
   const ensureEditorLine = () => {
     const editor = editorRef.current;
-    const hasRootTextLine = Array.from(
-      editor?.querySelectorAll<HTMLElement>(textLineSelector) || [],
+    const hasRootBlock = Array.from(
+      editor?.querySelectorAll<HTMLElement>(blockSelector) || [],
     ).some((line) => isRootEditorBlock(line));
-    if (!editor || hasRootTextLine) return false;
+    if (!editor || hasRootBlock) return false;
     const line = document.createElement("p");
     line.appendChild(document.createElement("br"));
     editor.appendChild(line);
