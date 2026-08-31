@@ -920,34 +920,39 @@ export function useEditorController({
     return mention;
   };
 
-  const getCurrentPageIndexEntries = () => {
-  const editor = editorRef.current;
-  if (!editor) return [];
+  const getCurrentPageIndexEntries = (scopeRoot?: HTMLElement | null) => {
+    const editor = editorRef.current;
+    if (!editor) return [];
 
-  const headingSelectors = "h1, h2, h3, h4, h5, h6, [data-heading], .editor-heading, .heading";
-  const headings = Array.from(editor.querySelectorAll<HTMLElement>(headingSelectors)).filter((heading) => {
-    if (heading.closest("[data-page-index]")) return false;
-    if (heading.closest("[data-globe]")) return false;
-    const text = heading.textContent?.replace(/\s+/g, " ").trim();
-    return Boolean(text && text.length > 0);
-  });
+    const scopeTarget = scopeRoot && scopeRoot.isConnected ? scopeRoot : editor;
+    const headingSelectors = "h1, h2, h3, h4, h5, h6, [data-heading], .editor-heading, .heading";
+    const headings = Array.from(scopeTarget.querySelectorAll<HTMLElement>(headingSelectors)).filter((heading) => {
+      if (!editor.contains(heading)) return false;
+      if (heading.closest("[data-page-index]")) return false;
+      if (scopeRoot && !scopeRoot.contains(heading)) return false;
+      if (!scopeRoot && heading.closest("[data-globe]")) return false;
+      const text = heading.textContent?.replace(/\s+/g, " ").trim();
+      return Boolean(text && text.length > 0);
+    });
 
-  if (!headings.length) return [];
+    if (!headings.length) return [];
 
-  const scopeToken = `${node.id}-page`;
+    const scopeToken = scopeRoot
+      ? `${node.id}-globe-${Math.random().toString(36).slice(2, 8)}`
+      : `${node.id}-page`;
 
-  return headings.map((heading, index) => {
-    const id = heading.id || `${scopeToken}-heading-${index}`;
-    if (!heading.id) heading.id = id;
-    heading.dataset.pageIndexId = id;
-    return {
-      index,
-      id,
-      label: heading.textContent?.replace(/\s+/g, " ").trim() || `Sección ${index + 1}`,
-      level: Number.parseInt(heading.tagName.replace("H", ""), 10) || 1,
-    };
-  });
-};
+    return headings.map((heading, index) => {
+      const id = heading.id || `${scopeToken}-heading-${index}`;
+      if (!heading.id) heading.id = id;
+      heading.dataset.pageIndexId = id;
+      return {
+        index,
+        id,
+        label: heading.textContent?.replace(/\s+/g, " ").trim() || `Sección ${index + 1}`,
+        level: Number.parseInt(heading.tagName.replace("H", ""), 10) || 1,
+      };
+    });
+  };
 
   const insertStructuralBlockAfter = (anchor: HTMLElement, block: HTMLElement) => {
     const editor = editorRef.current;
@@ -1005,7 +1010,7 @@ export function useEditorController({
     block.style.borderBottom = "1px solid rgba(232, 233, 234, 0.12)";
     block.setAttribute("aria-hidden", "true");
 
-    const entries = getCurrentPageIndexEntries();
+    const entries = getCurrentPageIndexEntries(scopeRoot);
     if (!entries.length) {
       const empty = document.createElement("div");
       empty.className = "editor-page-index__empty";
@@ -1014,7 +1019,7 @@ export function useEditorController({
       return block;
     }
 
-    entries.forEach(({ index, id, label, level }) => {
+    entries.forEach(({ id, label, level }) => {
       const row = document.createElement("div");
       row.dataset.pageIndexItem = "true";
       row.dataset.pageId = id;

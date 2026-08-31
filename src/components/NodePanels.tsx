@@ -1,5 +1,5 @@
 import type { NodeItem } from "../types/nodes";
-import { getNodeDefinition } from "../defs/nodeTypes";
+import { getNodeDisplayLabel } from "../defs/nodeTypes";
 
 interface NodePanelsProps {
   panel: "recent" | "types";
@@ -40,7 +40,7 @@ export default function NodePanels({
               onClick={() => onSelect(node.id)}
             >
               <span>{node.name}</span>
-              <small>{getNodeDefinition(node.type).label}</small>
+              <small>{getNodeDisplayLabel(node.type)}</small>
             </button>
           ))}
         </div>

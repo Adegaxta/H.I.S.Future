@@ -149,8 +149,9 @@ export default function RichTextEditor({
     }
   }, [blockColorMenu, controller.pickerPosition, blockTextDevTree.root]);
   useEffect(() => {
-    const hasVisiblePopover = Boolean(blockTextDevTree.root) ||
-      Boolean(blockColorMenu) ||
+    // No incluir blockTextDevTree.root aqui: es el propio estado que este efecto cierra,
+    // asi que usarlo como condicion de "sigue visible" lo dejaba atascado para siempre.
+    const hasVisiblePopover = Boolean(blockColorMenu) ||
       Boolean(imageContextMenu) ||
       Boolean(imageMentionChoice) ||
       Boolean(controller.pickerPosition && (controller.slashPicker || controller.callPicker));
@@ -159,7 +160,7 @@ export default function RichTextEditor({
       if (!current.root && current.children.length === 0) return current;
       return BLOCK_TEXT_DEV_REGISTRY.closeTree();
     });
-  }, [blockColorMenu, blockTextDevTree.root, controller.callPicker, controller.pickerPosition, controller.slashPicker, imageContextMenu, imageMentionChoice]);
+  }, [blockColorMenu, controller.callPicker, controller.pickerPosition, controller.slashPicker, imageContextMenu, imageMentionChoice]);
   useEffect(() => {
     if (!imageContextMenu) return;
     const closeOnOutsidePointer = (event: PointerEvent) => {

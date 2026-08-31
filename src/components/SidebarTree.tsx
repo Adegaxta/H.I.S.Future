@@ -10,7 +10,7 @@ import type {
   NodeItem,
   RenderNodeType,
 } from "../types/nodes";
-import { NODE_REGISTRY, getNodeDefinition } from "../defs/nodeTypes";
+import { NODE_REGISTRY, getNodeDefinition, getNodeDisplayLabel } from "../defs/nodeTypes";
 import { getChildren, getEffectiveNodeType } from "../utils/nodeTree";
 
 interface SidebarTreeProps {
@@ -120,7 +120,7 @@ export default function SidebarTree(props: SidebarTreeProps) {
               cursor: "pointer",
             }}
           >
-            {getNodeDefinition(type).label}
+            {getNodeDisplayLabel(type)}
           </button>
         ))}
         <button

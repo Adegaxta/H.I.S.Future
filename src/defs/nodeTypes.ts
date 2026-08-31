@@ -11,7 +11,7 @@ export interface NodeDefinition<T extends string = string> {
 const NODE_DEFINITIONS = [
   {
     type: "categoria",
-    label: "CATEGORÍA",
+    label: "Categoría",
     color: PALETTE.categoria,
     canContainChildren: true,
     availableInCreation: true,
@@ -19,7 +19,7 @@ const NODE_DEFINITIONS = [
   },
   {
     type: "pagina",
-    label: "PÁGINA",
+    label: "Página",
     color: PALETTE.pagina,
     canContainChildren: false,
     availableInCreation: true,
@@ -27,7 +27,7 @@ const NODE_DEFINITIONS = [
   },
   {
     type: "imagen",
-    label: "NODO IMAGEN",
+    label: "Imagen",
     color: PALETTE.imagen,
     canContainChildren: false,
     availableInCreation: false,
@@ -52,7 +52,7 @@ interface DerivedNodeDefinition {
 const DERIVED_DEFINITIONS: Record<"pagina-carpeta", DerivedNodeDefinition> = {
   "pagina-carpeta": {
     extends: "pagina",
-    overrides: { label: "PÁG-CARPETA", color: PALETTE.paginaCarpeta },
+    overrides: { label: "Pág-Carpeta", color: PALETTE.paginaCarpeta },
   },
 };
 
@@ -89,3 +89,7 @@ export const NODE_REGISTRY = {
 
 export const getNodeDefinition = (type: RenderNodeType) =>
   NODE_REGISTRY.get(type);
+
+// Punto único para el formato visible del tipo de nodo: siempre "Nodo - <Subtipo>".
+export const getNodeDisplayLabel = (type: RenderNodeType) =>
+  `Nodo - ${getNodeDefinition(type).label}`;

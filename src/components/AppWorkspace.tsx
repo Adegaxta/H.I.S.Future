@@ -1,6 +1,6 @@
 import { AVATAR_COLORS } from "../defs/palette";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { NODE_REGISTRY, getNodeDefinition } from "../defs/nodeTypes";
+import { NODE_REGISTRY, getNodeDefinition, getNodeDisplayLabel } from "../defs/nodeTypes";
 import type { BaseNodeType } from "../types/nodes";
 import { getEffectiveNodeType } from "../utils/nodeTree";
 import { useTreeController } from "../hooks/useTreeController";
@@ -683,7 +683,7 @@ export default function AppWorkspace({
                 className="editor-page__type"
                 style={{ color: getNodeDefinition(selectedTrashNode.type).color }}
               >
-                {getNodeDefinition(selectedTrashNode.type).label}
+                {getNodeDisplayLabel(selectedTrashNode.type)}
               </div>
               <h1 className="editor-page__title">{selectedTrashNode.name}</h1>
               <RichTextEditor
@@ -769,7 +769,7 @@ export default function AppWorkspace({
                         />
                         {node.name}
                       </button>
-                      <small>{getNodeDefinition(node.type).label}</small>
+                      <small>{getNodeDisplayLabel(node.type)}</small>
                     </div>
                   ))}
                 </div>
@@ -851,7 +851,7 @@ export default function AppWorkspace({
                 className="editor-page__type"
                 style={{ color: getNodeDefinition(selectedType).color }}
               >
-                {getNodeDefinition(selectedType).label}
+                {getNodeDisplayLabel(selectedType)}
               </div>
               <h1 className="editor-page__title">{selectedNode.name}</h1>
               {selectedNode.type === "imagen" ? (

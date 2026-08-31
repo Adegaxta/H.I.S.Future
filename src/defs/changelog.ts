@@ -6,9 +6,20 @@ export interface ChangelogEntry {
   changes: string[];
 }
 
-export const CURRENT_VERSION = "0.2.19";
+export const CURRENT_VERSION = "0.2.21";
 
 export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
+  {
+    version: "0.2.21",
+    date: "2026-08-31",
+    title: "ETIQUETAS MODULARES DE NODOS",
+    category: "Sistema",
+    changes: [
+      "Se unificó la forma de mostrar la información de los nodos con el formato modular 'Nodo - Subtipo'.",
+      "Ahora los tipos Página, Imagen, Categoría y Página-Carpeta se muestran de forma consistente en el árbol, paneles, papelera y encabezados del espacio de trabajo.",
+      "Se centralizó la generación de estas etiquetas para que los nuevos tipos de nodo adopten automáticamente el mismo formato.",
+    ],
+  },
   {
   version: "0.2.20",
   date: "2026-08-30",
