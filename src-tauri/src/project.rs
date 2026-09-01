@@ -756,7 +756,19 @@ mod tests {
             list_nodes(&reopened_state).expect("list reopened temporal nodes"),
             expected
         );
+        save_nodes(&reopened_state, vec![expected[0].clone()])
+            .expect("persist tempo deletion");
         close_project(&reopened_state).expect("close reopened project");
+        let after_delete = open_project_from_path(
+            root.join("Temporal").to_string_lossy().into_owned(),
+        )
+        .expect("reopen project after tempo deletion");
+        let after_delete_state = Mutex::new(Some(after_delete));
+        assert_eq!(
+            list_nodes(&after_delete_state).expect("list nodes after tempo deletion"),
+            vec![expected[0].clone()]
+        );
+        close_project(&after_delete_state).expect("close project after deletion check");
         fs::remove_dir_all(root).expect("test cleanup");
     }
 

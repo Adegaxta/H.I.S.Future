@@ -6,9 +6,26 @@ export interface ChangelogEntry {
   changes: string[];
 }
 
-export const CURRENT_VERSION = "0.2.32";
+export const CURRENT_VERSION = "0.2.33";
 
 export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
+  {
+    version: "0.2.33",
+    date: "2026-09-01",
+    title: "CALENDARIO Y TEMPO — UX TEMPORAL UNIFICADA",
+    category: "Editor",
+    changes: [
+      "Los controles Año, Mes, Semana y Día adoptaron el lenguaje visual de H.I.S. Future con una selección claramente integrada.",
+      "Semana presenta cabeceras flotantes, líneas horarias limpias, navegación a Día desde cada cabecera y conserva creación y arrastre sin duplicar Tempos.",
+      "Vista Día se dividió en timeline con scroll interno e inspector contextual, eliminando el botón permanente de creación y el scroll global de la vista.",
+      "Seleccionar una hora permite crear un Tempo directamente; el nuevo nodo queda seleccionado y listo para editar sin volver a pedir fecha ni hora.",
+      "El inspector reutilizable de Tempo unifica la vista independiente y Vista Día con título, fecha por día/mes/año, horas y el editor normal de HIS.",
+      "Se eliminó el editor emergente anterior y su selector específico de nodos; las referencias vuelven a insertarse orgánicamente mediante @ y el editor compartido.",
+      "Se añadió el Context Menu general V0 de HIS y su primera acción temporal: Eliminar Nodo Tempo desde cualquier representación del Calendario.",
+      "Crear desde Semana abre Vista Día y muestra un tip descartable persistente que no vuelve a aparecer después de cerrarlo.",
+      "Las pruebas de persistencia ahora comprueban también que eliminar un Tempo se conserva después de cerrar y reabrir el proyecto.",
+    ],
+  },
   {
     version: "0.2.32",
     date: "2026-09-01",

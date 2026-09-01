@@ -13,7 +13,7 @@ import ImageNodeView from "./ImageNodeView";
 import PageNodeHeader from "./PageNodeHeader";
 import GraphView from "./GraphView";
 import CalendarNodeView from "./CalendarNodeView";
-import TempoNodeHeader from "./TempoNodeHeader";
+import TempoInspector from "./TempoInspector";
 import { getPageMeta } from "../utils/pageMeta";
 import { createCalendarContent, createTempoContent, setTempoMeta, type TempoMeta, type TimeFormat } from "../utils/temporalMeta";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -976,10 +976,10 @@ export default function AppWorkspace({
                   nodes={workspace.nodes}
                   deletedNodes={workspace.deletedNodes}
                   onContentChange={workspace.updateContent}
-                  onOpenTempo={workspace.setSelectedId}
                   onCreateTempo={(date, startTime) => createTempoNode(selectedNode.id, date, startTime)}
                   onMoveTempo={moveTempoNode}
                   onRenameTempo={workspace.renameNode}
+                  onDeleteTempo={workspace.deleteNode}
                   setExpanded={workspace.setExpanded}
                   onOpenDeletedNode={(id) => {
                     setProjectTab("settings");
@@ -999,53 +999,31 @@ export default function AppWorkspace({
                   timeFormat={timeFormat}
                 />
               ) : selectedNode.type === "tempo" ? (
-                <>
-                  <TempoNodeHeader
-                    node={selectedNode}
-                    onContentChange={workspace.updateContent}
-                    timeFormat={timeFormat}
-                  />
-                  <RichTextEditor
-                    node={selectedNode}
-                    nodes={workspace.nodes}
-                    deletedNodes={workspace.deletedNodes}
-                    editorRef={editorRef}
-                    onContentChange={workspace.updateContent}
-                    setSelectedId={workspace.setSelectedId}
-                    setExpanded={workspace.setExpanded}
-                    pendingNodeDrop={workspace.pendingEditorNodeDrop}
-                    onNodeDropHandled={workspace.clearPendingEditorNodeDrop}
-                    onOpenDeletedNode={(id) => {
-                      setProjectTab("settings");
-                      setSettingsPanel("trash");
-                      setSelectedTrashNodeId(id);
-                    }}
-                    onImageFilePaste={async (file: File, parentId?: string | null) => {
-                      return createImageNodeFromFile(file, parentId ?? selectedNode.parentId ?? null);
-                    }}
-                    onSlashCommand={handleSlashCommand}
-                    onOpenNodeView={(id) => {
-                      setSelectedTrashNodeId(null);
-                      setProjectTab("workspace");
-                      setView("list");
-                      workspace.setSelectedId(id);
-                    }}
-                    style={{
-                      display: "block",
-                      width: "100%",
-                      minHeight: 240,
-                      minWidth: 0,
-                      padding: 0,
-                      border: "none",
-                      background: "transparent",
-                      color: "#E8E9EA",
-                      fontSize: "14px",
-                      fontFamily: "inherit",
-                      lineHeight: "1.6",
-                      outline: "none",
-                    }}
-                  />
-                </>
+                <TempoInspector
+                  tempo={selectedNode}
+                  nodes={workspace.nodes}
+                  deletedNodes={workspace.deletedNodes}
+                  timeFormat={timeFormat}
+                  variant="standalone"
+                  onRename={workspace.renameNode}
+                  onContentChange={workspace.updateContent}
+                  setExpanded={workspace.setExpanded}
+                  onOpenDeletedNode={(id) => {
+                    setProjectTab("settings");
+                    setSettingsPanel("trash");
+                    setSelectedTrashNodeId(id);
+                  }}
+                  onImageFilePaste={async (file: File, parentId?: string | null) => {
+                    return createImageNodeFromFile(file, parentId ?? selectedNode.parentId ?? null);
+                  }}
+                  onSlashCommand={handleSlashCommand}
+                  onOpenNodeView={(id) => {
+                    setSelectedTrashNodeId(null);
+                    setProjectTab("workspace");
+                    setView("list");
+                    workspace.setSelectedId(id);
+                  }}
+                />
               ) : selectedNode.type === "imagen" ? (
                 <ImageNodeView
                   node={selectedNode}
