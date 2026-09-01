@@ -15,6 +15,7 @@ export const SLASH_COMMANDS = [
   { id: "index", label: "Índice", tag: "INDICE", icon: "≡", category: "Etc", aliases: ["indice"] },
   { id: "globe", label: "Globo", tag: "GLOBO", icon: "◉", category: "Etc" },
   { id: "globe-individual", label: "Globo individual", tag: "GLOBO_INDIVIDUAL", icon: "◎", category: "Etc" },
+  { id: "calendar", label: "Calendario", tag: "CALENDARIO", icon: "▦", category: "Nodos", aliases: ["calendario"] },
 ] as const;
 export const SLASH_REGISTRY = {
   all: () => [...SLASH_COMMANDS],

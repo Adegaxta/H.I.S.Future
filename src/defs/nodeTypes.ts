@@ -33,6 +33,22 @@ const NODE_DEFINITIONS = [
     availableInCreation: false,
     defaultContent: "<p><br></p>",
   },
+  {
+    type: "calendario",
+    label: "Calendario",
+    color: PALETTE.calendario,
+    canContainChildren: true,
+    availableInCreation: false,
+    defaultContent: "<p><br></p>",
+  },
+  {
+    type: "tempo",
+    label: "Tempo",
+    color: PALETTE.tempo,
+    canContainChildren: false,
+    availableInCreation: false,
+    defaultContent: "<p><br></p>",
+  },
 ] as const satisfies readonly NodeDefinition[];
 
 export type BaseNodeType = (typeof NODE_DEFINITIONS)[number]["type"];

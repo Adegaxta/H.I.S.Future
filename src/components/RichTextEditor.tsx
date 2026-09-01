@@ -36,6 +36,7 @@ interface RichTextEditorProps {
   onOpenDeletedNode: (id: string) => void;
   onOpenNodeView: (id: string, x: number, y: number) => void;
   onImageFilePaste?: (file: File, parentId?: string | null) => Promise<string | null> | string | null;
+  onSlashCommand?: (tag: string) => boolean;
   readOnly?: boolean;
   style: CSSProperties;
 }
@@ -53,6 +54,7 @@ export default function RichTextEditor({
   onOpenDeletedNode,
   onOpenNodeView,
   onImageFilePaste,
+  onSlashCommand,
   readOnly = false,
   style,
 }: RichTextEditorProps) {
@@ -109,6 +111,7 @@ export default function RichTextEditor({
     setExpanded,
     onOpenDeletedNode,
     onImageFilePaste,
+    onSlashCommand,
   });
   useEffect(() => {
     const menuOpen = Boolean(blockTextDevTree.root) ||

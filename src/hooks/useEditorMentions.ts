@@ -26,19 +26,9 @@ interface UseEditorMentionsOptions {
     startX: number;
     startWidth: number;
   } | null>;
-  getTextEditorBlock: (source: Node | null) => HTMLElement | null;
-  getLineControlBlock: (source: Node | null) => HTMLElement | null;
-  blockSelectionRef: React.MutableRefObject<{ x: number; y: number } | null>;
-  setBlockSelection: Dispatch<SetStateAction<{
-    left: number;
-    top: number;
-    width: number;
-    height: number;
-  } | null>>;
   controls: {
     clearBlockControls: () => void;
   };
-  toggleLineSelection: (block: HTMLElement) => void;
   captureStructuralUndo: () => void;
 }
 
@@ -54,12 +44,7 @@ export function useEditorMentions({
   setFocusedNodeId,
   syncContent,
   imageResizeRef,
-  getTextEditorBlock,
-  getLineControlBlock,
-  blockSelectionRef,
-  setBlockSelection,
   controls,
-  toggleLineSelection,
   captureStructuralUndo,
 }: UseEditorMentionsOptions) {
   const isMentionImage = useCallback((element: HTMLElement | null) => {
@@ -223,7 +208,7 @@ export function useEditorMentions({
     }
     setExpanded((value) => ({ ...value, ...expanded }));
     setFocusedNodeId(id);
-    if (mentioned && mentioned.type === "pagina") setSelectedId(id);
+    if (mentioned) setSelectedId(id);
   }, [deletedNodes, nodes, onOpenDeletedNode, setExpanded, setFocusedNodeId, setSelectedId]);
 
   const onEditorPointerDown = useCallback((event: PointerEvent<HTMLDivElement>) => {
@@ -249,13 +234,7 @@ export function useEditorMentions({
     if (target.closest("[data-page-index]")) {
       event.stopPropagation();
     }
-    const line = getLineControlBlock(event.target as Node);
-    if ((event.ctrlKey || event.metaKey) && line) {
-      event.preventDefault();
-      event.stopPropagation();
-      toggleLineSelection(line);
-      return;
-    }
+
     const image = target.closest<HTMLImageElement>("img");
     const isMentionResizeDisabled = isMentionImage(image);
     if (isMentionResizeDisabled) {
@@ -276,40 +255,9 @@ export function useEditorMentions({
       document.body.style.cursor = "ew-resize";
       return;
     }
-    const selection = window.getSelection();
-    const targetBlock = getTextEditorBlock(event.target as Node);
-    const hasActiveTextCaret = Boolean(
-      selection &&
-        selection.rangeCount &&
-        selection.isCollapsed &&
-        targetBlock &&
-        selection.focusNode &&
-        editorRef.current?.contains(selection.focusNode) &&
-        getTextEditorBlock(selection.focusNode) === targetBlock,
-    );
-    const isTextInteraction = Boolean(targetBlock && !targetBlock.matches("[data-divider]"));
-    const editorSurfaceHit = !target.closest(
-      "button, [data-line-control], [data-page-index-item], [data-page-index], [data-mention-id], .editor-mention, [data-no-resize='true'], img, [data-globe-icon]",
-    );
-    const isPrimaryMouseDragStart = event.button === 0 &&
-      (event.buttons & 1) === 1 &&
-      !image &&
-      editorSurfaceHit &&
-      (!hasActiveTextCaret || selectedLineBlocks.length > 0) &&
-      !isTextInteraction;
-    if (isPrimaryMouseDragStart) {
-      const selection = window.getSelection();
-      selection?.removeAllRanges();
-      if (document.activeElement instanceof HTMLElement && editorRef.current?.contains(document.activeElement)) {
-        document.activeElement.blur();
-      }
-      blockSelectionRef.current = { x: event.clientX, y: event.clientY };
-      setBlockSelection(null);
-      event.currentTarget.setPointerCapture(event.pointerId);
-      event.preventDefault();
-    }
+
     onMentionPointerDown(event);
-  }, [blockSelectionRef, controls, editorRef, getLineControlBlock, getTextEditorBlock, imageResizeRef, isMentionImage, onMentionPointerDown, selectedLineBlocks, setBlockSelection, toggleLineSelection]);
+  }, [editorRef, imageResizeRef, isMentionImage, onMentionPointerDown]);
 
   const alignImage = useCallback((alignment: "left" | "center" | "right") => {
     const selected = selectedLineBlocks.filter((line) => line.isConnected);

@@ -47,6 +47,7 @@ function layoutNodes(nodes: NodeItem[], showConcepts: boolean): GraphPoint[] {
       { id: "concept-pages", label: "Paginas", type: "concepto", conceptType: "pagina", x: startX - 420, y: CANVAS_HEIGHT / 2 - 220, concept: true },
       { id: "concept-categories", label: "Categorias", type: "concepto", conceptType: "categoria", x: startX - 420, y: CANVAS_HEIGHT / 2 + 220, concept: true },
       { id: "concept-images", label: "Imagenes", type: "concepto", conceptType: "imagen", x: startX - 420, y: CANVAS_HEIGHT / 2 + 440, concept: true },
+      { id: "concept-calendars", label: "Calendarios", type: "concepto", conceptType: "calendario", x: startX - 420, y: CANVAS_HEIGHT / 2 + 660, concept: true },
     );
   }
   nodes.forEach((node, index) => {
@@ -79,21 +80,31 @@ function buildEdges(nodes: NodeItem[], showConcepts: boolean): GraphEdge[] {
   const edges: GraphEdge[] = [];
   if (showConcepts) {
     nodes.forEach((node) => {
+      if (node.type === "tempo") return;
       edges.push({
         from:
           node.type === "pagina"
             ? "concept-pages"
             : node.type === "imagen"
               ? "concept-images"
-              : "concept-categories",
+              : node.type === "calendario"
+                ? "concept-calendars"
+                : "concept-categories",
         to: node.id,
         concept: true,
       });
     });
   }
   nodes.forEach((node) => {
+    if (node.type === "tempo" && node.parentId && nodesById.get(node.parentId)?.type === "calendario") {
+      edges.push({ from: node.parentId, to: node.id });
+    }
+  });
+  nodes.forEach((node) => {
     getCallTargets(node, nodesById).forEach((targetId) => {
-      if (targetId !== node.id) edges.push({ from: node.id, to: targetId });
+      if (targetId !== node.id && !edges.some((edge) => edge.from === node.id && edge.to === targetId)) {
+        edges.push({ from: node.id, to: targetId });
+      }
     });
   });
   return edges;

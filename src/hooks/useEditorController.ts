@@ -11,6 +11,7 @@ import type { NodeItem, PickerState } from "../types/nodes";
 import { formatPastedText, sanitizeEditorHtml } from "../utils/editorHtml";
 import { useBlockControls } from "./useBlockControls";
 import { useEditorBlocks } from "./useEditorBlocks";
+import { useEditorBlockSelection } from "./useEditorBlockSelection";
 import { useEditorMentions } from "./useEditorMentions";
 import { useEditorPickers } from "./useEditorPickers";
 import { useRichTextEditor } from "./useRichTextEditor";
@@ -26,6 +27,7 @@ interface EditorControllerOptions {
   setExpanded: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
   onOpenDeletedNode: (id: string) => void;
   onImageFilePaste?: (file: File, parentId?: string | null) => Promise<string | null> | string | null;
+  onSlashCommand?: (tag: string) => boolean;
 }
 
 const blockSelector =
@@ -42,6 +44,7 @@ export function useEditorController({
   setExpanded,
   onOpenDeletedNode,
   onImageFilePaste,
+  onSlashCommand,
 }: EditorControllerOptions) {
   const [selectionToolbar, setSelectionToolbar] = useState<{
     top: number;
@@ -470,7 +473,7 @@ export function useEditorController({
     !block.textContent?.trim() &&
     !block.querySelector("img, .editor-mention");
 
-  const { isTextEntryElement, selectAllBlocks, updateSelectionToolbar: updateSelectionToolbarFromHook, updatePlaceholder: updatePlaceholderFromHook, finalizeSelectionBox, onEditorSelectionMove } = useEditorSelection({
+  const { isTextEntryElement, selectAllBlocks, updateSelectionToolbar: updateSelectionToolbarFromHook, updatePlaceholder: updatePlaceholderFromHook } = useEditorSelection({
     editorRef,
     blockSelector,
     textLineSelector,
@@ -485,9 +488,6 @@ export function useEditorController({
     isLineEmpty,
     clearLineSelection,
     clearNativeSelection,
-    blockSelectionRef,
-    blockSelection,
-    setBlockSelection,
   });
   const updatePlaceholder = updatePlaceholderFromHook;
   const updateSelectionToolbar = updateSelectionToolbarFromHook;
@@ -530,6 +530,20 @@ export function useEditorController({
     finishLineDrag,
   } = editorBlocks;
 
+  const blockSelectionController = useEditorBlockSelection({
+    editorRef,
+    textLineSelector,
+    setSelectedLineBlocks,
+    getTextEditorBlock,
+    clearLineSelection,
+    blockSelectionRef,
+    blockSelection,
+    setBlockSelection,
+    selectedLineBlocks,
+  });
+
+  const { beginSelection, finalizeSelectionBox: finalizeBlockSelectionBox, onEditorSelectionMove: onBlockSelectionMove } = blockSelectionController;
+
   const mentionController = useEditorMentions({
     editorRef,
     nodes,
@@ -542,12 +556,7 @@ export function useEditorController({
     setFocusedNodeId,
     syncContent,
     imageResizeRef,
-    getTextEditorBlock,
-    getLineControlBlock,
-    blockSelectionRef,
-    setBlockSelection,
     controls,
-    toggleLineSelection,
     captureStructuralUndo,
   });
 
@@ -556,7 +565,7 @@ export function useEditorController({
     insertMentionWithSpacing,
     insertNodeMention,
     onMentionPointerDown,
-    onEditorPointerDown,
+    onEditorPointerDown: onMentionEditorPointerDown,
     onEditorPointerMove,
     alignImage,
   } = mentionController;
@@ -858,6 +867,11 @@ export function useEditorController({
       range.setStart(selection.focusNode, selection.focusOffset - length);
       range.setEnd(selection.focusNode, selection.focusOffset);
       document.execCommand("delete", false);
+    }
+    if (onSlashCommand?.(value)) {
+      syncContent();
+      dismissEditorMenus();
+      return;
     }
     const selected = selectedLineBlocks.filter((line) => line.isConnected);
     const actionBlocks = selected.includes(lineActionBlock!)
@@ -1277,8 +1291,19 @@ export function useEditorController({
     insert(formatPastedText(text));
   };
 
+  const onEditorPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (beginSelection(event)) {
+      return;
+    }
+    onMentionEditorPointerDown(event);
+  };
+
+  const onEditorSelectionMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    onBlockSelectionMove(event);
+  };
+
   const onEditorPointerUp = () => {
-    finalizeSelectionBox();
+    finalizeBlockSelectionBox();
     if (!imageResizeRef.current) return;
     if (isMentionImageLegacy(imageResizeRef.current.image)) {
       imageResizeRef.current = null;

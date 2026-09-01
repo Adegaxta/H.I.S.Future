@@ -240,12 +240,13 @@ export default function SidebarTree(props: SidebarTreeProps) {
             }
             event.stopPropagation();
             props.setCreating(null);
-            if (isFolder)
+            if (isFolder) {
               props.setExpanded((current) => ({
                 ...current,
                 [node.id]: !current[node.id],
               }));
-            else props.setSelectedId(node.id);
+              if (node.type === "calendario") props.setSelectedId(node.id);
+            } else props.setSelectedId(node.id);
           }}
           onContextMenu={(event) => {
             event.preventDefault();

@@ -5,6 +5,8 @@ export const PALETTE = {
   categoria: "#D8B34D",
   pagina: "#4DD8C0",
   imagen: "#D878A8",
+  calendario: "#78A8D8",
+  tempo: "#D88F5A",
   paginaCarpeta: "#4D94D8",
   avatarExtra: "#8C7AD8",
 } as const;

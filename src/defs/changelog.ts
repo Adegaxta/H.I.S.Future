@@ -6,9 +6,38 @@ export interface ChangelogEntry {
   changes: string[];
 }
 
-export const CURRENT_VERSION = "0.2.30";
+export const CURRENT_VERSION = "0.2.32";
 
 export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
+  {
+    version: "0.2.32",
+    date: "2026-09-01",
+    title: "CALENDARIO Y TEMPO — SEGUNDA PASADA FUNCIONAL",
+    category: "Sistema",
+    changes: [
+      "Las referencias a Nodos Calendario y Tempo ahora se insertan y navegan mediante el mismo sistema de menciones del editor.",
+      "Se añadió formato horario global de 12 o 24 horas, aplicado de forma consistente a Mes, Semana, Día, cabecera y edición rápida de Tempo.",
+      "La cabecera del Calendario incorpora jerarquía de fecha y nombre, búsqueda, navegación y escalas Año, Mes, Semana y Día; Año queda preparado visualmente para una futura implementación completa.",
+      "La Vista Mes abre el Día al pulsar una celda, navega al Mes desde el primer indicador adyacente y distingue hoy con un fondo integrado.",
+      "La Vista Semana es ahora una grilla horaria real con Tempos generales arriba, creación rápida por hora y movimiento por arrastre sin duplicar nodos.",
+      "Mes, Semana y Día permiten editar el mismo Nodo Tempo en un panel rápido con título, fecha, horas, contenido normal y referencias insertadas.",
+      "El grafo reconoce Calendario como concepto propio y representa a Tempo como su hijo temporal natural sin clasificarlo como Categoría.",
+      "La persistencia de Calendarios y Tempos se verificó cerrando y reabriendo el proyecto desde disco sin perder metadatos ni relaciones.",
+    ],
+  },
+  {
+    version: "0.2.31",
+    date: "2026-09-01",
+    title: "NODOS CALENDARIO Y TEMPO V1",
+    category: "Sistema",
+    changes: [
+      "Se añadió el comando /calendario, que crea y abre múltiples Nodos Calendario numerados de forma segura dentro de un mismo proyecto.",
+      "Cada Calendario conserva una fecha activa y ofrece vistas de Mes, Semana y Día sobre el mismo conjunto de Nodos Tempo.",
+      "Los Nodos Tempo se crean en una fecha obligatoria, admiten horas inicial y final opcionales y representan el día completo cuando no tienen horas.",
+      "Tempo reutiliza el contenido normal, las menciones, las referencias y la jerarquía existentes; cada Tempo queda anidado bajo su Calendario.",
+      "Se amplió la persistencia SQLite con migración compatible para los dos nuevos tipos y se validó su round-trip junto con la compilación de producción.",
+    ],
+  },
   {
     version: "0.2.30",
     date: "2026-09-01",

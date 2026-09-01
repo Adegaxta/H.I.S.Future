@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS project_meta (
 CREATE TABLE IF NOT EXISTS nodes (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
-    type TEXT NOT NULL CHECK(type IN ('categoria', 'pagina', 'imagen')),
+    type TEXT NOT NULL CHECK(type IN ('categoria', 'pagina', 'imagen', 'calendario', 'tempo')),
   parent_id TEXT,
   sort_order INTEGER NOT NULL DEFAULT 0,
   content TEXT NOT NULL DEFAULT '<p><br></p>',
@@ -190,14 +190,14 @@ fn init_database(path: &Path) -> Result<Connection, String> {
             |row| row.get(0),
         )
         .map_err(|err| format!("No se pudo comprobar el esquema de nodos: {err}"))?;
-    if !schema.contains("'imagen'") {
-                db.execute_batch(
-                        "PRAGMA foreign_keys = OFF;
+    if !schema.contains("'calendario'") || !schema.contains("'tempo'") {
+        db.execute_batch(
+            "PRAGMA foreign_keys = OFF;
                          BEGIN;
                          CREATE TABLE nodes_new (
                id TEXT PRIMARY KEY,
                name TEXT NOT NULL,
-               type TEXT NOT NULL CHECK(type IN ('categoria', 'pagina', 'imagen')),
+               type TEXT NOT NULL CHECK(type IN ('categoria', 'pagina', 'imagen', 'calendario', 'tempo')),
                parent_id TEXT,
                sort_order INTEGER NOT NULL DEFAULT 0,
                content TEXT NOT NULL DEFAULT '<p><br></p>',
@@ -647,7 +647,9 @@ pub fn save_nodes(state: &ProjectState, nodes: Vec<NodeRecord>) -> Result<(), St
             )
             .map_err(|err| format!("No se pudo preparar el guardado: {err}"))?;
         for node in nodes {
-            if !["categoria", "pagina", "imagen"].contains(&node.node_type.as_str()) {
+            if !["categoria", "pagina", "imagen", "calendario", "tempo"]
+                .contains(&node.node_type.as_str())
+            {
                 return Err(format!("Tipo de nodo no válido: {}", node.node_type));
             }
             insert
@@ -710,6 +712,52 @@ mod tests {
         assert_eq!(record.parent_id, Some("root-id".to_string()));
         assert_eq!(record.order, 12);
         assert_eq!(record.content, "<p>hola</p>");
+    }
+
+    #[test]
+    fn persists_calendar_and_tempo_nodes_with_temporal_metadata() {
+        let root = std::env::temp_dir().join(format!(
+            "hisfuture-temporal-test-{}",
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_nanos()
+        ));
+        fs::create_dir_all(&root).expect("test root");
+        let project = create_project(root.to_string_lossy().into_owned(), "Temporal".into())
+            .expect("create project");
+        let project_path = project.info.folder_path.clone();
+        let state = Mutex::new(Some(project));
+        let expected = vec![
+            NodeRecord {
+                id: "calendar-1".into(),
+                name: "Calendario 1".into(),
+                node_type: "calendario".into(),
+                parent_id: None,
+                order: 0,
+                content: "<!--hisfuture-calendar-meta:{\"currentDate\":\"2026-09-01\",\"view\":\"month\"}--><p><br></p>".into(),
+            },
+            NodeRecord {
+                id: "tempo-1".into(),
+                name: "Tempo 1".into(),
+                node_type: "tempo".into(),
+                parent_id: Some("calendar-1".into()),
+                order: 0,
+                content: "<!--hisfuture-tempo-meta:{\"date\":\"2026-09-01\",\"startTime\":null,\"endTime\":null}--><p>Contenido y referencia normal</p>".into(),
+            },
+        ];
+
+        save_nodes(&state, expected.clone()).expect("save temporal nodes");
+        assert_eq!(list_nodes(&state).expect("list temporal nodes"), expected);
+        close_project(&state).expect("close project");
+        let reopened = open_project_from_path(project_path).expect("reopen temporal project");
+        let reopened_state = Mutex::new(Some(reopened));
+        assert_eq!(
+            list_nodes(&reopened_state).expect("list reopened temporal nodes"),
+            expected
+        );
+        close_project(&reopened_state).expect("close reopened project");
+        fs::remove_dir_all(root).expect("test cleanup");
     }
 
     #[test]

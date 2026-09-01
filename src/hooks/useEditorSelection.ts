@@ -1,7 +1,6 @@
 import { useCallback } from "react";
 import type {
   Dispatch,
-  PointerEvent,
   RefObject,
   SetStateAction,
 } from "react";
@@ -25,19 +24,6 @@ interface UseEditorSelectionOptions {
   isLineEmpty: (block: HTMLElement) => boolean;
   clearLineSelection: () => void;
   clearNativeSelection: () => void;
-  blockSelectionRef: React.MutableRefObject<{ x: number; y: number } | null>;
-  blockSelection: {
-    left: number;
-    top: number;
-    width: number;
-    height: number;
-  } | null;
-  setBlockSelection: Dispatch<SetStateAction<{
-    left: number;
-    top: number;
-    width: number;
-    height: number;
-  } | null>>;
 }
 
 export function useEditorSelection({
@@ -55,9 +41,6 @@ export function useEditorSelection({
   isLineEmpty,
   clearLineSelection,
   clearNativeSelection,
-  blockSelectionRef,
-  blockSelection,
-  setBlockSelection,
 }: UseEditorSelectionOptions) {
   const isTextEntryElement = useCallback((element: Element | null) => {
     if (!element) return false;
@@ -141,66 +124,10 @@ export function useEditorSelection({
     }
   }, [editorRef, getEditorBlock, getTextEditorBlock, isLineEmpty, isRootEditorBlock, setPlaceholderBlock, textLineSelector]);
 
-  const finalizeSelectionBox = useCallback(() => {
-    if (!blockSelectionRef.current || !blockSelection) return;
-    const editor = editorRef.current;
-    if (editor && blockSelection.width > 6 && blockSelection.height > 6) {
-      const selected = Array.from(editor.querySelectorAll<HTMLElement>(textLineSelector)).filter((block) => {
-        const rect = block.getBoundingClientRect();
-        return rect.right >= blockSelection.left &&
-          rect.left <= blockSelection.left + blockSelection.width &&
-          rect.bottom >= blockSelection.top &&
-          rect.top <= blockSelection.top + blockSelection.height;
-      });
-
-      if (selected.length) {
-        clearLineSelection();
-        selected.forEach((block) => {
-          block.setAttribute("data-line-selected", "true");
-          if (!block.matches("[data-divider], [data-globe], [data-page-index]")) block.contentEditable = "false";
-        });
-        setSelectedLineBlocks(selected);
-        const selection = window.getSelection();
-        selection?.removeAllRanges();
-        if (document.activeElement instanceof HTMLElement && editor.contains(document.activeElement)) {
-          document.activeElement.blur();
-        }
-      } else {
-        const selection = window.getSelection();
-        selection?.removeAllRanges();
-      }
-    }
-
-    blockSelectionRef.current = null;
-    setBlockSelection(null);
-  }, [blockSelection, blockSelectionRef, clearLineSelection, editorRef, setBlockSelection, setSelectedLineBlocks, textLineSelector]);
-
-  const onEditorSelectionMove = useCallback((event: PointerEvent<HTMLDivElement>) => {
-    const start = blockSelectionRef.current;
-    if (!start || (event.buttons & 1) === 0) {
-      blockSelectionRef.current = null;
-      setBlockSelection(null);
-      return;
-    }
-    const deltaX = Math.abs(event.clientX - start.x);
-    const deltaY = Math.abs(event.clientY - start.y);
-    if (deltaX < 8 && deltaY < 8) return;
-    const left = Math.min(start.x, event.clientX);
-    const top = Math.min(start.y, event.clientY);
-    setBlockSelection({
-      left,
-      top,
-      width: Math.abs(event.clientX - start.x),
-      height: Math.abs(event.clientY - start.y),
-    });
-  }, [blockSelectionRef, setBlockSelection]);
-
   return {
     isTextEntryElement,
     selectAllBlocks,
     updateSelectionToolbar,
     updatePlaceholder,
-    finalizeSelectionBox,
-    onEditorSelectionMove,
   };
 }

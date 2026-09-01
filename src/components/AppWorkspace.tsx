@@ -12,7 +12,10 @@ import RichTextEditor from "./RichTextEditor";
 import ImageNodeView from "./ImageNodeView";
 import PageNodeHeader from "./PageNodeHeader";
 import GraphView from "./GraphView";
+import CalendarNodeView from "./CalendarNodeView";
+import TempoNodeHeader from "./TempoNodeHeader";
 import { getPageMeta } from "../utils/pageMeta";
+import { createCalendarContent, createTempoContent, setTempoMeta, type TempoMeta, type TimeFormat } from "../utils/temporalMeta";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { CHANGELOG_ENTRIES, CURRENT_VERSION } from "../defs/changelog";
 import {
@@ -63,7 +66,11 @@ export default function AppWorkspace({
   const imageStorageKey = `hisfuture.project.image.${projectKey}`;
   const coverNodeStorageKey = `hisfuture.project.cover-node.${projectKey}`;
   const colorStorageKey = `hisfuture.project.color.${projectKey}`;
+  const timeFormatStorageKey = "hisfuture.settings.time-format";
   const [defaultNodeType, setDefaultNodeType] = useState<BaseNodeType>("pagina");
+  const [timeFormat, setTimeFormat] = useState<TimeFormat>(() =>
+    localStorage.getItem(timeFormatStorageKey) === "24h" ? "24h" : "12h",
+  );
   const workspace = useTreeController(defaultNodeType, projectKey);
   const [width, setWidth] = useState(260);
   const [sidebarVisible, setSidebarVisible] = useState(true);
@@ -93,6 +100,9 @@ export default function AppWorkspace({
     if (projectImage) safeLocalStorageSet(imageStorageKey, projectImage);
     safeLocalStorageSet(colorStorageKey, avatarColor);
   }, [avatarColor, colorStorageKey, imageStorageKey, projectImage]);
+  useEffect(() => {
+    localStorage.setItem(timeFormatStorageKey, timeFormat);
+  }, [timeFormat]);
   const [contextMenu, setContextMenu] = useState<
     React.ComponentProps<typeof ContextMenu>["menu"] | null
   >(null);
@@ -458,6 +468,52 @@ export default function AppWorkspace({
       const resource = getImageResourceInfo(content, imageNode.name);
       if (resource) setProjectImage(resource.src);
     }
+  };
+  const createCalendarNode = () => {
+    const usedNumbers = new Set(
+      workspace.nodes
+        .filter((node) => node.type === "calendario")
+        .map((node) => /^Calendario (\d+)$/.exec(node.name)?.[1])
+        .filter((value): value is string => Boolean(value))
+        .map(Number),
+    );
+    let number = 1;
+    while (usedNumbers.has(number)) number += 1;
+    const id = workspace.createNode(
+      `Calendario ${number}`,
+      "calendario",
+      null,
+      createCalendarContent(),
+    );
+    workspace.setSelectedId(id);
+    return true;
+  };
+  const handleSlashCommand = (tag: string) => {
+    if (tag !== "CALENDARIO") return false;
+    return createCalendarNode();
+  };
+  const createTempoNode = (calendarId: string, date: string, startTime?: string) => {
+    const usedNumbers = new Set(
+      workspace.nodes
+        .filter((node) => node.type === "tempo" && node.parentId === calendarId)
+        .map((node) => /^Tempo (\d+)$/.exec(node.name)?.[1])
+        .filter((value): value is string => Boolean(value))
+        .map(Number),
+    );
+    let number = 1;
+    while (usedNumbers.has(number)) number += 1;
+    const id = workspace.createNode(
+      `Tempo ${number}`,
+      "tempo",
+      calendarId,
+      createTempoContent({ date, startTime: startTime ?? null, endTime: null }),
+    );
+    workspace.setExpanded((current) => ({ ...current, [calendarId]: true }));
+    return id;
+  };
+  const moveTempoNode = (id: string, meta: TempoMeta) => {
+    const tempo = workspace.nodes.find((item) => item.id === id && item.type === "tempo");
+    if (tempo) workspace.updateContent(id, setTempoMeta(tempo.content, meta));
   };
   useEffect(() => {
     if (!workspace.hydrated || !projectImage) return;
@@ -833,6 +889,13 @@ export default function AppWorkspace({
                   ))}
                 </select>
               </label>
+              <label className="project-settings__field">
+                Formato horario
+                <select value={timeFormat} onChange={(event) => setTimeFormat(event.target.value as TimeFormat)}>
+                  <option value="12h">12 horas (AM/PM)</option>
+                  <option value="24h">24 horas</option>
+                </select>
+              </label>
             </section>
           ) : view === "graph" ? (
             <GraphView
@@ -882,6 +945,7 @@ export default function AppWorkspace({
                     onImageFilePaste={async (file: File, parentId?: string | null) => {
                       return createImageNodeFromFile(file, parentId ?? selectedNode.parentId ?? null);
                     }}
+                    onSlashCommand={handleSlashCommand}
                     onOpenNodeView={(id) => {
                       setSelectedTrashNodeId(null);
                       setProjectTab("workspace");
@@ -897,6 +961,82 @@ export default function AppWorkspace({
                       padding: 0,
                       border: "none",
                       resize: "none",
+                      background: "transparent",
+                      color: "#E8E9EA",
+                      fontSize: "14px",
+                      fontFamily: "inherit",
+                      lineHeight: "1.6",
+                      outline: "none",
+                    }}
+                  />
+                </>
+              ) : selectedNode.type === "calendario" ? (
+                <CalendarNodeView
+                  node={selectedNode}
+                  nodes={workspace.nodes}
+                  deletedNodes={workspace.deletedNodes}
+                  onContentChange={workspace.updateContent}
+                  onOpenTempo={workspace.setSelectedId}
+                  onCreateTempo={(date, startTime) => createTempoNode(selectedNode.id, date, startTime)}
+                  onMoveTempo={moveTempoNode}
+                  onRenameTempo={workspace.renameNode}
+                  setExpanded={workspace.setExpanded}
+                  onOpenDeletedNode={(id) => {
+                    setProjectTab("settings");
+                    setSettingsPanel("trash");
+                    setSelectedTrashNodeId(id);
+                  }}
+                  onOpenNodeView={(id) => {
+                    setSelectedTrashNodeId(null);
+                    setProjectTab("workspace");
+                    setView("list");
+                    workspace.setSelectedId(id);
+                  }}
+                  onImageFilePaste={async (file: File, parentId?: string | null) => {
+                    return createImageNodeFromFile(file, parentId ?? selectedNode.id);
+                  }}
+                  onSlashCommand={handleSlashCommand}
+                  timeFormat={timeFormat}
+                />
+              ) : selectedNode.type === "tempo" ? (
+                <>
+                  <TempoNodeHeader
+                    node={selectedNode}
+                    onContentChange={workspace.updateContent}
+                    timeFormat={timeFormat}
+                  />
+                  <RichTextEditor
+                    node={selectedNode}
+                    nodes={workspace.nodes}
+                    deletedNodes={workspace.deletedNodes}
+                    editorRef={editorRef}
+                    onContentChange={workspace.updateContent}
+                    setSelectedId={workspace.setSelectedId}
+                    setExpanded={workspace.setExpanded}
+                    pendingNodeDrop={workspace.pendingEditorNodeDrop}
+                    onNodeDropHandled={workspace.clearPendingEditorNodeDrop}
+                    onOpenDeletedNode={(id) => {
+                      setProjectTab("settings");
+                      setSettingsPanel("trash");
+                      setSelectedTrashNodeId(id);
+                    }}
+                    onImageFilePaste={async (file: File, parentId?: string | null) => {
+                      return createImageNodeFromFile(file, parentId ?? selectedNode.parentId ?? null);
+                    }}
+                    onSlashCommand={handleSlashCommand}
+                    onOpenNodeView={(id) => {
+                      setSelectedTrashNodeId(null);
+                      setProjectTab("workspace");
+                      setView("list");
+                      workspace.setSelectedId(id);
+                    }}
+                    style={{
+                      display: "block",
+                      width: "100%",
+                      minHeight: 240,
+                      minWidth: 0,
+                      padding: 0,
+                      border: "none",
                       background: "transparent",
                       color: "#E8E9EA",
                       fontSize: "14px",
@@ -940,6 +1080,7 @@ export default function AppWorkspace({
                   onImageFilePaste={async (file: File, parentId?: string | null) => {
                     return createImageNodeFromFile(file, parentId ?? selectedNode.parentId ?? null);
                   }}
+                  onSlashCommand={handleSlashCommand}
                   onOpenNodeView={(id) => {
                     setSelectedTrashNodeId(null);
                     setProjectTab("workspace");
