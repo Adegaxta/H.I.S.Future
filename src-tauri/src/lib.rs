@@ -54,6 +54,18 @@ fn register_his_file_association(app: &tauri::AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn set_discord_presence(details: String, state: String) -> Result<(), String> {
+    println!("[Discord RPC] details={details} state={state}");
+    Ok(())
+}
+
+#[tauri::command]
+fn clear_discord_presence() -> Result<(), String> {
+    println!("[Discord RPC] cleared");
+    Ok(())
+}
+
+#[tauri::command]
 fn create_project(
     parent_dir: String,
     name: String,
@@ -144,6 +156,8 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
+            set_discord_presence,
+            clear_discord_presence,
             create_project,
             create_project_file,
             convert_project_folder,

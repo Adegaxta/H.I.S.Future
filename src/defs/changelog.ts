@@ -6,9 +6,20 @@ export interface ChangelogEntry {
   changes: string[];
 }
 
-export const CURRENT_VERSION = "0.2.29";
+export const CURRENT_VERSION = "0.2.30";
 
 export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
+  {
+    version: "0.2.30",
+    date: "2026-09-01",
+    title: "ARQUITECTURA BASE DE DISCORD RICH PRESENCE",
+    category: "Sistema",
+    changes: [
+      "Se añadió una capa cliente para actualizar y limpiar la presencia de Discord mediante comandos de Tauri, manteniendo la integración aislada del resto de la interfaz.",
+      "La aplicación sincroniza la presencia al abrir un proyecto y la limpia al cerrarlo o abandonar el espacio de trabajo, usando el nombre del proyecto como estado visible.",
+      "El backend expone los comandos base de presencia y limpieza, dejando preparada una frontera clara para conectar el cliente RPC de Discord en una siguiente iteración.",
+    ],
+  },
   {
     version: "0.2.29",
     date: "2026-08-31",
