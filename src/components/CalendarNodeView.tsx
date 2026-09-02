@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { NodeItem } from "../types/nodes";
 import {
   formatTempoTime,
@@ -31,6 +31,7 @@ interface CalendarNodeViewProps {
   onOpenNodeView: (id: string, x: number, y: number) => void;
   onImageFilePaste?: (file: File, parentId?: string | null) => Promise<string | null> | string | null;
   onSlashCommand?: (tag: string) => boolean;
+  onRegisterNavigation: (handler: (direction: -1 | 1) => boolean) => () => void;
 }
 
 interface TempoEntry {
@@ -42,6 +43,7 @@ interface TempoEntry {
 const HOURS = Array.from({ length: 24 }, (_, hour) => hour);
 const HOUR_HEIGHT = 48;
 const WEEK_TIP_KEY = "hisfuture.tip.week-tempo-opens-day";
+const ADJACENT_MONTH_TIP_KEY = "hisfuture.tip.adjacent-month-navigation";
 
 const dateFromIso = (value: string) => {
   const [year, month, day] = value.split("-").map(Number);
@@ -68,7 +70,12 @@ const timeFromMinutes = (value: number) => {
 };
 const hourTime = (hour: number) => `${String(hour).padStart(2, "0")}:00`;
 const hourLabel = (hour: number, format: TimeFormat) => formatTime(hourTime(hour), format).replace(":00", "");
-const calendarHeading = (date: Date) => {
+const capitalize = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
+const calendarHeading = (date: Date, view: CalendarView) => {
+  if (view === "day") {
+    const month = new Intl.DateTimeFormat("es-ES", { month: "long" }).format(date);
+    return `${date.getDate()} de ${capitalize(month)} de ${date.getFullYear()}`;
+  }
   const value = new Intl.DateTimeFormat("es-ES", { month: "long", year: "numeric" }).format(date);
   return value.charAt(0).toUpperCase() + value.slice(1);
 };
@@ -104,13 +111,16 @@ export default function CalendarNodeView({
   node, nodes, deletedNodes, timeFormat, onContentChange, onCreateTempo,
   onMoveTempo, onRenameTempo, onDeleteTempo, setExpanded, onOpenDeletedNode,
   onOpenNodeView, onImageFilePaste, onSlashCommand,
+  onRegisterNavigation,
 }: CalendarNodeViewProps) {
   const meta = getCalendarMeta(node.content);
   const currentDate = dateFromIso(meta.currentDate);
+  const navigationHistory = useRef<{ entries: typeof meta[]; index: number }>({ entries: [meta], index: 0 });
   const [query, setQuery] = useState("");
   const [selectedTempoId, setSelectedTempoId] = useState<string | null>(null);
   const [selectedHour, setSelectedHour] = useState<number | null>(null);
   const [weekTipVisible, setWeekTipVisible] = useState(false);
+  const [adjacentMonthTipVisible, setAdjacentMonthTipVisible] = useState(false);
   const [tempoMenu, setTempoMenu] = useState<{ x: number; y: number; tempoId: string } | null>(null);
   const normalizedQuery = query.trim().toLocaleLowerCase("es");
   const allTempos: TempoEntry[] = nodes
@@ -121,8 +131,30 @@ export default function CalendarNodeView({
     : allTempos;
   const selectedTempo = selectedTempoId ? nodes.find((item) => item.id === selectedTempoId && item.type === "tempo") : null;
 
-  const updateMeta = (next: typeof meta) => onContentChange(node.id, setCalendarMeta(node.content, next));
+  const updateMeta = (next: typeof meta) => {
+    const history = navigationHistory.current;
+    const current = history.entries[history.index];
+    if (current.view !== next.view || current.currentDate !== next.currentDate) {
+      history.entries = [...history.entries.slice(0, history.index + 1), next];
+      history.index += 1;
+    }
+    onContentChange(node.id, setCalendarMeta(node.content, next));
+  };
+  const navigateHistory = (direction: -1 | 1) => {
+    const history = navigationHistory.current;
+    const nextIndex = history.index + direction;
+    if (nextIndex < 0 || nextIndex >= history.entries.length) return false;
+    history.index = nextIndex;
+    const next = history.entries[nextIndex];
+    onContentChange(node.id, setCalendarMeta(node.content, next));
+    return true;
+  };
+  useEffect(() => onRegisterNavigation(navigateHistory), [onRegisterNavigation, node.id]);
   const selectView = (view: CalendarView, date = currentDate) => updateMeta({ view, currentDate: localIsoDate(date) });
+  const openAdjacentMonth = (date: Date) => {
+    setAdjacentMonthTipVisible(true);
+    selectView("month", date);
+  };
   const openDay = (date: Date, tempoId: string | null = null) => {
     setSelectedTempoId(tempoId);
     setSelectedHour(null);
@@ -177,7 +209,7 @@ export default function CalendarNodeView({
           const isFirstNextMonth = outsideMonth && date.getDate() === 1 && monthIndex(date) > monthIndex(currentDate);
           return (
             <article key={isoDate} className={`calendar-node__day${outsideMonth ? " is-outside" : ""}${isoDate === localIsoDate() ? " is-today" : ""}`}
-              onClick={() => isFirstNextMonth ? selectView("month", date) : openDay(date)}>
+              onClick={() => isFirstNextMonth ? openAdjacentMonth(date) : openDay(date)}>
               <div className="calendar-node__day-label"><span>{isFirstNextMonth ? adjacentMonthLabel(date) : date.getDate()}</span></div>
               <div className="calendar-node__tempos">{dayTempos.map((tempo) => <TempoSummary key={tempo.node.id} tempo={tempo} timeFormat={timeFormat} compact
                 onOpen={() => openTempo(tempo)} onContextMenu={(event) => showTempoMenu(event, tempo.node.id)} />)}</div>
@@ -185,7 +217,7 @@ export default function CalendarNodeView({
           );
         })}
       </div>
-      <HisTip>Más adelante podrás cambiar cómo navegan los días adyacentes.</HisTip>
+      {adjacentMonthTipVisible && <HisTip storageKey={ADJACENT_MONTH_TIP_KEY} className="his-tip--calendar-navigation">Más adelante podrás cambiar cómo navegan los días adyacentes.</HisTip>}
     </>
   );
 
@@ -238,7 +270,7 @@ export default function CalendarNodeView({
     const timed = dayTempos.filter((tempo) => tempo.meta.startTime);
     const allDay = dayTempos.filter((tempo) => !tempo.meta.startTime && !tempo.meta.endTime);
     return (
-      <div className="calendar-day-layout">
+      <div className={`calendar-day-layout${isoDate === localIsoDate() ? " is-today" : ""}`}>
         <div className="calendar-day-timeline">
           {allDay.length > 0 && <div className="calendar-day-timeline__all-day"><span>Todo el día</span>{allDay.map((tempo) => <TempoSummary key={tempo.node.id} tempo={tempo} timeFormat={timeFormat} compact onOpen={() => setSelectedTempoId(tempo.node.id)} onContextMenu={(event) => showTempoMenu(event, tempo.node.id)} />)}</div>}
           <div className="calendar-day-timeline__scroll">
@@ -279,7 +311,7 @@ export default function CalendarNodeView({
     <section className={`calendar-node calendar-node--${meta.view}`}>
       <header className="calendar-node__header">
         <div className="calendar-node__navigation"><button type="button" onClick={() => move(-1)}>‹</button><button type="button" onClick={() => updateMeta({ ...meta, currentDate: localIsoDate() })}>Hoy</button><button type="button" onClick={() => move(1)}>›</button></div>
-        <div className="calendar-node__identity"><h1>{calendarHeading(currentDate)}</h1><p>{node.name}</p></div>
+        <div className={`calendar-node__identity${meta.view === "day" && localIsoDate(currentDate) === localIsoDate() ? " is-today" : ""}`}><h1>{calendarHeading(currentDate, meta.view)}</h1><p>{node.name}</p></div>
         <label className="calendar-node__search"><span>⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar" /></label>
         <div className="calendar-node__views"><button type="button" disabled>Año</button>{(["month", "week", "day"] as const).map((view) => <button type="button" key={view} className={meta.view === view ? "is-active" : ""} onClick={() => selectView(view)}>{view === "month" ? "Mes" : view === "week" ? "Semana" : "Día"}</button>)}</div>
       </header>

@@ -6,9 +6,21 @@ export interface ChangelogEntry {
   changes: string[];
 }
 
-export const CURRENT_VERSION = "0.2.33";
+export const CURRENT_VERSION = "0.2.34";
 
 export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
+  {
+    version: "0.2.34",
+    date: "2026-09-02",
+    title: "CALENDARIO — NAVEGACIÓN Y RESALTADO ADAPTABLE",
+    category: "Fix",
+    changes: [
+      "Los botones laterales del ratón 4 y 5 ahora navegan por el historial interno de vistas y fechas del Nodo Calendario sin mezclarse con el historial de nodos.",
+      "La Vista Día muestra el día completo en su título y resalta el día actual mediante un cuadro que se adapta automáticamente al título y al nombre del Nodo.",
+      "El cuadro de resaltado mantiene intactos el tamaño y la posición del texto, y admite expansión visual independiente para adaptarse a textos más largos y otros idiomas.",
+      "Se muestra el tip de navegación al entrar al mes siguiente, reutilizando el componente de tips sin generar scroll innecesario.",
+    ],
+  },
   {
     version: "0.2.33",
     date: "2026-09-01",

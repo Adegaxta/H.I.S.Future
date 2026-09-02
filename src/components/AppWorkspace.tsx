@@ -112,6 +112,7 @@ export default function AppWorkspace({
     ids: [],
     index: -1,
   });
+  const calendarNavigation = useRef<((direction: -1 | 1) => boolean) | null>(null);
   const selectedNode = workspace.nodes.find(
     (node) => node.id === workspace.selectedId,
   );
@@ -149,8 +150,13 @@ export default function AppWorkspace({
   useEffect(() => {
     const handleMouseButton = (event: globalThis.MouseEvent) => {
       if (event.button !== 3 && event.button !== 4) return;
+      const direction = event.button === 3 ? -1 : 1;
+      if (selectedNode?.type === "calendario" && calendarNavigation.current?.(direction)) {
+        event.preventDefault();
+        return;
+      }
       const history = navigationHistory.current;
-      const nextIndex = event.button === 3 ? history.index - 1 : history.index + 1;
+      const nextIndex = history.index + direction;
       if (nextIndex < 0 || nextIndex >= history.ids.length) return;
       event.preventDefault();
       history.index = nextIndex;
@@ -158,7 +164,7 @@ export default function AppWorkspace({
     };
     window.addEventListener("mousedown", handleMouseButton);
     return () => window.removeEventListener("mousedown", handleMouseButton);
-  }, [workspace]);
+  }, [workspace, selectedNode?.id, selectedNode?.type]);
 
   const onMouseDown = useCallback(() => {
     resizing.current = true;
@@ -996,6 +1002,12 @@ export default function AppWorkspace({
                     return createImageNodeFromFile(file, parentId ?? selectedNode.id);
                   }}
                   onSlashCommand={handleSlashCommand}
+                  onRegisterNavigation={(handler) => {
+                    calendarNavigation.current = handler;
+                    return () => {
+                      if (calendarNavigation.current === handler) calendarNavigation.current = null;
+                    };
+                  }}
                   timeFormat={timeFormat}
                 />
               ) : selectedNode.type === "tempo" ? (

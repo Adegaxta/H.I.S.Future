@@ -2363,6 +2363,7 @@ body,
 .calendar-node {
   width: 100%;
   color: #e8e9ea;
+  position: relative;
 }
 
 .calendar-node__type {
@@ -2531,6 +2532,12 @@ body,
   margin-bottom: 20px;
 }
 
+.calendar-node__identity {
+  width: max-content;
+  max-width: 100%;
+  justify-self: start;
+}
+
 .calendar-node {
   position: relative;
 }
@@ -2553,6 +2560,37 @@ body,
 .calendar-node__identity h1 {
   margin: 0;
   color: #e8e9ea;
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.calendar-node__identity.is-today {
+  --today-box-side-expansion: 8px;
+  --today-box-bottom-expansion: 3px;
+  position: relative;
+}
+
+.calendar-node__identity.is-today::before {
+  position: absolute;
+  top: 0;
+  right: calc(var(--today-box-side-expansion) * -1);
+  bottom: calc(var(--today-box-bottom-expansion) * -1);
+  left: calc(var(--today-box-side-expansion) * -1);
+  z-index: 0;
+  border-radius: 5px;
+  background: rgba(120, 168, 216, 0.1);
+  box-shadow: inset 0 0 0 1px rgba(120, 168, 216, 0.42);
+  content: "";
+  pointer-events: none;
+}
+
+.calendar-node__identity.is-today h1,
+.calendar-node__identity.is-today p {
+  position: relative;
+  z-index: 1;
+}
+
+.calendar-node__identity.is-today h1 {
   font-size: 22px;
   font-weight: 600;
 }
@@ -2713,7 +2751,8 @@ body,
 .his-tip p { margin: 0; flex: 1; }
 .his-tip button { border: 0; background: transparent; color: #777d84; cursor: pointer; }
 
-.his-tip--week-flow {
+.his-tip--week-flow,
+.his-tip--calendar-navigation {
   position: absolute;
   top: 62px;
   right: 0;
@@ -2748,7 +2787,33 @@ body,
 .his-context-menu button:hover { background: #252b2d; }
 .his-context-menu button.is-danger { color: #d87878; }
 
-.calendar-week { overflow-x: auto; }
+.workspace-main:has(.calendar-node--week) {
+  overflow: hidden;
+}
+
+.editor-page:has(.calendar-node--week) {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  padding-bottom: 20px;
+}
+
+.calendar-node--week {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.calendar-week {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
 .calendar-week__headers,
 .calendar-week__all-day,
 .calendar-week__timeline {
@@ -2818,6 +2883,13 @@ body,
 
 .calendar-week__hours {
   height: 1152px;
+}
+
+.calendar-week__timeline {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .calendar-week__hours span {
