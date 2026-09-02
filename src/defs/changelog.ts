@@ -6,9 +6,19 @@ export interface ChangelogEntry {
   changes: string[];
 }
 
-export const CURRENT_VERSION = "0.2.36";
+export const CURRENT_VERSION = "0.2.37";
 
 export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
+  {
+    version: "0.2.37",
+    date: "2026-09-02",
+    title: "PLACEHOLDER DEL EDITOR — CARET DECORATIVO",
+    category: "Fix",
+    changes: [
+      "El texto de ayuda de los bloques vacíos del editor queda fuera del flujo editable, evitando que el caret aparezca delante del texto decorativo como si formara parte del contenido.",
+      "El placeholder no puede seleccionarse ni recibir interacción, y desaparece al escribir el primer carácter mediante el ciclo existente del editor.",
+    ],
+  },
   {
     version: "0.2.36",
     date: "2026-09-02",

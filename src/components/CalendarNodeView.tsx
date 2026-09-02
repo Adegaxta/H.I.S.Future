@@ -248,15 +248,6 @@ export default function CalendarNodeView({
     setSelectedWeeklyTempoIds(next);
     setSelectedTempoId(next.includes(id) ? id : (next[next.length - 1] ?? null));
   };
-  const continueWeeklyTempo = (id: string) => {
-    const entry = weeklyTempoEntries.find((tempo) => tempo.node.id === id);
-    if (!entry) return;
-    const currentEnd = entry.meta.endDate ? dateFromIso(entry.meta.endDate) : visibleWeekEnd;
-    onMoveTempo(id, { ...entry.meta, endDate: localIsoDate(addDays(currentEnd, 7)) });
-    setSelectedTempoId(id);
-    setSelectedWeeklyTempoIds((current) => current.includes(id) ? current : [...current, id]);
-    openWeeklyTempoView(addDays(visibleWeekStart, 7));
-  };
   const reorderWeeklyTempos = (orderedVisibleIds: string[]) => {
     const visibleIds = new Set(orderedVisibleIds);
     const orderedIds = [
@@ -374,7 +365,7 @@ export default function CalendarNodeView({
     return <div className="weekly-tempo-layout">
       <WeeklyTempoView weekDates={weekDates} tempos={weeklyTempos} selectedTempoId={selectedTempoId} selectedTempoIds={selectedWeeklyTempoIds}
         onSelectTempo={selectWeeklyTempo} onCreateTempo={createWeeklyTempo} onMoveTempo={onMoveTempo} onReorderTempos={reorderWeeklyTempos}
-        onContinueTempo={continueWeeklyTempo} onContextMenu={(event, id) => {
+        onContextMenu={(event, id) => {
           if (!selectedWeeklyTempoIds.includes(id)) selectWeeklyTempo(id, false);
           showTempoMenu(event, id);
         }} onBack={() => selectView("week")} />

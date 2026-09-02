@@ -4,6 +4,7 @@ import { getNodeDefinition, getNodeDisplayLabel } from "../defs/nodeTypes";
 import { getImageResourceInfo } from "../utils/imageResource";
 import { DEFAULT_PAGE_META, getPageMeta, setPageMeta, type PageMeta } from "../utils/pageMeta";
 import { useNodeScopedEditorHistory } from "../hooks/useEditorHistory";
+import { isEditableElement } from "../utils/dom";
 
 interface PageNodeHeaderProps {
   node: NodeItem;
@@ -38,7 +39,7 @@ export default function PageNodeHeader({
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (!(event.ctrlKey || event.metaKey) || !["z", "y"].includes(event.key.toLowerCase())) return;
-      if ((event.target as HTMLElement | null)?.closest(".editor-content")) return;
+      if (event.defaultPrevented || event.isComposing || isEditableElement(event.target)) return;
 
       const isUndo = event.key.toLowerCase() === "z" && !event.shiftKey;
       const current = metaRef.current;

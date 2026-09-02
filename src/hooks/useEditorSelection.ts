@@ -5,6 +5,7 @@ import type {
   SetStateAction,
 } from "react";
 import type { LineControlState } from "../types/nodes";
+import { isEditableElement } from "../utils/dom";
 
 interface UseEditorSelectionOptions {
   editorRef: RefObject<HTMLDivElement | null>;
@@ -43,9 +44,7 @@ export function useEditorSelection({
   clearNativeSelection,
 }: UseEditorSelectionOptions) {
   const isTextEntryElement = useCallback((element: Element | null) => {
-    if (!element) return false;
-    if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) return true;
-    return element instanceof HTMLElement && element.isContentEditable;
+    return isEditableElement(element);
   }, []);
 
   const selectAllBlocks = useCallback(() => {

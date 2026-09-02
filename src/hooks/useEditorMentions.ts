@@ -49,8 +49,9 @@ export function useEditorMentions({
 }: UseEditorMentionsOptions) {
   const isMentionImage = useCallback((element: HTMLElement | null) => {
     if (!element) return false;
+    const mention = element.closest<HTMLElement>("[data-mention-id]");
+    if (mention) return mention.dataset.mentionMode !== "full";
     return Boolean(
-      element.closest("[data-mention-id]") ||
       element.closest(".editor-mention") ||
       element.classList.contains("editor-mention__icon"),
     );
@@ -213,6 +214,21 @@ export function useEditorMentions({
 
   const onEditorPointerDown = useCallback((event: PointerEvent<HTMLDivElement>) => {
     const target = event.target as HTMLElement;
+    const image = target.closest<HTMLImageElement>("img");
+    const fullImageMention = image?.closest<HTMLElement>(
+      '[data-mention-id][data-mention-mode="full"]',
+    );
+    if (event.button !== 2 && image && fullImageMention && editorRef.current?.contains(image)) {
+      event.preventDefault();
+      event.stopPropagation();
+      imageResizeRef.current = {
+        image,
+        startX: event.clientX,
+        startWidth: image.getBoundingClientRect().width,
+      };
+      document.body.style.cursor = "ew-resize";
+      return;
+    }
     if (target.closest("[data-mention-id]") || target.closest(".editor-mention") || target.closest("[data-no-resize='true']")) {
       if (target.closest("[data-mention-id]")) {
         onMentionPointerDown(event);
@@ -235,7 +251,6 @@ export function useEditorMentions({
       event.stopPropagation();
     }
 
-    const image = target.closest<HTMLImageElement>("img");
     const isMentionResizeDisabled = isMentionImage(image);
     if (isMentionResizeDisabled) {
       if (imageResizeRef.current && imageResizeRef.current.image === image) {

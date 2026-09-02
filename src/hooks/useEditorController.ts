@@ -5,7 +5,7 @@ import type {
   KeyboardEvent,
   RefObject,
 } from "react";
-import { useEditorHistory, useNodeScopedEditorHistory } from "./useEditorHistory";
+import { useNodeScopedEditorHistory } from "./useEditorHistory";
 import { useEditorSelection } from "./useEditorSelection";
 import type { NodeItem, PickerState } from "../types/nodes";
 import { formatPastedText, sanitizeEditorHtml } from "../utils/editorHtml";
@@ -70,7 +70,7 @@ export function useEditorController({
   const scrollFrameRef = useRef<number | null>(null);
   const blockSelectionRef = useRef<{ x: number; y: number } | null>(null);
   const generatedLinesRef = useRef<HTMLElement[]>([]);
-  const structuralHistory = useEditorHistory<string>(20);
+  const structuralHistory = useNodeScopedEditorHistory<string>(node.id, 20);
   const editorHistory = useNodeScopedEditorHistory<string>(node.id, 50);
   const [blockSelection, setBlockSelection] = useState<{
     left: number;
@@ -249,6 +249,22 @@ export function useEditorController({
     updatePlaceholder();
     return true;
   };
+  const restoreStructuralRedo = () => {
+    const editor = editorRef.current;
+    if (!editor) return false;
+    const next = structuralHistory.redo(editor.innerHTML);
+    if (next === undefined) return false;
+    clearTransientEditorState();
+    controls.clearBlockControls();
+    setSelectedLineBlocks([]);
+    setLineActionBlock(null);
+    editor.innerHTML = next;
+    clearGeneratedLines();
+    editor.focus();
+    syncContent();
+    updatePlaceholder();
+    return true;
+  };
   const pushEditorHistory = () => {
     const editor = editorRef.current;
     if (!editor) return;
@@ -384,17 +400,57 @@ export function useEditorController({
   useEffect(() => {
   const handleCopy = (event: globalThis.ClipboardEvent) => {
       const blocks = selectedLineBlocks.filter((line) => line.isConnected);
-      if (!blocks.length) return;
+      if (blocks.length) {
+        const container = document.createElement("div");
+        blocks.forEach((block) => {
+          const clone = block.cloneNode(true) as HTMLElement;
+          clone.removeAttribute("data-line-selected");
+          clone.contentEditable = "true";
+          container.appendChild(clone);
+        });
+        container.querySelectorAll<HTMLElement>("[data-line-selected]").forEach((element) => {
+          element.removeAttribute("data-line-selected");
+          element.contentEditable = "true";
+        });
+        const html = container.innerHTML;
+        const text = blocks.map((block) => block.textContent || "").join("\n");
+        event.clipboardData?.setData("text/html", html);
+        event.clipboardData?.setData("text/plain", text);
+        event.preventDefault();
+        return;
+      }
+      // Copia de una seleccion de texto normal (sin usar el selector de lineas).
+      // El navegador inyecta aqui el background-color COMPUTADO del contenedor
+      // (p. ej. el fondo oscuro del editor) como estilo inline del fragmento por
+      // defecto, lo que el sanitizador de pegado interpreta luego como un resaltado
+      // real. Construimos el HTML desde el DOM tal cual esta (sin estilos
+      // computados anadidos) para que el viaje HIS -> portapapeles -> HIS no
+      // arrastre ese artefacto, conservando el formato realmente aplicado (negrita,
+      // cursiva, enlaces, menciones, fondos de bloque, etc.).
+      const editor = editorRef.current;
+      const selection = window.getSelection();
+      if (
+        !editor ||
+        !selection ||
+        selection.isCollapsed ||
+        selection.rangeCount === 0
+      )
+        return;
+      const range = selection.getRangeAt(0);
+      if (!editor.contains(range.commonAncestorContainer)) return;
       const container = document.createElement("div");
-      blocks.forEach((block) => container.appendChild(block.cloneNode(true)));
-      container.querySelectorAll<HTMLElement>("[data-line-selected]").forEach((element) => {
-        element.removeAttribute("data-line-selected");
-        element.contentEditable = "true";
-      });
+      container.appendChild(range.cloneContents());
+      container
+        .querySelectorAll<HTMLElement>("[data-line-selected], [data-line-dragging], [data-line-drop-target]")
+        .forEach((element) => {
+          element.removeAttribute("data-line-selected");
+          element.removeAttribute("data-line-dragging");
+          element.removeAttribute("data-line-drop-target");
+        });
       const html = container.innerHTML;
-      const text = blocks.map((block) => block.textContent || "").join("\n");
+      if (!html) return;
       event.clipboardData?.setData("text/html", html);
-      event.clipboardData?.setData("text/plain", text);
+      event.clipboardData?.setData("text/plain", selection.toString());
       event.preventDefault();
     };
     document.addEventListener("copy", handleCopy);
@@ -571,8 +627,9 @@ export function useEditorController({
 
   const isMentionImageLegacy = (element: HTMLElement | null) => {
     if (!element) return false;
+    const mention = element.closest<HTMLElement>("[data-mention-id]");
+    if (mention) return mention.dataset.mentionMode !== "full";
     return Boolean(
-      element.closest("[data-mention-id]") ||
       element.closest(".editor-mention") ||
       element.classList.contains("editor-mention__icon"),
     );
@@ -1016,16 +1073,24 @@ export function useEditorController({
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z" && !event.shiftKey) {
       if (restoreStructuralUndo()) {
         event.preventDefault();
+        event.stopPropagation();
         return;
       }
       if (restoreEditorUndo()) {
         event.preventDefault();
+        event.stopPropagation();
         return;
       }
     }
     if ((event.ctrlKey || event.metaKey) && (event.key.toLowerCase() === "y" || (event.shiftKey && event.key.toLowerCase() === "z"))) {
+      if (restoreStructuralRedo()) {
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
       if (restoreEditorRedo()) {
         event.preventDefault();
+        event.stopPropagation();
         return;
       }
     }

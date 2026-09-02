@@ -2970,9 +2970,6 @@ body,
 .weekly-tempo-bar:hover .weekly-tempo-bar__handle, .weekly-tempo-bar__handle:focus-visible { opacity: 1; }
 .weekly-tempo-bar__handle--start { top: 0; }
 .weekly-tempo-bar__handle--end { bottom: 0; }
-.weekly-tempo-bar__continue { position: absolute; right: 0; bottom: -15px; left: 0; z-index: 4; width: 100%; height: 15px; border: 0; border-radius: 0; padding: 0; background: #121417; color: var(--weekly-tempo-accent, #4dd8c0); cursor: pointer; font-size: 13px; line-height: 1; opacity: 0; pointer-events: none; transition: background-color 60ms linear, color 60ms linear, opacity 60ms linear; }
-.weekly-tempo-bar:hover .weekly-tempo-bar__continue, .weekly-tempo-bar__continue:focus-visible { opacity: 1; pointer-events: auto; }
-.weekly-tempo-bar__continue:hover, .weekly-tempo-bar__continue:focus-visible { background: var(--weekly-tempo-accent, #4dd8c0); color: #121417; outline: 0; }
 .weekly-tempo-view__back { margin: -4px 0 0 -7px; border: 0; border-radius: 0; padding: 4px 7px; background: transparent; color: #777d84; cursor: pointer; font-size: 10px; transition: background-color 60ms linear, color 60ms linear; }
 .weekly-tempo-view__back:hover, .weekly-tempo-view__back:focus-visible { background: var(--weekly-tempo-accent, #4dd8c0); color: #121417; outline: 0; }
 
@@ -3410,6 +3407,7 @@ body,
   max-height: none;
   flex: 0 1 auto;
   object-fit: contain;
+  cursor: ew-resize;
 }
 .editor-content .editor-mention[data-mention-mode="full"][data-mention-align="center"] img { margin-left: auto; margin-right: auto; }
 .editor-content .editor-mention[data-mention-mode="full"][data-mention-align="right"] img { margin-left: auto; margin-right: 0; }
@@ -3435,10 +3433,18 @@ body,
   transition: opacity 140ms ease, outline-color 140ms ease;
 }
 /* Texto de ayuda dentro de la misma linea vacia del editor. */
+.editor-content [data-editor-placeholder] {
+  position: relative;
+}
+
 .editor-content [data-editor-placeholder]::before {
+  position: absolute;
+  top: 0;
+  left: 0;
   content: attr(data-editor-placeholder);
   color: #5a5f66;
   pointer-events: none;
+  user-select: none;
 }
 
 /* Linea que indica donde se soltara un bloque. */
@@ -3457,7 +3463,7 @@ body,
   position: fixed;
   pointer-events: none;
   border: 1px solid #4dd8c0;
-  background: rgb(77 216 192 / 18%);
+  background: rgb(77 216 192 / 35%);
   z-index: 29;
 }
 

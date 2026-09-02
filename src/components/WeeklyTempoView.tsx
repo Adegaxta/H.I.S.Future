@@ -16,7 +16,6 @@ interface WeeklyTempoViewProps {
   onCreateTempo: (date: Date) => void;
   onMoveTempo: (id: string, meta: TempoMeta) => void;
   onReorderTempos: (orderedIds: string[]) => void;
-  onContinueTempo: (id: string) => void;
   onContextMenu: (event: React.MouseEvent, id: string) => void;
   onBack: () => void;
 }
@@ -33,7 +32,7 @@ const dayIndex = (date: Date, weekStart: Date) => calendarDayNumber(date) - cale
 const isoWeekday = (date: Date): IsoWeekday => (date.getDay() === 0 ? 7 : date.getDay()) as IsoWeekday;
 const stackedName = (name: string) => Array.from(name).map((character, index) => <i aria-hidden="true" key={`${character}-${index}`}>{character === " " ? "\u00a0" : character}</i>);
 
-export default function WeeklyTempoView({ weekDates, tempos, selectedTempoId, selectedTempoIds, onSelectTempo, onCreateTempo, onMoveTempo, onReorderTempos, onContinueTempo, onContextMenu, onBack }: WeeklyTempoViewProps) {
+export default function WeeklyTempoView({ weekDates, tempos, selectedTempoId, selectedTempoIds, onSelectTempo, onCreateTempo, onMoveTempo, onReorderTempos, onContextMenu, onBack }: WeeklyTempoViewProps) {
   const surfaceRef = useRef<HTMLDivElement | null>(null);
   const dragSessionRef = useRef<DragSession | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -217,7 +216,6 @@ export default function WeeklyTempoView({ weekDates, tempos, selectedTempoId, se
               return <i key={index} className={`${active ? "is-active" : "is-filtered"}${!active && previousActive ? " starts-filtered-run" : ""}${!active && nextActive ? " ends-filtered-run" : ""}`} />;
             })}</div>}
             <span className="weekly-tempo-bar__name" aria-label={entry.node.name}>{stackedName(entry.node.name)}</span>
-            {hasExplicitRange && end.getTime() === weekEnd.getTime() && <button type="button" className="weekly-tempo-bar__continue" aria-label="Extender a la semana siguiente" title="Extender a la semana siguiente" onClick={(event) => { event.stopPropagation(); onContinueTempo(entry.node.id); }}>+</button>}
             <button type="button" className="weekly-tempo-bar__handle weekly-tempo-bar__handle--start" aria-label="Redimensionar inicio" onPointerDown={(event) => { event.preventDefault(); event.stopPropagation(); setResize({ id: entry.node.id, edge: "start" }); }} />
             <button type="button" className="weekly-tempo-bar__handle weekly-tempo-bar__handle--end" aria-label="Redimensionar final" onPointerDown={(event) => { event.preventDefault(); event.stopPropagation(); setResize({ id: entry.node.id, edge: "end" }); }} />
           </div>;

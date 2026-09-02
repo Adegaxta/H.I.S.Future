@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef } from "react";
 
 export interface EditorHistoryController<T> {
   push: (value: T) => void;
@@ -47,21 +47,24 @@ export function useEditorHistory<T>(maxItems = 50): EditorHistoryController<T> {
     redoRef.current = [];
   }, []);
 
-  return {
-    push,
-    undo,
-    redo,
-    reset,
-    clear: reset,
-  };
+  return useMemo(
+    () => ({
+      push,
+      undo,
+      redo,
+      reset,
+      clear: reset,
+    }),
+    [push, undo, redo, reset],
+  );
 }
 
 export function useNodeScopedEditorHistory<T>(nodeId: string | undefined, maxItems = 50) {
   const history = useEditorHistory<T>(maxItems);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     history.reset();
-  }, [nodeId, history]);
+  }, [nodeId, history.reset]);
 
   return history;
 }
