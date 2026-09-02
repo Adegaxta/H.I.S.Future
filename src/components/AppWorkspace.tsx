@@ -15,7 +15,7 @@ import GraphView from "./GraphView";
 import CalendarNodeView from "./CalendarNodeView";
 import TempoInspector from "./TempoInspector";
 import { getPageMeta } from "../utils/pageMeta";
-import { createCalendarContent, createTempoContent, setTempoMeta, type TempoMeta, type TimeFormat } from "../utils/temporalMeta";
+import { createCalendarContent, createTempoContent, DEFAULT_TEMPO_COLOR, setTempoMeta, type TempoMeta, type TempoSubtype, type TimeFormat } from "../utils/temporalMeta";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { CHANGELOG_ENTRIES, CURRENT_VERSION } from "../defs/changelog";
 import {
@@ -498,7 +498,7 @@ export default function AppWorkspace({
     if (tag !== "CALENDARIO") return false;
     return createCalendarNode();
   };
-  const createTempoNode = (calendarId: string, date: string, startTime?: string) => {
+  const createTempoNode = (calendarId: string, date: string, startTime?: string, subtype: TempoSubtype = "daily", endDate: string | null = null, weeklyVisualOrder: number | null = null) => {
     const usedNumbers = new Set(
       workspace.nodes
         .filter((node) => node.type === "tempo" && node.parentId === calendarId)
@@ -512,7 +512,7 @@ export default function AppWorkspace({
       `Tempo ${number}`,
       "tempo",
       calendarId,
-      createTempoContent({ date, startTime: startTime ?? null, endTime: null }),
+      createTempoContent({ date, startTime: startTime ?? null, endTime: null, subtype, endDate, color: DEFAULT_TEMPO_COLOR, weeklyVisualOrder, activeWeekdays: null }),
     );
     workspace.setExpanded((current) => ({ ...current, [calendarId]: true }));
     return id;
@@ -982,7 +982,7 @@ export default function AppWorkspace({
                   nodes={workspace.nodes}
                   deletedNodes={workspace.deletedNodes}
                   onContentChange={workspace.updateContent}
-                  onCreateTempo={(date, startTime) => createTempoNode(selectedNode.id, date, startTime)}
+                  onCreateTempo={(date, startTime, subtype, endDate, weeklyVisualOrder) => createTempoNode(selectedNode.id, date, startTime, subtype, endDate, weeklyVisualOrder)}
                   onMoveTempo={moveTempoNode}
                   onRenameTempo={workspace.renameNode}
                   onDeleteTempo={workspace.deleteNode}

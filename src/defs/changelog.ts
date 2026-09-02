@@ -6,9 +6,39 @@ export interface ChangelogEntry {
   changes: string[];
 }
 
-export const CURRENT_VERSION = "0.2.34";
+export const CURRENT_VERSION = "0.2.36";
 
 export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
+  {
+    version: "0.2.36",
+    date: "2026-09-02",
+    title: "TEMPO SEMANAL — PATRONES Y APLICABILIDAD",
+    category: "Sistema",
+    changes: [
+      "La vista Tempos de la semana queda separada de la creación: entrar al contexto semanal ya no genera Tempos automáticamente y solo el control + crea un nuevo nodo.",
+      "Los Tempos Semanales incorporan días activos independientes mediante L M X J V S D, permitiendo definir patrones de aplicabilidad dentro de un rango sin generar eventos o nodos adicionales.",
+      "La representación semanal distingue días activos, filtrados e implícitos dentro de una misma franja continua, conservando un único Nodo Tempo y una geometría rectangular uniforme.",
+      "Las franjas semanales permiten orden visual persistente, creación con el Tempo más reciente al inicio, reordenamiento horizontal y movimiento temporal vertical sin mezclar ambas intenciones.",
+      "La continuidad entre semanas adopta un control + integrado en la franja que extiende el mismo Tempo y navega a la semana siguiente sin crear un nodo nuevo.",
+      "La selección múltiple permite eliminar conjuntamente varios Tempos mediante la ruta normal de eliminación y papelera.",
+      "TempoInspector integra días activos, color, rango, horas y Contenido manteniendo separadas las propiedades temporales, la aplicabilidad y la presentación visual.",
+      "El editor compartido corrige su placeholder vacío para mantener tipografía, alineación y posición reales incluso con foco, sin persistir información exclusivamente visual."
+    ],
+  },
+  {
+    version: "0.2.35",
+    date: "2026-09-02",
+    title: "TEMPOS SEMANALES — INTERACCIÓN Y RANGOS SANEADOS",
+    category: "Fix",
+    changes: [
+      "La unidad temporal se determina ahora por el contexto de creación: los flujos normales conservan Tempo Diario y solo los accesos semanales crean Tempo Semanal.",
+      "Vista Mes ofrece un acceso semanal contextual por cada fila real de siete fechas, sin deformar la grilla y respetando cruces de mes y año.",
+      "Vista Semana conserva el acceso semanal junto al primer encabezado y ambos controles adoptan el estilo neutro del Calendario.",
+      "Tempos semanales presenta una colección compacta y siete filas verticales con franjas independientes, color persistido e indicadores de continuidad.",
+      "El arrastre y el redimensionado vertical actualizan date y endDate del mismo nodo con ajuste por días, sin persistir geometría visual.",
+      "TempoInspector muestra la unidad como información de solo lectura, reutiliza un marcador discreto para unidades futuras y mantiene el editor normal de HIS.",
+    ],
+  },
   {
     version: "0.2.34",
     date: "2026-09-02",

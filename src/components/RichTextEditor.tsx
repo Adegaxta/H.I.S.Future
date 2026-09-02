@@ -187,6 +187,21 @@ export default function RichTextEditor({
     const frame = requestAnimationFrame(() => controller.updatePlaceholder());
     return () => cancelAnimationFrame(frame);
   }, [node.id]);
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor) return undefined;
+    editor.querySelectorAll<HTMLElement>("[data-editor-placeholder]").forEach((block) => block.removeAttribute("data-editor-placeholder"));
+    const block = controller.placeholderBlock;
+    if (
+      block &&
+      editor.contains(block) &&
+      !block.textContent?.trim() &&
+      !block.querySelector("img, .editor-mention")
+    ) {
+      block.dataset.editorPlaceholder = "Usa @ para enlazar nodos o / para comandos";
+    }
+    return () => block?.removeAttribute("data-editor-placeholder");
+  }, [controller.placeholderBlock, editorRef, node.id]);
   // Ref indirecta: evita que el MutationObserver quede con un closure viejo
   // de `controller`/`node` (que revertía metadata reciente de la cabecera).
   const repairRef = useRef(() => {});
@@ -325,21 +340,6 @@ export default function RichTextEditor({
   };
   return (
     <>
-      {controller.placeholderBlock &&
-        editorRef.current?.contains(controller.placeholderBlock) &&
-        !controller.placeholderBlock.textContent?.trim() &&
-        !controller.placeholderBlock.querySelector("img, .editor-mention") && (
-          <div
-            aria-hidden="true"
-            className="editor-placeholder-overlay"
-            style={{
-              top: controller.placeholderBlock.getBoundingClientRect().top,
-              left: controller.placeholderBlock.getBoundingClientRect().left,
-            }}
-          >
-            Usa @ para enlazar nodos o / para comandos
-          </div>
-        )}
       {!readOnly && controller.lineControl && !controller.isDraggingLine && (
         <div
           aria-hidden="true"
@@ -562,6 +562,7 @@ export default function RichTextEditor({
         contentEditable={!readOnly}
         suppressContentEditableWarning
         style={style}
+        onFocus={readOnly ? undefined : controller.updatePlaceholder}
         onInput={() => {
           controller.clearGeneratedLines();
           controller.clearStructuralUndo();

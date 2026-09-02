@@ -8,13 +8,16 @@ import {
   getTempoMeta,
   localIsoDate,
   setCalendarMeta,
+  type CalendarMeta,
   type CalendarView,
   type TempoMeta,
+  type TempoSubtype,
   type TimeFormat,
 } from "../utils/temporalMeta";
 import HisContextMenu from "./HisContextMenu";
 import HisTip from "./HisTip";
 import TempoInspector from "./TempoInspector";
+import WeeklyTempoView from "./WeeklyTempoView";
 
 interface CalendarNodeViewProps {
   node: NodeItem;
@@ -22,7 +25,7 @@ interface CalendarNodeViewProps {
   deletedNodes: NodeItem[];
   timeFormat: TimeFormat;
   onContentChange: (id: string, content: string) => void;
-  onCreateTempo: (date: string, startTime?: string) => string;
+  onCreateTempo: (date: string, startTime?: string, subtype?: TempoSubtype, endDate?: string | null, weeklyVisualOrder?: number | null) => string;
   onMoveTempo: (id: string, meta: TempoMeta) => void;
   onRenameTempo: (id: string, name: string) => void;
   onDeleteTempo: (id: string) => void;
@@ -38,6 +41,11 @@ interface TempoEntry {
   node: NodeItem;
   meta: TempoMeta;
   description: string;
+}
+
+interface CalendarNavigationEntry {
+  meta: CalendarMeta;
+  weeklyTempoView: boolean;
 }
 
 const HOURS = Array.from({ length: 24 }, (_, hour) => hour);
@@ -115,27 +123,41 @@ export default function CalendarNodeView({
 }: CalendarNodeViewProps) {
   const meta = getCalendarMeta(node.content);
   const currentDate = dateFromIso(meta.currentDate);
-  const navigationHistory = useRef<{ entries: typeof meta[]; index: number }>({ entries: [meta], index: 0 });
+  const navigationHistory = useRef<{ entries: CalendarNavigationEntry[]; index: number }>({ entries: [{ meta, weeklyTempoView: false }], index: 0 });
   const [query, setQuery] = useState("");
   const [selectedTempoId, setSelectedTempoId] = useState<string | null>(null);
+  const [selectedWeeklyTempoIds, setSelectedWeeklyTempoIds] = useState<string[]>([]);
   const [selectedHour, setSelectedHour] = useState<number | null>(null);
   const [weekTipVisible, setWeekTipVisible] = useState(false);
   const [adjacentMonthTipVisible, setAdjacentMonthTipVisible] = useState(false);
   const [tempoMenu, setTempoMenu] = useState<{ x: number; y: number; tempoId: string } | null>(null);
+  const [weeklyTempoView, setWeeklyTempoView] = useState(false);
   const normalizedQuery = query.trim().toLocaleLowerCase("es");
   const allTempos: TempoEntry[] = nodes
     .filter((item) => item.type === "tempo" && item.parentId === node.id)
     .map((item) => ({ node: item, meta: getTempoMeta(item.content), description: getTempoDescription(item.content) }));
+  const weeklyTempoEntries = allTempos
+    .filter((tempo) => tempo.meta.subtype === "weekly")
+    .sort((a, b) => (a.meta.weeklyVisualOrder ?? a.node.order) - (b.meta.weeklyVisualOrder ?? b.node.order) || a.node.order - b.node.order);
+  const regularTempos = allTempos.filter((tempo) => tempo.meta.subtype !== "weekly");
   const tempos = normalizedQuery
-    ? allTempos.filter((tempo) => `${tempo.node.name} ${tempo.description}`.toLocaleLowerCase("es").includes(normalizedQuery))
-    : allTempos;
+    ? regularTempos.filter((tempo) => `${tempo.node.name} ${tempo.description}`.toLocaleLowerCase("es").includes(normalizedQuery))
+    : regularTempos;
   const selectedTempo = selectedTempoId ? nodes.find((item) => item.id === selectedTempoId && item.type === "tempo") : null;
+  const visibleWeekStart = startOfWeek(currentDate);
+  const visibleWeekEnd = addDays(visibleWeekStart, 6);
+  const weeklyTempos = weeklyTempoEntries.filter((tempo) => {
+    if (tempo.meta.subtype !== "weekly") return false;
+    const tempoStart = dateFromIso(tempo.meta.date);
+    const tempoEnd = tempo.meta.endDate ? dateFromIso(tempo.meta.endDate) : addDays(tempoStart, 6);
+    return tempoStart <= visibleWeekEnd && tempoEnd >= visibleWeekStart;
+  });
 
   const updateMeta = (next: typeof meta) => {
     const history = navigationHistory.current;
-    const current = history.entries[history.index];
-    if (current.view !== next.view || current.currentDate !== next.currentDate) {
-      history.entries = [...history.entries.slice(0, history.index + 1), next];
+    const current = history.entries[history.index].meta;
+    if (current.view !== next.view || current.currentDate !== next.currentDate || history.entries[history.index].weeklyTempoView) {
+      history.entries = [...history.entries.slice(0, history.index + 1), { meta: next, weeklyTempoView: false }];
       history.index += 1;
     }
     onContentChange(node.id, setCalendarMeta(node.content, next));
@@ -146,11 +168,26 @@ export default function CalendarNodeView({
     if (nextIndex < 0 || nextIndex >= history.entries.length) return false;
     history.index = nextIndex;
     const next = history.entries[nextIndex];
-    onContentChange(node.id, setCalendarMeta(node.content, next));
+    setWeeklyTempoView(next.weeklyTempoView);
+    onContentChange(node.id, setCalendarMeta(node.content, next.meta));
     return true;
   };
   useEffect(() => onRegisterNavigation(navigateHistory), [onRegisterNavigation, node.id]);
-  const selectView = (view: CalendarView, date = currentDate) => updateMeta({ view, currentDate: localIsoDate(date) });
+  const openWeeklyTempoView = (date = currentDate) => {
+    const history = navigationHistory.current;
+    const nextMeta: CalendarMeta = { view: "week", currentDate: localIsoDate(startOfWeek(date)) };
+    const current = history.entries[history.index];
+    if (!current.weeklyTempoView || current.meta.view !== nextMeta.view || current.meta.currentDate !== nextMeta.currentDate) {
+      history.entries = [...history.entries.slice(0, history.index + 1), { meta: nextMeta, weeklyTempoView: true }];
+      history.index += 1;
+    }
+    setWeeklyTempoView(true);
+    onContentChange(node.id, setCalendarMeta(node.content, nextMeta));
+  };
+  const selectView = (view: CalendarView, date = currentDate) => {
+    setWeeklyTempoView(false);
+    updateMeta({ view, currentDate: localIsoDate(date) });
+  };
   const openAdjacentMonth = (date: Date) => {
     setAdjacentMonthTipVisible(true);
     selectView("month", date);
@@ -167,8 +204,10 @@ export default function CalendarNodeView({
     setTempoMenu({ x: event.clientX, y: event.clientY, tempoId });
   };
   const removeTempo = (id: string) => {
-    if (selectedTempoId === id) setSelectedTempoId(null);
-    onDeleteTempo(id);
+    const ids = selectedWeeklyTempoIds.includes(id) ? selectedWeeklyTempoIds : [id];
+    if (selectedTempoId && ids.includes(selectedTempoId)) setSelectedTempoId(null);
+    setSelectedWeeklyTempoIds((current) => current.filter((tempoId) => !ids.includes(tempoId)));
+    ids.forEach(onDeleteTempo);
   };
   const move = (direction: -1 | 1) => {
     const next = new Date(currentDate);
@@ -185,12 +224,62 @@ export default function CalendarNodeView({
     }
     onMoveTempo(tempo.node.id, { ...tempo.meta, date, startTime: nextStart, endTime: nextEnd });
   };
-  const createFromWeek = (date: Date, startTime?: string) => {
-    const id = onCreateTempo(localIsoDate(date), startTime);
+  const createTempoForDate = (date: Date) => {
+    const id = onCreateTempo(localIsoDate(date));
     setSelectedTempoId(id);
     setSelectedHour(null);
-    setWeekTipVisible(true);
     selectView("day", date);
+  };
+  const createWeeklyTempo = (date: Date) => {
+    const weekStart = startOfWeek(date);
+    const firstVisualOrder = weeklyTempoEntries.reduce((minimum, tempo) => Math.min(minimum, tempo.meta.weeklyVisualOrder ?? tempo.node.order), 0) - 1;
+    const id = onCreateTempo(localIsoDate(weekStart), undefined, "weekly", null, firstVisualOrder);
+    setSelectedTempoId(id);
+    setSelectedWeeklyTempoIds([id]);
+    setSelectedHour(null);
+    openWeeklyTempoView(weekStart);
+  };
+  const selectWeeklyTempo = (id: string, additive: boolean) => {
+    const next = additive
+      ? selectedWeeklyTempoIds.includes(id)
+        ? selectedWeeklyTempoIds.filter((tempoId) => tempoId !== id)
+        : [...selectedWeeklyTempoIds, id]
+      : [id];
+    setSelectedWeeklyTempoIds(next);
+    setSelectedTempoId(next.includes(id) ? id : (next[next.length - 1] ?? null));
+  };
+  const continueWeeklyTempo = (id: string) => {
+    const entry = weeklyTempoEntries.find((tempo) => tempo.node.id === id);
+    if (!entry) return;
+    const currentEnd = entry.meta.endDate ? dateFromIso(entry.meta.endDate) : visibleWeekEnd;
+    onMoveTempo(id, { ...entry.meta, endDate: localIsoDate(addDays(currentEnd, 7)) });
+    setSelectedTempoId(id);
+    setSelectedWeeklyTempoIds((current) => current.includes(id) ? current : [...current, id]);
+    openWeeklyTempoView(addDays(visibleWeekStart, 7));
+  };
+  const reorderWeeklyTempos = (orderedVisibleIds: string[]) => {
+    const visibleIds = new Set(orderedVisibleIds);
+    const orderedIds = [
+      ...orderedVisibleIds,
+      ...weeklyTempoEntries.map((tempo) => tempo.node.id).filter((id) => !visibleIds.has(id)),
+    ];
+    orderedIds.forEach((id, weeklyVisualOrder) => {
+      const entry = weeklyTempoEntries.find((tempo) => tempo.node.id === id);
+      if (entry && entry.meta.weeklyVisualOrder !== weeklyVisualOrder) {
+        onMoveTempo(id, { ...entry.meta, weeklyVisualOrder });
+      }
+    });
+  };
+  const createFromWeek = (date: Date, startTime?: string) => {
+    if (startTime) {
+      const id = onCreateTempo(localIsoDate(date), startTime);
+      setSelectedTempoId(id);
+      setSelectedHour(null);
+      selectView("day", date);
+    } else {
+      createTempoForDate(date);
+    }
+    setWeekTipVisible(true);
   };
   const createInDay = (hour: number) => {
     const id = onCreateTempo(localIsoDate(currentDate), hourTime(hour));
@@ -198,11 +287,18 @@ export default function CalendarNodeView({
     setSelectedHour(null);
   };
 
-  const renderMonth = () => (
-    <>
-      <div className="calendar-node__weekdays" aria-hidden="true">{["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"].map((day) => <span key={day}>{day}</span>)}</div>
-      <div className="calendar-node__grid calendar-node__grid--month">
-        {visibleMonthDates(currentDate).map((date) => {
+  const renderMonth = () => {
+    const dates = visibleMonthDates(currentDate);
+    const weeks = Array.from({ length: 6 }, (_, index) => dates.slice(index * 7, index * 7 + 7));
+    return <>
+      <div className="calendar-node__weekdays" aria-hidden="true">
+        {["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"].map((day) => <span key={day}>{day}</span>)}
+      </div>
+      <div className="calendar-node__month-weeks">
+        {weeks.map((weekDates) => <div className="calendar-node__month-week" key={localIsoDate(weekDates[0])}>
+          <button type="button" className="calendar-node__week-access" aria-label={`Abrir Tempos de la semana del ${localIsoDate(weekDates[0])}`} onClick={() => openWeeklyTempoView(weekDates[0])}><span aria-hidden="true">TEMPO</span></button>
+          <div className="calendar-node__grid calendar-node__grid--month">
+          {weekDates.map((date) => {
           const isoDate = localIsoDate(date);
           const dayTempos = tempos.filter((tempo) => tempo.meta.date === isoDate);
           const outsideMonth = date.getMonth() !== currentDate.getMonth();
@@ -210,22 +306,30 @@ export default function CalendarNodeView({
           return (
             <article key={isoDate} className={`calendar-node__day${outsideMonth ? " is-outside" : ""}${isoDate === localIsoDate() ? " is-today" : ""}`}
               onClick={() => isFirstNextMonth ? openAdjacentMonth(date) : openDay(date)}>
-              <div className="calendar-node__day-label"><span>{isFirstNextMonth ? adjacentMonthLabel(date) : date.getDate()}</span></div>
+              <div className="calendar-node__day-label">
+                <span>{isFirstNextMonth ? adjacentMonthLabel(date) : date.getDate()}</span>
+                <button type="button" aria-label={`Crear Nodo Tempo para ${isoDate}`} onClick={(event) => {
+                  event.stopPropagation();
+                  createTempoForDate(date);
+                }}>+</button>
+              </div>
               <div className="calendar-node__tempos">{dayTempos.map((tempo) => <TempoSummary key={tempo.node.id} tempo={tempo} timeFormat={timeFormat} compact
                 onOpen={() => openTempo(tempo)} onContextMenu={(event) => showTempoMenu(event, tempo.node.id)} />)}</div>
             </article>
           );
-        })}
+          })}
+          </div>
+        </div>)}
       </div>
       {adjacentMonthTipVisible && <HisTip storageKey={ADJACENT_MONTH_TIP_KEY} className="his-tip--calendar-navigation">Más adelante podrás cambiar cómo navegan los días adyacentes.</HisTip>}
-    </>
-  );
+    </>;
+  };
 
   const renderWeek = () => {
     const weekDates = Array.from({ length: 7 }, (_, index) => addDays(startOfWeek(currentDate), index));
     return (
       <div className="calendar-week">
-        <div className="calendar-week__headers"><span />{weekDates.map((date) => (
+        <div className="calendar-week__headers"><button type="button" className="calendar-week__weekly-open" aria-label="Abrir Tempos de esta semana" onClick={() => openWeeklyTempoView(weekDates[0])}>TEMPO</button>{weekDates.map((date) => (
           <button type="button" key={localIsoDate(date)} className={localIsoDate(date) === localIsoDate() ? "is-today" : ""} onClick={() => openDay(date)}>
             <strong>{date.getDate()}</strong><small>{date.toLocaleDateString("es-ES", { weekday: "short" })}</small>
           </button>
@@ -244,7 +348,7 @@ export default function CalendarNodeView({
             return <div className="calendar-week__column" key={isoDate}>
               {HOURS.map((hour) => <div className="calendar-week__slot" key={hour} onDragOver={(event) => event.preventDefault()} onDrop={(event) => {
                 event.preventDefault();
-                const dragged = allTempos.find((tempo) => tempo.node.id === event.dataTransfer.getData("application/x-his-tempo"));
+                const dragged = regularTempos.find((tempo) => tempo.node.id === event.dataTransfer.getData("application/x-his-tempo"));
                 if (dragged) moveTimedTempo(dragged, isoDate, hour);
               }}><button type="button" onClick={() => createFromWeek(date, hourTime(hour))}>+</button></div>)}
               {timed.map((tempo) => {
@@ -253,7 +357,7 @@ export default function CalendarNodeView({
                 return <div key={tempo.node.id} className="calendar-week__tempo" draggable
                   onDragStart={(event) => event.dataTransfer.setData("application/x-his-tempo", tempo.node.id)}
                   onClick={() => openTempo(tempo)} onContextMenu={(event) => showTempoMenu(event, tempo.node.id)}
-                  style={{ top: start / 60 * HOUR_HEIGHT, height: Math.max(24, (end - start) / 60 * HOUR_HEIGHT) }}>
+                  style={{ top: start / 60 * HOUR_HEIGHT, height: Math.max(24, (end - start) / 60 * HOUR_HEIGHT), backgroundColor: tempo.meta.color, borderLeftColor: tempo.meta.color }}>
                   <strong>{tempo.node.name}</strong><time>{formatTempoTime(tempo.meta, timeFormat)}</time>{tempo.description && <small>{tempo.description}</small>}
                 </div>;
               })}
@@ -262,6 +366,26 @@ export default function CalendarNodeView({
         </div>
       </div>
     );
+  };
+
+  const renderWeeklyTempos = () => {
+    const weekDates = Array.from({ length: 7 }, (_, index) => addDays(startOfWeek(currentDate), index));
+    const selectedWeeklyTempo = selectedTempo && getTempoMeta(selectedTempo.content).subtype === "weekly" ? selectedTempo : null;
+    return <div className="weekly-tempo-layout">
+      <WeeklyTempoView weekDates={weekDates} tempos={weeklyTempos} selectedTempoId={selectedTempoId} selectedTempoIds={selectedWeeklyTempoIds}
+        onSelectTempo={selectWeeklyTempo} onCreateTempo={createWeeklyTempo} onMoveTempo={onMoveTempo} onReorderTempos={reorderWeeklyTempos}
+        onContinueTempo={continueWeeklyTempo} onContextMenu={(event, id) => {
+          if (!selectedWeeklyTempoIds.includes(id)) selectWeeklyTempo(id, false);
+          showTempoMenu(event, id);
+        }} onBack={() => selectView("week")} />
+      <aside className="calendar-day-inspector">
+        {selectedWeeklyTempo ? <TempoInspector tempo={selectedWeeklyTempo} nodes={nodes} deletedNodes={deletedNodes} timeFormat={timeFormat}
+          onRename={onRenameTempo} onContentChange={onContentChange} setExpanded={setExpanded}
+          onOpenDeletedNode={onOpenDeletedNode} onOpenNodeView={onOpenNodeView}
+          onImageFilePaste={onImageFilePaste} onSlashCommand={onSlashCommand} />
+          : <div className="calendar-day-inspector__empty">Selecciona un Tempo semanal para editarlo.</div>}
+      </aside>
+    </div>;
   };
 
   const renderDay = () => {
@@ -279,7 +403,7 @@ export default function CalendarNodeView({
               {HOURS.map((hour) => <button type="button" key={hour} className={`calendar-day-timeline__slot${selectedHour === hour ? " is-selected" : ""}`}
                 onClick={() => { setSelectedHour(hour); setSelectedTempoId(null); }} onDragOver={(event) => event.preventDefault()} onDrop={(event) => {
                   event.preventDefault();
-                  const dragged = allTempos.find((tempo) => tempo.node.id === event.dataTransfer.getData("application/x-his-tempo"));
+                  const dragged = regularTempos.find((tempo) => tempo.node.id === event.dataTransfer.getData("application/x-his-tempo"));
                   if (dragged) moveTimedTempo(dragged, isoDate, hour);
                 }}><span>+</span></button>)}
               {timed.map((tempo) => {
@@ -288,7 +412,7 @@ export default function CalendarNodeView({
                 return <div key={tempo.node.id} className={`calendar-day-timeline__tempo${selectedTempoId === tempo.node.id ? " is-selected" : ""}`} draggable
                   onDragStart={(event) => event.dataTransfer.setData("application/x-his-tempo", tempo.node.id)}
                   onClick={() => { setSelectedTempoId(tempo.node.id); setSelectedHour(null); }} onContextMenu={(event) => showTempoMenu(event, tempo.node.id)}
-                  style={{ top: start / 60 * HOUR_HEIGHT, height: Math.max(28, (end - start) / 60 * HOUR_HEIGHT) }}>
+                  style={{ top: start / 60 * HOUR_HEIGHT, height: Math.max(28, (end - start) / 60 * HOUR_HEIGHT), backgroundColor: tempo.meta.color, borderLeftColor: tempo.meta.color }}>
                   <strong>{tempo.node.name}</strong><time>{formatTempoTime(tempo.meta, timeFormat)}</time>
                 </div>;
               })}
@@ -316,7 +440,7 @@ export default function CalendarNodeView({
         <div className="calendar-node__views"><button type="button" disabled>Año</button>{(["month", "week", "day"] as const).map((view) => <button type="button" key={view} className={meta.view === view ? "is-active" : ""} onClick={() => selectView(view)}>{view === "month" ? "Mes" : view === "week" ? "Semana" : "Día"}</button>)}</div>
       </header>
       {weekTipVisible && <HisTip storageKey={WEEK_TIP_KEY} className="his-tip--week-flow">Al crear un Tempo desde Semana, HIS abre su Vista Día para configurarlo. Este comportamiento podrá personalizarse más adelante.</HisTip>}
-      {meta.view === "month" ? renderMonth() : meta.view === "week" ? renderWeek() : renderDay()}
+      {meta.view === "month" ? renderMonth() : meta.view === "week" && weeklyTempoView ? renderWeeklyTempos() : meta.view === "week" ? renderWeek() : renderDay()}
       {tempoMenu && <HisContextMenu x={tempoMenu.x} y={tempoMenu.y} onClose={() => setTempoMenu(null)} items={[{
         id: "delete-tempo", label: "Eliminar Nodo Tempo", danger: true, onSelect: () => removeTempo(tempoMenu.tempoId),
       }]} />}

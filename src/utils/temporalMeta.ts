@@ -1,5 +1,8 @@
 export type CalendarView = "month" | "week" | "day";
 export type TimeFormat = "12h" | "24h";
+export type TempoSubtype = "daily" | "weekly" | "monthly" | "annual";
+export type IsoWeekday = 1 | 2 | 3 | 4 | 5 | 6 | 7;
+export const DEFAULT_TEMPO_COLOR = "#D88F5A";
 
 export interface CalendarMeta {
   currentDate: string;
@@ -10,6 +13,11 @@ export interface TempoMeta {
   date: string;
   startTime: string | null;
   endTime: string | null;
+  subtype: TempoSubtype;
+  endDate: string | null;
+  color: string;
+  weeklyVisualOrder: number | null;
+  activeWeekdays: IsoWeekday[] | null;
 }
 
 const CALENDAR_PREFIX = "<!--hisfuture-calendar-meta:";
@@ -28,6 +36,15 @@ const isIsoDate = (value: unknown): value is string =>
 
 const isTime = (value: unknown): value is string =>
   typeof value === "string" && /^\d{2}:\d{2}$/.test(value);
+
+const isColor = (value: unknown): value is string =>
+  typeof value === "string" && /^#[0-9a-f]{6}$/i.test(value);
+
+const readActiveWeekdays = (value: unknown): IsoWeekday[] | null => {
+  if (!Array.isArray(value)) return null;
+  const weekdays = value.filter((day): day is IsoWeekday => Number.isInteger(day) && day >= 1 && day <= 7);
+  return [...new Set(weekdays)].sort((a, b) => a - b);
+};
 
 function readMeta<T>(content: string, prefix: string): Partial<T> | null {
   const start = content.indexOf(prefix);
@@ -84,6 +101,15 @@ export function getTempoMeta(content: string): TempoMeta {
     date: isIsoDate(parsed?.date) ? parsed.date : localIsoDate(),
     startTime: isTime(parsed?.startTime) ? parsed.startTime : null,
     endTime: isTime(parsed?.endTime) ? parsed.endTime : null,
+    subtype: parsed?.subtype === "weekly" || parsed?.subtype === "monthly" || parsed?.subtype === "annual"
+      ? parsed.subtype
+      : "daily",
+    endDate: isIsoDate(parsed?.endDate) ? parsed.endDate : null,
+    color: isColor(parsed?.color) ? parsed.color : DEFAULT_TEMPO_COLOR,
+    weeklyVisualOrder: typeof parsed?.weeklyVisualOrder === "number" && Number.isFinite(parsed.weeklyVisualOrder)
+      ? parsed.weeklyVisualOrder
+      : null,
+    activeWeekdays: readActiveWeekdays(parsed?.activeWeekdays),
   };
 }
 

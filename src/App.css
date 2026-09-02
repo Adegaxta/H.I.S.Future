@@ -2423,6 +2423,31 @@ body,
   text-align: center;
 }
 
+.calendar-node__month-week { position: relative; }
+.calendar-node__week-access {
+  position: absolute;
+  z-index: 3;
+  top: 50%;
+  left: -25px;
+  width: 20px;
+  height: 70px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  padding: 0;
+  transform: translateY(-50%);
+  background: transparent;
+  color: #d88f5a;
+  cursor: pointer;
+  font-size: 8px;
+  opacity: 0;
+  transition: opacity 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+.calendar-node__week-access span { writing-mode: vertical-rl; text-orientation: upright; letter-spacing: 0.08em; }
+.calendar-node__month-week:hover .calendar-node__week-access,
+.calendar-node__month-week:focus-within .calendar-node__week-access { opacity: 1; }
+.calendar-node__week-access:hover,
+.calendar-node__week-access:focus-visible { border-color: #d88f5a; color: #efb184; outline: 0; }
+
 .calendar-node__day {
   min-height: 108px;
   padding: 7px;
@@ -2439,6 +2464,10 @@ body,
   border-bottom-width: 1px;
 }
 
+.calendar-node__month-week:not(:last-child) .calendar-node__day {
+  border-bottom-width: 0;
+}
+
 .calendar-node__day.is-outside {
   opacity: 0.38;
 }
@@ -2449,6 +2478,7 @@ body,
 }
 
 .calendar-node__day-label {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -2459,6 +2489,9 @@ body,
 }
 
 .calendar-node__day-label button {
+  position: absolute;
+  top: -4px;
+  right: -4px;
   width: 20px;
   height: 20px;
   border: 1px solid transparent;
@@ -2466,6 +2499,13 @@ body,
   background: transparent;
   color: #777d84;
   cursor: pointer;
+  opacity: 0;
+  transition: opacity 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+
+.calendar-node__day:hover .calendar-node__day-label button,
+.calendar-node__day-label button:focus-visible {
+  opacity: 1;
 }
 
 .calendar-node__day-label button:hover {
@@ -2857,11 +2897,108 @@ body,
 .calendar-week__headers > button.is-today { background: rgba(120, 168, 216, 0.13); box-shadow: inset 0 0 0 1px rgba(120, 168, 216, 0.32); }
 .calendar-week__headers > button.is-today strong { color: #b9d5ef; }
 
+.calendar-week__headers > .calendar-week__weekly-open {
+  align-self: center;
+  justify-self: center;
+  width: 52px;
+  height: 20px;
+  min-height: 0;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  padding: 0;
+  background: transparent;
+  color: #d88f5a;
+  cursor: pointer;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.calendar-week__headers > .calendar-week__weekly-open:hover { border-color: #d88f5a; background: rgba(216, 143, 90, 0.06); color: #efb184; }
+
 .calendar-week__all-day > span {
   padding: 8px 5px;
   color: #777d84;
   font-size: 10px;
 }
+
+.weekly-tempo-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  border-top: 1px solid #2a2e33;
+}
+
+.weekly-tempo-view {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  padding: 18px;
+  overflow: hidden;
+}
+
+.weekly-tempo-view__header { display: flex; align-items: start; justify-content: space-between; gap: 16px; }
+.weekly-tempo-view h2 { margin: 3px 0 0; color: #e8e9ea; font-size: 20px; }
+.weekly-tempo-view__create { width: 30px; height: 30px; border: 1px solid transparent; border-radius: 3px; padding: 0; background: transparent; color: #d88f5a; cursor: pointer; font-size: 22px; line-height: 1; }
+.weekly-tempo-view__create:hover, .weekly-tempo-view__create:focus-visible { border-color: #d88f5a; background: rgba(216, 143, 90, 0.06); outline: 0; }
+.weekly-tempo-view__list { display: flex; flex-wrap: wrap; align-content: flex-start; gap: 6px; height: 76px; margin: 16px 0; overflow-x: hidden; overflow-y: auto; padding-right: 4px; }
+.weekly-tempo-chip { display: inline-flex; align-items: center; gap: 6px; max-width: 180px; height: 28px; border: 1px solid #343940; border-radius: 3px; padding: 0 8px; overflow: hidden; background: #1a1d21; color: #c7c9cc; cursor: grab; text-overflow: ellipsis; white-space: nowrap; }
+.weekly-tempo-chip i { width: 7px; height: 7px; flex: 0 0 auto; border-radius: 50%; }
+.weekly-tempo-chip.is-selected { border-color: #d88f5a; color: #e8e9ea; }
+.weekly-tempo-chip.is-primary { box-shadow: inset 0 0 0 1px rgba(216, 143, 90, 0.42); }
+.weekly-tempo-view__empty { color: #777d84; font-size: 11px; }
+.weekly-tempo-bar { position: relative; display: flex; align-items: center; justify-content: center; gap: 5px; min-width: 0; margin: 0 5px; border-radius: 0; padding: 10px 2px; overflow: visible; color: #15181c; cursor: grab; font-size: 10px; font-weight: 700; }
+.weekly-tempo-bar__name { position: relative; z-index: 2; display: flex; max-height: 100%; flex-direction: column; align-items: center; overflow: hidden; line-height: 1; }
+.weekly-tempo-bar__name i { display: block; min-height: 0.55em; font-style: normal; line-height: 1; }
+.weekly-tempo-bar b { flex: 0 0 auto; font-size: 14px; line-height: 1; }
+.weekly-tempo-bar.is-selected { outline: 2px solid #e8e9ea; outline-offset: 1px; }
+.weekly-tempo-bar.is-selected:not(.is-primary) { outline-color: rgba(232, 233, 234, 0.58); }
+.weekly-tempo-bar.is-dragging { opacity: 0.55; }
+.weekly-tempo-bar.is-implicit { border: 1px solid var(--weekly-tempo-color, #d88f5a); color: #c7c9cc; }
+.weekly-tempo-bar__segments { position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column; pointer-events: none; }
+.weekly-tempo-bar__segments > i { display: block; min-height: 0; flex: 1 1 0; border-radius: 0; }
+.weekly-tempo-bar__segments > .is-active { background: var(--weekly-tempo-color, #d88f5a); }
+.weekly-tempo-bar__segments > .is-filtered { border-right: 1px solid var(--weekly-tempo-color, #d88f5a); border-left: 1px solid var(--weekly-tempo-color, #d88f5a); background: transparent; }
+.weekly-tempo-bar__segments > .starts-filtered-run { border-top: 1px solid var(--weekly-tempo-color, #d88f5a); }
+.weekly-tempo-bar__segments > .ends-filtered-run { border-bottom: 1px solid var(--weekly-tempo-color, #d88f5a); }
+.weekly-tempo-drop-preview { z-index: 3; margin: 3px 9px; border: 1px dashed; border-radius: 0; pointer-events: none; }
+.weekly-tempo-reorder-preview { z-index: 1; margin: 2px; border: 1px dashed var(--weekly-tempo-accent, #4dd8c0); border-radius: 0; pointer-events: none; }
+.weekly-tempo-bar__handle { position: absolute; right: 0; left: 0; width: 100%; height: 7px; border: 0; background: rgba(21, 24, 28, 0.25); cursor: ns-resize; opacity: 0; }
+.weekly-tempo-bar:hover .weekly-tempo-bar__handle, .weekly-tempo-bar__handle:focus-visible { opacity: 1; }
+.weekly-tempo-bar__handle--start { top: 0; }
+.weekly-tempo-bar__handle--end { bottom: 0; }
+.weekly-tempo-bar__continue { position: absolute; right: 0; bottom: -15px; left: 0; z-index: 4; width: 100%; height: 15px; border: 0; border-radius: 0; padding: 0; background: #121417; color: var(--weekly-tempo-accent, #4dd8c0); cursor: pointer; font-size: 13px; line-height: 1; opacity: 0; pointer-events: none; transition: background-color 60ms linear, color 60ms linear, opacity 60ms linear; }
+.weekly-tempo-bar:hover .weekly-tempo-bar__continue, .weekly-tempo-bar__continue:focus-visible { opacity: 1; pointer-events: auto; }
+.weekly-tempo-bar__continue:hover, .weekly-tempo-bar__continue:focus-visible { background: var(--weekly-tempo-accent, #4dd8c0); color: #121417; outline: 0; }
+.weekly-tempo-view__back { margin: -4px 0 0 -7px; border: 0; border-radius: 0; padding: 4px 7px; background: transparent; color: #777d84; cursor: pointer; font-size: 10px; transition: background-color 60ms linear, color 60ms linear; }
+.weekly-tempo-view__back:hover, .weekly-tempo-view__back:focus-visible { background: var(--weekly-tempo-accent, #4dd8c0); color: #121417; outline: 0; }
+
+.weekly-tempo-surface-scroll {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior: contain;
+}
+
+.weekly-tempo-surface {
+  position: relative;
+  display: grid;
+  grid-template-rows: repeat(7, minmax(38px, 1fr));
+  height: 100%;
+  min-height: 266px;
+  padding-bottom: 15px;
+}
+
+.weekly-tempo-day { display: contents; }
+.weekly-tempo-day__label { grid-column: 1; align-self: center; padding: 0 8px 0 0; color: #a7a9ac; font-size: 10px; text-align: right; text-transform: capitalize; }
+.weekly-tempo-day__track { grid-column: 2 / -1; border-top: 1px solid rgba(67, 73, 80, 0.52); background: rgba(255, 255, 255, 0.008); }
+.weekly-tempo-day:nth-of-type(7) .weekly-tempo-day__track { border-bottom: 1px solid #2a2e33; }
+.weekly-tempo-bar { z-index: 2; align-self: stretch; }
 
 .calendar-week__all-day > div {
   position: relative;
@@ -3043,14 +3180,34 @@ body,
 .tempo-inspector__eyebrow { margin-bottom: 6px; color: #d88f5a; font-size: 9px; letter-spacing: 0.1em; }
 .tempo-inspector__title { width: 100%; border: 0; background: transparent; color: #e8e9ea; font: inherit; font-size: 24px; outline: 0; }
 .tempo-inspector__summary { margin-top: 3px; color: #d88f5a; font-size: 11px; }
+.tempo-inspector__subtype { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; color: #777d84; font-size: 9px; letter-spacing: 0.06em; text-transform: uppercase; }
+.tempo-inspector__subtype-value { display: inline-flex; align-items: center; gap: 7px; color: #c7c9cc; font-size: 10px; letter-spacing: 0.03em; }
+.future-badge { display: inline-flex; align-items: center; min-height: 16px; border: 1px solid #3a3f45; border-radius: 999px; padding: 1px 6px; color: #8b9096; background: #191c20; font-size: 8px; font-weight: 700; letter-spacing: 0.08em; line-height: 1; text-transform: uppercase; }
 .tempo-inspector__date-fields,
-.tempo-inspector__time-fields { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.tempo-inspector__time-fields,
+.tempo-inspector__range-date-fields { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.tempo-inspector__range-date-fields > label { flex: 1 1 132px; }
+.tempo-inspector__range-date-fields input { width: 100%; }
 .tempo-inspector label { display: flex; flex-direction: column; gap: 4px; color: #777d84; font-size: 9px; letter-spacing: 0.06em; text-transform: uppercase; }
 .tempo-inspector input,
 .tempo-inspector select { min-width: 72px; border: 1px solid #343940; border-radius: 3px; padding: 6px 7px; background: #121417; color: #e8e9ea; color-scheme: dark; font: inherit; }
+.tempo-inspector__color { margin-top: 12px; }
+.tempo-inspector__color-swatch { position: relative; display: block; width: 100%; height: 34px; overflow: hidden; border: 1px solid #343940; border-radius: 3px; cursor: pointer; }
+.tempo-inspector__color-swatch input { position: absolute; inset: 0; width: 100%; height: 100%; min-width: 0; padding: 0; opacity: 0; cursor: pointer; }
+.tempo-inspector__active-weekdays { margin-top: 12px; color: #777d84; font-size: 9px; letter-spacing: 0.06em; text-transform: uppercase; }
+.tempo-inspector__active-weekdays > div { display: grid; grid-template-columns: repeat(7, 24px); gap: 4px; margin-top: 5px; }
+.tempo-inspector__active-weekdays button { width: 24px; height: 24px; border: 1px solid #343940; border-radius: 0; padding: 0; background: transparent; color: #777d84; cursor: pointer; font: inherit; font-size: 10px; }
+.tempo-inspector__active-weekdays button.is-active { border-color: #d88f5a; color: #e8e9ea; background: rgba(216, 143, 90, 0.12); }
+.tempo-inspector__active-weekdays button:hover, .tempo-inspector__active-weekdays button:focus-visible { border-color: #d88f5a; color: #e8e9ea; outline: 0; }
 .tempo-inspector__content { display: flex; flex: 1; flex-direction: column; min-height: 0; padding: 14px 18px 18px; }
-.tempo-inspector__content-label { margin-bottom: 7px; color: #777d84; font-size: 10px; }
+.tempo-inspector__content-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 7px; }
+.tempo-inspector__content-label { color: #777d84; font-size: 10px; }
+.tempo-inspector__expand { width: 24px; height: 24px; border: 1px solid transparent; border-radius: 3px; padding: 0; background: transparent; color: #777d84; cursor: pointer; font-size: 15px; }
+.tempo-inspector__expand:hover, .tempo-inspector__expand:focus-visible { border-color: #596069; color: #e8e9ea; outline: 0; }
 .tempo-inspector__editor-scroll { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; border: 1px solid #2a2e33; border-radius: 4px; background: #121417; }
+.tempo-inspector__editor-backdrop { position: fixed; inset: 0; z-index: 19; border: 0; background: rgba(8, 10, 12, 0.72); cursor: default; }
+.tempo-inspector__content.is-expanded { position: fixed; inset: 6vh 6vw; z-index: 20; border: 1px solid #343940; border-radius: 6px; padding: 18px; background: #15181c; box-shadow: 0 18px 60px rgba(0, 0, 0, 0.5); }
+.tempo-inspector__content.is-expanded .tempo-inspector__editor-scroll { background: #101215; }
 
 @media (max-width: 1050px) {
   .calendar-node__header { grid-template-columns: auto 1fr auto; }
@@ -3277,12 +3434,11 @@ body,
   opacity: 0.72;
   transition: opacity 140ms ease, outline-color 140ms ease;
 }
-/* Texto de placeholder superpuesto al editor. */
-.editor-placeholder-overlay {
-  position: fixed;
+/* Texto de ayuda dentro de la misma linea vacia del editor. */
+.editor-content [data-editor-placeholder]::before {
+  content: attr(data-editor-placeholder);
   color: #5a5f66;
   pointer-events: none;
-  z-index: 18;
 }
 
 /* Linea que indica donde se soltara un bloque. */

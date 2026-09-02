@@ -317,7 +317,6 @@ export function useEditorController({
     clearLineSelection();
     setSelectedLineBlocks([]);
     setLineActionBlock(null);
-    setPlaceholderBlock(null);
   };
 
   useEffect(() => {

@@ -56,7 +56,9 @@ export function useRichTextEditor({
   const syncContent = () => {
     cancelScheduled();
     if (editorRef.current && node) {
-      const html = editorRef.current.innerHTML;
+      const persistableEditor = editorRef.current.cloneNode(true) as HTMLElement;
+      persistableEditor.querySelectorAll("[data-editor-placeholder]").forEach((block) => block.removeAttribute("data-editor-placeholder"));
+      const html = persistableEditor.innerHTML;
       const content = node.content.includes("<!--hisfuture-page-meta:")
         ? setPageMeta(html, getPageMeta(node.content))
         : node.content.includes("<!--hisfuture-tempo-meta:")

@@ -70,15 +70,9 @@ export function useEditorBlockSelection({
   // el editor se comporte normalmente.
   const textBlock = getTextEditorBlock(target);
 
-  if (textBlock) {
-    const isEmpty = Boolean(
-      !textBlock.matches("[data-divider]") &&
-      !textBlock.textContent?.trim() &&
-      !textBlock.querySelector("img, .editor-mention"),
-    );
-
-    if (!isEmpty) return false;
-  }
+  // Un bloque de texto, incluso vacío, sigue siendo una superficie editable.
+  // La selección rectangular solo debe comenzar en el fondo libre del editor.
+  if (textBlock) return false;
 
   // Llegados aquí estamos en una zona vacía de la superficie
   // del editor. No necesitamos encontrar un bloque para permitir
