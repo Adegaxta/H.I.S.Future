@@ -1,10 +1,11 @@
 import { AVATAR_COLORS } from "../defs/palette";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { NODE_REGISTRY, getNodeDefinition, getNodeDisplayLabel } from "../defs/nodeTypes";
-import type { BaseNodeType } from "../types/nodes";
+import type { BaseNodeType, NodeItem } from "../types/nodes";
 import { getEffectiveNodeType } from "../utils/nodeTree";
 import { useTreeController } from "../hooks/useTreeController";
 import ContextMenu from "./ContextMenu";
+import HisContextMenu, { type HisContextMenuItem } from "./HisContextMenu";
 import DragPreview from "./DragPreview";
 import SidebarTree from "./SidebarTree";
 import NodePanels from "./NodePanels";
@@ -35,6 +36,21 @@ interface AppWorkspaceProps {
 }
 
 const MAX_LOCAL_STORAGE_STRING_BYTES = 900_000;
+
+type NavigationEntry =
+  | { kind: "node"; id: string }
+  | { kind: "trash"; id: string };
+
+function TrashNodePreview({ node }: { node: NodeItem }) {
+  const parsed = new DOMParser().parseFromString(node.content, "text/html");
+  const resource = node.type === "imagen" ? getImageResourceInfo(node.content, node.name) : null;
+  const imageSource = resource?.src || parsed.querySelector("img")?.getAttribute("src");
+  if (imageSource) {
+    return <img src={imageSource} alt="" loading="lazy" decoding="async" />;
+  }
+  const text = parsed.body.textContent?.replace(/\s+/g, " ").trim().slice(0, 180);
+  return <span>{text || "Sin previsualización"}</span>;
+}
 
 const safeLocalStorageSet = (key: string, value: string) => {
   try {
@@ -67,6 +83,7 @@ export default function AppWorkspace({
   const coverNodeStorageKey = `hisfuture.project.cover-node.${projectKey}`;
   const colorStorageKey = `hisfuture.project.color.${projectKey}`;
   const timeFormatStorageKey = "hisfuture.settings.time-format";
+  const trashViewStorageKey = `hisfuture.settings.trash-view.${projectKey}`;
   const [defaultNodeType, setDefaultNodeType] = useState<BaseNodeType>("pagina");
   const [timeFormat, setTimeFormat] = useState<TimeFormat>(() =>
     localStorage.getItem(timeFormatStorageKey) === "24h" ? "24h" : "12h",
@@ -83,6 +100,9 @@ export default function AppWorkspace({
   );
   const [settingsPanel, setSettingsPanel] = useState<"general" | "trash" | "changelog">(
     "general",
+  );
+  const [trashView, setTrashView] = useState<"gallery" | "list">(() =>
+    localStorage.getItem(trashViewStorageKey) === "list" ? "list" : "gallery",
   );
   const [selectedTrashNodeId, setSelectedTrashNodeId] = useState<string | null>(
     null,
@@ -103,13 +123,18 @@ export default function AppWorkspace({
   useEffect(() => {
     localStorage.setItem(timeFormatStorageKey, timeFormat);
   }, [timeFormat]);
+  useEffect(() => {
+    localStorage.setItem(trashViewStorageKey, trashView);
+  }, [trashView, trashViewStorageKey]);
   const [contextMenu, setContextMenu] = useState<
     React.ComponentProps<typeof ContextMenu>["menu"] | null
   >(null);
+  const [trashMenu, setTrashMenu] = useState<{ x: number; y: number } | null>(null);
+  const [trashActionsMenu, setTrashActionsMenu] = useState<{ x: number; y: number } | null>(null);
   const editorRef = useRef<HTMLDivElement | null>(null);
   const resizing = useRef(false);
-  const navigationHistory = useRef<{ ids: string[]; index: number }>({
-    ids: [],
+  const navigationHistory = useRef<{ entries: NavigationEntry[]; index: number }>({
+    entries: [],
     index: -1,
   });
   const calendarNavigation = useRef<((direction: -1 | 1) => boolean) | null>(null);
@@ -129,7 +154,6 @@ export default function AppWorkspace({
     : pageMeta?.textPosition === "left"
       ? { marginLeft: 0, marginRight: "auto" }
       : { marginLeft: "auto", marginRight: "auto" };
-
   useEffect(() => {
     if (workspace.selectedId) setSelectedTrashNodeId(null);
   }, [workspace.selectedId]);
@@ -138,14 +162,29 @@ export default function AppWorkspace({
     const id = workspace.selectedId;
     if (!id) return;
     const history = navigationHistory.current;
-    if (history.ids[history.index] === id) return;
-    const current = history.ids.slice(0, history.index + 1);
-    if (current[current.length - 1] === id) return;
+    const currentEntry = history.entries[history.index];
+    if (currentEntry?.kind === "node" && currentEntry.id === id) return;
+    const current = history.entries.slice(0, history.index + 1);
+    if (current[current.length - 1]?.kind === "node" && current[current.length - 1].id === id) return;
     navigationHistory.current = {
-      ids: [...current, id],
+      entries: [...current, { kind: "node", id }],
       index: current.length,
     };
   }, [workspace.selectedId]);
+
+  useEffect(() => {
+    const id = selectedTrashNodeId;
+    if (!id) return;
+    const history = navigationHistory.current;
+    const currentEntry = history.entries[history.index];
+    if (currentEntry?.kind === "trash" && currentEntry.id === id) return;
+    const current = history.entries.slice(0, history.index + 1);
+    if (current[current.length - 1]?.kind === "trash" && current[current.length - 1].id === id) return;
+    navigationHistory.current = {
+      entries: [...current, { kind: "trash", id }],
+      index: current.length,
+    };
+  }, [selectedTrashNodeId]);
 
   useEffect(() => {
     const handleMouseButton = (event: globalThis.MouseEvent) => {
@@ -157,10 +196,21 @@ export default function AppWorkspace({
       }
       const history = navigationHistory.current;
       const nextIndex = history.index + direction;
-      if (nextIndex < 0 || nextIndex >= history.ids.length) return;
+      if (nextIndex < 0 || nextIndex >= history.entries.length) return;
       event.preventDefault();
+      const next = history.entries[nextIndex];
       history.index = nextIndex;
-      workspace.setSelectedId(history.ids[nextIndex]);
+      if (next.kind === "trash") {
+        workspace.setSelectedId(null);
+        setProjectTab("settings");
+        setSettingsPanel("trash");
+        setSelectedTrashNodeId(next.id);
+      } else {
+        setSelectedTrashNodeId(null);
+        setProjectTab("workspace");
+        setView("list");
+        workspace.setSelectedId(next.id);
+      }
     };
     window.addEventListener("mousedown", handleMouseButton);
     return () => window.removeEventListener("mousedown", handleMouseButton);
@@ -543,6 +593,53 @@ export default function AppWorkspace({
     safeLocalStorageSet(coverNodeStorageKey, id);
   }, [projectImage, workspace.hydrated, workspace.nodes, coverNodeStorageKey]);
 
+  const openDeletedNode = (id: string) => {
+    workspace.setSelectedId(null);
+    setProjectTab("settings");
+    setSettingsPanel("trash");
+    setSelectedTrashNodeId(id);
+  };
+  const returnToTrash = () => {
+    setSelectedTrashNodeId(null);
+    setProjectTab("settings");
+    setSettingsPanel("trash");
+  };
+  const openTrashMenu = (event: React.MouseEvent, node: NodeItem) => {
+    event.preventDefault();
+    if (!workspace.selectedDeletedIds.includes(node.id)) {
+      workspace.selectDeletedNode(node.id);
+    }
+    setTrashMenu({ x: event.clientX, y: event.clientY });
+  };
+  const selectTrashNode = (event: React.MouseEvent, node: NodeItem) => {
+    workspace.selectDeletedNode(node.id, {
+      ctrlKey: event.ctrlKey || event.metaKey,
+      shiftKey: event.shiftKey,
+    });
+  };
+  const handleTrashNodeClick = (event: React.MouseEvent, node: NodeItem) => {
+    if (event.ctrlKey || event.metaKey || event.shiftKey) {
+      selectTrashNode(event, node);
+      return;
+    }
+    openDeletedNode(node.id);
+  };
+  const trashActionItems: HisContextMenuItem[] = [
+    {
+      id: "restore",
+      label: "Recuperar seleccionados",
+      disabled: workspace.selectedDeletedIds.length === 0,
+      onSelect: workspace.restoreDeletedNodes,
+    },
+    {
+      id: "delete-permanently",
+      label: "Eliminar permanentemente",
+      danger: true,
+      disabled: workspace.selectedDeletedIds.length === 0,
+      onSelect: workspace.permanentlyDeleteNodes,
+    },
+  ];
+
   return (
     <div
       onContextMenu={(event) => event.preventDefault()}
@@ -747,6 +844,9 @@ export default function AppWorkspace({
         >
           {selectedTrashNode ? (
             <div className="editor-page editor-page--trash">
+              <button type="button" className="trash-node-back" onClick={returnToTrash}>
+                Volver
+              </button>
               <div className="trash-node-warning">
                 Este nodo está en la papelera y no es editable.
               </div>
@@ -767,11 +867,7 @@ export default function AppWorkspace({
                 setExpanded={workspace.setExpanded}
                 pendingNodeDrop={null}
                 onNodeDropHandled={() => undefined}
-                onOpenDeletedNode={(id) => {
-                  setProjectTab("settings");
-                  setSettingsPanel("trash");
-                  setSelectedTrashNodeId(id);
-                }}
+                onOpenDeletedNode={openDeletedNode}
                 onOpenNodeView={(id) => {
                   setSelectedTrashNodeId(null);
                   setProjectTab("workspace");
@@ -802,37 +898,64 @@ export default function AppWorkspace({
                   <div className="project-settings__eyebrow">PAPELERA</div>
                   <h1>Nodos eliminados</h1>
                 </div>
-                {workspace.selectedDeletedIds.length > 0 && (
+                <div className="trash-view__header-right">
+                  <div className="trash-view__view-toggle" role="group" aria-label="Vista de papelera">
+                    <button type="button" className={trashView === "gallery" ? "is-active" : ""} onClick={() => setTrashView("gallery")}>GALERÍA</button>
+                    <button type="button" className={trashView === "list" ? "is-active" : ""} onClick={() => setTrashView("list")}>LISTA</button>
+                  </div>
                   <div className="trash-view__actions">
-                    <button type="button" title="Restaurar seleccionados" onClick={workspace.restoreDeletedNodes}>
+                    <button
+                      type="button"
+                      className="trash-view__more"
+                      title="Acciones de seleccionados"
+                      aria-label="Acciones de seleccionados"
+                      onClick={(event) => setTrashActionsMenu({ x: event.currentTarget.getBoundingClientRect().right, y: event.currentTarget.getBoundingClientRect().bottom + 6 })}
+                    >
+                      <span aria-hidden="true">...</span>
+                    </button>
+                    <button
+                      type="button"
+                      title="Restaurar seleccionados"
+                      disabled={workspace.selectedDeletedIds.length === 0}
+                      onClick={workspace.restoreDeletedNodes}
+                    >
                       <img src="/coso/restore.svg" alt="" />
                     </button>
-                    <button type="button" title="Eliminar definitivamente" onClick={workspace.permanentlyDeleteNodes}>
+                    <button
+                      type="button"
+                      title="Eliminar definitivamente"
+                      disabled={workspace.selectedDeletedIds.length === 0}
+                      onClick={workspace.permanentlyDeleteNodes}
+                    >
                       <img src="/coso/delete.svg" alt="" />
                     </button>
                   </div>
-                )}
+                </div>
               </div>
               {workspace.deletedNodes.length === 0 ? (
                 <div className="trash-view__empty">La papelera está vacía.</div>
-              ) : (
+              ) : trashView === "list" ? (
                 <div className="trash-view__list">
                   {workspace.deletedNodes.map((node) => (
-                    <div key={node.id} className="trash-view__item">
+                    <div
+                      key={node.id}
+                      className={`trash-view__item ${workspace.selectedDeletedIds.includes(node.id) ? "is-selected" : ""}`}
+                      onClick={(event) => handleTrashNodeClick(event, node)}
+                      onContextMenu={(event) => openTrashMenu(event, node)}
+                    >
                       <input
                         type="checkbox"
                         checked={workspace.selectedDeletedIds.includes(node.id)}
-                        onChange={(event) =>
-                          workspace.setSelectedDeletedIds((current) =>
-                            event.target.checked
-                              ? [...current, node.id]
-                              : current.filter((id) => id !== node.id),
-                          )
-                        }
+                        onClick={(event) => event.stopPropagation()}
+                        onChange={() => workspace.selectDeletedNode(node.id, { ctrlKey: true })}
                       />
                       <button
                         type="button"
-                        onClick={() => setSelectedTrashNodeId(node.id)}
+                        title={node.name}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          handleTrashNodeClick(event, node);
+                        }}
                       >
                         <span
                           className="trash-view__type-dot"
@@ -842,6 +965,25 @@ export default function AppWorkspace({
                       </button>
                       <small>{getNodeDisplayLabel(node.type)}</small>
                     </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="trash-view__gallery">
+                  {workspace.deletedNodes.map((node) => (
+                    <article
+                      key={node.id}
+                      className={`trash-view__card ${workspace.selectedDeletedIds.includes(node.id) ? "is-selected" : ""}`}
+                      onClick={(event) => handleTrashNodeClick(event, node)}
+                      onContextMenu={(event) => openTrashMenu(event, node)}
+                    >
+                      <div className="trash-view__preview">
+                        <TrashNodePreview node={node} />
+                        <small>{getNodeDisplayLabel(node.type)}</small>
+                      </div>
+                      <div className="trash-view__card-meta">
+                        <span className="trash-view__card-name" title={node.name}>{node.name}</span>
+                      </div>
+                    </article>
                   ))}
                 </div>
               )}
@@ -943,11 +1085,7 @@ export default function AppWorkspace({
                     setExpanded={workspace.setExpanded}
                     pendingNodeDrop={workspace.pendingEditorNodeDrop}
                     onNodeDropHandled={workspace.clearPendingEditorNodeDrop}
-                    onOpenDeletedNode={(id) => {
-                      setProjectTab("settings");
-                      setSettingsPanel("trash");
-                      setSelectedTrashNodeId(id);
-                    }}
+                    onOpenDeletedNode={openDeletedNode}
                     onImageFilePaste={async (file: File, parentId?: string | null) => {
                       return createImageNodeFromFile(file, parentId ?? selectedNode.parentId ?? null);
                     }}
@@ -988,9 +1126,7 @@ export default function AppWorkspace({
                   onDeleteTempo={workspace.deleteNode}
                   setExpanded={workspace.setExpanded}
                   onOpenDeletedNode={(id) => {
-                    setProjectTab("settings");
-                    setSettingsPanel("trash");
-                    setSelectedTrashNodeId(id);
+                    openDeletedNode(id);
                   }}
                   onOpenNodeView={(id) => {
                     setSelectedTrashNodeId(null);
@@ -1021,9 +1157,7 @@ export default function AppWorkspace({
                   onContentChange={workspace.updateContent}
                   setExpanded={workspace.setExpanded}
                   onOpenDeletedNode={(id) => {
-                    setProjectTab("settings");
-                    setSettingsPanel("trash");
-                    setSelectedTrashNodeId(id);
+                    openDeletedNode(id);
                   }}
                   onImageFilePaste={async (file: File, parentId?: string | null) => {
                     return createImageNodeFromFile(file, parentId ?? selectedNode.parentId ?? null);
@@ -1063,9 +1197,7 @@ export default function AppWorkspace({
                   pendingNodeDrop={workspace.pendingEditorNodeDrop}
                   onNodeDropHandled={workspace.clearPendingEditorNodeDrop}
                   onOpenDeletedNode={(id) => {
-                    setProjectTab("settings");
-                    setSettingsPanel("trash");
-                    setSelectedTrashNodeId(id);
+                    openDeletedNode(id);
                   }}
                   onImageFilePaste={async (file: File, parentId?: string | null) => {
                     return createImageNodeFromFile(file, parentId ?? selectedNode.parentId ?? null);
@@ -1080,7 +1212,7 @@ export default function AppWorkspace({
                   style={{
                     display: "block",
                     width: "100%",
-                    minHeight: 0,
+                    minHeight: "calc(100vh - 40px)",
                     minWidth: 0,
                     padding: 0,
                     border: "none",
@@ -1111,6 +1243,22 @@ export default function AppWorkspace({
           }}
           onDelete={workspace.deleteNode}
           onClose={() => setContextMenu(null)}
+        />
+      )}
+      {trashMenu && (
+        <HisContextMenu
+          x={trashMenu.x}
+          y={trashMenu.y}
+          items={trashActionItems}
+          onClose={() => setTrashMenu(null)}
+        />
+      )}
+      {trashActionsMenu && (
+        <HisContextMenu
+          x={trashActionsMenu.x}
+          y={trashActionsMenu.y}
+          items={trashActionItems}
+          onClose={() => setTrashActionsMenu(null)}
         />
       )}
       {workspace.dragPreviewId && workspace.isDraggingNode && previewNode && (

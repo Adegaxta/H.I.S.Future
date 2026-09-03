@@ -6,9 +6,30 @@ export interface ChangelogEntry {
   changes: string[];
 }
 
-export const CURRENT_VERSION = "0.2.37";
+export const CURRENT_VERSION = "0.2.39";
 
 export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
+  {
+    version: "0.2.39",
+    date: "2026-09-03",
+    title: "SELECCIÓN RECTANGULAR — SUPERFICIE COMPLETA DEL EDITOR",
+    category: "Fix",
+    changes: [
+      "El cuadro de selección por arrastre puede iniciarse en toda la superficie del editor, incluido el espacio vacío posterior al último bloque de una Página nueva.",
+      "La selección nativa de texto se conserva únicamente cuando el caret ya está activo dentro del bloque textual pulsado; el resto del lienzo queda disponible para la selección rectangular.",
+      "Escape permite salir del caret y limpia el foco, la selección nativa y los menús temporales del editor.",
+    ],
+  },
+  {
+    version: "0.2.38",
+    date: "2026-09-03",
+    title: "IMÁGENES — RESIZE DE MENCIONES COMPLETAS",
+    category: "Imágenes",
+    changes: [
+      "Las menciones de imagen en modo completo conservan el resize horizontal desde el borde de la imagen sin quedar bloqueadas por las guardas generales de menciones.",
+      "El cursor ew-resize identifica de forma consistente la zona interactiva de redimensionado y mantiene separados los modos de imagen insertada y completa.",
+    ],
+  },
   {
     version: "0.2.37",
     date: "2026-09-02",

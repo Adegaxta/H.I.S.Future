@@ -339,7 +339,23 @@ export default function RichTextEditor({
     input.click();
   };
   return (
-    <>
+    <div
+      className="editor-selection-surface"
+      onPointerDown={(event) => {
+        if (event.target !== event.currentTarget) return;
+        controller.onEditorPointerDown(event);
+      }}
+      onPointerMove={(event) => {
+        if (event.target !== event.currentTarget) return;
+        controller.onEditorPointerMove(event);
+        controller.onEditorSelectionMove(event);
+      }}
+      onPointerUp={(event) => {
+        if (event.target !== event.currentTarget) return;
+        controller.onEditorPointerUp();
+      }}
+    >
+      <>
       {!readOnly && controller.lineControl && !controller.isDraggingLine && (
         <div
           aria-hidden="true"
@@ -832,7 +848,8 @@ export default function RichTextEditor({
           }}
         />
       )}
-    </>
+      </>
+    </div>
   );
 }
 

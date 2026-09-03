@@ -50,6 +50,7 @@ export function useNodeStore(projectKey?: string) {
     }
   });
   const [selectedDeletedIds, setSelectedDeletedIds] = useState<string[]>([]);
+  const [deletedSelectionAnchorId, setDeletedSelectionAnchorId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [recentNodeIds, setRecentNodeIds] = useState<string[]>([]);
@@ -233,6 +234,7 @@ export function useNodeStore(projectKey?: string) {
     ]);
     setDeletedNodes((current) => current.filter((node) => !ids.has(node.id)));
     setSelectedDeletedIds([]);
+    setDeletedSelectionAnchorId(null);
   };
   const permanentlyDeleteNodes = () => {
     const ids = new Set(selectedDeletedIds);
@@ -240,6 +242,33 @@ export function useNodeStore(projectKey?: string) {
     markDirty();
     setDeletedNodes((current) => current.filter((node) => !ids.has(node.id)));
     setSelectedDeletedIds([]);
+    setDeletedSelectionAnchorId(null);
+  };
+  const selectDeletedNode = (
+    id: string,
+    options: { ctrlKey?: boolean; shiftKey?: boolean } = {},
+  ) => {
+    const index = deletedNodes.findIndex((node) => node.id === id);
+    if (index < 0) return;
+    const anchorIndex = deletedSelectionAnchorId
+      ? deletedNodes.findIndex((node) => node.id === deletedSelectionAnchorId)
+      : -1;
+    if (options.shiftKey && anchorIndex >= 0) {
+      const start = Math.min(anchorIndex, index);
+      const end = Math.max(anchorIndex, index);
+      setSelectedDeletedIds(deletedNodes.slice(start, end + 1).map((node) => node.id));
+      return;
+    }
+    if (options.ctrlKey) {
+      setSelectedDeletedIds((current) =>
+        current.includes(id)
+          ? current.filter((selectedId) => selectedId !== id)
+          : [...current, id],
+      );
+    } else {
+      setSelectedDeletedIds([id]);
+    }
+    setDeletedSelectionAnchorId(id);
   };
   const moveNode = (
     draggedId: string,
@@ -282,6 +311,7 @@ export function useNodeStore(projectKey?: string) {
     deletedNodes,
     selectedDeletedIds,
     setSelectedDeletedIds,
+    selectDeletedNode,
     restoreDeletedNodes,
     permanentlyDeleteNodes,
     moveNode,

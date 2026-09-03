@@ -66,18 +66,24 @@ export function useEditorBlockSelection({
 
   if (isBlockedTarget) return false;
 
-  // Si el puntero está sobre texto/contenido real, dejar que
-  // el editor se comporte normalmente.
+  // El texto solo conserva su selección nativa cuando ya existe un caret
+  // dentro del mismo bloque; el resto de superficies deben iniciar el cuadro.
   const textBlock = getTextEditorBlock(target);
+  const nativeSelection = window.getSelection();
+  const caretIsInsideTextBlock = Boolean(
+    textBlock &&
+    nativeSelection?.isCollapsed &&
+    nativeSelection.anchorNode &&
+    textBlock.contains(nativeSelection.anchorNode) &&
+    document.activeElement &&
+    editor.contains(document.activeElement),
+  );
+  if (caretIsInsideTextBlock) return false;
 
-  // Un bloque de texto, incluso vacío, sigue siendo una superficie editable.
-  // La selección rectangular solo debe comenzar en el fondo libre del editor.
-  if (textBlock) return false;
-
-  // Llegados aquí estamos en una zona vacía de la superficie
-  // del editor. No necesitamos encontrar un bloque para permitir
-  // el inicio de la selección.
-  if (!editor.contains(target)) return false;
+  // La superficie envolvente también puede iniciar una selección rectangular
+  // en el espacio vacío posterior al último bloque.
+  const selectionSurface = editor.parentElement ?? editor;
+  if (!selectionSurface.contains(target)) return false;
 
   if (event.button !== 0 || (event.buttons & 1) === 0) {
     return false;

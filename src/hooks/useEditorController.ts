@@ -1064,6 +1064,15 @@ export function useEditorController({
   };
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     const indexItem = (event.target as HTMLElement).closest<HTMLElement>("[data-page-index-item]");
+    if (event.key === "Escape") {
+      event.preventDefault();
+      event.stopPropagation();
+      dismissEditorMenus();
+      clearNativeSelection();
+      setSelectionToolbar(null);
+      setPlaceholderBlock(null);
+      return;
+    }
     if (indexItem && (event.key === "Enter" || event.key === " ")) {
       event.preventDefault();
       const id = indexItem.dataset.pageId;
