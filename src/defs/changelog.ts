@@ -6,9 +6,20 @@ export interface ChangelogEntry {
   changes: string[];
 }
 
-export const CURRENT_VERSION = "0.2.39";
+export const CURRENT_VERSION = "0.2.40";
 
 export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
+  {
+    version: "0.2.40",
+    date: "2026-09-03",
+    title: "EDITOR — CARET Y PLACEHOLDER TRAS BORRADO",
+    category: "Fix",
+    changes: [
+      "Backspace coloca el caret al final de la línea de texto resultante después de borrar un bloque, evitando posiciones inválidas o saltos inesperados.",
+      "El editor enfoca o crea una línea vacía válida tras el borrado estructural y vuelve a mostrar el texto de ayuda cuando corresponde.",
+      "El placeholder solo aparece con un caret activo dentro del editor y se actualiza de forma consistente tras mutaciones y cambios de foco.",
+    ],
+  },
   {
     version: "0.2.39",
     date: "2026-09-03",

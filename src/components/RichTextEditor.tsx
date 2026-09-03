@@ -354,6 +354,10 @@ export default function RichTextEditor({
         if (event.target !== event.currentTarget) return;
         controller.onEditorPointerUp();
       }}
+      onClick={(event) => {
+        if (readOnly || event.target !== event.currentTarget || controller.selectedLineBlocks.length > 0) return;
+        controller.focusOrCreatePageLine();
+      }}
     >
       <>
       {!readOnly && controller.lineControl && !controller.isDraggingLine && (
@@ -635,7 +639,7 @@ export default function RichTextEditor({
             return;
           }
           if (!readOnly && event.target === event.currentTarget && controller.selectedLineBlocks.length === 0) {
-            controller.focusOrCreatePageLine(event.clientY);
+            controller.focusOrCreatePageLine();
           }
           const clickedBlock = controller.getEditorBlock?.(event.target as Node) ?? null;
           if (!readOnly && clickedBlock && clickedBlock.matches("p, h1, h2, h3, h4, blockquote, li, [data-page-index]")) {
@@ -691,6 +695,7 @@ export default function RichTextEditor({
             controller.syncContent();
           }
           controller.syncContent();
+          controller.updatePlaceholder();
           if (document.visibilityState === "hidden" || !document.hasFocus()) {
             return;
           }

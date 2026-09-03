@@ -124,7 +124,7 @@ export function useEditorBlocks({
     return true;
   }, [blockSelector, editorRef, isRootEditorBlock]);
 
-  const removeLine = useCallback((block: HTMLElement) => {
+  const removeLine = useCallback((block: HTMLElement, caretAtEnd = false) => {
     const editor = editorRef.current;
     if (!editor || !editor.contains(block)) return;
     captureStructuralUndo();
@@ -142,7 +142,7 @@ export function useEditorBlocks({
       (line) => block.compareDocumentPosition(line) & Node.DOCUMENT_POSITION_PRECEDING,
     );
     block.remove();
-    const focusLine = nextLine || previousLine;
+    let focusLine = nextLine || previousLine;
     if (!candidates.length) {
       const line = document.createElement("p");
       line.removeAttribute("style");
@@ -152,10 +152,12 @@ export function useEditorBlocks({
       } else {
         editor.appendChild(line);
       }
-    } else if (focusLine && !focusLine.matches("[data-divider]")) {
+      focusLine = line;
+    }
+    if (focusLine && !focusLine.matches("[data-divider]")) {
       const range = document.createRange();
       range.selectNodeContents(focusLine);
-      range.collapse(true);
+      range.collapse(!caretAtEnd);
       const selection = window.getSelection();
       selection?.removeAllRanges();
       selection?.addRange(range);
@@ -167,8 +169,9 @@ export function useEditorBlocks({
     clearLineSelection();
     controls.clearBlockControls();
     setPlaceholderBlock(null);
+    updatePlaceholder();
     syncContent();
-  }, [captureStructuralUndo, clearLineSelection, controls, editorRef, isRootEditorBlock, setPlaceholderBlock, syncContent, textLineSelector]);
+  }, [captureStructuralUndo, clearLineSelection, controls, editorRef, isRootEditorBlock, setPlaceholderBlock, syncContent, textLineSelector, updatePlaceholder]);
 
   const hasTextLineAfter = useCallback((block: HTMLElement) => {
     const editor = editorRef.current;

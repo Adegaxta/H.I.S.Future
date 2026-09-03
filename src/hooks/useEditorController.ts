@@ -1176,7 +1176,7 @@ export function useEditorController({
       (event.key === "Delete" || event.key === "Backspace")
     ) {
       event.preventDefault();
-      removeLine(activeBlock || lineActionBlock);
+      removeLine(activeBlock || lineActionBlock, event.key === "Backspace");
       pickers.setPickerPosition(null);
       pickers.setSlashPicker(null);
       setLineActionBlock(null);
@@ -1188,7 +1188,7 @@ export function useEditorController({
       isLineEmpty(activeBlock)
     ) {
       event.preventDefault();
-      removeLine(activeBlock);
+      removeLine(activeBlock, event.key === "Backspace");
       return;
     }
     const picker: PickerState | null =
@@ -1387,27 +1387,13 @@ export function useEditorController({
     document.body.style.cursor = "default";
     syncContent();
   };
-  const focusOrCreatePageLine = (clientY: number) => {
+  const focusOrCreatePageLine = () => {
     const editor = editorRef.current;
     if (!editor || node.type !== "pagina") return;
     const lines = Array.from(
       editor.querySelectorAll<HTMLElement>(textLineSelector),
     ).filter((line) => isRootEditorBlock(line) && !line.matches("[data-divider]"));
-    let line = lines.find((candidate) => {
-      const rect = candidate.getBoundingClientRect();
-      return clientY >= rect.top && clientY <= rect.bottom;
-    });
-    if (!line && lines.length) {
-      line = lines.reduce((closest, candidate) => {
-        const closestDistance = Math.abs(
-          closest.getBoundingClientRect().top - clientY,
-        );
-        const candidateDistance = Math.abs(
-          candidate.getBoundingClientRect().top - clientY,
-        );
-        return candidateDistance < closestDistance ? candidate : closest;
-      });
-    }
+    let line = lines.find((candidate) => isLineEmpty(candidate));
     if (!line) {
       line = document.createElement("p");
       line.appendChild(document.createElement("br"));

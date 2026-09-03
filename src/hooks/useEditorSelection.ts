@@ -97,20 +97,20 @@ export function useEditorSelection({
     const selection = window.getSelection();
     const editor = editorRef.current;
     if (!editor) return;
-    if (!selection?.rangeCount) {
-      const line = editor.querySelector<HTMLElement>(
-        "[data-globe-content] p, " + textLineSelector,
-      );
-      if (
-        line &&
-        (isRootEditorBlock(line) || line.closest("[data-globe-content]")) &&
-        isLineEmpty(line)
-      ) {
-        setPlaceholderBlock(line);
-      }
+    const activeElement = document.activeElement;
+    const caretInEditor = Boolean(
+      selection?.rangeCount &&
+      selection.isCollapsed &&
+      selection.anchorNode &&
+      editor.contains(selection.anchorNode) &&
+      activeElement &&
+      editor.contains(activeElement),
+    );
+    if (!caretInEditor) {
+      setPlaceholderBlock(null);
       return;
     }
-    const block = getTextEditorBlock(selection.focusNode) || getEditorBlock(selection.focusNode);
+    const block = getTextEditorBlock(selection!.focusNode);
     if (
       block &&
       !block.matches("[data-divider]") &&
