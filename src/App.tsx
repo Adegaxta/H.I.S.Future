@@ -4,6 +4,7 @@ import HomeScreen from "./screens/HomeScreen";
 import { useProjectSession } from "./project/useProjectSession";
 import { useEffect } from "react";
 import { clearPresence, updatePresence } from "./utils/discordPresence";
+import { ProjectLocaleProvider } from "./i18n/LocaleContext";
 
 export default function App() {
   const session = useProjectSession();
@@ -37,11 +38,12 @@ export default function App() {
   }
 
   return (
-    <AppWorkspace
-      key={session.project.folderPath}
-      projectKey={session.project.folderPath}
-      projectName={session.project.name}
-      onExitProject={session.close}
-    />
+    <ProjectLocaleProvider key={session.project.folderPath} projectKey={session.project.folderPath}>
+      <AppWorkspace
+        projectKey={session.project.folderPath}
+        projectName={session.project.name}
+        onExitProject={session.close}
+      />
+    </ProjectLocaleProvider>
   );
 }

@@ -8,6 +8,7 @@ import type {
 import { useNodeScopedEditorHistory } from "./useEditorHistory";
 import { useEditorSelection } from "./useEditorSelection";
 import type { NodeItem, PickerState } from "../types/nodes";
+import { findImportableFile, isImportableDragItem } from "../project/fileNodeImporter";
 import { formatPastedText, sanitizeEditorHtml } from "../utils/editorHtml";
 import { useBlockControls } from "./useBlockControls";
 import { useEditorBlocks } from "./useEditorBlocks";
@@ -26,7 +27,7 @@ interface EditorControllerOptions {
   setSelectedId: (id: string) => void;
   setExpanded: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
   onOpenDeletedNode: (id: string) => void;
-  onImageFilePaste?: (file: File, parentId?: string | null) => Promise<string | null> | string | null;
+  onFileImport?: (file: File, parentId?: string | null) => Promise<NodeItem | null> | NodeItem | null;
   onSlashCommand?: (tag: string) => boolean;
 }
 
@@ -43,7 +44,7 @@ export function useEditorController({
   setSelectedId,
   setExpanded,
   onOpenDeletedNode,
-  onImageFilePaste,
+  onFileImport,
   onSlashCommand,
 }: EditorControllerOptions) {
   const [selectionToolbar, setSelectionToolbar] = useState<{
@@ -619,6 +620,7 @@ export function useEditorController({
     createMention,
     insertMentionWithSpacing,
     insertNodeMention,
+    insertNodeReference,
     onMentionPointerDown,
     onEditorPointerDown: onMentionEditorPointerDown,
     onEditorPointerMove,
@@ -840,6 +842,17 @@ export function useEditorController({
 
 
   const onEditorDrop = (event: DragEvent<HTMLDivElement>) => {
+    const file = findImportableFile(event.dataTransfer);
+    if (file && onFileImport) {
+      event.preventDefault();
+      const x = event.clientX;
+      const y = event.clientY;
+      controls.clearBlockControls();
+      void Promise.resolve(onFileImport(file, node.parentId ?? null)).then((created) => {
+        if (created) insertNodeReference(created, x, y);
+      });
+      return;
+    }
     const nodeId = event.dataTransfer.getData("application/x-hisfuture-node") ||
       event.dataTransfer.getData("text/plain");
     event.preventDefault();
@@ -853,6 +866,11 @@ export function useEditorController({
   };
   const updateLineDrop = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
+    if (Array.from(event.dataTransfer.items).some(isImportableDragItem)) {
+      event.dataTransfer.dropEffect = "copy";
+      controls.setLineControl(null);
+      return;
+    }
     if (
       Array.from(event.dataTransfer.types).includes(
         "application/x-hisfuture-node",
@@ -1327,11 +1345,9 @@ export function useEditorController({
     );
     if (image) {
       const file = image.getAsFile();
-      if (file && onImageFilePaste) {
-        const createdId = onImageFilePaste(file, node.parentId ?? null);
-        Promise.resolve(createdId).then((id) => {
-          if (!id) return;
-          const target = nodes.find((item) => item.id === id);
+      if (file && onFileImport) {
+        const createdNode = onFileImport(file, node.parentId ?? null);
+        Promise.resolve(createdNode).then((target) => {
           if (!target) return;
           const selection = window.getSelection();
           const range = selection?.rangeCount ? selection.getRangeAt(0) : null;

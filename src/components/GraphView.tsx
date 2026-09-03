@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { getNodeDefinition } from "../defs/nodeTypes";
+import { NODE_REGISTRY, getNodeDefinition } from "../defs/nodeTypes";
 import { getImageResourceInfo } from "../utils/imageResource";
 import type { BaseNodeType, NodeItem } from "../types/nodes";
+import { useLocale, type Translate } from "../i18n/LocaleContext";
 
 interface GraphViewProps {
   nodes: NodeItem[];
@@ -17,7 +18,8 @@ interface GraphPoint {
   x: number;
   y: number;
   concept?: boolean;
-  conceptType?: BaseNodeType;
+  category?: boolean;
+  color?: string;
   imageSrc?: string;
 }
 
@@ -34,7 +36,7 @@ const CANVAS_HEIGHT = 3200;
 const MIN_ZOOM = 0.25;
 const MAX_ZOOM = 1.6;
 
-function layoutNodes(nodes: NodeItem[], showConcepts: boolean): GraphPoint[] {
+function layoutNodes(nodes: NodeItem[], showConcepts: boolean, t: Translate): GraphPoint[] {
   const points: GraphPoint[] = [];
   const columns = Math.max(1, Math.ceil(Math.sqrt(nodes.length)));
   const gapX = 360;
@@ -43,12 +45,38 @@ function layoutNodes(nodes: NodeItem[], showConcepts: boolean): GraphPoint[] {
   const startX = (CANVAS_WIDTH - (columns - 1) * gapX) / 2;
   const startY = (CANVAS_HEIGHT - (rows - 1) * gapY) / 2;
   if (showConcepts) {
-    points.push(
-      { id: "concept-pages", label: "Paginas", type: "concepto", conceptType: "pagina", x: startX - 420, y: CANVAS_HEIGHT / 2 - 220, concept: true },
-      { id: "concept-categories", label: "Categorias", type: "concepto", conceptType: "categoria", x: startX - 420, y: CANVAS_HEIGHT / 2 + 220, concept: true },
-      { id: "concept-images", label: "Imagenes", type: "concepto", conceptType: "imagen", x: startX - 420, y: CANVAS_HEIGHT / 2 + 440, concept: true },
-      { id: "concept-calendars", label: "Calendarios", type: "concepto", conceptType: "calendario", x: startX - 420, y: CANVAS_HEIGHT / 2 + 660, concept: true },
-    );
+    const definitions = NODE_REGISTRY.conceptual();
+    const centerY = CANVAS_HEIGHT / 2;
+    definitions.forEach((definition, index) => {
+      const concept = definition.concept!;
+      points.push({
+        id: `concept-${concept.id}`,
+        label: t(concept.labelKey),
+        type: "concepto",
+        x: startX - 420,
+        y: centerY + (index - (definitions.length - 1) / 2) * 220,
+        concept: true,
+        color: definition.color,
+      });
+    });
+    NODE_REGISTRY.categories().forEach((category) => {
+      const childPoints = definitions
+        .filter(({ concept }) => concept?.categoryId === category.id)
+        .map(({ concept }) => points.find((point) => point.id === `concept-${concept!.id}`))
+        .filter((point): point is GraphPoint => Boolean(point));
+      points.push({
+        id: `category-${category.id}`,
+        label: t(category.labelKey),
+        type: "concepto",
+        x: startX - 760,
+        y: childPoints.length
+          ? childPoints.reduce((total, point) => total + point.y, 0) / childPoints.length
+          : centerY,
+        concept: true,
+        category: true,
+        color: category.color,
+      });
+    });
   }
   nodes.forEach((node, index) => {
     points.push({
@@ -79,20 +107,20 @@ function buildEdges(nodes: NodeItem[], showConcepts: boolean): GraphEdge[] {
   const nodesById = new Map(nodes.map((node) => [node.id, node]));
   const edges: GraphEdge[] = [];
   if (showConcepts) {
+    NODE_REGISTRY.conceptual().forEach(({ concept }) => {
+      if (concept?.categoryId) {
+        edges.push({
+          from: `category-${concept.categoryId}`,
+          to: `concept-${concept.id}`,
+          concept: true,
+        });
+      }
+    });
     nodes.forEach((node) => {
-      if (node.type === "tempo") return;
-      edges.push({
-        from:
-          node.type === "pagina"
-            ? "concept-pages"
-            : node.type === "imagen"
-              ? "concept-images"
-              : node.type === "calendario"
-                ? "concept-calendars"
-                : "concept-categories",
-        to: node.id,
-        concept: true,
-      });
+      const concept = getNodeDefinition(node.type).concept;
+      if (concept) {
+        edges.push({ from: `concept-${concept.id}`, to: node.id, concept: true });
+      }
     });
   }
   nodes.forEach((node) => {
@@ -116,6 +144,7 @@ export default function GraphView({
   onOpenNode,
   projectKey,
 }: GraphViewProps) {
+  const { t } = useLocale();
   const preferenceKey = `hisfuture:graph:concepts:${projectKey}`;
   const [showConcepts, setShowConcepts] = useState(() => {
     try {
@@ -135,7 +164,7 @@ export default function GraphView({
   const panningRef = useRef(false);
   const panStartRef = useRef({ x: 0, y: 0 });
   const panOriginRef = useRef({ x: 0, y: 0 });
-  const defaults = layoutNodes(nodes, showConcepts);
+  const defaults = layoutNodes(nodes, showConcepts, t);
   const points = defaults.map((point) => ({
     ...point,
     ...positions[point.id],
@@ -341,7 +370,7 @@ export default function GraphView({
             <button
               key={point.id}
               type="button"
-              className={`graph-node${point.concept ? " graph-node--concept" : ""}${point.conceptType === "categoria" ? " graph-node--category" : ""}${draggingId === point.id ? " graph-node--active" : ""}`}
+              className={`graph-node${point.concept ? " graph-node--concept" : ""}${point.category ? " graph-node--category" : ""}${draggingId === point.id ? " graph-node--active" : ""}`}
               style={{ left: `${(point.x / CANVAS_WIDTH) * 100}%`, top: `${(point.y / CANVAS_HEIGHT) * 100}%` }}
               onPointerDown={(event) => {
                 event.preventDefault();
@@ -379,18 +408,15 @@ export default function GraphView({
               {point.concept && (
                 <span
                   className="graph-node__dot graph-node__dot--concept"
-                  style={{ backgroundColor: getNodeDefinition(point.conceptType!).color }}
+                  style={{ backgroundColor: point.color }}
                 />
               )}
               <strong
                 style={{
                   color: getNodeDefinition(
-                    point.concept
-                      ? point.conceptType!
-                      : point.type === "concepto"
-                        ? "pagina"
-                        : point.type,
+                    point.type === "concepto" ? "pagina" : point.type,
                   ).color,
+                  ...(point.concept ? { color: point.color } : {}),
                 }}
               >
                 {point.label}

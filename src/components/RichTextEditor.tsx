@@ -35,7 +35,7 @@ interface RichTextEditorProps {
   onNodeDropHandled: () => void;
   onOpenDeletedNode: (id: string) => void;
   onOpenNodeView: (id: string, x: number, y: number) => void;
-  onImageFilePaste?: (file: File, parentId?: string | null) => Promise<string | null> | string | null;
+  onFileImport?: (file: File, parentId?: string | null) => Promise<NodeItem | null> | NodeItem | null;
   onSlashCommand?: (tag: string) => boolean;
   readOnly?: boolean;
   style: CSSProperties;
@@ -53,7 +53,7 @@ export default function RichTextEditor({
   onNodeDropHandled,
   onOpenDeletedNode,
   onOpenNodeView,
-  onImageFilePaste,
+  onFileImport,
   onSlashCommand,
   readOnly = false,
   style,
@@ -110,7 +110,7 @@ export default function RichTextEditor({
     setSelectedId,
     setExpanded,
     onOpenDeletedNode,
-    onImageFilePaste,
+    onFileImport,
     onSlashCommand,
   });
   useEffect(() => {

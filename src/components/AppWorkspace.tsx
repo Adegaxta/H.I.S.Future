@@ -11,6 +11,7 @@ import SidebarTree from "./SidebarTree";
 import NodePanels from "./NodePanels";
 import RichTextEditor from "./RichTextEditor";
 import ImageNodeView from "./ImageNodeView";
+import PdfNodeView from "./PdfNodeView";
 import PageNodeHeader from "./PageNodeHeader";
 import GraphView from "./GraphView";
 import CalendarNodeView from "./CalendarNodeView";
@@ -22,9 +23,15 @@ import { CHANGELOG_ENTRIES, CURRENT_VERSION } from "../defs/changelog";
 import {
   createImageContent,
   getImageResourceInfo,
-  hashImageFile,
   compressImageSource,
 } from "../utils/imageResource";
+import {
+  FileNodeImportError,
+  findImportableFile,
+  importFileAsNode,
+  isImportableDragItem,
+} from "../project/fileNodeImporter";
+import { useLocale } from "../i18n/LocaleContext";
 import windowCloseAsset from "../assets/ui/window_close.svg";
 import windowMaximizeAsset from "../assets/ui/window_maximize.svg";
 import windowMinimizeAsset from "../assets/ui/window_minimize.svg";
@@ -79,6 +86,7 @@ export default function AppWorkspace({
     projectName,
     onExitProject,
   }: AppWorkspaceProps) {
+  const { locale, setLocale, t } = useLocale();
   const imageStorageKey = `hisfuture.project.image.${projectKey}`;
   const coverNodeStorageKey = `hisfuture.project.cover-node.${projectKey}`;
   const colorStorageKey = `hisfuture.project.color.${projectKey}`;
@@ -107,6 +115,7 @@ export default function AppWorkspace({
   const [selectedTrashNodeId, setSelectedTrashNodeId] = useState<string | null>(
     null,
   );
+  const [fileImportError, setFileImportError] = useState<string | null>(null);
   const [projectImage, setProjectImage] = useState<string | null>(() =>
     localStorage.getItem(imageStorageKey),
   );
@@ -328,6 +337,14 @@ export default function AppWorkspace({
     }
 
     try {
+      await onExitProject();
+    } catch (error) {
+      console.error("No se pudo empaquetar el proyecto antes de cerrar", error);
+      closingWindowRef.current = false;
+      return;
+    }
+
+    try {
       await closeWindowSafely();
     } catch (error) {
       console.error("No se pudo cerrar la ventana", error);
@@ -366,61 +383,20 @@ export default function AppWorkspace({
     return canContain ? targetId : targetNode.parentId ?? null;
   }, [workspace.nodes]);
 
-  const isImageFile = (file?: File | null) => {
-    if (!file) return false;
-    const normalizedName = file.name.toLowerCase();
-    const imageExtensions = [
-      ".png",
-      ".jpg",
-      ".jpeg",
-      ".gif",
-      ".webp",
-      ".bmp",
-      ".svg",
-      ".ico",
-      ".avif",
-      ".heic",
-      ".heif",
-      ".jfif",
-    ];
-    return file.type.startsWith("image/") || imageExtensions.some((ext) => normalizedName.endsWith(ext));
-  };
-
-    const isImageDragItem = (item: DataTransferItem) =>
-    item.kind === "file" && item.type.startsWith("image/");
-
-  const createImageNodeFromFile = async (file: File, parentId: string | null = null) => {
-    if (!isImageFile(file)) return null;
-    const hash = await hashImageFile(file);
-    const existing = workspace.nodes.find(
-      (node) =>
-        node.type === "imagen" &&
-        (getImageResourceInfo(node.content, node.name)?.hash === hash ||
-          getImageResourceInfo(node.content, node.name)?.fileName === file.name),
-    );
-    if (existing) {
-      return existing.id;
+  const createNodeFromFile = async (file: File, parentId: string | null = null) => {
+    setFileImportError(null);
+    try {
+      return await importFileAsNode(file, parentId, {
+        nodes: workspace.nodes,
+        createNode: workspace.createNode,
+      });
+    } catch (error) {
+      console.error(error);
+      setFileImportError(t(
+        error instanceof FileNodeImportError ? error.translationKey : "fileImport.failed",
+      ));
+      return null;
     }
-
-    return await new Promise<string | null>((resolve) => {
-      const reader = new FileReader();
-      reader.onload = async () => {
-        if (typeof reader.result !== "string") {
-          resolve(null);
-          return;
-        }
-        const compressed = await compressImageSource(reader.result);
-        const id = workspace.createNode(
-          file.name,
-          "imagen",
-          parentId,
-          createImageContent(compressed, file.name, file.size, hash, ""),
-        );
-        resolve(id);
-      };
-      reader.onerror = () => resolve(null);
-      reader.readAsDataURL(file);
-    });
   };
 
   const handleProjectImageUpload = async (file: File) => {
@@ -462,18 +438,18 @@ export default function AppWorkspace({
   };
 
   useEffect(() => {
-        const handleGlobalDragOver = (event: Event) => {
+    const handleGlobalDragOver = (event: Event) => {
       const dragEvent = event as DragEvent;
       if (dragEvent.defaultPrevented) return;
 
       const dataTransfer = dragEvent.dataTransfer;
       if (!dataTransfer) return;
 
-      const hasImageItem = Array.from(dataTransfer.items).some((item) =>
-        isImageDragItem(item),
+      const hasImportableItem = Array.from(dataTransfer.items).some((item) =>
+        isImportableDragItem(item),
       );
 
-      if (hasImageItem) {
+      if (hasImportableItem) {
         event.preventDefault();
         event.stopPropagation();
         dataTransfer.dropEffect = "copy";
@@ -487,18 +463,14 @@ export default function AppWorkspace({
       const dataTransfer = dragEvent.dataTransfer;
       if (!dataTransfer) return;
 
-      const imageFile =
-        Array.from(dataTransfer.files).find((file) => isImageFile(file)) ||
-        Array.from(dataTransfer.items)
-          .map((item) => item.getAsFile())
-          .find((file): file is File => isImageFile(file));
+      const file = findImportableFile(dataTransfer);
 
-      if (!imageFile) return;
+      if (!file) return;
 
       event.preventDefault();
       event.stopPropagation();
-      void createImageNodeFromFile(
-        imageFile,
+      void createNodeFromFile(
+        file,
         resolveDropParentId(dragEvent.clientX, dragEvent.clientY),
       );
     };
@@ -515,7 +487,7 @@ export default function AppWorkspace({
         target.removeEventListener("drop", handleGlobalDrop);
       });
     };
-  }, [createImageNodeFromFile, resolveDropParentId]);
+  }, [createNodeFromFile, resolveDropParentId]);
   const updateImageContent = (id: string, content: string) => {
     workspace.updateContent(id, content);
     const imageNode = workspace.nodes.find((node) => node.id === id);
@@ -684,6 +656,13 @@ export default function AppWorkspace({
         </div>
       </header>
 
+      {fileImportError && (
+        <div className="workspace-file-import-error" role="alert">
+          <span>{fileImportError}</span>
+          <button type="button" onClick={() => setFileImportError(null)} aria-label={t("fileImport.dismiss")}>×</button>
+        </div>
+      )}
+
       <div className="workspace-body">
         {sidebarVisible && (
           <aside
@@ -800,7 +779,7 @@ export default function AppWorkspace({
             {sidebarPanel === "lore" ? (
               <SidebarTree
                 {...workspace}
-                onImageFileDrop={(file, parentId) => void createImageNodeFromFile(file, parentId)}
+                onFileDrop={(file, parentId) => void createNodeFromFile(file, parentId)}
                 selectedId={workspace.selectedId}
                 setSelectedId={(id) => {
                   setSelectedTrashNodeId(null);
@@ -854,7 +833,7 @@ export default function AppWorkspace({
                 className="editor-page__type"
                 style={{ color: getNodeDefinition(selectedTrashNode.type).color }}
               >
-                {getNodeDisplayLabel(selectedTrashNode.type)}
+                {getNodeDisplayLabel(selectedTrashNode.type, t)}
               </div>
               <h1 className="editor-page__title">{selectedTrashNode.name}</h1>
               <RichTextEditor
@@ -963,7 +942,7 @@ export default function AppWorkspace({
                         />
                         {node.name}
                       </button>
-                      <small>{getNodeDisplayLabel(node.type)}</small>
+                      <small>{getNodeDisplayLabel(node.type, t)}</small>
                     </div>
                   ))}
                 </div>
@@ -978,7 +957,7 @@ export default function AppWorkspace({
                     >
                       <div className="trash-view__preview">
                         <TrashNodePreview node={node} />
-                        <small>{getNodeDisplayLabel(node.type)}</small>
+                        <small>{getNodeDisplayLabel(node.type, t)}</small>
                       </div>
                       <div className="trash-view__card-meta">
                         <span className="trash-view__card-name" title={node.name}>{node.name}</span>
@@ -1000,9 +979,10 @@ export default function AppWorkspace({
                       <span>v{entry.version}</span>
                       <span>{entry.date}</span>
                     </div>
-                    <h2>{entry.title}</h2>
+                    <h2>{"titleKey" in entry ? t(entry.titleKey) : entry.title}</h2>
                     <ul>
-                      {entry.changes.map((change) => <li key={change}>{change}</li>)}
+                      {("changeKeys" in entry ? entry.changeKeys.map((key) => t(key)) : entry.changes)
+                        .map((change) => <li key={change}>{change}</li>)}
                     </ul>
                   </article>
                 ))}
@@ -1032,9 +1012,16 @@ export default function AppWorkspace({
                 >
                   {NODE_REGISTRY.availableForCreation().map((definition) => (
                     <option key={definition.type} value={definition.type}>
-                      {definition.label}
+                      {t(definition.labelKey)}
                     </option>
                   ))}
+                </select>
+              </label>
+              <label className="project-settings__field">
+                {t("settings.projectLocale")}
+                <select value={locale} onChange={(event) => void setLocale(event.target.value as "es" | "en")}>
+                  <option value="es">{t("settings.locale.es")}</option>
+                  <option value="en">{t("settings.locale.en")}</option>
                 </select>
               </label>
               <label className="project-settings__field">
@@ -1073,7 +1060,7 @@ export default function AppWorkspace({
                     node={selectedNode}
                     nodes={workspace.nodes}
                     onContentChange={workspace.updateContent}
-                    onImageFileUpload={(file) => createImageNodeFromFile(file, selectedNode.parentId)}
+                    onImageFileUpload={async (file) => (await createNodeFromFile(file, selectedNode.parentId))?.id ?? null}
                   />
                   <RichTextEditor
                     node={selectedNode}
@@ -1086,8 +1073,8 @@ export default function AppWorkspace({
                     pendingNodeDrop={workspace.pendingEditorNodeDrop}
                     onNodeDropHandled={workspace.clearPendingEditorNodeDrop}
                     onOpenDeletedNode={openDeletedNode}
-                    onImageFilePaste={async (file: File, parentId?: string | null) => {
-                      return createImageNodeFromFile(file, parentId ?? selectedNode.parentId ?? null);
+                    onFileImport={async (file: File, parentId?: string | null) => {
+                      return createNodeFromFile(file, parentId ?? selectedNode.parentId ?? null);
                     }}
                     onSlashCommand={handleSlashCommand}
                     onOpenNodeView={(id) => {
@@ -1134,8 +1121,8 @@ export default function AppWorkspace({
                     setView("list");
                     workspace.setSelectedId(id);
                   }}
-                  onImageFilePaste={async (file: File, parentId?: string | null) => {
-                    return createImageNodeFromFile(file, parentId ?? selectedNode.id);
+                  onFileImport={async (file: File, parentId?: string | null) => {
+                    return createNodeFromFile(file, parentId ?? selectedNode.id);
                   }}
                   onSlashCommand={handleSlashCommand}
                   onRegisterNavigation={(handler) => {
@@ -1159,8 +1146,8 @@ export default function AppWorkspace({
                   onOpenDeletedNode={(id) => {
                     openDeletedNode(id);
                   }}
-                  onImageFilePaste={async (file: File, parentId?: string | null) => {
-                    return createImageNodeFromFile(file, parentId ?? selectedNode.parentId ?? null);
+                  onFileImport={async (file: File, parentId?: string | null) => {
+                    return createNodeFromFile(file, parentId ?? selectedNode.parentId ?? null);
                   }}
                   onSlashCommand={handleSlashCommand}
                   onOpenNodeView={(id) => {
@@ -1170,6 +1157,8 @@ export default function AppWorkspace({
                     workspace.setSelectedId(id);
                   }}
                 />
+              ) : selectedNode.type === "pdf" ? (
+                <PdfNodeView node={selectedNode} />
               ) : selectedNode.type === "imagen" ? (
                 <ImageNodeView
                   node={selectedNode}
@@ -1199,8 +1188,8 @@ export default function AppWorkspace({
                   onOpenDeletedNode={(id) => {
                     openDeletedNode(id);
                   }}
-                  onImageFilePaste={async (file: File, parentId?: string | null) => {
-                    return createImageNodeFromFile(file, parentId ?? selectedNode.parentId ?? null);
+                  onFileImport={async (file: File, parentId?: string | null) => {
+                    return createNodeFromFile(file, parentId ?? selectedNode.parentId ?? null);
                   }}
                   onSlashCommand={handleSlashCommand}
                   onOpenNodeView={(id) => {

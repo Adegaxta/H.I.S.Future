@@ -12,6 +12,8 @@ import type {
 } from "../types/nodes";
 import { NODE_REGISTRY, getNodeDefinition, getNodeDisplayLabel } from "../defs/nodeTypes";
 import { getChildren, getEffectiveNodeType } from "../utils/nodeTree";
+import { useLocale } from "../i18n/LocaleContext";
+import { findImportableFile, isImportableDragItem } from "../project/fileNodeImporter";
 
 interface SidebarTreeProps {
   nodes: NodeItem[];
@@ -52,10 +54,11 @@ interface SidebarTreeProps {
   isPointerDown: React.MutableRefObject<boolean>;
   suppressClick: React.MutableRefObject<boolean>;
   queueEditorNodeDrop: (nodeId: string, x: number, y: number) => void;
-  onImageFileDrop: (file: File, parentId: string | null) => void;
+  onFileDrop: (file: File, parentId: string | null) => void;
 }
 
 export default function SidebarTree(props: SidebarTreeProps) {
+  const { t } = useLocale();
   const {
     nodes,
     selectedId,
@@ -120,7 +123,7 @@ export default function SidebarTree(props: SidebarTreeProps) {
               cursor: "pointer",
             }}
           >
-            {getNodeDisplayLabel(type)}
+            {getNodeDisplayLabel(type, t)}
           </button>
         ))}
         <button
@@ -404,44 +407,21 @@ export default function SidebarTree(props: SidebarTreeProps) {
     );
   };
 
-  const isImageFile = (file?: File | null) => {
-    if (!file) return false;
-    const normalizedName = file.name.toLowerCase();
-    const imageExtensions = [
-      ".png",
-      ".jpg",
-      ".jpeg",
-      ".gif",
-      ".webp",
-      ".bmp",
-      ".svg",
-      ".ico",
-      ".avif",
-      ".heic",
-      ".heif",
-      ".jfif",
-    ];
-    return file.type.startsWith("image/") || imageExtensions.some((ext) => normalizedName.endsWith(ext));
-  };
-
-    const isImageDragItem = (item: DataTransferItem) =>
-    item.kind === "file" && item.type.startsWith("image/");
-
   return (
     <div
       data-root-drop="true"
-            onDragEnter={(event) => {
-        const hasImageItem = Array.from(event.dataTransfer.items).some((item) =>
-          isImageDragItem(item),
+      onDragEnter={(event) => {
+        const hasImportableItem = Array.from(event.dataTransfer.items).some((item) =>
+          isImportableDragItem(item),
         );
-        if (hasImageItem) {
+        if (hasImportableItem) {
           event.preventDefault();
           event.dataTransfer.dropEffect = "copy";
         }
       }}
       onDragOver={(event) => {
-        const hasImageItem = Array.from(event.dataTransfer.items).some((item) =>
-          isImageDragItem(item),
+        const hasImportableItem = Array.from(event.dataTransfer.items).some((item) =>
+          isImportableDragItem(item),
         );
         const hasInternalNode =
           Boolean(props.draggedId.current) ||
@@ -450,7 +430,7 @@ export default function SidebarTree(props: SidebarTreeProps) {
               type === "application/x-hisfuture-node" || type === "text/plain",
           );
 
-        if (hasImageItem) {
+        if (hasImportableItem) {
           event.preventDefault();
           event.dataTransfer.dropEffect = "copy";
           return;
@@ -464,13 +444,9 @@ export default function SidebarTree(props: SidebarTreeProps) {
       }}
       onDrop={(event) => {
         event.preventDefault();
-        const imageFile =
-          Array.from(event.dataTransfer.files).find((file) => isImageFile(file)) ||
-          Array.from(event.dataTransfer.items)
-            .map((item) => item.getAsFile())
-            .find((file): file is File => isImageFile(file));
+        const file = findImportableFile(event.dataTransfer);
 
-        if (imageFile) {
+        if (file) {
           const target = (event.target as Element).closest<HTMLElement>("[data-node-id]");
           const targetId = target?.dataset.nodeId;
           const targetNode = targetId ? nodes.find((node) => node.id === targetId) : null;
@@ -480,7 +456,7 @@ export default function SidebarTree(props: SidebarTreeProps) {
           const canContain = targetType
             ? getNodeDefinition(targetType).canContainChildren || targetType === "pagina-carpeta"
             : false;
-          props.onImageFileDrop(imageFile, canContain ? targetId || null : targetNode?.parentId || null);
+          props.onFileDrop(file, canContain ? targetId || null : targetNode?.parentId || null);
           return;
         }
         if ((event.target as Element).closest("[data-node-id]")) return;

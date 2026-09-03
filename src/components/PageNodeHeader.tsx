@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { NodeItem } from "../types/nodes";
 import { getNodeDefinition, getNodeDisplayLabel } from "../defs/nodeTypes";
+import { useLocale } from "../i18n/LocaleContext";
 import { getImageResourceInfo } from "../utils/imageResource";
 import { DEFAULT_PAGE_META, getPageMeta, setPageMeta, type PageMeta } from "../utils/pageMeta";
 import { useNodeScopedEditorHistory } from "../hooks/useEditorHistory";
@@ -21,6 +22,7 @@ export default function PageNodeHeader({
   onContentChange,
   onImageFileUpload,
 }: PageNodeHeaderProps) {
+  const { t } = useLocale();
   const [meta, setMeta] = useState<PageMeta>(() => getPageMeta(node.content));
   const [choice, setChoice] = useState<ImageChoice | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -131,7 +133,7 @@ export default function PageNodeHeader({
             <div className="page-node-header__title-content">
               <div className="page-node-header__type-row">
                 <div className="editor-page__type" style={{ color: getNodeDefinition("pagina").color }}>
-                  {getNodeDisplayLabel("pagina")}
+                  {getNodeDisplayLabel("pagina", t)}
                 </div>
                 <div className="page-node-header__actions">
                   <button type="button" onClick={() => setChoice("iconNodeId")} title="Elegir icono">Icono</button>

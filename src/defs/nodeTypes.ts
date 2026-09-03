@@ -1,52 +1,101 @@
+import type { TranslationKey } from "../i18n/translations";
 import { PALETTE } from "./palette";
+
+export type NodeConceptId = "pages" | "categories" | "images" | "calendars" | "pdf";
+export type NodeCategoryId = "documents";
+
+export interface NodeCategoryDefinition {
+  id: NodeCategoryId;
+  labelKey: TranslationKey;
+  color: string;
+}
+
+export interface NodeConceptDefinition {
+  id: NodeConceptId;
+  labelKey: TranslationKey;
+  categoryId?: NodeCategoryId;
+}
+
 export interface NodeDefinition<T extends string = string> {
   type: T;
-  label: string;
+  labelKey: TranslationKey;
+  nodeNameKey: TranslationKey;
   color: string;
   canContainChildren: boolean;
   availableInCreation: boolean;
+  showInTypePanel: boolean;
+  concept?: NodeConceptDefinition;
   defaultContent: string;
 }
+
+const NODE_CATEGORIES = [
+  { id: "documents", labelKey: "categories.documents", color: PALETTE.documents },
+] as const satisfies readonly NodeCategoryDefinition[];
 
 const NODE_DEFINITIONS = [
   {
     type: "categoria",
-    label: "Categoría",
+    labelKey: "nodes.category.label",
+    nodeNameKey: "nodes.category.nodeName",
     color: PALETTE.categoria,
     canContainChildren: true,
     availableInCreation: true,
+    showInTypePanel: false,
+    concept: { id: "categories", labelKey: "concepts.categories" },
     defaultContent: "<p><br></p>",
   },
   {
     type: "pagina",
-    label: "Página",
+    labelKey: "nodes.page.label",
+    nodeNameKey: "nodes.page.nodeName",
     color: PALETTE.pagina,
     canContainChildren: false,
     availableInCreation: true,
+    showInTypePanel: true,
+    concept: { id: "pages", labelKey: "concepts.pages" },
     defaultContent: "<p><br></p>",
   },
   {
     type: "imagen",
-    label: "Imagen",
+    labelKey: "nodes.image.label",
+    nodeNameKey: "nodes.image.nodeName",
     color: PALETTE.imagen,
     canContainChildren: false,
     availableInCreation: false,
+    showInTypePanel: true,
+    concept: { id: "images", labelKey: "concepts.images" },
     defaultContent: "<p><br></p>",
   },
   {
     type: "calendario",
-    label: "Calendario",
+    labelKey: "nodes.calendar.label",
+    nodeNameKey: "nodes.calendar.nodeName",
     color: PALETTE.calendario,
     canContainChildren: true,
     availableInCreation: false,
+    showInTypePanel: false,
+    concept: { id: "calendars", labelKey: "concepts.calendars" },
     defaultContent: "<p><br></p>",
   },
   {
     type: "tempo",
-    label: "Tempo",
+    labelKey: "nodes.tempo.label",
+    nodeNameKey: "nodes.tempo.nodeName",
     color: PALETTE.tempo,
     canContainChildren: false,
     availableInCreation: false,
+    showInTypePanel: false,
+    defaultContent: "<p><br></p>",
+  },
+  {
+    type: "pdf",
+    labelKey: "nodes.pdf.label",
+    nodeNameKey: "nodes.pdf.nodeName",
+    color: PALETTE.pdf,
+    canContainChildren: false,
+    availableInCreation: false,
+    showInTypePanel: true,
+    concept: { id: "pdf", labelKey: "concepts.pdf", categoryId: "documents" },
     defaultContent: "<p><br></p>",
   },
 ] as const satisfies readonly NodeDefinition[];
@@ -63,24 +112,21 @@ interface DerivedNodeDefinition {
   overrides: Partial<NodeDefinition>;
 }
 
-// Defs derivados: cada uno declara de qué Def base parte ("extends")
-// y qué propiedades cambia ("overrides"). Nada de copiar a mano por posición.
 const DERIVED_DEFINITIONS: Record<"pagina-carpeta", DerivedNodeDefinition> = {
   "pagina-carpeta": {
     extends: "pagina",
-    overrides: { label: "Pág-Carpeta", color: PALETTE.paginaCarpeta },
+    overrides: {
+      labelKey: "nodes.pageFolder.label",
+      nodeNameKey: "nodes.pageFolder.nodeName",
+      color: PALETTE.paginaCarpeta,
+    },
   },
 };
 
-const derivedEntries = Object.entries(DERIVED_DEFINITIONS).map(
-  ([type, spec]) => {
-    const definition = spec as DerivedNodeDefinition;
-    return [
-      type,
-      { ...BASE_BY_TYPE[definition.extends], ...definition.overrides },
-    ] as const;
-  },
-);
+const derivedEntries = Object.entries(DERIVED_DEFINITIONS).map(([type, spec]) => [
+  type,
+  { ...BASE_BY_TYPE[spec.extends], ...spec.overrides },
+] as const);
 
 const RENDER_DEFINITIONS: Record<RenderNodeType, NodeDefinition> = {
   ...BASE_BY_TYPE,
@@ -88,24 +134,25 @@ const RENDER_DEFINITIONS: Record<RenderNodeType, NodeDefinition> = {
 } as Record<RenderNodeType, NodeDefinition>;
 
 export const NODE_REGISTRY = {
-  all(): NodeDefinition<BaseNodeType>[] {
-    return [...NODE_DEFINITIONS] as NodeDefinition<BaseNodeType>[];
-  },
-  availableForCreation(): NodeDefinition<BaseNodeType>[] {
-    return NODE_DEFINITIONS.filter(
-      (definition) => definition.availableInCreation,
-    ) as NodeDefinition<BaseNodeType>[];
-  },
+  all: () => [...NODE_DEFINITIONS] as NodeDefinition<BaseNodeType>[],
+  availableForCreation: () => NODE_DEFINITIONS.filter(
+    (definition) => definition.availableInCreation,
+  ) as NodeDefinition<BaseNodeType>[],
+  visibleInTypePanel: () => NODE_DEFINITIONS.filter(
+    (definition) => definition.showInTypePanel,
+  ) as NodeDefinition<BaseNodeType>[],
+  conceptual: () => NODE_DEFINITIONS.filter(
+    (definition) => "concept" in definition && Boolean(definition.concept),
+  ) as NodeDefinition<BaseNodeType>[],
+  categories: () => [...NODE_CATEGORIES] as NodeCategoryDefinition[],
   get(type: RenderNodeType): NodeDefinition {
-    const definition = RENDER_DEFINITIONS[type];
-    if (definition) return definition;
-    return RENDER_DEFINITIONS.pagina;
+    return RENDER_DEFINITIONS[type] ?? RENDER_DEFINITIONS.pagina;
   },
 };
 
-export const getNodeDefinition = (type: RenderNodeType) =>
-  NODE_REGISTRY.get(type);
+export const getNodeDefinition = (type: RenderNodeType) => NODE_REGISTRY.get(type);
 
-// Punto único para el formato visible del tipo de nodo: siempre "Nodo - <Subtipo>".
-export const getNodeDisplayLabel = (type: RenderNodeType) =>
-  `Nodo - ${getNodeDefinition(type).label}`;
+export const getNodeDisplayLabel = (
+  type: RenderNodeType,
+  translate: (key: TranslationKey) => string,
+) => translate(getNodeDefinition(type).nodeNameKey);

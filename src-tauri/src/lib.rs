@@ -8,8 +8,8 @@ const PROJECT_FILE_ICON: &[u8] = include_bytes!("../icons/HISProject.ico");
 
 #[cfg(windows)]
 fn register_his_file_association(app: &tauri::AppHandle) -> Result<(), String> {
-    use std::ptr::null;
     use std::fs;
+    use std::ptr::null;
     use tauri::Manager;
     use windows_sys::Win32::UI::Shell::{SHChangeNotify, SHCNE_ASSOCCHANGED, SHCNF_IDLIST};
     use winreg::enums::HKEY_CURRENT_USER;
@@ -112,6 +112,51 @@ fn save_nodes(nodes: Vec<NodeRecord>, state: tauri::State<ProjectState>) -> Resu
 }
 
 #[tauri::command]
+fn store_project_resource(
+    kind: String,
+    resource_id: String,
+    data: Vec<u8>,
+    state: tauri::State<ProjectState>,
+) -> Result<(), String> {
+    project::store_project_resource(&state, kind, resource_id, data)
+}
+
+#[tauri::command]
+fn read_project_resource(
+    kind: String,
+    resource_id: String,
+    state: tauri::State<ProjectState>,
+) -> Result<Vec<u8>, String> {
+    project::read_project_resource(&state, kind, resource_id)
+}
+
+#[tauri::command]
+fn delete_project_resource(
+    kind: String,
+    resource_id: String,
+    state: tauri::State<ProjectState>,
+) -> Result<(), String> {
+    project::delete_project_resource(&state, kind, resource_id)
+}
+
+#[tauri::command]
+fn get_project_setting(
+    key: String,
+    state: tauri::State<ProjectState>,
+) -> Result<Option<String>, String> {
+    project::get_project_setting(&state, key)
+}
+
+#[tauri::command]
+fn set_project_setting(
+    key: String,
+    value: String,
+    state: tauri::State<ProjectState>,
+) -> Result<(), String> {
+    project::set_project_setting(&state, key, value)
+}
+
+#[tauri::command]
 fn save_image_file(path: String, data: Vec<u8>) -> Result<(), String> {
     std::fs::write(path, data).map_err(|error| format!("No se pudo guardar la imagen: {error}"))
 }
@@ -129,9 +174,7 @@ pub fn run() {
                 const DWMWCP_DONOTROUND: u32 = 1;
 
                 if let Some(window) = app.get_webview_window("main") {
-                    let hwnd = window
-                        .hwnd()
-                        .map_err(|error| error.to_string())?;
+                    let hwnd = window.hwnd().map_err(|error| error.to_string())?;
                     let preference = DWMWCP_DONOTROUND;
                     let result = unsafe {
                         DwmSetWindowAttribute(
@@ -144,7 +187,8 @@ pub fn run() {
                     if result != 0 {
                         return Err(format!(
                             "No se pudo desactivar el redondeo de la ventana: {result}"
-                        ).into());
+                        )
+                        .into());
                     }
                 }
                 register_his_file_association(app.handle())?;
@@ -165,6 +209,11 @@ pub fn run() {
             close_project,
             list_nodes,
             save_nodes,
+            store_project_resource,
+            read_project_resource,
+            delete_project_resource,
+            get_project_setting,
+            set_project_setting,
             save_image_file
         ])
         .run(tauri::generate_context!())

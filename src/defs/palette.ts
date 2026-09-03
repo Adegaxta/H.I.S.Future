@@ -5,6 +5,8 @@ export const PALETTE = {
   categoria: "#D8B34D",
   pagina: "#4DD8C0",
   imagen: "#D878A8",
+  pdf: "#D85F5F",
+  documents: "#B84D4D",
   calendario: "#78A8D8",
   tempo: "#D88F5A",
   paginaCarpeta: "#4D94D8",
@@ -17,5 +19,6 @@ export const AVATAR_COLORS = [
   PALETTE.categoria,
   PALETTE.paginaCarpeta,
   PALETTE.imagen,
+  PALETTE.pdf,
   PALETTE.avatarExtra,
 ] as const;

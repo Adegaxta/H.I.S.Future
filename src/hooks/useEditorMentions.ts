@@ -164,9 +164,7 @@ export function useEditorMentions({
     }
   }, [getAdjacentRangeCharacter]);
 
-  const insertNodeMention = useCallback((nodeId: string, x: number, y: number) => {
-    const target = nodes.find((item) => item.id === nodeId);
-    if (!target) return;
+  const insertNodeReference = useCallback((target: NodeItem, x: number, y: number) => {
     const editor = editorRef.current;
     if (!editor) return;
     editor.focus();
@@ -185,7 +183,12 @@ export function useEditorMentions({
     selection?.addRange(range);
     syncContent();
     controls.clearBlockControls();
-  }, [controls, createMention, editorRef, insertMentionWithSpacing, nodes, syncContent]);
+  }, [controls, createMention, editorRef, insertMentionWithSpacing, syncContent]);
+
+  const insertNodeMention = useCallback((nodeId: string, x: number, y: number) => {
+    const target = nodes.find((item) => item.id === nodeId);
+    if (target) insertNodeReference(target, x, y);
+  }, [insertNodeReference, nodes]);
 
   const onMentionPointerDown = useCallback((event: PointerEvent<HTMLDivElement>) => {
     const target = (event.target as HTMLElement).closest<HTMLElement>(
@@ -340,6 +343,7 @@ export function useEditorMentions({
     createMention,
     insertMentionWithSpacing,
     insertNodeMention,
+    insertNodeReference,
     onMentionPointerDown,
     onEditorPointerDown,
     onEditorPointerMove,

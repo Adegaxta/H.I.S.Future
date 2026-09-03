@@ -1,14 +1,43 @@
-export interface ChangelogEntry {
+import type { TranslationKey } from "../i18n/translations";
+
+interface ChangelogEntryBase {
   version: string;
   date: string;
-  title: string;
   category: "Editor" | "Imágenes" | "Persistencia" | "Sistema" | "Fix";
+}
+
+interface LegacyChangelogEntry extends ChangelogEntryBase {
+  title: string;
   changes: string[];
 }
 
-export const CURRENT_VERSION = "0.2.40";
+interface LocalizedChangelogEntry extends ChangelogEntryBase {
+  titleKey: TranslationKey;
+  changeKeys: TranslationKey[];
+}
+
+export type ChangelogEntry = LegacyChangelogEntry | LocalizedChangelogEntry;
+
+export const CURRENT_VERSION = "0.3.0";
 
 export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
+  {
+    version: CURRENT_VERSION,
+    date: "2026-09-03",
+    titleKey: "changelog.0_3_0.title",
+    category: "Sistema",
+    changeKeys: [
+      "changelog.0_3_0.pdfNode",
+      "changelog.0_3_0.editorDrop",
+      "changelog.0_3_0.viewer",
+      "changelog.0_3_0.packaging",
+      "changelog.0_3_0.defs",
+      "changelog.0_3_0.derivedUi",
+      "changelog.0_3_0.imports",
+      "changelog.0_3_0.locale",
+      "changelog.0_3_0.persistence",
+    ],
+  },
   {
     version: "0.2.40",
     date: "2026-09-03",
@@ -297,7 +326,7 @@ export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
   ],
 },
   {
-    version: CURRENT_VERSION,
+    version: "0.2.17",
     date: "2026-08-30",
     title: "Duplicación por Alt+arrastre: bloques, divisores y globos",
     category: "Editor",

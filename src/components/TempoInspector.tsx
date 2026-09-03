@@ -15,7 +15,7 @@ interface TempoInspectorProps {
   setExpanded: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
   onOpenDeletedNode: (id: string) => void;
   onOpenNodeView: (id: string, x: number, y: number) => void;
-  onImageFilePaste?: (file: File, parentId?: string | null) => Promise<string | null> | string | null;
+  onFileImport?: (file: File, parentId?: string | null) => Promise<NodeItem | null> | NodeItem | null;
   onSlashCommand?: (tag: string) => boolean;
 }
 
@@ -53,7 +53,7 @@ export default function TempoInspector({
   setExpanded,
   onOpenDeletedNode,
   onOpenNodeView,
-  onImageFilePaste,
+  onFileImport,
   onSlashCommand,
 }: TempoInspectorProps) {
   const editorRef = useRef<HTMLDivElement | null>(null);
@@ -155,7 +155,7 @@ export default function TempoInspector({
             onNodeDropHandled={() => undefined}
             onOpenDeletedNode={onOpenDeletedNode}
             onOpenNodeView={onOpenNodeView}
-            onImageFilePaste={onImageFilePaste}
+            onFileImport={onFileImport}
             onSlashCommand={onSlashCommand}
             style={{
               display: "block",

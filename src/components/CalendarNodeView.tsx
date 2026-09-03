@@ -32,7 +32,7 @@ interface CalendarNodeViewProps {
   setExpanded: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
   onOpenDeletedNode: (id: string) => void;
   onOpenNodeView: (id: string, x: number, y: number) => void;
-  onImageFilePaste?: (file: File, parentId?: string | null) => Promise<string | null> | string | null;
+  onFileImport?: (file: File, parentId?: string | null) => Promise<NodeItem | null> | NodeItem | null;
   onSlashCommand?: (tag: string) => boolean;
   onRegisterNavigation: (handler: (direction: -1 | 1) => boolean) => () => void;
 }
@@ -118,7 +118,7 @@ function TempoSummary({ tempo, timeFormat, compact = false, onOpen, onContextMen
 export default function CalendarNodeView({
   node, nodes, deletedNodes, timeFormat, onContentChange, onCreateTempo,
   onMoveTempo, onRenameTempo, onDeleteTempo, setExpanded, onOpenDeletedNode,
-  onOpenNodeView, onImageFilePaste, onSlashCommand,
+  onOpenNodeView, onFileImport, onSlashCommand,
   onRegisterNavigation,
 }: CalendarNodeViewProps) {
   const meta = getCalendarMeta(node.content);
@@ -373,7 +373,7 @@ export default function CalendarNodeView({
         {selectedWeeklyTempo ? <TempoInspector tempo={selectedWeeklyTempo} nodes={nodes} deletedNodes={deletedNodes} timeFormat={timeFormat}
           onRename={onRenameTempo} onContentChange={onContentChange} setExpanded={setExpanded}
           onOpenDeletedNode={onOpenDeletedNode} onOpenNodeView={onOpenNodeView}
-          onImageFilePaste={onImageFilePaste} onSlashCommand={onSlashCommand} />
+          onFileImport={onFileImport} onSlashCommand={onSlashCommand} />
           : <div className="calendar-day-inspector__empty">Selecciona un Tempo semanal para editarlo.</div>}
       </aside>
     </div>;
@@ -414,7 +414,7 @@ export default function CalendarNodeView({
           {selectedTempo ? <TempoInspector tempo={selectedTempo} nodes={nodes} deletedNodes={deletedNodes} timeFormat={timeFormat}
             onRename={onRenameTempo} onContentChange={onContentChange} setExpanded={setExpanded}
             onOpenDeletedNode={onOpenDeletedNode} onOpenNodeView={onOpenNodeView}
-            onImageFilePaste={onImageFilePaste} onSlashCommand={onSlashCommand} />
+            onFileImport={onFileImport} onSlashCommand={onSlashCommand} />
             : selectedHour !== null ? <div className="calendar-day-inspector__create"><span>{hourLabel(selectedHour, timeFormat)}</span><button type="button" onClick={() => createInDay(selectedHour)}>+</button><p>Crear un Nodo Tempo en esta hora.</p></div>
               : <div className="calendar-day-inspector__empty">Selecciona una hora o un Tempo para comenzar.</div>}
         </aside>

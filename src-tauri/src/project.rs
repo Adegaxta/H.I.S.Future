@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS project_meta (
 CREATE TABLE IF NOT EXISTS nodes (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
-    type TEXT NOT NULL CHECK(type IN ('categoria', 'pagina', 'imagen', 'calendario', 'tempo')),
+    type TEXT NOT NULL CHECK(type IN ('categoria', 'pagina', 'imagen', 'calendario', 'tempo', 'pdf')),
   parent_id TEXT,
   sort_order INTEGER NOT NULL DEFAULT 0,
   content TEXT NOT NULL DEFAULT '<p><br></p>',
@@ -190,14 +190,15 @@ fn init_database(path: &Path) -> Result<Connection, String> {
             |row| row.get(0),
         )
         .map_err(|err| format!("No se pudo comprobar el esquema de nodos: {err}"))?;
-    if !schema.contains("'calendario'") || !schema.contains("'tempo'") {
+    if !schema.contains("'calendario'") || !schema.contains("'tempo'") || !schema.contains("'pdf'")
+    {
         db.execute_batch(
             "PRAGMA foreign_keys = OFF;
                          BEGIN;
                          CREATE TABLE nodes_new (
                id TEXT PRIMARY KEY,
                name TEXT NOT NULL,
-               type TEXT NOT NULL CHECK(type IN ('categoria', 'pagina', 'imagen', 'calendario', 'tempo')),
+               type TEXT NOT NULL CHECK(type IN ('categoria', 'pagina', 'imagen', 'calendario', 'tempo', 'pdf')),
                parent_id TEXT,
                sort_order INTEGER NOT NULL DEFAULT 0,
                content TEXT NOT NULL DEFAULT '<p><br></p>',
@@ -212,7 +213,7 @@ fn init_database(path: &Path) -> Result<Connection, String> {
         )
         .map_err(|err| format!("No se pudo actualizar el esquema de nodos: {err}"))?;
     }
-        repair_links_foreign_key(&mut db)?;
+    repair_links_foreign_key(&mut db)?;
     Ok(db)
 }
 
@@ -290,9 +291,7 @@ fn zip_directory(folder: &Path, archive_path: &Path) -> Result<(), String> {
                 .map_err(|err| format!("No se pudo escribir el archivo .his: {err}"))?;
         }
     }
-    if !folder.join(PROJECT_ICON_NAME).is_file()
-        && !written_entries.contains(PROJECT_ICON_NAME)
-    {
+    if !folder.join(PROJECT_ICON_NAME).is_file() && !written_entries.contains(PROJECT_ICON_NAME) {
         writer
             .start_file(PROJECT_ICON_NAME, options)
             .map_err(|err| format!("No se pudo añadir el icono al .his: {err}"))?;
@@ -647,8 +646,15 @@ pub fn save_nodes(state: &ProjectState, nodes: Vec<NodeRecord>) -> Result<(), St
             )
             .map_err(|err| format!("No se pudo preparar el guardado: {err}"))?;
         for node in nodes {
-            if !["categoria", "pagina", "imagen", "calendario", "tempo"]
-                .contains(&node.node_type.as_str())
+            if ![
+                "categoria",
+                "pagina",
+                "imagen",
+                "calendario",
+                "tempo",
+                "pdf",
+            ]
+            .contains(&node.node_type.as_str())
             {
                 return Err(format!("Tipo de nodo no válido: {}", node.node_type));
             }
@@ -669,6 +675,133 @@ pub fn save_nodes(state: &ProjectState, nodes: Vec<NodeRecord>) -> Result<(), St
     tx.commit()
         .map_err(|err| format!("No se pudo confirmar el guardado: {err}"))?;
     Ok(())
+}
+
+fn validate_resource_identity(value: &str) -> Result<(), String> {
+    if value.is_empty()
+        || value.len() > 128
+        || !value.chars().all(|character| {
+            character.is_ascii_alphanumeric() || character == '-' || character == '_'
+        })
+    {
+        return Err("Identificador de recurso no válido.".into());
+    }
+    Ok(())
+}
+
+fn resource_extension(kind: &str) -> Result<&'static str, String> {
+    match kind {
+        "pdf" => Ok("pdf"),
+        _ => Err(format!("Tipo de recurso no compatible: {kind}")),
+    }
+}
+
+fn resource_path(project: &OpenProject, kind: &str, resource_id: &str) -> Result<PathBuf, String> {
+    validate_resource_identity(resource_id)?;
+    let extension = resource_extension(kind)?;
+    Ok(project
+        .working_folder
+        .join("resources")
+        .join(kind)
+        .join(format!("{resource_id}.{extension}")))
+}
+
+pub fn store_project_resource(
+    state: &ProjectState,
+    kind: String,
+    resource_id: String,
+    data: Vec<u8>,
+) -> Result<(), String> {
+    if kind == "pdf" && !data.windows(5).take(1024).any(|window| window == b"%PDF-") {
+        return Err("El archivo no contiene una cabecera PDF válida.".into());
+    }
+    let guard = state
+        .lock()
+        .map_err(|_| "No se pudo bloquear el estado del proyecto.".to_string())?;
+    let project = guard.as_ref().ok_or("No hay un proyecto abierto.")?;
+    let target = resource_path(project, &kind, &resource_id)?;
+    let parent = target
+        .parent()
+        .ok_or("No se pudo resolver la carpeta del recurso.")?;
+    fs::create_dir_all(parent)
+        .map_err(|error| format!("No se pudo preparar la carpeta de recursos: {error}"))?;
+    let temporary = parent.join(format!(".{resource_id}.tmp"));
+    fs::write(&temporary, data)
+        .map_err(|error| format!("No se pudo escribir el recurso: {error}"))?;
+    if target.exists() {
+        let _ = fs::remove_file(&temporary);
+        return Err("Ya existe un recurso con ese identificador.".into());
+    }
+    fs::rename(&temporary, &target).map_err(|error| {
+        let _ = fs::remove_file(&temporary);
+        format!("No se pudo confirmar el recurso importado: {error}")
+    })
+}
+
+pub fn read_project_resource(
+    state: &ProjectState,
+    kind: String,
+    resource_id: String,
+) -> Result<Vec<u8>, String> {
+    let guard = state
+        .lock()
+        .map_err(|_| "No se pudo bloquear el estado del proyecto.".to_string())?;
+    let project = guard.as_ref().ok_or("No hay un proyecto abierto.")?;
+    fs::read(resource_path(project, &kind, &resource_id)?)
+        .map_err(|error| format!("No se pudo leer el recurso: {error}"))
+}
+
+pub fn delete_project_resource(
+    state: &ProjectState,
+    kind: String,
+    resource_id: String,
+) -> Result<(), String> {
+    let guard = state
+        .lock()
+        .map_err(|_| "No se pudo bloquear el estado del proyecto.".to_string())?;
+    let project = guard.as_ref().ok_or("No hay un proyecto abierto.")?;
+    let path = resource_path(project, &kind, &resource_id)?;
+    if !path.exists() {
+        return Ok(());
+    }
+    fs::remove_file(path).map_err(|error| format!("No se pudo eliminar el recurso: {error}"))
+}
+
+pub fn get_project_setting(state: &ProjectState, key: String) -> Result<Option<String>, String> {
+    if key != "locale" {
+        return Err("Configuración de proyecto no compatible.".into());
+    }
+    let guard = state
+        .lock()
+        .map_err(|_| "No se pudo bloquear el estado del proyecto.".to_string())?;
+    let project = guard.as_ref().ok_or("No hay un proyecto abierto.")?;
+    project
+        .db
+        .query_row(
+            "SELECT value FROM project_meta WHERE key = ?1",
+            [key],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|error| format!("No se pudo leer la configuración del proyecto: {error}"))
+}
+
+pub fn set_project_setting(state: &ProjectState, key: String, value: String) -> Result<(), String> {
+    if key != "locale" || !["es", "en"].contains(&value.as_str()) {
+        return Err("Configuración de proyecto no válida.".into());
+    }
+    let guard = state
+        .lock()
+        .map_err(|_| "No se pudo bloquear el estado del proyecto.".to_string())?;
+    let project = guard.as_ref().ok_or("No hay un proyecto abierto.")?;
+    project
+        .db
+        .execute(
+            "INSERT OR REPLACE INTO project_meta (key, value) VALUES (?1, ?2)",
+            params![key, value],
+        )
+        .map(|_| ())
+        .map_err(|error| format!("No se pudo guardar la configuración del proyecto: {error}"))
 }
 
 pub fn current_project(state: &ProjectState) -> Result<Option<ProjectInfo>, String> {
@@ -756,13 +889,11 @@ mod tests {
             list_nodes(&reopened_state).expect("list reopened temporal nodes"),
             expected
         );
-        save_nodes(&reopened_state, vec![expected[0].clone()])
-            .expect("persist tempo deletion");
+        save_nodes(&reopened_state, vec![expected[0].clone()]).expect("persist tempo deletion");
         close_project(&reopened_state).expect("close reopened project");
-        let after_delete = open_project_from_path(
-            root.join("Temporal").to_string_lossy().into_owned(),
-        )
-        .expect("reopen project after tempo deletion");
+        let after_delete =
+            open_project_from_path(root.join("Temporal").to_string_lossy().into_owned())
+                .expect("reopen project after tempo deletion");
         let after_delete_state = Mutex::new(Some(after_delete));
         assert_eq!(
             list_nodes(&after_delete_state).expect("list nodes after tempo deletion"),
@@ -817,8 +948,115 @@ mod tests {
                 .expect("reopen archive");
         assert_eq!(reopened.info.name, "Proyecto");
         let reopened_state = Mutex::new(Some(reopened));
-        assert_eq!(list_nodes(&reopened_state).expect("read saved content"), expected);
+        assert_eq!(
+            list_nodes(&reopened_state).expect("read saved content"),
+            expected
+        );
         close_project(&reopened_state).expect("close reopened archive");
+        fs::remove_dir_all(root).expect("test cleanup");
+    }
+
+    #[test]
+    fn persists_pdf_node_and_resource_inside_his_archive() {
+        let root = std::env::temp_dir().join(format!(
+            "hisfuture-pdf-resource-test-{}",
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_nanos()
+        ));
+        fs::create_dir_all(&root).expect("test root");
+        let archive_path = root.join("PDF Project.his");
+        let project = create_project_file(
+            archive_path.to_string_lossy().into_owned(),
+            "PDF Project".into(),
+        )
+        .expect("create archive project");
+        let state = Mutex::new(Some(project));
+        let bytes = b"%PDF-1.4\n%%EOF\n".to_vec();
+        store_project_resource(&state, "pdf".into(), "resource-1".into(), bytes.clone())
+            .expect("store pdf resource");
+        let nodes = vec![NodeRecord {
+            id: "pdf-1".into(),
+            name: "Documento extraño ñ.pdf".into(),
+            node_type: "pdf".into(),
+            parent_id: None,
+            order: 0,
+            content: "<!--hisfuture-pdf-resource:{\"resourceId\":\"resource-1\",\"fileName\":\"Documento extraño ñ.pdf\",\"fileSize\":15,\"hash\":\"hash\"}--><p><br></p>".into(),
+        }];
+        save_nodes(&state, nodes.clone()).expect("save pdf node");
+        set_project_setting(&state, "locale".into(), "en".into()).expect("save project locale");
+        close_project(&state).expect("close and pack project");
+
+        let file = fs::File::open(&archive_path).expect("open archive");
+        let mut archive = ZipArchive::new(file).expect("read archive");
+        assert!(archive.by_name("resources/pdf/resource-1.pdf").is_ok());
+        drop(archive);
+
+        let reopened = open_project_from_path(archive_path.to_string_lossy().into_owned())
+            .expect("reopen archive");
+        let reopened_state = Mutex::new(Some(reopened));
+        assert_eq!(list_nodes(&reopened_state).expect("read pdf node"), nodes);
+        assert_eq!(
+            get_project_setting(&reopened_state, "locale".into()).expect("read project locale"),
+            Some("en".into())
+        );
+        assert_eq!(
+            read_project_resource(&reopened_state, "pdf".into(), "resource-1".into())
+                .expect("read pdf resource"),
+            bytes
+        );
+        assert!(read_project_resource(&reopened_state, "pdf".into(), "../escape".into()).is_err());
+        close_project(&reopened_state).expect("close reopened project");
+        fs::remove_dir_all(root).expect("test cleanup");
+    }
+
+    #[test]
+    fn migrates_existing_node_schema_to_accept_pdf() {
+        let root = std::env::temp_dir().join(format!(
+            "hisfuture-pdf-schema-test-{}",
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_nanos()
+        ));
+        fs::create_dir_all(&root).expect("test root");
+        let database = root.join(DATABASE_FILE);
+        let legacy = Connection::open(&database).expect("legacy database");
+        legacy.execute_batch(
+            "CREATE TABLE project_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+             CREATE TABLE nodes (
+               id TEXT PRIMARY KEY,
+               name TEXT NOT NULL,
+               type TEXT NOT NULL CHECK(type IN ('categoria', 'pagina', 'imagen', 'calendario', 'tempo')),
+               parent_id TEXT,
+               sort_order INTEGER NOT NULL DEFAULT 0,
+               content TEXT NOT NULL DEFAULT '<p><br></p>',
+               FOREIGN KEY (parent_id) REFERENCES nodes(id) ON DELETE CASCADE
+             );
+             CREATE TABLE links (
+               from_node_id TEXT NOT NULL,
+               to_node_id TEXT NOT NULL,
+               PRIMARY KEY (from_node_id, to_node_id),
+               FOREIGN KEY (from_node_id) REFERENCES nodes(id) ON DELETE CASCADE,
+               FOREIGN KEY (to_node_id) REFERENCES nodes(id) ON DELETE CASCADE
+             );
+             INSERT INTO nodes (id, name, type) VALUES ('page-1', 'Existing', 'pagina');",
+        ).expect("create pre-pdf schema");
+        drop(legacy);
+
+        let migrated = init_database(&database).expect("migrate schema");
+        migrated
+            .execute(
+                "INSERT INTO nodes (id, name, type) VALUES ('pdf-1', 'Document.pdf', 'pdf')",
+                [],
+            )
+            .expect("insert pdf after migration");
+        let count: i64 = migrated
+            .query_row("SELECT COUNT(*) FROM nodes", [], |row| row.get(0))
+            .expect("count nodes");
+        assert_eq!(count, 2);
+        drop(migrated);
         fs::remove_dir_all(root).expect("test cleanup");
     }
 
@@ -884,11 +1122,19 @@ mod tests {
             .expect("links foreign key");
         assert_eq!(target, "nodes");
         let count: i64 = repaired
-            .query_row("SELECT COUNT(*) FROM links WHERE from_node_id = 'a' AND to_node_id = 'b'", [], |row| row.get(0))
+            .query_row(
+                "SELECT COUNT(*) FROM links WHERE from_node_id = 'a' AND to_node_id = 'b'",
+                [],
+                |row| row.get(0),
+            )
             .expect("preserved relationship");
         assert_eq!(count, 1);
         let node_count: i64 = repaired
-            .query_row("SELECT COUNT(*) FROM nodes WHERE id IN ('a', 'b')", [], |row| row.get(0))
+            .query_row(
+                "SELECT COUNT(*) FROM nodes WHERE id IN ('a', 'b')",
+                [],
+                |row| row.get(0),
+            )
             .expect("preserved nodes");
         assert_eq!(node_count, 2);
         drop(repaired);
