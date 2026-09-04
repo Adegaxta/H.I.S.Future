@@ -2085,6 +2085,22 @@ body,
   font-weight: 500;
 }
 
+.page-node-header__editable-title { cursor: text; }
+
+.page-node-header__title-input {
+  display: block;
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid rgb(232 233 234 / 25%);
+  outline: 0;
+  padding: 0;
+  background: transparent;
+  font-family: inherit;
+  text-align: inherit;
+}
+
+.page-node-header__title-input:focus { border-bottom-color: #4dd8c0; }
+
 .page-node-header {
   position: relative;
   margin: -12px -12px 24px;
@@ -2443,15 +2459,15 @@ body,
 
 /* Linea horizontal insertada en el editor. */
 .editor-content hr {
-  margin: 12px 0;
+  margin: 6px 0;
   border: none;
   border-top: 1px solid rgb(232 233 234 / 25%);
 }
 
 /* Espacio reservado para un separador editable. */
 .editor-content [data-divider] {
-  min-height: 18px;
-  padding: 2px 0;
+  min-height: 10px;
+  padding: 1px 0;
 }
 
 /* Bloque de referencia externa dentro del editor. */
@@ -3563,31 +3579,49 @@ body,
 .editor-content .editor-mention {
   display: inline-flex;
   align-items: center;
-  gap: 0.35em;
-  min-height: 42px;
+  gap: 0.3em;
+  min-height: 0;
   max-width: 100%;
-  vertical-align: middle;
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+  text-decoration-line: underline;
+  text-decoration-color: currentColor;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  vertical-align: baseline;
   white-space: nowrap;
   cursor: pointer;
 }
+
+.editor-content .editor-mention:not(:has(img))::before {
+  color: inherit;
+  content: "#";
+  text-decoration-line: underline;
+  text-decoration-color: currentColor;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  user-select: text;
+}
+.editor-content .editor-mention:not(:has(img)) { gap: 0; }
 .editor-content .editor-mention img {
-  display: block;
-  width: 44px;
-  height: 44px;
-  flex: 0 0 14px;
-  border-radius: 3px;
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  flex: 0 0 1em;
+  border-radius: 2px;
   object-fit: contain;
-  vertical-align: middle;
+  vertical-align: -0.12em;
   cursor: pointer;
 }
 .editor-content .editor-mention__icon {
-  display: block;
-  width: 44px;
-  height: 44px;
-  flex: 0 0 44px;
-  border-radius: 4px;
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  flex: 0 0 1em;
+  border-radius: 2px;
   object-fit: contain;
-  vertical-align: middle;
+  vertical-align: -0.12em;
   cursor: pointer;
 }
 .editor-content .editor-mention[data-mention-mode="full"] {
@@ -3598,6 +3632,7 @@ body,
 }
 .editor-content .editor-mention[data-mention-mode="full"]::before { display: none; }
 .editor-content .editor-mention[data-mention-mode="full"] img {
+  display: block;
   width: auto;
   height: auto;
   max-width: 100%;
@@ -3609,7 +3644,7 @@ body,
 .editor-content .editor-mention[data-mention-mode="full"][data-mention-align="center"] img { margin-left: auto; margin-right: auto; }
 .editor-content .editor-mention[data-mention-mode="full"][data-mention-align="right"] img { margin-left: auto; margin-right: 0; }
 /* Cursor de una mencion eliminada. */
-.editor-content [data-deleted-mention="true"] { cursor: pointer; }
+.editor-content [data-deleted-mention="true"] { color: #d84d4d; cursor: pointer; opacity: 0.6; }
 /* Color de seleccion de texto del editor. */
 .editor-content ::selection { color: #e8e9ea; background: rgba(77, 216, 192, 0.35); }
 /* Borde de una linea seleccionada. */

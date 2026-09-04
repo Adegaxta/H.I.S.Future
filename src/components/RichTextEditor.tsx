@@ -6,6 +6,10 @@ import { getImageResourceInfo } from "../utils/imageResource";
 import { getEffectiveNodeType } from "../utils/nodeTree";
 import { useEditorController } from "../hooks/useEditorController";
 import {
+  EDITOR_BACKGROUND_COLORS,
+  EDITOR_TEXT_COLORS,
+} from "../defs/palette";
+import {
   BLOCK_TEXT_DEV_REGISTRY,
   clampFloatNodePosition,
   type BlockTextDevNodeKind,
@@ -36,6 +40,7 @@ interface RichTextEditorProps {
   onOpenDeletedNode: (id: string) => void;
   onOpenNodeView: (id: string, x: number, y: number) => void;
   onFileImport?: (file: File, parentId?: string | null) => Promise<NodeItem | null> | NodeItem | null;
+  onCreatePastedNode?: (name: string) => NodeItem | null;
   onSlashCommand?: (tag: string) => boolean;
   readOnly?: boolean;
   style: CSSProperties;
@@ -54,6 +59,7 @@ export default function RichTextEditor({
   onOpenDeletedNode,
   onOpenNodeView,
   onFileImport,
+  onCreatePastedNode,
   onSlashCommand,
   readOnly = false,
   style,
@@ -111,6 +117,7 @@ export default function RichTextEditor({
     setExpanded,
     onOpenDeletedNode,
     onFileImport,
+    onCreatePastedNode,
     onSlashCommand,
   });
   useEffect(() => {
@@ -257,20 +264,27 @@ export default function RichTextEditor({
   useEffect(() => {
     const editor = editorRef.current;
     if (!editor) return;
+    let changed = false;
     editor.querySelectorAll<HTMLElement>("[data-mention-id]").forEach((mention) => {
       const isDeleted = deletedNodes.some(
         (deletedNode) => deletedNode.id === mention.dataset.mentionId,
       );
+      ["color", "opacity", "text-decoration", "text-underline-offset", "cursor", "gap"].forEach((property) => {
+        if (!mention.style.getPropertyValue(property)) return;
+        mention.style.removeProperty(property);
+        changed = true;
+      });
       if (isDeleted) {
-        mention.style.color = "#D84D4D";
-        mention.style.opacity = "0.6";
-        mention.dataset.deletedMention = "true";
+        if (mention.dataset.deletedMention !== "true") {
+          mention.dataset.deletedMention = "true";
+          changed = true;
+        }
       } else if (mention.dataset.deletedMention) {
-        mention.style.removeProperty("color");
-        mention.style.removeProperty("opacity");
         delete mention.dataset.deletedMention;
+        changed = true;
       }
     });
+    if (changed) controller.syncContent();
   }, [deletedNodes, editorRef, node.id]);
   useEffect(() => {
     const editor = editorRef.current;
@@ -599,6 +613,9 @@ export default function RichTextEditor({
           if (target?.type === "imagen") {
             event.preventDefault();
             event.stopPropagation();
+            if (mention?.dataset.mentionMode === "full") {
+              controller.setLineActionBlock(mention);
+            }
             setImageContextMenu({
               id: target.id,
               mode: mention?.dataset.mentionMode === "full" ? "full" : "inserted",
@@ -829,6 +846,10 @@ export default function RichTextEditor({
             }
             setImageContextMenu(null);
           }}
+          onDelete={() => {
+            controller.deleteSelectedLine();
+            setImageContextMenu(null);
+          }}
           onClose={() => setImageContextMenu(null)}
         />
       )}
@@ -860,31 +881,32 @@ export default function RichTextEditor({
 
 const TEXT_COLOR_SWATCHES = [
   { name: "Predeterminado", value: "" },
-  { name: "Gris", value: "#7B7F85" },
-  { name: "Marrón", value: "#8A5A3B" },
-  { name: "Naranja", value: "#E67E22" },
-  { name: "Amarillo", value: "#F1C40F" },
-  { name: "Ámbar", value: "#C98900" },
-  { name: "Verde azulado", value: "#1ABC9C" },
-  { name: "Verde", value: "#2ECC71" },
-  { name: "Azul", value: "#2F80ED" },
-  { name: "Celeste", value: "#5CC8FF" },
-  { name: "Morado", value: "#8E5BE8" },
-  { name: "Rosa", value: "#E96DCC" },
-  { name: "Rojo", value: "#E74C3C" },
+  { name: "Gris", value: EDITOR_TEXT_COLORS.grey },
+  { name: "Marrón", value: EDITOR_TEXT_COLORS.brown },
+  { name: "Naranja", value: EDITOR_TEXT_COLORS.orange },
+  { name: "Amarillo", value: EDITOR_TEXT_COLORS.yellow },
+  { name: "Ámbar", value: EDITOR_TEXT_COLORS.amber },
+  { name: "Verde azulado", value: EDITOR_TEXT_COLORS.teal },
+  { name: "Verde", value: EDITOR_TEXT_COLORS.green },
+  { name: "Azul", value: EDITOR_TEXT_COLORS.blue },
+  { name: "Celeste", value: EDITOR_TEXT_COLORS.ice },
+  { name: "Morado", value: EDITOR_TEXT_COLORS.purple },
+  { name: "Rosa", value: EDITOR_TEXT_COLORS.pink },
+  { name: "Rojo", value: EDITOR_TEXT_COLORS.red },
 ] as const;
 
 const BLOCK_BACKGROUND_SWATCHES = [
   { name: "Predeterminado", value: "" },
-  { name: "Fondo gris", value: "#B8B9BF" },
-  { name: "Fondo marrón", value: "#A5674D" },
-  { name: "Fondo naranja", value: "#E9A65B" },
-  { name: "Fondo amarillo", value: "#E9D77B" },
-  { name: "Fondo verde", value: "#8CD98D" },
-  { name: "Fondo azul", value: "#7AB7FF" },
-  { name: "Fondo morado", value: "#A68AF5" },
-  { name: "Fondo rosa", value: "#F3A7D7" },
-  { name: "Fondo rojo", value: "#F08C8C" },
+  { name: "Fondo gris", value: EDITOR_BACKGROUND_COLORS.gray },
+  { name: "Fondo marrón", value: EDITOR_BACKGROUND_COLORS.brown },
+  { name: "Fondo naranja", value: EDITOR_BACKGROUND_COLORS.orange },
+  { name: "Fondo amarillo", value: EDITOR_BACKGROUND_COLORS.yellow },
+  { name: "Fondo verde", value: EDITOR_BACKGROUND_COLORS.green },
+  { name: "Fondo azul", value: EDITOR_BACKGROUND_COLORS.blue },
+  { name: "Fondo celeste", value: EDITOR_BACKGROUND_COLORS.ice },
+  { name: "Fondo morado", value: EDITOR_BACKGROUND_COLORS.purple },
+  { name: "Fondo rosa", value: EDITOR_BACKGROUND_COLORS.pink },
+  { name: "Fondo rojo", value: EDITOR_BACKGROUND_COLORS.red },
 ] as const;
 
 function normalizeHexColor(value: string): string {
@@ -1271,7 +1293,7 @@ function SelectionToolbar({
             bottom: "4px",
             height: "3px",
             borderRadius: "2px",
-            background: "linear-gradient(90deg, #7B7F85 0%, #2F80ED 100%)",
+            background: `linear-gradient(90deg, ${EDITOR_TEXT_COLORS.grey} 0%, ${EDITOR_TEXT_COLORS.blue} 100%)`,
           }}
         />
       </button>
@@ -1485,11 +1507,13 @@ function ImageMentionContextMenu({
   menu,
   onView,
   onAlign,
+  onDelete,
   onClose,
 }: {
   menu: { mode: "inserted" | "full"; top: number; left: number };
   onView: () => void;
   onAlign: (alignment: "left" | "center" | "right") => void;
+  onDelete: () => void;
   onClose: () => void;
 }) {
   return (
@@ -1529,6 +1553,16 @@ function ImageMentionContextMenu({
           {alignment === "left" ? "Izquierda" : alignment === "center" ? "Centro" : "Derecha"}
         </button>
       ))}
+      <div style={{ borderTop: "1px solid #2A2E33", margin: "4px 0" }} />
+      <button
+        type="button"
+        disabled={menu.mode !== "full"}
+        title={menu.mode === "full" ? undefined : "Disponible solo para imágenes completas"}
+        onMouseDown={(event) => { event.preventDefault(); onDelete(); }}
+        style={{ ...mentionContextButtonStyle, color: "#D84D4D", opacity: menu.mode === "full" ? 1 : 0.4, cursor: menu.mode === "full" ? "pointer" : "not-allowed" }}
+      >
+        Eliminar bloque
+      </button>
       <button type="button" onMouseDown={(event) => { event.preventDefault(); onClose(); }} style={{ ...mentionContextButtonStyle, color: "#7A7F87" }}>
         Cerrar
       </button>

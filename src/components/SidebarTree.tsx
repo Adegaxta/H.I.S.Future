@@ -261,7 +261,8 @@ export default function SidebarTree(props: SidebarTreeProps) {
             });
           }}
           style={{
-            display: "flex",
+            display: "grid",
+            gridTemplateColumns: "10px 6px minmax(0, 1fr) auto",
             alignItems: "center",
             gap: "6px",
             padding: "6px 8px",
@@ -303,7 +304,7 @@ export default function SidebarTree(props: SidebarTreeProps) {
               {isExpanded ? "▾" : "▸"}
             </span>
           ) : (
-            <span style={{ width: "10px" }} />
+            <span style={{ display: "block", width: "10px" }} />
           )}
           <span
             aria-hidden="true"
@@ -340,8 +341,8 @@ export default function SidebarTree(props: SidebarTreeProps) {
                   ? "#A7A9AC"
                   : "#C7C9CC",
               display: "inline-block",
-              flex: "0 1 auto",
-              maxWidth: "calc(100% - 34px)",
+              width: "100%",
+              minWidth: 0,
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
@@ -374,7 +375,6 @@ export default function SidebarTree(props: SidebarTreeProps) {
               node.name
             )}
           </span>
-          <span style={{ flex: 1 }} />
           <span
             data-no-drag="true"
             onClick={(event) => {

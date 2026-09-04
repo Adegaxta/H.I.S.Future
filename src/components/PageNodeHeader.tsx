@@ -11,6 +11,7 @@ interface PageNodeHeaderProps {
   node: NodeItem;
   nodes: NodeItem[];
   onContentChange: (id: string, content: string) => void;
+  onRename: (id: string, name: string) => void;
   onImageFileUpload: (file: File) => Promise<string | null>;
 }
 
@@ -20,6 +21,7 @@ export default function PageNodeHeader({
   node,
   nodes,
   onContentChange,
+  onRename,
   onImageFileUpload,
 }: PageNodeHeaderProps) {
   const { t } = useLocale();
@@ -28,6 +30,8 @@ export default function PageNodeHeader({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [headerPositionOpen, setHeaderPositionOpen] = useState(false);
   const [textPositionOpen, setTextPositionOpen] = useState(false);
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState(node.name);
   const history = useNodeScopedEditorHistory<PageMeta>(node.id, 50);
   const metaRef = useRef(meta);
   const settingsRef = useRef<HTMLSpanElement>(null);
@@ -37,6 +41,11 @@ export default function PageNodeHeader({
     setMeta(next);
     metaRef.current = next;
   }, [node.content]);
+
+  useEffect(() => {
+    setEditingTitle(false);
+    setTitleDraft(node.name);
+  }, [node.id, node.name]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -116,6 +125,13 @@ export default function PageNodeHeader({
     meta.headerPosition !== DEFAULT_PAGE_META.headerPosition ||
     meta.textPosition !== DEFAULT_PAGE_META.textPosition;
 
+  const commitTitle = () => {
+    const nextName = titleDraft.trim();
+    if (nextName && nextName !== node.name) onRename(node.id, nextName);
+    else setTitleDraft(node.name);
+    setEditingTitle(false);
+  };
+
   return (
     <>
       <div className="page-node-header">
@@ -188,7 +204,35 @@ export default function PageNodeHeader({
                   </span>
                 </div>
               </div>
-              <h1 className="editor-page__title">{node.name}</h1>
+              {editingTitle ? (
+                <input
+                  className="editor-page__title page-node-header__title-input"
+                  autoFocus
+                  value={titleDraft}
+                  aria-label="Nombre de la página"
+                  onChange={(event) => setTitleDraft(event.target.value)}
+                  onFocus={(event) => event.currentTarget.select()}
+                  onBlur={commitTitle}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      event.currentTarget.blur();
+                    }
+                    if (event.key === "Escape") {
+                      setTitleDraft(node.name);
+                      setEditingTitle(false);
+                    }
+                  }}
+                />
+              ) : (
+                <h1
+                  className="editor-page__title page-node-header__editable-title"
+                  title="Haz clic para cambiar el nombre"
+                  onClick={() => setEditingTitle(true)}
+                >
+                  {node.name}
+                </h1>
+              )}
               {!meta.hideDescription && (
                 <textarea
                   className="page-node-header__description"

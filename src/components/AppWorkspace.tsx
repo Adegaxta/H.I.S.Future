@@ -520,6 +520,25 @@ export default function AppWorkspace({
     if (tag !== "CALENDARIO") return false;
     return createCalendarNode();
   };
+  const createPastedNode = (rawName: string): NodeItem | null => {
+    const name = rawName.trim() || getNodeDisplayLabel(defaultNodeType, t);
+    const normalizedName = name.toLocaleLowerCase();
+    const existing = workspace.nodes.find(
+      (item) => item.name.trim().toLocaleLowerCase() === normalizedName,
+    );
+    if (existing) return existing;
+    const parentId = selectedNode?.parentId ?? null;
+    const defaultContent = getNodeDefinition(defaultNodeType).defaultContent;
+    const id = workspace.createNode(name, defaultNodeType, parentId, defaultContent, false);
+    return {
+      id,
+      name,
+      type: defaultNodeType,
+      parentId,
+      order: workspace.nodes.filter((item) => item.parentId === parentId).length,
+      content: defaultContent,
+    };
+  };
   const createTempoNode = (calendarId: string, date: string, startTime?: string, subtype: TempoSubtype = "daily", endDate: string | null = null, weeklyVisualOrder: number | null = null) => {
     const usedNumbers = new Set(
       workspace.nodes
@@ -1060,6 +1079,7 @@ export default function AppWorkspace({
                     node={selectedNode}
                     nodes={workspace.nodes}
                     onContentChange={workspace.updateContent}
+                    onRename={workspace.renameNode}
                     onImageFileUpload={async (file) => (await createNodeFromFile(file, selectedNode.parentId))?.id ?? null}
                   />
                   <RichTextEditor
@@ -1076,6 +1096,7 @@ export default function AppWorkspace({
                     onFileImport={async (file: File, parentId?: string | null) => {
                       return createNodeFromFile(file, parentId ?? selectedNode.parentId ?? null);
                     }}
+                    onCreatePastedNode={createPastedNode}
                     onSlashCommand={handleSlashCommand}
                     onOpenNodeView={(id) => {
                       setSelectedTrashNodeId(null);
@@ -1191,6 +1212,7 @@ export default function AppWorkspace({
                   onFileImport={async (file: File, parentId?: string | null) => {
                     return createNodeFromFile(file, parentId ?? selectedNode.parentId ?? null);
                   }}
+                  onCreatePastedNode={createPastedNode}
                   onSlashCommand={handleSlashCommand}
                   onOpenNodeView={(id) => {
                     setSelectedTrashNodeId(null);

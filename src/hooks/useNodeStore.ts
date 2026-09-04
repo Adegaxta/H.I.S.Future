@@ -173,6 +173,7 @@ export function useNodeStore(projectKey?: string) {
     type: BaseNodeType,
     parentId: string | null,
     content = getNodeDefinition(type).defaultContent,
+    selectCreated = true,
   ) => {
     const id = crypto.randomUUID();
     setNodes((current) => {
@@ -191,7 +192,7 @@ export function useNodeStore(projectKey?: string) {
       ];
     });
     if (parentId) setExpanded((current) => ({ ...current, [parentId]: true }));
-    if (type === "pagina") setSelectedId(id);
+    if (type === "pagina" && selectCreated) setSelectedId(id);
     return id;
   };
   const renameNode = (id: string, name: string) =>

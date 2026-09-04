@@ -6,8 +6,6 @@ import type {
   SetStateAction,
 } from "react";
 import type { NodeItem } from "../types/nodes";
-import { getNodeDefinition } from "../defs/nodeTypes";
-import { getEffectiveNodeType } from "../utils/nodeTree";
 import { getPageMeta } from "../utils/pageMeta";
 
 interface UseEditorMentionsOptions {
@@ -66,17 +64,9 @@ export function useEditorMentions({
     mention.title = target.name;
     mention.setAttribute("aria-label", target.name);
     if (target.type === "imagen") mention.dataset.mentionMode = imageMode;
-    mention.style.color = getNodeDefinition(
-      getEffectiveNodeType(nodes, target),
-    ).color;
     if (deletedNodes.some((item) => item.id === target.id)) {
-      mention.style.color = "#D84D4D";
-      mention.style.opacity = "0.6";
+      mention.dataset.deletedMention = "true";
     }
-    mention.style.textDecoration = "underline";
-    mention.style.textUnderlineOffset = "3px";
-    mention.style.cursor = "pointer";
-    mention.style.gap = "0.35em";
 
     if (target.type === "pagina") {
       const pageMeta = getPageMeta(target.content);
@@ -100,8 +90,10 @@ export function useEditorMentions({
         const image = document.createElement("img");
         image.src = source;
         image.alt = target.name;
+        if (imageMode === "inserted") image.className = "editor-mention__icon";
         image.dataset.noResize = "true";
         mention.appendChild(image);
+        if (imageMode === "inserted") mention.appendChild(document.createTextNode(target.name));
       } else mention.textContent = target.name;
       return mention;
     }

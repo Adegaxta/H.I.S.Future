@@ -37,6 +37,7 @@ export function useEditorBlockSelection({
   blockSelectionRef,
   blockSelection,
   setBlockSelection,
+  selectedLineBlocks,
 }: UseEditorBlockSelectionOptions) {
   const beginSelection = useCallback((event: PointerEvent<HTMLDivElement>) => {
   const editor = editorRef.current;
@@ -80,6 +81,13 @@ export function useEditorBlockSelection({
   );
   if (caretIsInsideTextBlock) return false;
 
+  if (textBlock && selectedLineBlocks.includes(textBlock)) {
+    clearLineSelection();
+    setSelectedLineBlocks([]);
+    return false;
+  }
+  if (textBlock?.isContentEditable) return false;
+
   // La superficie envolvente también puede iniciar una selección rectangular
   // en el espacio vacío posterior al último bloque.
   const selectionSurface = editor.parentElement ?? editor;
@@ -113,6 +121,8 @@ export function useEditorBlockSelection({
 }, [
   blockSelectionRef,
   editorRef,
+  selectedLineBlocks,
+  setSelectedLineBlocks,
   getTextEditorBlock,
   setBlockSelection,
 ]);
@@ -133,7 +143,7 @@ export function useEditorBlockSelection({
         clearLineSelection();
         selected.forEach((block) => {
           block.setAttribute("data-line-selected", "true");
-          if (!block.matches("[data-divider], [data-globe], [data-page-index]")) block.contentEditable = "false";
+          if (!block.matches('[data-divider], [data-globe], [data-page-index], [data-mention-id][data-mention-mode="full"]')) block.contentEditable = "false";
         });
         setSelectedLineBlocks(selected);
         const selection = window.getSelection();

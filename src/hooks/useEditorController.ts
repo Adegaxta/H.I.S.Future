@@ -9,7 +9,7 @@ import { useNodeScopedEditorHistory } from "./useEditorHistory";
 import { useEditorSelection } from "./useEditorSelection";
 import type { NodeItem, PickerState } from "../types/nodes";
 import { findImportableFile, isImportableDragItem } from "../project/fileNodeImporter";
-import { formatPastedText, sanitizeEditorHtml } from "../utils/editorHtml";
+import { formatPastedText, sanitizeEditorHtml, anytypeClipboardToHtml } from "../utils/editorHtml";
 import { useBlockControls } from "./useBlockControls";
 import { useEditorBlocks } from "./useEditorBlocks";
 import { useEditorBlockSelection } from "./useEditorBlockSelection";
@@ -28,12 +28,14 @@ interface EditorControllerOptions {
   setExpanded: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
   onOpenDeletedNode: (id: string) => void;
   onFileImport?: (file: File, parentId?: string | null) => Promise<NodeItem | null> | NodeItem | null;
+  onCreatePastedNode?: (name: string) => NodeItem | null;
   onSlashCommand?: (tag: string) => boolean;
 }
 
 const blockSelector =
-  "p, h1, h2, h3, h4, blockquote, li, [data-divider], [data-globe], [data-page-index]";
-const textLineSelector = "p, h1, h2, h3, h4, blockquote, li, [data-divider], [data-globe], [data-page-index]";
+  'p, h1, h2, h3, h4, blockquote, li, [data-divider], [data-globe], [data-page-index], [data-mention-id][data-mention-mode="full"]';
+const textLineSelector =
+  'p, h1, h2, h3, h4, blockquote, li, [data-divider], [data-globe], [data-page-index], [data-mention-id][data-mention-mode="full"]';
 
 export function useEditorController({
   node,
@@ -45,6 +47,7 @@ export function useEditorController({
   setExpanded,
   onOpenDeletedNode,
   onFileImport,
+  onCreatePastedNode,
   onSlashCommand,
 }: EditorControllerOptions) {
   const [selectionToolbar, setSelectionToolbar] = useState<{
@@ -98,7 +101,7 @@ export function useEditorController({
 
     const globeContent = element.closest("[data-globe-content]") as HTMLElement | null;
     const localBlock = globeContent
-      ? (element.closest("p, h1, h2, h3, h4, blockquote, li, [data-divider], [data-page-index]") as HTMLElement | null)
+      ? (element.closest('p, h1, h2, h3, h4, blockquote, li, [data-divider], [data-page-index], [data-mention-id][data-mention-mode="full"]') as HTMLElement | null)
       : null;
     if (globeContent && localBlock && globeContent.contains(localBlock)) {
       return localBlock;
@@ -162,8 +165,8 @@ export function useEditorController({
   };
   const isRootEditorBlock = (block: HTMLElement) =>
     !block.parentElement?.closest(blockSelector);
-    const isNonEditableBlockType = (block: HTMLElement) =>
-    block.matches("[data-divider], [data-globe], [data-page-index]");
+  const isNonEditableBlockType = (block: HTMLElement) =>
+    block.matches('[data-divider], [data-globe], [data-page-index], [data-mention-id][data-mention-mode="full"]');
   const clearTransientEditorState = () => {
     const editor = editorRef.current;
     if (!editor) return;
@@ -175,7 +178,7 @@ export function useEditorController({
         line.removeAttribute("data-line-dragging");
         line.removeAttribute("data-line-drop-target");
         line.removeAttribute("data-line-selected");
-        line.contentEditable = "true";
+        if (!isNonEditableBlockType(line)) line.contentEditable = "true";
       });
     document.body.style.cursor = "default";
   };
@@ -324,6 +327,47 @@ export function useEditorController({
         divider.replaceChildren(hr);
         changed = true;
       }
+    });
+    return changed;
+  };
+  const normalizeGlobes = () => {
+    const editor = editorRef.current;
+    if (!editor) return false;
+    let changed = false;
+    editor.querySelectorAll<HTMLElement>("[data-globe]").forEach((globe) => {
+      if (globe.contentEditable !== "true") {
+        globe.contentEditable = "true";
+        changed = true;
+      }
+
+      const content = globe.querySelector<HTMLElement>("[data-globe-content]");
+      if (!content) return;
+      if (content.contentEditable !== "true") {
+        content.contentEditable = "true";
+        changed = true;
+      }
+
+      content.querySelectorAll<HTMLElement>(textLineSelector).forEach((line) => {
+        if (line.matches("[data-divider], [data-page-index]")) {
+          if (line.contentEditable !== "false") {
+            line.contentEditable = "false";
+            changed = true;
+          }
+          return;
+        }
+        if (line.matches("[data-line-selected], [data-line-dragging]")) return;
+        if (line.contentEditable !== "true") {
+          line.contentEditable = "true";
+          changed = true;
+        }
+      });
+
+      globe.querySelectorAll<HTMLElement>("[data-globe-icon]").forEach((icon) => {
+        if (icon.contentEditable !== "false") {
+          icon.contentEditable = "false";
+          changed = true;
+        }
+      });
     });
     return changed;
   };
@@ -787,6 +831,163 @@ export function useEditorController({
     });
 
     return block;
+  };
+
+  const replacePastedIndices = (roots: Node[]) => {
+    const importedIndices = new Set<HTMLElement>();
+    roots.forEach((root) => {
+      if (root instanceof HTMLElement && root.matches("[data-page-index]")) {
+        importedIndices.add(root);
+      }
+      if (root instanceof Element) {
+        root.querySelectorAll<HTMLElement>("[data-page-index]").forEach((index) => importedIndices.add(index));
+      }
+    });
+    const replacements = new Map<Node, HTMLElement>();
+    importedIndices.forEach((index) => {
+      const scopeRoot = index.dataset.pageIndexSource === "anytype"
+        ? null
+        : index.closest<HTMLElement>("[data-globe-content]");
+      const replacement = buildPageIndexBlock(scopeRoot);
+      index.replaceWith(replacement);
+      replacements.set(index, replacement);
+    });
+    return replacements;
+  };
+
+  const replacePastedMentions = (root: Node) => {
+    const knownNodes = nodes
+      .filter((item) => item.name.trim())
+      .sort((left, right) => right.name.trim().length - left.name.trim().length);
+    const createdNodes = new Map<string, NodeItem>();
+    if (root instanceof Element || root instanceof DocumentFragment) {
+      root.querySelectorAll<HTMLElement>("[data-anytype-mention]").forEach((mention) => {
+        const name = (mention.textContent || "").replace(/\s+/g, " ").trim();
+        if (!name) {
+          mention.remove();
+          return;
+        }
+        const normalizedName = name.toLocaleLowerCase();
+        const existing = knownNodes.find(
+          (item) => item.name.trim().toLocaleLowerCase() === normalizedName,
+        );
+        const target = existing || createdNodes.get(normalizedName) || onCreatePastedNode?.(name) || null;
+        if (!target) {
+          mention.replaceWith(document.createTextNode(name));
+          return;
+        }
+        if (!existing) createdNodes.set(normalizedName, target);
+        const replacement = createMention(target);
+        Array.from(replacement.childNodes).forEach((child) => {
+          if (!(child instanceof HTMLImageElement)) child.remove();
+        });
+        Array.from(mention.childNodes).forEach((child) => {
+          replacement.appendChild(child.cloneNode(true));
+        });
+        mention.replaceWith(replacement);
+      });
+    }
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    const textNodes: Text[] = [];
+    let current = walker.nextNode();
+    while (current) {
+      textNodes.push(current as Text);
+      current = walker.nextNode();
+    }
+
+    textNodes.forEach((textNode) => {
+      const parent = textNode.parentElement;
+      if (!parent || parent.closest("[data-globe-icon], [data-page-index], [data-mention-id], .editor-mention")) return;
+      const text = textNode.textContent || "";
+      const fragment = document.createDocumentFragment();
+      let cursor = 0;
+      let changed = false;
+
+      while (cursor < text.length) {
+        const atIndex = text.indexOf("@", cursor);
+        if (atIndex < 0) break;
+        if (atIndex > 0 && !/\s/.test(text[atIndex - 1] || "")) {
+          cursor = atIndex + 1;
+          continue;
+        }
+
+        const matchingNode = knownNodes.find((item) => {
+          const name = item.name.trim();
+          const end = atIndex + 1 + name.length;
+          const candidate = text.slice(atIndex + 1, end);
+          const nextCharacter = text[end] || "";
+          return candidate.toLocaleLowerCase() === name.toLocaleLowerCase() &&
+            (!nextCharacter || /[\s.,;:!?()[\]{}]/.test(nextCharacter));
+        });
+        const matchingName = matchingNode?.name.trim() ||
+          text.slice(atIndex + 1).match(/^[A-Za-zÀ-ÿ0-9][A-Za-zÀ-ÿ0-9._-]*/)?.[0] || "";
+        if (!matchingName) {
+          cursor = atIndex + 1;
+          continue;
+        }
+
+        const normalizedName = matchingName.toLocaleLowerCase();
+        const target = matchingNode || createdNodes.get(normalizedName) || onCreatePastedNode?.(matchingName) || null;
+        if (!target) {
+          cursor = atIndex + 1;
+          continue;
+        }
+        if (!matchingNode) createdNodes.set(normalizedName, target);
+        const end = atIndex + 1 + matchingName.length;
+        fragment.appendChild(document.createTextNode(text.slice(cursor, atIndex)));
+        fragment.appendChild(createMention(target));
+        cursor = end;
+        changed = true;
+      }
+
+      if (!changed) return;
+      fragment.appendChild(document.createTextNode(text.slice(cursor)));
+      textNode.parentNode?.replaceChild(fragment, textNode);
+    });
+  };
+
+  const prepareAnytypeImages = async (anytypeHtml: string, clipboardHtml: string) => {
+    const source = new DOMParser().parseFromString(anytypeHtml, "text/html");
+    const placeholders = Array.from(
+      source.querySelectorAll<HTMLElement>("[data-anytype-file-id]"),
+    );
+    if (!placeholders.length) return anytypeHtml;
+
+    const clipboard = new DOMParser().parseFromString(clipboardHtml, "text/html");
+    const images = Array.from(clipboard.querySelectorAll<HTMLImageElement>("img"))
+      .map((image) => image.getAttribute("src")?.trim() || "")
+      .filter((src) => src.startsWith("data:image/"));
+
+    for (let index = 0; index < placeholders.length; index += 1) {
+      const placeholder = placeholders[index];
+      const src = images[index];
+      if (!src || !onFileImport) {
+        placeholder.remove();
+        continue;
+      }
+      try {
+        const separator = src.indexOf(",");
+        if (separator < 0) {
+          placeholder.remove();
+          continue;
+        }
+        const metadata = src.slice(5, separator);
+        const mime = metadata.split(";")[0] || "image/png";
+        const encoded = src.slice(separator + 1).replace(/\s+/g, "");
+        const bytes = metadata.toLowerCase().includes(";base64")
+          ? Uint8Array.from(atob(encoded), (character) => character.charCodeAt(0))
+          : new TextEncoder().encode(decodeURIComponent(src.slice(separator + 1)));
+        const extension = mime.split("/")[1]?.replace("jpeg", "jpg") || "png";
+        const file = new File([bytes], `Imagen de Anytype ${index + 1}.${extension}`, { type: mime });
+        const target = await onFileImport(file, node.parentId ?? null);
+        if (target) placeholder.replaceWith(createMention(target, "full"));
+        else placeholder.remove();
+      } catch (error) {
+        console.error("No se pudo importar una imagen del clipboard de Anytype.", error);
+        placeholder.remove();
+      }
+    }
+    return source.body.innerHTML;
   };
 
     const focusPageIndexEntry = (id: string) => {
@@ -1313,6 +1514,9 @@ export function useEditorController({
   };
   const onPaste = (event: ClipboardEvent<HTMLDivElement>) => {
     event.preventDefault();
+    clearLineSelection();
+    setSelectedLineBlocks([]);
+    setLineActionBlock(null);
     const insert = (html: string) => {
       const clean = sanitizeEditorHtml(html);
       if (!clean) return;
@@ -1325,9 +1529,12 @@ export function useEditorController({
         range.selectNode(block);
         range.collapse(false);
         const fragment = range.createContextualFragment(clean);
+        const pastedRoots = Array.from(fragment.childNodes);
         const lastInserted = fragment.lastElementChild;
+        replacePastedMentions(fragment);
         range.insertNode(fragment);
-        const nextLine = lastInserted || originalNextLine;
+        const indexReplacements = replacePastedIndices(pastedRoots);
+        const nextLine = (lastInserted && indexReplacements.get(lastInserted)) || lastInserted || originalNextLine;
         if (nextLine && nextLine !== originalNextLine) {
   const nextRange = document.createRange();
   nextRange.selectNodeContents(nextLine);
@@ -1336,7 +1543,16 @@ export function useEditorController({
   selection?.addRange(nextRange);
 }
       } else {
+        const editor = editorRef.current;
+        const previousIndices = new Set(
+          editor ? Array.from(editor.querySelectorAll<HTMLElement>("[data-page-index]")) : [],
+        );
         document.execCommand("insertHTML", false, clean);
+        if (editor) {
+          const pastedIndices = Array.from(editor.querySelectorAll<HTMLElement>("[data-page-index]"))
+            .filter((index) => !previousIndices.has(index));
+          replacePastedIndices(pastedIndices);
+        }
       }
       syncContent();
     };
@@ -1370,6 +1586,15 @@ export function useEditorController({
         reader.readAsDataURL(file);
       }
       return;
+    }
+    const anytypeJson = event.clipboardData.getData("application/json");
+    if (anytypeJson) {
+      const anytypeHtml = anytypeClipboardToHtml(anytypeJson);
+      if (anytypeHtml) {
+        const clipboardHtml = event.clipboardData.getData("text/html");
+        void prepareAnytypeImages(anytypeHtml, clipboardHtml).then(insert);
+        return;
+      }
     }
     const html = event.clipboardData.getData("text/html");
     if (html) {
@@ -1425,7 +1650,11 @@ export function useEditorController({
     editor.focus();
     updatePlaceholder();
   };
-  const repairEditorLines = () => normalizeDividers();
+  const repairEditorLines = () => {
+    const dividersChanged = normalizeDividers();
+    const globesChanged = normalizeGlobes();
+    return dividersChanged || globesChanged;
+  };
   useEffect(() => {
     if (!focusedNodeId) return;
     nodeRefs.current[focusedNodeId]?.scrollIntoView({ block: "nearest" });

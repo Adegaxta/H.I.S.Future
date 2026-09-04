@@ -178,7 +178,7 @@ export function useEditorBlocks({
     if (!editor) return false;
     const lines = Array.from(
       editor.querySelectorAll<HTMLElement>(
-        "p, h1, h2, h3, h4, blockquote, li, [data-divider]",
+        'p, h1, h2, h3, h4, blockquote, li, [data-divider], [data-mention-id][data-mention-mode="full"]',
       ),
     );
     const blockIndex = lines.indexOf(block);
@@ -205,7 +205,8 @@ export function useEditorBlocks({
     imageResizeRef.current = null;
     document.body.style.cursor = "default";
     const range = document.createRange();
-    if (block.matches("[data-globe], [data-divider]")) range.selectNode(block);
+    if (block.matches('[data-globe], [data-divider], [data-mention-id][data-mention-mode="full"]'))
+      range.selectNode(block);
     else range.selectNodeContents(block);
     range.collapse(true);
     const selection = window.getSelection();
@@ -269,7 +270,8 @@ export function useEditorBlocks({
     clones.forEach((line) => {
       line.removeAttribute("data-line-dragging");
       line.removeAttribute("data-line-selected");
-      if (line.matches("[data-divider]")) line.contentEditable = "false";
+      if (line.matches('[data-divider], [data-mention-id][data-mention-mode="full"]'))
+        line.contentEditable = "false";
     });
     target.removeAttribute("data-line-drop-target");
     syncContent();
@@ -389,12 +391,16 @@ export function useEditorBlocks({
     if (!editor) return;
 
     const elementsUnderPointer = Array.from(document.elementsFromPoint(clientX, clientY));
-    let block = elementsUnderPointer
+    let block = getLineControlBlock(document.elementFromPoint(clientX, clientY));
+
+    if (!block) {
+      block = elementsUnderPointer
       .map((element) => element.closest(blockSelector) as HTMLElement | null)
       .find((candidate): candidate is HTMLElement => {
         if (!candidate || candidate === editor || !editor.contains(candidate)) return false;
         return isRootEditorBlock(candidate);
       }) ?? null;
+    }
 
     if (!block) {
       block = getLineControlBlock(document.elementFromPoint(clientX, clientY));
