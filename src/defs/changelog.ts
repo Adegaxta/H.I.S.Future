@@ -18,11 +18,27 @@ interface LocalizedChangelogEntry extends ChangelogEntryBase {
 
 export type ChangelogEntry = LegacyChangelogEntry | LocalizedChangelogEntry;
 
-export const CURRENT_VERSION = "0.3.0";
+export const CURRENT_VERSION = "0.3.1";
 
 export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
   {
     version: CURRENT_VERSION,
+    date: "2026-09-04",
+    titleKey: "changelog.0_3_1.title",
+    category: "Editor",
+    changeKeys: [
+      "changelog.0_3_1.clipboard",
+      "changelog.0_3_1.structure",
+      "changelog.0_3_1.images",
+      "changelog.0_3_1.mentions",
+      "changelog.0_3_1.mentionStyle",
+      "changelog.0_3_1.imageBlocks",
+      "changelog.0_3_1.workflow",
+      "changelog.0_3_1.polish",
+    ],
+  },
+  {
+    version: "0.3.0",
     date: "2026-09-03",
     titleKey: "changelog.0_3_0.title",
     category: "Sistema",
