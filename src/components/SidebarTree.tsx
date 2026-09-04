@@ -1,4 +1,5 @@
 import type {
+  CSSProperties,
   MouseEvent as ReactMouseEvent,
   PointerEvent as ReactPointerEvent,
 } from "react";
@@ -14,6 +15,7 @@ import { NODE_REGISTRY, getNodeDefinition, getNodeDisplayLabel } from "../defs/n
 import { getChildren, getEffectiveNodeType } from "../utils/nodeTree";
 import { useLocale } from "../i18n/LocaleContext";
 import { findImportableFile, isImportableDragItem } from "../project/fileNodeImporter";
+import { NodeIcon } from "./SidebarIcon";
 
 interface SidebarTreeProps {
   nodes: NodeItem[];
@@ -32,7 +34,7 @@ interface SidebarTreeProps {
   setEditingName: (name: string) => void;
   setEditingId: (id: string | null) => void;
   setSelectedId: (id: string) => void;
-  openCreate: (parentId: string | null) => void;
+  openCreate: (parentId: string | null, initialType?: BaseNodeType) => void;
   confirmCreate: () => void;
   confirmRename: () => void;
   startRename: (node: NodeItem) => void;
@@ -55,6 +57,7 @@ interface SidebarTreeProps {
   suppressClick: React.MutableRefObject<boolean>;
   queueEditorNodeDrop: (nodeId: string, x: number, y: number) => void;
   onFileDrop: (file: File, parentId: string | null) => void;
+  query?: string;
 }
 
 export default function SidebarTree(props: SidebarTreeProps) {
@@ -70,20 +73,22 @@ export default function SidebarTree(props: SidebarTreeProps) {
     editingName,
     dropTarget,
   } = props;
-  const childrenOf = (id: string) => getChildren(nodes, id);
+  const normalizedQuery = (props.query ?? "").trim().toLocaleLowerCase();
+  const visibleIds = new Set<string>();
+  if (normalizedQuery) {
+    nodes.forEach((node) => {
+      if (!node.name.toLocaleLowerCase().includes(normalizedQuery)) return;
+      let current: NodeItem | undefined = node;
+      while (current) {
+        visibleIds.add(current.id);
+        current = current.parentId ? nodes.find((candidate) => candidate.id === current?.parentId) : undefined;
+      }
+    });
+  }
+  const childrenOf = (id: string) => getChildren(nodes, id).filter((node) => !normalizedQuery || visibleIds.has(node.id));
 
   const renderCreateForm = () => (
-    <div
-      style={{
-        padding: "8px",
-        margin: "4px 0",
-        background: "#1A1D21",
-        border: "1px solid #2A2E33",
-        borderRadius: "4px",
-        display: "flex",
-        flexDirection: "column",
-        gap: "6px",
-      }}
+    <div className="lore-create-form"
       onClick={(event) => event.stopPropagation()}
     >
       <input
@@ -94,54 +99,24 @@ export default function SidebarTree(props: SidebarTreeProps) {
           if (event.key === "Enter") props.confirmCreate();
           if (event.key === "Escape") props.setCreating(null);
         }}
-        placeholder="Nombre del nodo..."
-        style={{
-          background: "#121417",
-          border: "1px solid #2A2E33",
-          borderRadius: "3px",
-          padding: "6px 8px",
-          fontSize: "12px",
-          color: "#E8E9EA",
-          outline: "none",
-        }}
+        placeholder={t("sidebar.nodeName")}
       />
-      <div style={{ display: "flex", gap: "4px" }}>
+      <div className="lore-create-form__actions">
         {NODE_REGISTRY.availableForCreation().map(({ type }) => (
           <button
             key={type}
             onClick={() => props.setDraftType(type)}
-            style={{
-              fontFamily: 'ui-monospace, "SF Mono", "Cascadia Code", monospace',
-              fontSize: "9px",
-              letterSpacing: "0.08em",
-              padding: "5px 8px",
-              borderRadius: "3px",
-              border: "1px solid",
-              borderColor: draftType === type ? getNodeDefinition(type).color : "#2A2E33",
-              color: draftType === type ? getNodeDefinition(type).color : "#5A5F66",
-              background: "transparent",
-              cursor: "pointer",
-            }}
+            className={draftType === type ? "is-active" : ""}
+            style={{ "--node-color": getNodeDefinition(type).color } as CSSProperties}
           >
             {getNodeDisplayLabel(type, t)}
           </button>
         ))}
         <button
           onClick={props.confirmCreate}
-          style={{
-            marginLeft: "auto",
-            fontFamily: 'ui-monospace, "SF Mono", "Cascadia Code", monospace',
-            fontSize: "9px",
-            letterSpacing: "0.08em",
-            padding: "5px 10px",
-            borderRadius: "3px",
-            border: "1px solid #4DD8C0",
-            color: "#4DD8C0",
-            background: "transparent",
-            cursor: "pointer",
-          }}
+          className="lore-create-form__confirm"
         >
-          CREAR
+          {t("sidebar.create")}
         </button>
       </div>
     </div>
@@ -159,8 +134,9 @@ export default function SidebarTree(props: SidebarTreeProps) {
     const activeDropPosition =
       dropTarget?.id === node.id ? dropTarget.position : null;
     return (
-      <div key={node.id}>
+      <div key={node.id} className="lore-branch" style={{ "--node-color": getNodeDefinition(type).color } as CSSProperties}>
         <div
+          className={`lore-node ${isSelected ? "is-selected" : ""} ${activeDropPosition ? `is-drop-${activeDropPosition}` : ""}`}
           data-node-id={node.id}
           onPointerDown={(event: ReactPointerEvent<HTMLDivElement>) => {
             if (
@@ -248,7 +224,7 @@ export default function SidebarTree(props: SidebarTreeProps) {
                 ...current,
                 [node.id]: !current[node.id],
               }));
-              if (node.type === "calendario") props.setSelectedId(node.id);
+              props.setSelectedId(node.id);
             } else props.setSelectedId(node.id);
           }}
           onContextMenu={(event) => {
@@ -260,93 +236,27 @@ export default function SidebarTree(props: SidebarTreeProps) {
               nodeId: node.id,
             });
           }}
-          style={{
-            display: "grid",
-            gridTemplateColumns: "10px 6px minmax(0, 1fr) auto",
-            alignItems: "center",
-            gap: "6px",
-            padding: "6px 8px",
-            marginLeft: `${depth * 14}px`,
-            userSelect: "none",
-            borderRadius: "3px",
-            cursor: "pointer",
-            background: isSelected
-              ? "#1E2226"
-              : activeDropPosition === "inside"
-                ? "#1A2926"
-                : "transparent",
-            borderLeft: isSelected
-              ? `2px solid ${getNodeDefinition(type).color}`
-              : "2px solid transparent",
-            outline:
-              activeDropPosition === "inside"
-                ? `1px dashed ${getNodeDefinition(type).color}`
-                : "none",
-            borderTop:
-              activeDropPosition === "before"
-                ? `2px solid ${getNodeDefinition(type).color}`
-                : "none",
-            borderBottom:
-              activeDropPosition === "after"
-                ? `2px solid ${getNodeDefinition(type).color}`
-                : "none",
-          }}
         >
-          {isFolder ? (
-            <span
-              style={{
-                fontSize: "9px",
-                color: "#5A5F66",
-                width: "10px",
-                display: "inline-block",
-              }}
-            >
-              {isExpanded ? "▾" : "▸"}
-            </span>
-          ) : (
-            <span style={{ display: "block", width: "10px" }} />
-          )}
-          <span
-            aria-hidden="true"
-            style={{
-              width: "6px",
-              height: "6px",
-              flexShrink: 0,
-              borderRadius: "50%",
-              background: getNodeDefinition(type).color,
-            }}
-          />
+          <NodeIcon type={type} className={isFolder && isExpanded ? "is-open" : ""} />
           <span
             data-no-drag="true"
             onPointerDown={(event) => event.stopPropagation()}
             onClick={(event) => {
               event.stopPropagation();
               props.setCreating(null);
-              if (isFolder)
+              if (isFolder) {
                 props.setExpanded((current) => ({
                   ...current,
                   [node.id]: !current[node.id],
                 }));
-              else props.setSelectedId(node.id);
+                props.setSelectedId(node.id);
+              } else props.setSelectedId(node.id);
             }}
             onDoubleClick={(event) => {
               event.stopPropagation();
               props.startRename(node);
             }}
-            style={{
-              fontSize: "13px",
-              color: isSelected
-                ? "#F2F3F4"
-                : type === "categoria"
-                  ? "#A7A9AC"
-                  : "#C7C9CC",
-              display: "inline-block",
-              width: "100%",
-              minWidth: 0,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
+            className="lore-node__name"
           >
             {editingId === node.id ? (
               <input
@@ -382,22 +292,17 @@ export default function SidebarTree(props: SidebarTreeProps) {
               props.openCreate(node.id);
               props.setExpanded((current) => ({ ...current, [node.id]: true }));
             }}
-            style={{
-              fontFamily: 'ui-monospace, "SF Mono", "Cascadia Code", monospace',
-              fontSize: "12px",
-              color: "#4A4E54",
-              padding: "0 4px",
-            }}
-            title="Crear nodo dentro"
+            className="lore-node__add"
+            title={t("sidebar.addNode")}
           >
             +
           </span>
         </div>
         {canContainChildren && isExpanded && (
-          <div>
+          <div className="lore-children" style={{ "--parent-color": getNodeDefinition(type).color } as CSSProperties}>
             {children.map((child) => renderNode(child, depth + 1))}
             {creating?.parentId === node.id && (
-              <div style={{ marginLeft: `${(depth + 1) * 14}px` }}>
+              <div>
                 {renderCreateForm()}
               </div>
             )}
@@ -476,27 +381,17 @@ export default function SidebarTree(props: SidebarTreeProps) {
           nodeId: null,
         });
       }}
-      style={{
-        flex: 1,
-        overflowY: "auto",
-        padding: "8px",
-        background: "transparent",
-      }}
+      className="lore-tree"
     >
       {nodes.length === 0 && !creating ? (
         <div
-          style={{
-            padding: "18px 10px",
-            fontSize: "12px",
-            color: "#5A5F66",
-            lineHeight: "1.6",
-          }}
+          className="node-panels__empty"
         >
-          Todavía no hay nada aquí.
+          {t("sidebar.emptyLore")}
         </div>
       ) : (
         <>
-          {getChildren(nodes, null).map((node) => renderNode(node, 0))}
+          {getChildren(nodes, null).filter((node) => !normalizedQuery || visibleIds.has(node.id)).map((node) => renderNode(node, 0))}
           {creating?.parentId === null && renderCreateForm()}
         </>
       )}

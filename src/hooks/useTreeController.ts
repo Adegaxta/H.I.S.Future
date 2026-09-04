@@ -77,10 +77,10 @@ export function useTreeController(
     };
   }, []);
 
-  const openCreate = (parentId: string | null) => {
+  const openCreate = (parentId: string | null, initialType: BaseNodeType = defaultNodeType) => {
     setCreating({ parentId });
     setDraftName("");
-    setDraftType(defaultNodeType);
+    setDraftType(initialType);
     if (parentId !== null)
       store.setExpanded((current) => ({ ...current, [parentId]: true }));
   };

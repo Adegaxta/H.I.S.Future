@@ -9,6 +9,7 @@ import HisContextMenu, { type HisContextMenuItem } from "./HisContextMenu";
 import DragPreview from "./DragPreview";
 import SidebarTree from "./SidebarTree";
 import NodePanels from "./NodePanels";
+import { SidebarIcon } from "./SidebarIcon";
 import RichTextEditor from "./RichTextEditor";
 import ImageNodeView from "./ImageNodeView";
 import PdfNodeView from "./PdfNodeView";
@@ -97,11 +98,15 @@ export default function AppWorkspace({
     localStorage.getItem(timeFormatStorageKey) === "24h" ? "24h" : "12h",
   );
   const workspace = useTreeController(defaultNodeType, projectKey);
-  const [width, setWidth] = useState(260);
+  const [width, setWidth] = useState(305);
   const [sidebarVisible, setSidebarVisible] = useState(true);
   const [sidebarPanel, setSidebarPanel] = useState<"lore" | "recent" | "types">(
     "lore",
   );
+  const [sidebarSearchOpen, setSidebarSearchOpen] = useState(false);
+  const [sidebarQuery, setSidebarQuery] = useState("");
+  const sidebarSearchRef = useRef<HTMLInputElement | null>(null);
+  const sidebarImageInputRef = useRef<HTMLInputElement | null>(null);
   const [view, setView] = useState("list");
   const [projectTab, setProjectTab] = useState<"workspace" | "settings">(
     "workspace",
@@ -135,6 +140,9 @@ export default function AppWorkspace({
   useEffect(() => {
     localStorage.setItem(trashViewStorageKey, trashView);
   }, [trashView, trashViewStorageKey]);
+  useEffect(() => {
+    if (sidebarSearchOpen) sidebarSearchRef.current?.focus();
+  }, [sidebarSearchOpen]);
   const [contextMenu, setContextMenu] = useState<
     React.ComponentProps<typeof ContextMenu>["menu"] | null
   >(null);
@@ -237,7 +245,7 @@ export default function AppWorkspace({
 
   const onMouseMove = useCallback((event: MouseEvent) => {
     if (resizing.current) {
-      setWidth(Math.min(420, Math.max(200, event.clientX)));
+      setWidth(Math.min(440, Math.max(280, event.clientX)));
     }
   }, []);
 
@@ -689,135 +697,68 @@ export default function AppWorkspace({
             data-sidebar="true"
             style={{ width: `${width}px` }}
           >
-            <div className="workspace-sidebar__heading">
-              <label
-                className="workspace-sidebar__project-avatar"
-                style={projectImage ? { backgroundImage: `url(${projectImage})` } : { backgroundColor: avatarColor }}
-                title="Cambiar imagen del proyecto"
-              >
-                {!projectImage && projectInitial}
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(event) => {
-                    const file = event.target.files?.[0];
-                    if (file) {
-                      void handleProjectImageUpload(file);
-                    }
-                    event.currentTarget.value = "";
-                  }}
-                />
-              </label>
-              <div>
-                <div className="workspace-sidebar__title">{projectName}</div>
-                <div className="workspace-sidebar__count">
-                  {workspace.nodes.length} NODOS
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedTrashNodeId(null);
-                  setProjectTab((current) =>
-                    current === "settings" ? "workspace" : "settings",
-                  );
-                }}
-                title="Ajustes del proyecto"
-                className={`workspace-sidebar__settings ${projectTab === "settings" ? "is-active" : ""}`}
-              >
-                •
-              </button>
-              <button
-                type="button"
-                onClick={() => setSidebarVisible(false)}
-                title="Ocultar panel"
-                className="workspace-sidebar__hide"
-              >
-                «
-              </button>
-            </div>
-            {projectTab === "settings" ? (
-              <nav className="project-sidebar__tabs" aria-label="Ajustes del proyecto">
-                <button
-                  type="button"
-                  className={settingsPanel === "general" ? "is-active" : ""}
-                  onClick={() => {
-                    setSelectedTrashNodeId(null);
-                    setSettingsPanel("general");
-                  }}
-                >
-                  <span className="project-sidebar__icon">G</span>
-                  GENERAL
-                </button>
-                <button
-                  type="button"
-                  className={settingsPanel === "trash" ? "is-active" : ""}
-                  onClick={() => {
-                    setSelectedTrashNodeId(null);
-                    setSettingsPanel("trash");
-                  }}
-                >
-                  <span className="project-sidebar__icon">P</span>
-                  PAPELERA
-                </button>
-                <button
-                  type="button"
-                  className={settingsPanel === "changelog" ? "is-active" : ""}
-                  onClick={() => {
-                    setSelectedTrashNodeId(null);
-                    setSettingsPanel("changelog");
-                  }}
-                >
-                  <span className="project-sidebar__icon">V</span>
-                  CAMBIOS
-                </button>
-              </nav>
-            ) : <><button
-              type="button"
-              onClick={() => workspace.openCreate(null)}
-              className="workspace-sidebar__create"
-            >
-              + NUEVO NODO RAÍZ
-            </button>
-            <nav className="workspace-sidebar__tabs" aria-label="Paneles">
-              {[
-                ["lore", "LORE"],
-                ["recent", "RECIENTES"],
-                ["types", "TIPOS DE NODOS"],
-              ].map(([id, label]) => (
-                <button
-                  key={id}
-                  type="button"
-                  className={sidebarPanel === id ? "is-active" : ""}
-                  onClick={() => setSidebarPanel(id as typeof sidebarPanel)}
-                >
-                  {label}
+            <nav className="view-rail" aria-label="Paneles">
+              <button className="view-rail__toggle" type="button" onClick={() => setSidebarVisible(false)} title={t("sidebar.hide")}><SidebarIcon name="sidebar" /></button>
+              {([
+                ["lore", "sidebar.lore"],
+                ["recent", "sidebar.recent"],
+                ["types", "sidebar.types"],
+              ] as const).map(([id, labelKey]) => (
+                <button key={id} type="button" aria-label={t(labelKey)} title={t(labelKey)} className={`view-rail__item ${sidebarPanel === id ? "is-active" : ""}`} onClick={() => { setSidebarPanel(id); setProjectTab("workspace"); setSidebarQuery(""); }}>
+                  <SidebarIcon name={id} active={sidebarPanel === id} />
+                  {sidebarPanel === id && <span>{t(labelKey)}</span>}
                 </button>
               ))}
+              <button type="button" className="view-rail__exit" onClick={() => void exitWorkspace()} title="Salir del proyecto"><SidebarIcon name="exit" /></button>
             </nav>
-            {sidebarPanel === "lore" ? (
-              <SidebarTree
-                {...workspace}
-                onFileDrop={(file, parentId) => void createNodeFromFile(file, parentId)}
-                selectedId={workspace.selectedId}
-                setSelectedId={(id) => {
-                  setSelectedTrashNodeId(null);
-                  workspace.setSelectedId(id);
-                }}
-                setContextMenu={(menu) => setContextMenu(menu)}
-              />
-            ) : (
-              <NodePanels
-                panel={sidebarPanel}
-                nodes={workspace.nodes}
-                recentNodes={workspace.recentNodes}
-                selectedId={workspace.selectedId}
-                onSelect={(id) => {
-                  setSelectedTrashNodeId(null);
-                  workspace.setSelectedId(id);
-                }}
-              />
-            )}</>}
+
+            <section className="context-sidebar">
+              <header className="context-sidebar__project">
+                <label className="workspace-sidebar__project-avatar" style={projectImage ? { backgroundImage: `url(${projectImage})` } : { backgroundColor: avatarColor }} title="Cambiar imagen del proyecto">
+                  {!projectImage && projectInitial}
+                  <input type="file" accept="image/*" onChange={(event) => { const file = event.target.files?.[0]; if (file) void handleProjectImageUpload(file); event.currentTarget.value = ""; }} />
+                </label>
+                <div className="context-sidebar__identity">
+                  <div className="workspace-sidebar__title">{projectName}</div>
+                  {projectTab === "workspace" && <div className="workspace-sidebar__count">{t("sidebar.nodeCount", { count: workspace.nodes.length })}</div>}
+                </div>
+                <button type="button" onClick={() => { setSelectedTrashNodeId(null); setProjectTab((current) => current === "settings" ? "workspace" : "settings"); }} title="Ajustes del proyecto" className={`workspace-sidebar__settings ${projectTab === "settings" ? "is-active" : ""}`}><SidebarIcon name="settings" /></button>
+              </header>
+
+              {projectTab === "settings" ? (
+                <nav className="settings-navigation" aria-label="Ajustes del proyecto">
+                  {([
+                    ["general", "general", "sidebar.settings.general"],
+                    ["changelog", "history", "sidebar.settings.history"],
+                    ["trash", "trash", "sidebar.settings.trash"],
+                  ] as const).map(([id, icon, labelKey]) => (
+                    <button key={id} type="button" className={settingsPanel === id ? "is-active" : ""} onClick={() => { setSelectedTrashNodeId(null); setSettingsPanel(id); }}><SidebarIcon name={icon} /><span>{t(labelKey)}</span></button>
+                  ))}
+                </nav>
+              ) : (
+                <>
+                  <div className={`context-toolbar ${sidebarSearchOpen ? "is-searching" : ""}`}>
+                    <div className="context-toolbar__actions">
+                      {sidebarPanel === "lore" && <>
+                        <button type="button" onClick={() => workspace.openCreate(null)} title={t("sidebar.addNode")}><SidebarIcon name="add" /></button>
+                        <button type="button" onClick={() => workspace.openCreate(null, "categoria")} title={t("sidebar.addFolder")}><SidebarIcon name="folder" /></button>
+                        <button type="button" onClick={() => sidebarImageInputRef.current?.click()} title={t("sidebar.addImage")}><SidebarIcon name="image-add" /><span className="icon-plus">+</span></button>
+                        <input ref={sidebarImageInputRef} hidden type="file" accept="image/*,.pdf,application/pdf" onChange={(event) => { const file = event.target.files?.[0]; if (file) void createNodeFromFile(file, null); event.currentTarget.value = ""; }} />
+                      </>}
+                    </div>
+                    <div className="context-toolbar__search">
+                      <input ref={sidebarSearchRef} value={sidebarQuery} onChange={(event) => setSidebarQuery(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") { setSidebarQuery(""); setSidebarSearchOpen(false); } }} placeholder={t("sidebar.search")} aria-label={t("sidebar.search")} />
+                      <button type="button" onClick={() => { if (sidebarSearchOpen && !sidebarQuery) setSidebarSearchOpen(false); else setSidebarSearchOpen(true); }} title={t("sidebar.search")}><SidebarIcon name="search" /></button>
+                    </div>
+                  </div>
+                  {sidebarPanel === "lore" ? (
+                    <SidebarTree {...workspace} query={sidebarQuery} onFileDrop={(file, parentId) => void createNodeFromFile(file, parentId)} selectedId={workspace.selectedId} setSelectedId={(id) => { setSelectedTrashNodeId(null); workspace.setSelectedId(id); }} setContextMenu={(menu) => setContextMenu(menu)} />
+                  ) : (
+                    <NodePanels panel={sidebarPanel} query={sidebarQuery} nodes={workspace.nodes} recentNodes={workspace.recentNodes} recentActivity={workspace.recentActivity} selectedId={workspace.selectedId} onSelect={(id) => { setSelectedTrashNodeId(null); workspace.setSelectedId(id); }} />
+                  )}
+                </>
+              )}
+            </section>
           </aside>
         )}
 
@@ -830,10 +771,10 @@ export default function AppWorkspace({
             type="button"
             className="workspace-sidebar__show"
             onClick={() => setSidebarVisible(true)}
-            title="Mostrar panel"
-            aria-label="Mostrar panel izquierdo"
+            title={t("sidebar.show")}
+            aria-label={t("sidebar.show")}
           >
-            »
+            <SidebarIcon name="sidebar" />
           </button>
         )}
 

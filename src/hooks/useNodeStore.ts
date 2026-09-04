@@ -39,6 +39,7 @@ const safePersistTrash = (key: string, value: NodeItem[]) => {
 
 export function useNodeStore(projectKey?: string) {
   const trashKey = projectKey ? `hisfuture.project.trash.${projectKey}` : null;
+  const recentKey = projectKey ? `hisfuture.project.recent-nodes.${projectKey}` : null;
   const [nodes, setNodes] = useState<NodeItem[]>([]);
   const [deletedNodes, setDeletedNodes] = useState<NodeItem[]>(() => {
     if (!trashKey) return [];
@@ -53,7 +54,14 @@ export function useNodeStore(projectKey?: string) {
   const [deletedSelectionAnchorId, setDeletedSelectionAnchorId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-  const [recentNodeIds, setRecentNodeIds] = useState<string[]>([]);
+  const [recentActivity, setRecentActivity] = useState<Record<string, number>>(() => {
+    if (!recentKey) return {};
+    try {
+      return JSON.parse(localStorage.getItem(recentKey) || "{}") as Record<string, number>;
+    } catch {
+      return {};
+    }
+  });
   const [hydrated, setHydrated] = useState(false);
   const [loadFailed, setLoadFailed] = useState(false);
   const nodesRef = useRef(nodes);
@@ -91,11 +99,17 @@ export function useNodeStore(projectKey?: string) {
   };
 
   const markRecent = (nodeId: string) => {
-    setRecentNodeIds((current) => [
-      nodeId,
-      ...current.filter((id) => id !== nodeId),
-    ]);
+    setRecentActivity((current) => ({ ...current, [nodeId]: Date.now() }));
   };
+
+  useEffect(() => {
+    if (!recentKey) return;
+    localStorage.setItem(recentKey, JSON.stringify(recentActivity));
+  }, [recentActivity, recentKey]);
+
+  useEffect(() => {
+    if (selectedId) markRecent(selectedId);
+  }, [selectedId]);
 
   useEffect(() => {
     if (!trashKey) return;
@@ -153,9 +167,9 @@ export function useNodeStore(projectKey?: string) {
   };
 
   const selectedNode = nodes.find((node) => node.id === selectedId);
-  const recentNodes = recentNodeIds
-    .map((id) => nodes.find((node) => node.id === id))
-    .filter((node): node is NodeItem => Boolean(node));
+  const recentNodes = nodes
+    .filter((node) => Boolean(recentActivity[node.id]))
+    .sort((a, b) => recentActivity[b.id] - recentActivity[a.id]);
   const selectNode = (id: string | null) => setSelectedId(id);
   const updateContent = (nodeId: string, content: string) => {
     setNodes((current) => {
@@ -302,6 +316,7 @@ export function useNodeStore(projectKey?: string) {
     setSelectedId,
     selectedNode,
     recentNodes,
+    recentActivity,
     expanded,
     setExpanded,
     selectNode,
