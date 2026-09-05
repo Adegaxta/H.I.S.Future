@@ -1,7 +1,7 @@
 import type { TranslationKey } from "../i18n/translations";
 import { PALETTE } from "./palette";
 
-export type NodeConceptId = "pages" | "categories" | "images" | "calendars" | "pdf";
+export type NodeConceptId = "pages" | "categories" | "images" | "calendars" | "pdf" | "courses" | "tasks" | "videos";
 export type NodeCategoryId = "documents";
 
 export interface NodeCategoryDefinition {
@@ -98,6 +98,9 @@ const NODE_DEFINITIONS = [
     concept: { id: "pdf", labelKey: "concepts.pdf", categoryId: "documents" },
     defaultContent: "<p><br></p>",
   },
+  { type: "curso", labelKey: "nodes.course.label", nodeNameKey: "nodes.course.nodeName", color: PALETTE.curso, canContainChildren: false, availableInCreation: true, showInTypePanel: true, concept: { id: "courses", labelKey: "concepts.courses" }, defaultContent: "<p><br></p>" },
+  { type: "tarea", labelKey: "nodes.task.label", nodeNameKey: "nodes.task.nodeName", color: PALETTE.tarea, canContainChildren: false, availableInCreation: true, showInTypePanel: true, concept: { id: "tasks", labelKey: "concepts.tasks" }, defaultContent: "<p><br></p>" },
+  { type: "video", labelKey: "nodes.video.label", nodeNameKey: "nodes.video.nodeName", color: PALETTE.video, canContainChildren: false, availableInCreation: true, showInTypePanel: true, concept: { id: "videos", labelKey: "concepts.videos" }, defaultContent: "<p><br></p>" },
 ] as const satisfies readonly NodeDefinition[];
 
 export type BaseNodeType = (typeof NODE_DEFINITIONS)[number]["type"];

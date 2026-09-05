@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { NodeItem } from "../types/nodes";
-import { getNodeDefinition, getNodeDisplayLabel } from "../defs/nodeTypes";
-import { useLocale } from "../i18n/LocaleContext";
+import NodeTypeLabel from "./NodeTypeLabel";
 import { getImageResourceInfo } from "../utils/imageResource";
 import { DEFAULT_PAGE_META, getPageMeta, setPageMeta, type PageMeta } from "../utils/pageMeta";
 import { useNodeScopedEditorHistory } from "../hooks/useEditorHistory";
@@ -24,7 +23,6 @@ export default function PageNodeHeader({
   onRename,
   onImageFileUpload,
 }: PageNodeHeaderProps) {
-  const { t } = useLocale();
   const [meta, setMeta] = useState<PageMeta>(() => getPageMeta(node.content));
   const [choice, setChoice] = useState<ImageChoice | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -148,9 +146,7 @@ export default function PageNodeHeader({
             {iconResource && <img className="page-node-header__icon" src={iconResource.src} alt="" />}
             <div className="page-node-header__title-content">
               <div className="page-node-header__type-row">
-                <div className="editor-page__type" style={{ color: getNodeDefinition("pagina").color }}>
-                  {getNodeDisplayLabel("pagina", t)}
-                </div>
+                <NodeTypeLabel type="pagina" />
                 <div className="page-node-header__actions">
                   <button type="button" onClick={() => setChoice("iconNodeId")} title="Elegir icono">Icono</button>
                   <button type="button" onClick={() => setChoice("coverNodeId")} title="Elegir portada">Portada</button>
@@ -280,7 +276,7 @@ export default function PageNodeHeader({
             <button type="button" className="page-image-picker__delete" onClick={clearImage}>
               Borrar imagen de {choice === "coverNodeId" ? "portada" : "icono"}
             </button>
-            {imageNodes.length === 0 && <div className="page-image-picker__empty">No hay Nodos - Imagen disponibles.</div>}
+            {imageNodes.length === 0 && <div className="page-image-picker__empty">No hay Nodos Imagen disponibles.</div>}
           </div>
         </div>
       )}

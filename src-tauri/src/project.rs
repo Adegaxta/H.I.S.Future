@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS project_meta (
 CREATE TABLE IF NOT EXISTS nodes (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
-    type TEXT NOT NULL CHECK(type IN ('categoria', 'pagina', 'imagen', 'calendario', 'tempo', 'pdf')),
+    type TEXT NOT NULL CHECK(type IN ('categoria', 'pagina', 'imagen', 'calendario', 'tempo', 'pdf', 'curso', 'tarea', 'video')),
   parent_id TEXT,
   sort_order INTEGER NOT NULL DEFAULT 0,
   content TEXT NOT NULL DEFAULT '<p><br></p>',
@@ -190,7 +190,12 @@ fn init_database(path: &Path) -> Result<Connection, String> {
             |row| row.get(0),
         )
         .map_err(|err| format!("No se pudo comprobar el esquema de nodos: {err}"))?;
-    if !schema.contains("'calendario'") || !schema.contains("'tempo'") || !schema.contains("'pdf'")
+    if !schema.contains("'calendario'")
+        || !schema.contains("'tempo'")
+        || !schema.contains("'pdf'")
+        || !schema.contains("'curso'")
+        || !schema.contains("'tarea'")
+        || !schema.contains("'video'")
     {
         db.execute_batch(
             "PRAGMA foreign_keys = OFF;
@@ -198,7 +203,7 @@ fn init_database(path: &Path) -> Result<Connection, String> {
                          CREATE TABLE nodes_new (
                id TEXT PRIMARY KEY,
                name TEXT NOT NULL,
-               type TEXT NOT NULL CHECK(type IN ('categoria', 'pagina', 'imagen', 'calendario', 'tempo', 'pdf')),
+               type TEXT NOT NULL CHECK(type IN ('categoria', 'pagina', 'imagen', 'calendario', 'tempo', 'pdf', 'curso', 'tarea', 'video')),
                parent_id TEXT,
                sort_order INTEGER NOT NULL DEFAULT 0,
                content TEXT NOT NULL DEFAULT '<p><br></p>',
@@ -214,6 +219,11 @@ fn init_database(path: &Path) -> Result<Connection, String> {
         .map_err(|err| format!("No se pudo actualizar el esquema de nodos: {err}"))?;
     }
     repair_links_foreign_key(&mut db)?;
+    db.execute(
+        "INSERT OR REPLACE INTO project_meta (key, value) VALUES ('nodal_schema_version', '1')",
+        [],
+    )
+    .map_err(|err| format!("No se pudo registrar la versión Nodal: {err}"))?;
     Ok(db)
 }
 
@@ -653,6 +663,9 @@ pub fn save_nodes(state: &ProjectState, nodes: Vec<NodeRecord>) -> Result<(), St
                 "calendario",
                 "tempo",
                 "pdf",
+                "curso",
+                "tarea",
+                "video",
             ]
             .contains(&node.node_type.as_str())
             {
@@ -768,7 +781,7 @@ pub fn delete_project_resource(
 }
 
 pub fn get_project_setting(state: &ProjectState, key: String) -> Result<Option<String>, String> {
-    if key != "locale" {
+    if key != "locale" && key != "loreHiddenIds" {
         return Err("Configuración de proyecto no compatible.".into());
     }
     let guard = state
@@ -787,7 +800,12 @@ pub fn get_project_setting(state: &ProjectState, key: String) -> Result<Option<S
 }
 
 pub fn set_project_setting(state: &ProjectState, key: String, value: String) -> Result<(), String> {
-    if key != "locale" || !["es", "en"].contains(&value.as_str()) {
+    let valid = match key.as_str() {
+        "locale" => ["es", "en"].contains(&value.as_str()),
+        "loreHiddenIds" => serde_json::from_str::<Vec<String>>(&value).is_ok(),
+        _ => false,
+    };
+    if !valid {
         return Err("Configuración de proyecto no válida.".into());
     }
     let guard = state
@@ -986,6 +1004,9 @@ mod tests {
         }];
         save_nodes(&state, nodes.clone()).expect("save pdf node");
         set_project_setting(&state, "locale".into(), "en".into()).expect("save project locale");
+        set_project_setting(&state, "loreHiddenIds".into(), "[\"pdf-1\"]".into())
+            .expect("save Lore membership");
+        assert!(set_project_setting(&state, "loreHiddenIds".into(), "false".into()).is_err());
         close_project(&state).expect("close and pack project");
 
         let file = fs::File::open(&archive_path).expect("open archive");
@@ -997,6 +1018,11 @@ mod tests {
             .expect("reopen archive");
         let reopened_state = Mutex::new(Some(reopened));
         assert_eq!(list_nodes(&reopened_state).expect("read pdf node"), nodes);
+        assert_eq!(
+            get_project_setting(&reopened_state, "loreHiddenIds".into())
+                .expect("read Lore membership"),
+            Some("[\"pdf-1\"]".into())
+        );
         assert_eq!(
             get_project_setting(&reopened_state, "locale".into()).expect("read project locale"),
             Some("en".into())
@@ -1012,7 +1038,7 @@ mod tests {
     }
 
     #[test]
-    fn migrates_existing_node_schema_to_accept_pdf() {
+    fn migrates_existing_node_schema_to_accept_all_current_types() {
         let root = std::env::temp_dir().join(format!(
             "hisfuture-pdf-schema-test-{}",
             SystemTime::now()
@@ -1046,17 +1072,56 @@ mod tests {
         drop(legacy);
 
         let migrated = init_database(&database).expect("migrate schema");
-        migrated
-            .execute(
-                "INSERT INTO nodes (id, name, type) VALUES ('pdf-1', 'Document.pdf', 'pdf')",
-                [],
-            )
-            .expect("insert pdf after migration");
+        for (id, name, node_type) in [
+            ("pdf-1", "Document.pdf", "pdf"),
+            ("course-1", "Course", "curso"),
+            ("task-1", "Task", "tarea"),
+            ("video-1", "Video", "video"),
+        ] {
+            migrated
+                .execute(
+                    "INSERT INTO nodes (id, name, type) VALUES (?1, ?2, ?3)",
+                    params![id, name, node_type],
+                )
+                .expect("insert type after migration");
+        }
         let count: i64 = migrated
             .query_row("SELECT COUNT(*) FROM nodes", [], |row| row.get(0))
             .expect("count nodes");
-        assert_eq!(count, 2);
+        assert_eq!(count, 5);
         drop(migrated);
+        fs::remove_dir_all(root).expect("test cleanup");
+    }
+
+    #[test]
+    fn persists_new_nodal_types_and_relations_without_lore_parenting() {
+        let root = std::env::temp_dir().join(format!(
+            "hisfuture-nodal-types-test-{}",
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_nanos()
+        ));
+        fs::create_dir_all(&root).expect("test root");
+        let project = create_project(root.to_string_lossy().into_owned(), "Nodal".into())
+            .expect("create project");
+        let project_path = project.info.folder_path.clone();
+        let state = Mutex::new(Some(project));
+        let nodes = vec![
+            NodeRecord { id: "course".into(), name: "Course".into(), node_type: "curso".into(), parent_id: None, order: 0, content: "<!--hisfuture-nodal-meta:{\"version\":1,\"relations\":[{\"role\":\"syllabus\",\"targetId\":\"pdf\"}]}--><p><br></p>".into() },
+            NodeRecord { id: "task".into(), name: "Task".into(), node_type: "tarea".into(), parent_id: None, order: 1, content: "<!--hisfuture-nodal-meta:{\"version\":1,\"evaluation\":true,\"relations\":[{\"role\":\"course\",\"targetId\":\"course\"},{\"role\":\"tempo\",\"targetId\":\"tempo\"}]}--><p><br></p>".into() },
+            NodeRecord { id: "video".into(), name: "Video".into(), node_type: "video".into(), parent_id: None, order: 2, content: "<!--hisfuture-nodal-meta:{\"version\":1,\"url\":\"https://example.com/video.mp4\"}--><p><br></p>".into() },
+        ];
+        save_nodes(&state, nodes.clone()).expect("save new nodal types");
+        assert_eq!(list_nodes(&state).expect("list new nodal types"), nodes);
+        close_project(&state).expect("close project");
+        let reopened = open_project_from_path(project_path).expect("reopen Nodal project");
+        let reopened_state = Mutex::new(Some(reopened));
+        assert_eq!(
+            list_nodes(&reopened_state).expect("list reopened Nodal types"),
+            nodes
+        );
+        close_project(&reopened_state).expect("close reopened project");
         fs::remove_dir_all(root).expect("test cleanup");
     }
 

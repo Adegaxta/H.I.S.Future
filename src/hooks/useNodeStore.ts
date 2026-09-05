@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { listNodes, saveNodes } from "../project/nodeRepository";
 import { getNodeDefinition } from "../defs/nodeTypes";
 import type { BaseNodeType, NodeItem } from "../types/nodes";
+import { setLoreMembership } from "../utils/loreTree";
 import {
   collectDescendantIds,
   getChildren,
@@ -166,6 +167,13 @@ export function useNodeStore(projectKey?: string) {
     return enqueueSave(snapshot, changeVersionRef.current);
   };
 
+  const mutateNodes = (update: (current: NodeItem[]) => NodeItem[]) => {
+    setNodes((current) => {
+      const next = update(current);
+      if (next !== current) markDirty();
+      return next;
+    });
+  };
   const selectedNode = nodes.find((node) => node.id === selectedId);
   const recentNodes = nodes
     .filter((node) => Boolean(recentActivity[node.id]))
@@ -206,7 +214,7 @@ export function useNodeStore(projectKey?: string) {
       ];
     });
     if (parentId) setExpanded((current) => ({ ...current, [parentId]: true }));
-    if (type === "pagina" && selectCreated) setSelectedId(id);
+    if (selectCreated && (type === "pagina" || type === "curso" || type === "tarea" || type === "video")) setSelectedId(id);
     return id;
   };
   const renameNode = (id: string, name: string) =>
@@ -235,6 +243,13 @@ export function useNodeStore(projectKey?: string) {
         selected && !ids.has(selected) ? selected : null,
       );
       return current.filter((node) => !ids.has(node.id));
+    });
+  };
+  const changeLoreMembership = (ids: string[], visible: boolean) => {
+    setNodes((current) => {
+      const next = setLoreMembership(current, ids, visible);
+      if (next.some((node, index) => Boolean(node.loreHidden) !== Boolean(current[index].loreHidden))) markDirty();
+      return next;
     });
   };
   const restoreDeletedNodes = () => {
@@ -321,9 +336,12 @@ export function useNodeStore(projectKey?: string) {
     setExpanded,
     selectNode,
     updateContent,
+    mutateNodes,
     createNode,
     renameNode,
     deleteNode,
+    removeFromLore: (ids: string[]) => changeLoreMembership(ids, false),
+    addToLore: (ids: string[]) => changeLoreMembership(ids, true),
     deletedNodes,
     selectedDeletedIds,
     setSelectedDeletedIds,

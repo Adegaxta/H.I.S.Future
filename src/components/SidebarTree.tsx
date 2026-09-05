@@ -16,8 +16,13 @@ import { getChildren, getEffectiveNodeType } from "../utils/nodeTree";
 import { useLocale } from "../i18n/LocaleContext";
 import { findImportableFile, isImportableDragItem } from "../project/fileNodeImporter";
 import { NodeIcon } from "./SidebarIcon";
+import { useSearchReveal } from "../hooks/useSearchReveal";
+import { useRef } from "react";
+import { getLoreNodes, selectLoreRange } from "../utils/loreTree";
 
 interface SidebarTreeProps {
+  selectedLoreIds: string[];
+  setSelectedLoreIds: (ids: string[]) => void;
   nodes: NodeItem[];
   selectedId: string | null;
   expanded: Record<string, boolean>;
@@ -61,9 +66,9 @@ interface SidebarTreeProps {
 }
 
 export default function SidebarTree(props: SidebarTreeProps) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const {
-    nodes,
+    nodes: projectNodes,
     selectedId,
     expanded,
     creating,
@@ -73,11 +78,15 @@ export default function SidebarTree(props: SidebarTreeProps) {
     editingName,
     dropTarget,
   } = props;
-  const normalizedQuery = (props.query ?? "").trim().toLocaleLowerCase();
+  const nodes = getLoreNodes(projectNodes);
+  const selectionAnchor = useRef<string | null>(null);
+  const normalizedQuery = (props.query ?? "").trim().toLocaleLowerCase(locale);
+  const matches = (node: NodeItem) => node.name.toLocaleLowerCase(locale).includes(normalizedQuery);
+  const searchRef = useSearchReveal(normalizedQuery, nodes.filter(matches).map((node) => node.id).join(","));
   const visibleIds = new Set<string>();
   if (normalizedQuery) {
     nodes.forEach((node) => {
-      if (!node.name.toLocaleLowerCase().includes(normalizedQuery)) return;
+      if (!matches(node)) return;
       let current: NodeItem | undefined = node;
       while (current) {
         visibleIds.add(current.id);
@@ -85,7 +94,25 @@ export default function SidebarTree(props: SidebarTreeProps) {
       }
     });
   }
-  const childrenOf = (id: string) => getChildren(nodes, id).filter((node) => !normalizedQuery || visibleIds.has(node.id));
+  const childrenOf = (id: string) => getChildren(nodes, id);
+  const displayedIds: string[] = [];
+  const visit = (parentId: string | null) => getChildren(nodes, parentId).forEach((node) => {
+    displayedIds.push(node.id);
+    if (expanded[node.id] || (normalizedQuery && visibleIds.has(node.id))) visit(node.id);
+  });
+  visit(null);
+  const selectLoreNode = (node: NodeItem, event: ReactMouseEvent) => {
+    const additive = event.ctrlKey || event.metaKey;
+    props.setSelectedLoreIds(selectLoreRange(displayedIds, props.selectedLoreIds, selectionAnchor.current, node.id, additive, event.shiftKey));
+    if (!event.shiftKey) selectionAnchor.current = node.id;
+    if (additive || event.shiftKey) return;
+    props.setCreating(null);
+    const type = getEffectiveNodeType(projectNodes, node);
+    if (getNodeDefinition(type).canContainChildren || type === "pagina-carpeta") {
+      props.setExpanded((current) => ({ ...current, [node.id]: !current[node.id] }));
+    }
+    props.setSelectedId(node.id);
+  };
 
   const renderCreateForm = () => (
     <div className="lore-create-form"
@@ -124,23 +151,25 @@ export default function SidebarTree(props: SidebarTreeProps) {
 
   const renderNode = (node: NodeItem, depth: number): React.ReactNode => {
     const children = childrenOf(node.id);
-    const type: RenderNodeType = getEffectiveNodeType(nodes, node);
+    const type: RenderNodeType = getEffectiveNodeType(projectNodes, node);
     const isFolder =
       getNodeDefinition(type).canContainChildren || type === "pagina-carpeta";
     const canContainChildren =
       isFolder || children.length > 0 || creating?.parentId === node.id;
-    const isExpanded = expanded[node.id];
-    const isSelected = node.id === selectedId;
+    const isExpanded = expanded[node.id] || (Boolean(normalizedQuery) && visibleIds.has(node.id));
+    const isSelected = props.selectedLoreIds.length || selectionAnchor.current ? props.selectedLoreIds.includes(node.id) : node.id === selectedId;
     const activeDropPosition =
       dropTarget?.id === node.id ? dropTarget.position : null;
     return (
       <div key={node.id} className="lore-branch" style={{ "--node-color": getNodeDefinition(type).color } as CSSProperties}>
         <div
-          className={`lore-node ${isSelected ? "is-selected" : ""} ${activeDropPosition ? `is-drop-${activeDropPosition}` : ""}`}
+          className={`lore-node ${isSelected ? "is-selected" : ""} ${normalizedQuery && !matches(node) ? "is-search-dimmed" : ""} ${activeDropPosition ? `is-drop-${activeDropPosition}` : ""}`}
+          data-search-match={Boolean(normalizedQuery) && matches(node)}
           data-node-id={node.id}
           onPointerDown={(event: ReactPointerEvent<HTMLDivElement>) => {
             if (
               event.button !== 0 ||
+              event.ctrlKey || event.metaKey || event.shiftKey || props.selectedLoreIds.length > 1 ||
               (event.target instanceof Element &&
                 event.target.closest("[data-no-drag]"))
             ) {
@@ -218,18 +247,12 @@ export default function SidebarTree(props: SidebarTreeProps) {
               return;
             }
             event.stopPropagation();
-            props.setCreating(null);
-            if (isFolder) {
-              props.setExpanded((current) => ({
-                ...current,
-                [node.id]: !current[node.id],
-              }));
-              props.setSelectedId(node.id);
-            } else props.setSelectedId(node.id);
+            selectLoreNode(node, event);
           }}
           onContextMenu={(event) => {
             event.preventDefault();
             event.stopPropagation();
+            if (!props.selectedLoreIds.includes(node.id)) props.setSelectedLoreIds([node.id]);
             props.setContextMenu({
               x: event.clientX,
               y: event.clientY,
@@ -243,20 +266,14 @@ export default function SidebarTree(props: SidebarTreeProps) {
             onPointerDown={(event) => event.stopPropagation()}
             onClick={(event) => {
               event.stopPropagation();
-              props.setCreating(null);
-              if (isFolder) {
-                props.setExpanded((current) => ({
-                  ...current,
-                  [node.id]: !current[node.id],
-                }));
-                props.setSelectedId(node.id);
-              } else props.setSelectedId(node.id);
+              selectLoreNode(node, event);
             }}
             onDoubleClick={(event) => {
               event.stopPropagation();
               props.startRename(node);
             }}
             className="lore-node__name"
+            title={editingId === node.id ? undefined : node.name}
           >
             {editingId === node.id ? (
               <input
@@ -299,10 +316,13 @@ export default function SidebarTree(props: SidebarTreeProps) {
           </span>
         </div>
         {canContainChildren && isExpanded && (
-          <div className="lore-children" style={{ "--parent-color": getNodeDefinition(type).color } as CSSProperties}>
+          <div
+            className={`lore-children ${children.length + Number(creating?.parentId === node.id) === 1 ? "lore-children--single" : "lore-children--multiple"}`}
+            style={{ "--parent-color": getNodeDefinition(type).color } as CSSProperties}
+          >
             {children.map((child) => renderNode(child, depth + 1))}
             {creating?.parentId === node.id && (
-              <div>
+              <div className="lore-create-branch">
                 {renderCreateForm()}
               </div>
             )}
@@ -315,6 +335,7 @@ export default function SidebarTree(props: SidebarTreeProps) {
   return (
     <div
       data-root-drop="true"
+      ref={searchRef}
       onDragEnter={(event) => {
         const hasImportableItem = Array.from(event.dataTransfer.items).some((item) =>
           isImportableDragItem(item),
@@ -391,7 +412,7 @@ export default function SidebarTree(props: SidebarTreeProps) {
         </div>
       ) : (
         <>
-          {getChildren(nodes, null).filter((node) => !normalizedQuery || visibleIds.has(node.id)).map((node) => renderNode(node, 0))}
+          {getChildren(nodes, null).map((node) => renderNode(node, 0))}
           {creating?.parentId === null && renderCreateForm()}
         </>
       )}

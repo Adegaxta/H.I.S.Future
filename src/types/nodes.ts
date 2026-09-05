@@ -2,6 +2,7 @@ export type { BaseNodeType, RenderNodeType } from "../defs/nodeTypes";
 import type { BaseNodeType } from "../defs/nodeTypes";
 
 export interface NodeItem {
+  loreHidden?: boolean;
   id: string;
   name: string;
   type: BaseNodeType;

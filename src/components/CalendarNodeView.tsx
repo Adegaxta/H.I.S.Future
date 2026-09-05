@@ -1,5 +1,7 @@
+import { calendarTempos } from "../utils/nodalMeta";
 import { useEffect, useRef, useState } from "react";
 import type { NodeItem } from "../types/nodes";
+import NodeTypeLabel from "./NodeTypeLabel";
 import {
   formatTempoTime,
   formatTime,
@@ -133,8 +135,7 @@ export default function CalendarNodeView({
   const [tempoMenu, setTempoMenu] = useState<{ x: number; y: number; tempoId: string } | null>(null);
   const [weeklyTempoView, setWeeklyTempoView] = useState(false);
   const normalizedQuery = query.trim().toLocaleLowerCase("es");
-  const allTempos: TempoEntry[] = nodes
-    .filter((item) => item.type === "tempo" && item.parentId === node.id)
+  const allTempos: TempoEntry[] = calendarTempos(nodes, node.id)
     .map((item) => ({ node: item, meta: getTempoMeta(item.content), description: getTempoDescription(item.content) }));
   const weeklyTempoEntries = allTempos
     .filter((tempo) => tempo.meta.subtype === "weekly")
@@ -424,6 +425,7 @@ export default function CalendarNodeView({
 
   return (
     <section className={`calendar-node calendar-node--${meta.view}`}>
+      <NodeTypeLabel type="calendario" />
       <header className="calendar-node__header">
         <div className="calendar-node__navigation"><button type="button" onClick={() => move(-1)}>‹</button><button type="button" onClick={() => updateMeta({ ...meta, currentDate: localIsoDate() })}>Hoy</button><button type="button" onClick={() => move(1)}>›</button></div>
         <div className={`calendar-node__identity${meta.view === "day" && localIsoDate(currentDate) === localIsoDate() ? " is-today" : ""}`}><h1>{calendarHeading(currentDate, meta.view)}</h1><p>{node.name}</p></div>

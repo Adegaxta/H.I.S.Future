@@ -2,6 +2,9 @@
 // de un lugar debería vivir acá, no repetirse suelto por el código.
 
 export const PALETTE = {
+  curso: "#009BCE",
+  tarea: "#00BF8F",
+  video: "#BB00FF",
   categoria: "#D8B34D",
   pagina: "#4DD8C0",
   imagen: "#D878A8",

@@ -1,3 +1,4 @@
+import { getNodalMeta } from "../utils/nodalMeta";
 import { useEffect, useRef, useState } from "react";
 import { NODE_REGISTRY, getNodeDefinition } from "../defs/nodeTypes";
 import { getImageResourceInfo } from "../utils/imageResource";
@@ -129,7 +130,7 @@ function buildEdges(nodes: NodeItem[], showConcepts: boolean): GraphEdge[] {
     }
   });
   nodes.forEach((node) => {
-    getCallTargets(node, nodesById).forEach((targetId) => {
+    [...getCallTargets(node, nodesById), ...getNodalMeta(node.content).relations.map((r) => r.targetId).filter((id) => nodesById.has(id))].forEach((targetId) => {
       if (targetId !== node.id && !edges.some((edge) => edge.from === node.id && edge.to === targetId)) {
         edges.push({ from: node.id, to: targetId });
       }

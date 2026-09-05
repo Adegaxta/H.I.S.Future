@@ -4,6 +4,7 @@ import { getPdfResourceInfo } from "../utils/pdfResource";
 import { readProjectResource } from "../project/resourceRepository";
 import { useLocale } from "../i18n/LocaleContext";
 import PdfViewer from "./PdfViewer";
+import NodeTypeLabel from "./NodeTypeLabel";
 
 export default function PdfNodeView({ node }: { node: NodeItem }) {
   const { t } = useLocale();
@@ -28,8 +29,8 @@ export default function PdfNodeView({ node }: { node: NodeItem }) {
     return () => { active = false; };
   }, [node.id, resource?.resourceId, t]);
 
-  if (error) return <div className="pdf-node-view__error">{error}</div>;
-  if (!data) return <div className="pdf-node-view__loading">{t("pdf.loading")}</div>;
-  return <PdfViewer data={data} />;
+  return <>
+    <header className="pdf-node-view__header"><NodeTypeLabel type="pdf" /><h1 className="editor-page__title">{node.name}</h1></header>
+    {error ? <div className="pdf-node-view__error">{error}</div> : !data ? <div className="pdf-node-view__loading">{t("pdf.loading")}</div> : <PdfViewer data={data} />}
+  </>;
 }
-

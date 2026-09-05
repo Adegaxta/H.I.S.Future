@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { asErrorMessage } from "./runtime";
 
-export async function getProjectSetting(key: "locale"): Promise<string | null> {
+export async function getProjectSetting(key: "locale" | "loreHiddenIds"): Promise<string | null> {
   try {
     return await invoke<string | null>("get_project_setting", { key });
   } catch (error) {
@@ -9,7 +9,7 @@ export async function getProjectSetting(key: "locale"): Promise<string | null> {
   }
 }
 
-export async function setProjectSetting(key: "locale", value: string): Promise<void> {
+export async function setProjectSetting(key: "locale" | "loreHiddenIds", value: string): Promise<void> {
   try {
     await invoke("set_project_setting", { key, value });
   } catch (error) {

@@ -9,6 +9,12 @@ interface ChangelogEntryBase {
 interface LegacyChangelogEntry extends ChangelogEntryBase {
   title: string;
   changes: string[];
+  summary?: string;
+  sections?: {
+    title: string;
+    changes: string[];
+    kind?: "feature" | "fix";
+  }[];
 }
 
 interface LocalizedChangelogEntry extends ChangelogEntryBase {
@@ -18,11 +24,64 @@ interface LocalizedChangelogEntry extends ChangelogEntryBase {
 
 export type ChangelogEntry = LegacyChangelogEntry | LocalizedChangelogEntry;
 
-export const CURRENT_VERSION = "0.4.1";
+export const CURRENT_VERSION = "0.5.0";
 
 export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
   {
     version: CURRENT_VERSION,
+    date: "2026-09-05",
+    title: "NODOS & NEXOS — LA GRAN ACTUALIZACIÓN ACADÉMICA",
+    category: "Sistema",
+    summary: "Curso, Tarea y Video llegan como conceptos propios y conectan el trabajo académico sin perder la identidad modular de H.I.S. Future.",
+    changes: [],
+    sections: [
+      {
+        title: "Tres nuevos Nodos",
+        changes: [
+          "Nodo Curso reúne código, nombre, modalidad, portada, enlace, descripción y una vista compacta de su Calendario. Su espacio contextual organiza Sílabo, Sala del Curso, Clases, Contenido y Evaluaciones.",
+          "Nodo Tarea conecta un trabajo con su Curso, estado, condición de evaluación, materiales, trabajos relacionados y un único Nodo Tempo para su planificación.",
+          "Nodo Video reproduce archivos directos, integra fuentes compatibles, conserva enlace y datos del recurso, y añade una zona de transcripción con búsqueda.",
+        ],
+      },
+      {
+        title: "La red Nodal",
+        changes: [
+          "Las asociaciones funcionan como calls entre Nodos: una referencia expresa la relación sin convertirla en jerarquía ni duplicar el contenido original.",
+          "Las Tareas se proyectan en Contenido y Evaluaciones, mientras sus Tempos aparecen en el Calendario del Curso usando las mismas identidades persistidas.",
+          "El Grafo reconoce las nuevas relaciones y cada referencia conserva el icono y color semántico definido por su tipo de Nodo.",
+          "Código, nombre académico y modalidad forman ahora la identidad real de Nodo Curso y actualizan conjuntamente su nombre visible.",
+        ],
+      },
+      {
+        title: "Lore renovado",
+        changes: [
+          "El control + de Lore permite crear Nodos o incorporar Nodos existentes al árbol sin alterar sus relaciones.",
+          "Ctrl y Shift habilitan selección múltiple; Quitar Nodo lo retira de Lore sin enviarlo a la papelera y la pertenencia se conserva al reabrir el proyecto.",
+          "Las Carpetas cuentan con una vista propia para recorrer sus Nodos hijos, y sus conectores distinguen con claridad ramas únicas y múltiples.",
+        ],
+      },
+      {
+        title: "Rework de interfaz",
+        changes: [
+          "Las vistas de Curso, Tarea y Video adoptan la gramática visual de HIS: icono para concepto, color para semántica, línea para estructura y espacio para separación.",
+          "Nodo Curso reproduce una composición compacta con portada por corner marks, navegación de doble línea, campos sin cards y Calendar embebido a escala.",
+          "Las etiquetas de tipo se unificaron en Página, Imagen, PDF, Calendario y Tempo, y las búsquedas mantienen el contexto mientras revelan la primera coincidencia.",
+        ],
+      },
+      {
+        title: "Correcciones menores",
+        kind: "fix",
+        changes: [
+          "Sala del Curso utiliza un único campo de URL; acepta direcciones con o sin https:// y abre el enlace desde el icono, el botón o la tecla Enter.",
+          "Los nombres largos pueden ocupar dos líneas en Lore y paneles sin romper iconos, controles ni conectores.",
+          "Tempo completa la localización de sus propiedades, meses, días activos y controles del editor.",
+          "La persistencia migra proyectos existentes para admitir Curso, Tarea y Video, conservando relaciones y compatibilidad con los Nodos anteriores.",
+        ],
+      },
+    ],
+  },
+  {
+    version: "0.4.1",
     date: "2026-09-05",
     title: "INTERFAZ — CARET CON ACENTO PRINCIPAL",
     category: "Sistema",

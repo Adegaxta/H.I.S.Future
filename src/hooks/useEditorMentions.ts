@@ -7,6 +7,7 @@ import type {
 } from "react";
 import type { NodeItem } from "../types/nodes";
 import { getPageMeta } from "../utils/pageMeta";
+import { getNodeDefinition } from "../defs/nodeTypes";
 
 interface UseEditorMentionsOptions {
   editorRef: RefObject<HTMLDivElement | null>;
@@ -98,7 +99,12 @@ export function useEditorMentions({
       return mention;
     }
 
-    mention.textContent = target.name;
+    const icon = document.createElement("span");
+    icon.className = `editor-mention__node-icon sidebar-icon node-type-icon node-type-icon--${target.type}`;
+    icon.style.color = getNodeDefinition(target.type).color;
+    icon.dataset.noResize = "true";
+    mention.appendChild(icon);
+    mention.appendChild(document.createTextNode(target.name));
     return mention;
   }, [deletedNodes, nodes]);
 

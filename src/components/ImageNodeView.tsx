@@ -9,6 +9,7 @@ import {
   compressImageSource,
 } from "../utils/imageResource";
 import { isDesktopRuntime } from "../project/runtime";
+import NodeTypeLabel from "./NodeTypeLabel";
 
 interface ImageNodeViewProps {
   node: NodeItem;
@@ -165,6 +166,7 @@ export default function ImageNodeView({
         <img src={resource.src} alt={resource.fileName} />
       </div>
       <div className="image-node-view__panel">
+        <NodeTypeLabel type="imagen" />
         <input
           className="image-node-view__title"
           value={editingName}
