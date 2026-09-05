@@ -53,21 +53,20 @@ body,
 .home-titlebar__controls {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 0;
   height: 100%;
 }
 
 /* Tamano y posicion de cada boton de control de ventana. */
 .home-titlebar__controls button {
   display: grid;
-  width: 32px;
-  height: 32px;
+  width: 42px;
+  height: 40px;
   place-items: center;
-  padding: 8px;
+  padding: 10px 12px;
   border: none;
   background: transparent;
   cursor: pointer;
-  transform: translateY(-2px);
 }
 
 /* Fondo del boton cuando el cursor pasa por encima. */
@@ -84,6 +83,7 @@ body,
 .home-titlebar__controls img {
   width: 100%;
   height: 100%;
+  object-fit: contain;
 }
 
 /* Texto descriptivo bajo la marca; max-width controla su ancho. */
@@ -449,9 +449,9 @@ body,
 
 /* Tamano final de los botones superiores. */
 .home-titlebar__controls button {
-  width: 30px;
-  height: 30px;
-  padding: 7px;
+  width: 42px;
+  height: 40px;
+  padding: 10px 12px;
 }
 
 /* Posicion final del contenido principal de inicio. */
@@ -971,19 +971,19 @@ body,
 .workspace-header__right {
   height: 100%;
   gap: 12px;
+  margin-left: auto;
 }
 
 /* Tamano y posicion de cada control de ventana. */
 .workspace-header__window-controls button {
   display: grid;
-  width: 32px;
-  height: 32px;
+  width: 42px;
+  height: 34px;
   place-items: center;
-  padding: 8px;
+  padding: 9px 12px;
   border: none;
   background: transparent;
   cursor: pointer;
-  transform: translateY(-2px);
 }
 
 /* Fondo de los controles al pasar el cursor. */
@@ -1000,11 +1000,13 @@ body,
 .workspace-header__window-controls img {
   width: 100%;
   height: 100%;
+  object-fit: contain;
 }
 
 /* Separacion entre controles de ventana. */
 .workspace-header__window-controls {
-  gap: 4px;
+  height: 100%;
+  gap: 0;
 }
 
 /* Area inferior que contiene barra lateral y contenido principal. */
@@ -1082,31 +1084,6 @@ body,
 /* Color del boton que oculta la barra lateral. */
 .workspace-sidebar__hide {
   color: #4a4e54;
-}
-
-/* Pestaña flotante para volver a mostrar la barra lateral. */
-.workspace-sidebar__show {
-  position: absolute;
-  top: 10px;
-  left: 10px;
-  z-index: 10;
-  width: 24px;
-  height: 48px;
-  padding: 0;
-  border: 1px solid #343940;
-  border-right: 1px solid #343940;
-  border-left: none;
-  border-radius: 0 4px 4px 0;
-  color: #7a7f87;
-  background: #1a1d21;
-  cursor: pointer;
-  font-size: 18px;
-}
-
-/* Estado hover de la pestaña para mostrar la barra lateral. */
-.workspace-sidebar__show:hover {
-  border-color: #4dd8c0;
-  color: #4dd8c0;
 }
 
 /* Boton circular de configuracion de la barra lateral. */
@@ -3855,6 +3832,7 @@ body,
   --his-accent: #45dbc6;
   --his-divider: #24282b;
   --his-font: "Acumin Variable Concept", "Arial Nova", "Segoe UI", sans-serif;
+  caret-color: var(--his-accent);
 }
 
 .app-workspace {
@@ -3884,6 +3862,10 @@ body,
   background: var(--his-surface-sidebar);
   border-right: 0;
   overflow: hidden;
+}
+
+.workspace-sidebar.is-collapsed {
+  min-width: 80px;
 }
 
 .view-rail {
@@ -3926,9 +3908,8 @@ body,
 .sidebar-icon--settings { --icon-url: url("./assets/icons/settings.svg"); }
 .sidebar-icon--search { --icon-url: url("./assets/icons/search.svg"); }
 .sidebar-icon--add { --icon-url: url("./assets/icons/circle_add.svg"); }
-.sidebar-icon--folder { --icon-url: url("./assets/icons/folder_inactive.svg"); }
-.sidebar-icon--folder.is-active { --icon-url: url("./assets/icons/folder_active.svg"); }
-.sidebar-icon--image-add { --icon-url: url("./assets/icons/nodes/node_image.svg"); }
+.sidebar-icon--folder { --icon-url: url("./assets/icons/create_folder_node.svg"); }
+.sidebar-icon--image-add { --icon-url: url("./assets/icons/create_image_node.svg"); }
 .sidebar-icon--general { --icon-url: url("./assets/icons/general.svg"); }
 .sidebar-icon--history { --icon-url: url("./assets/icons/deployed_code_history.svg"); }
 .sidebar-icon--trash { --icon-url: url("./assets/icons/trash_list.svg"); }
@@ -4036,7 +4017,6 @@ body,
 .context-toolbar.is-searching .context-toolbar__actions { width: 0; transform: translateX(34px); opacity: 0; pointer-events: none; }
 .context-toolbar.is-searching .context-toolbar__search input { width: 100%; padding: 4px 2px; border-bottom-color: var(--his-accent); opacity: 1; }
 .context-toolbar__search .sidebar-icon { width: 22px; height: 22px; }
-.icon-plus { position: absolute; right: 0; top: 1px; font-size: 14px; font-weight: 700; }
 
 .lore-tree,
 .node-panels {
@@ -4113,10 +4093,9 @@ body,
 .settings-navigation .sidebar-icon { width: 26px; height: 26px; }
 .settings-navigation span:last-child { font-size: 14px; }
 
-.workspace-sidebar__show { display: grid; top: 11px; left: 0; width: 44px; height: 40px; place-items: center; border: 0; border-radius: 0; color: var(--his-accent); background: var(--his-surface-rail); }
-.workspace-sidebar__show .sidebar-icon { width: 26px; height: 26px; }
 .workspace-resizer { width: 2px; background: #171a1c; }
 
 @media (max-width: 680px) {
   .workspace-sidebar { position: absolute; inset: 0 auto 0 0; z-index: 12; width: min(86vw, 340px) !important; box-shadow: 12px 0 30px rgb(0 0 0 / 35%); }
+  .workspace-sidebar.is-collapsed { width: 80px !important; }
 }

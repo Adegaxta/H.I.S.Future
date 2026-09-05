@@ -18,11 +18,20 @@ interface LocalizedChangelogEntry extends ChangelogEntryBase {
 
 export type ChangelogEntry = LegacyChangelogEntry | LocalizedChangelogEntry;
 
-export const CURRENT_VERSION = "0.4.0";
+export const CURRENT_VERSION = "0.4.1";
 
 export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
   {
     version: CURRENT_VERSION,
+    date: "2026-09-05",
+    title: "INTERFAZ — CARET CON ACENTO PRINCIPAL",
+    category: "Sistema",
+    changes: [
+      "El caret de la aplicación utiliza ahora el color de acento principal de H.I.S. Future en el editor y en los campos de texto.",
+    ],
+  },
+  {
+    version: "0.4.0",
     date: "2026-09-04",
     titleKey: "changelog.0_4_0.title",
     category: "Sistema",

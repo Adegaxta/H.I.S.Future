@@ -691,14 +691,13 @@ export default function AppWorkspace({
       )}
 
       <div className="workspace-body">
-        {sidebarVisible && (
-          <aside
-            className="workspace-sidebar"
-            data-sidebar="true"
-            style={{ width: `${width}px` }}
-          >
-            <nav className="view-rail" aria-label="Paneles">
-              <button className="view-rail__toggle" type="button" onClick={() => setSidebarVisible(false)} title={t("sidebar.hide")}><SidebarIcon name="sidebar" /></button>
+        <aside
+          className={`workspace-sidebar${sidebarVisible ? "" : " is-collapsed"}`}
+          data-sidebar="true"
+          style={{ width: `${sidebarVisible ? width : 80}px` }}
+        >
+          <nav className="view-rail" aria-label="Paneles">
+            <button className="view-rail__toggle" type="button" onClick={() => setSidebarVisible((current) => !current)} title={sidebarVisible ? t("sidebar.hide") : t("sidebar.show")}><SidebarIcon name="sidebar" /></button>
               {([
                 ["lore", "sidebar.lore"],
                 ["recent", "sidebar.recent"],
@@ -710,8 +709,9 @@ export default function AppWorkspace({
                 </button>
               ))}
               <button type="button" className="view-rail__exit" onClick={() => void exitWorkspace()} title="Salir del proyecto"><SidebarIcon name="exit" /></button>
-            </nav>
+          </nav>
 
+          {sidebarVisible && (
             <section className="context-sidebar">
               <header className="context-sidebar__project">
                 <label className="workspace-sidebar__project-avatar" style={projectImage ? { backgroundImage: `url(${projectImage})` } : { backgroundColor: avatarColor }} title="Cambiar imagen del proyecto">
@@ -742,7 +742,7 @@ export default function AppWorkspace({
                       {sidebarPanel === "lore" && <>
                         <button type="button" onClick={() => workspace.openCreate(null)} title={t("sidebar.addNode")}><SidebarIcon name="add" /></button>
                         <button type="button" onClick={() => workspace.openCreate(null, "categoria")} title={t("sidebar.addFolder")}><SidebarIcon name="folder" /></button>
-                        <button type="button" onClick={() => sidebarImageInputRef.current?.click()} title={t("sidebar.addImage")}><SidebarIcon name="image-add" /><span className="icon-plus">+</span></button>
+                        <button type="button" onClick={() => sidebarImageInputRef.current?.click()} title={t("sidebar.addImage")}><SidebarIcon name="image-add" /></button>
                         <input ref={sidebarImageInputRef} hidden type="file" accept="image/*,.pdf,application/pdf" onChange={(event) => { const file = event.target.files?.[0]; if (file) void createNodeFromFile(file, null); event.currentTarget.value = ""; }} />
                       </>}
                     </div>
@@ -759,23 +759,11 @@ export default function AppWorkspace({
                 </>
               )}
             </section>
-          </aside>
-        )}
+          )}
+        </aside>
 
         {sidebarVisible && (
           <div onMouseDown={onMouseDown} className="workspace-resizer" />
-        )}
-
-        {!sidebarVisible && (
-          <button
-            type="button"
-            className="workspace-sidebar__show"
-            onClick={() => setSidebarVisible(true)}
-            title={t("sidebar.show")}
-            aria-label={t("sidebar.show")}
-          >
-            <SidebarIcon name="sidebar" />
-          </button>
         )}
 
         <main
