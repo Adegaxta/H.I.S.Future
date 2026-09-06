@@ -85,6 +85,47 @@ export function reorderNodes(
   });
 }
 
+export function reorderMultipleNodes(
+  nodes: NodeItem[],
+  draggedIds: string[],
+  targetId: string | null,
+  position: "before" | "inside" | "after",
+): NodeItem[] {
+  const byId = new Map(nodes.map((node) => [node.id, node]));
+  const selectedIds = new Set(draggedIds);
+  const roots = draggedIds.filter((id) => {
+    let parentId = byId.get(id)?.parentId ?? null;
+    while (parentId) {
+      if (selectedIds.has(parentId)) return false;
+      parentId = byId.get(parentId)?.parentId ?? null;
+    }
+    return byId.has(id);
+  });
+  const target = targetId === null ? null : byId.get(targetId);
+  if (!roots.length || roots.includes(targetId ?? "")) return nodes;
+  if (targetId && roots.some((id) => wouldCreateCycle(nodes, id, targetId))) return nodes;
+
+  const newParentId = position === "inside" ? targetId : (target?.parentId ?? null);
+  const destination = getChildren(nodes, newParentId).filter((node) => !roots.includes(node.id));
+  const targetIndex = target ? destination.findIndex((node) => node.id === target.id) : -1;
+  const insertionIndex =
+    position === "before"
+      ? Math.max(0, targetIndex)
+      : position === "after" && targetIndex >= 0
+        ? targetIndex + 1
+        : destination.length;
+  const orderedDestination = [...destination];
+  orderedDestination.splice(insertionIndex, 0, ...roots.map((id) => byId.get(id)!));
+  const destinationOrder = new Map(orderedDestination.map((node, index) => [node.id, index]));
+
+  return nodes.map((node) => {
+    const nextOrder = destinationOrder.get(node.id);
+    if (roots.includes(node.id)) return { ...node, parentId: newParentId, order: nextOrder ?? node.order };
+    if (nextOrder !== undefined) return { ...node, order: nextOrder };
+    return node;
+  });
+}
+
 export function sanitizeParentIds(nodes: NodeItem[]): NodeItem[] {
   const ids = new Set(nodes.map((node) => node.id));
   let changed = false;
@@ -114,4 +155,9 @@ export function sortNodesForPersistence(nodes: NodeItem[]): NodeItem[] {
 
   nodes.forEach(visit);
   return sorted;
+}
+
+// Categories are structural folders; Page folders and Calendar keep their own click behavior.
+export function opensNodeViewOnClick(node: NodeItem): boolean {
+  return node.type !== "categoria";
 }

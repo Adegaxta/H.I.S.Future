@@ -30,7 +30,6 @@ import { CHANGELOG_ENTRIES, CURRENT_VERSION } from "../defs/changelog";
 import {
   createImageContent,
   getImageResourceInfo,
-  compressImageSource,
 } from "../utils/imageResource";
 import {
   FileNodeImportError,
@@ -108,6 +107,13 @@ export default function AppWorkspace({
   const [sidebarSearchOpen, setSidebarSearchOpen] = useState(false);
   const [sidebarQuery, setSidebarQuery] = useState("");
   const [selectedLoreIds, setSelectedLoreIds] = useState<string[]>([]);
+  const cancelLoreMultiSelection = () => setSelectedLoreIds((current) => {
+    if (current.length <= 1) return current;
+    const keepId = workspace.selectedId && current.includes(workspace.selectedId)
+      ? workspace.selectedId
+      : current[0];
+    return keepId ? [keepId] : [];
+  });
   const [loreAddOpen, setLoreAddOpen] = useState(false);
   const sidebarSearchRef = useRef<HTMLInputElement | null>(null);
   const sidebarImageInputRef = useRef<HTMLInputElement | null>(null);
@@ -174,11 +180,29 @@ export default function AppWorkspace({
   useEffect(() => {
     if (workspace.selectedId) setSelectedTrashNodeId(null);
   }, [workspace.selectedId]);
+  useEffect(() => {
+    const handleRenameShortcut = (event: KeyboardEvent) => {
+      if (event.key !== "F2" || event.defaultPrevented) return;
+      const target = event.target;
+      if (target instanceof HTMLElement && (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName))) return;
+      const nodeId = selectedLoreIds.length === 1 ? selectedLoreIds[0] : workspace.selectedId;
+      const node = workspace.nodes.find((item) => item.id === nodeId);
+      if (!node) return;
+      event.preventDefault();
+      setProjectTab("workspace");
+      setSidebarPanel("lore");
+      setSidebarQuery("");
+      setSelectedLoreIds([node.id]);
+      workspace.startRename(node);
+    };
+    window.addEventListener("keydown", handleRenameShortcut);
+    return () => window.removeEventListener("keydown", handleRenameShortcut);
+  }, [selectedLoreIds, workspace]);
 
   useWorkspaceNavigation({
     selectedId: workspace.selectedId,
     selectedTrashId: selectedTrashNodeId,
-    navigateWithinView: (direction) => selectedNode?.type === "calendario" && Boolean(calendarNavigation.current?.(direction)),
+    navigateWithinView: (direction) => (selectedNode?.type === "calendario" || selectedNode?.type === "curso") && Boolean(calendarNavigation.current?.(direction)),
     onNavigate: (next) => {
       if (next.kind === "trash") {
         workspace.setSelectedId(null);
@@ -394,14 +418,13 @@ export default function AppWorkspace({
     const reader = new FileReader();
     reader.onload = async () => {
       if (typeof reader.result !== "string") return;
-      const compressed = await compressImageSource(reader.result);
-      setProjectImage(compressed);
-      safeLocalStorageSet(imageStorageKey, compressed);
+      setProjectImage(reader.result);
+      safeLocalStorageSet(imageStorageKey, reader.result);
       const coverNode = findCoverNode();
       if (coverNode) {
         const resource = getImageResourceInfo(coverNode.content, coverNode.name);
         const content = createImageContent(
-          compressed,
+          reader.result,
           resource?.fileName || "Imagen de portada",
           0,
           resource?.hash || "",
@@ -416,7 +439,7 @@ export default function AppWorkspace({
         "imagen",
         null,
         createImageContent(
-          compressed,
+          reader.result,
           "Imagen de portada",
           0,
           "",
@@ -553,6 +576,41 @@ export default function AppWorkspace({
     const tempo = workspace.nodes.find((item) => item.id === id && item.type === "tempo");
     if (tempo) workspace.updateContent(id, setTempoMeta(tempo.content, meta));
   };
+  const renderCalendar = (calendar: NodeItem, embedded = false) => (
+    <CalendarNodeView
+      key={calendar.id}
+      node={calendar}
+      nodes={workspace.nodes}
+      deletedNodes={workspace.deletedNodes}
+      onContentChange={workspace.updateContent}
+      onCreateTempo={(date, startTime, subtype, endDate, weeklyVisualOrder) => createTempoNode(calendar.id, date, startTime, subtype, endDate, weeklyVisualOrder)}
+      onMoveTempo={moveTempoNode}
+      onRenameTempo={workspace.renameNode}
+      onDeleteTempo={workspace.deleteNode}
+      setExpanded={workspace.setExpanded}
+      onOpenDeletedNode={(id) => {
+        openDeletedNode(id);
+      }}
+      onOpenNodeView={(id) => {
+        setSelectedTrashNodeId(null);
+        setProjectTab("workspace");
+        setView("list");
+        workspace.setSelectedId(id);
+      }}
+      onFileImport={async (file: File, parentId?: string | null) => {
+        return createNodeFromFile(file, parentId ?? calendar.id);
+      }}
+      onSlashCommand={handleSlashCommand}
+      onRegisterNavigation={(handler) => {
+        calendarNavigation.current = handler;
+        return () => {
+          if (calendarNavigation.current === handler) calendarNavigation.current = null;
+        };
+      }}
+      showTypeLabel={!embedded}
+      timeFormat={timeFormat}
+    />
+  );
   useEffect(() => {
     if (!workspace.hydrated || !projectImage) return;
     const imageNode = findCoverNode();
@@ -686,7 +744,7 @@ export default function AppWorkspace({
                 ["recent", "sidebar.recent"],
                 ["types", "sidebar.types"],
               ] as const).map(([id, labelKey]) => (
-                <button key={id} type="button" aria-label={t(labelKey)} title={t(labelKey)} className={`view-rail__item ${sidebarPanel === id ? "is-active" : ""}`} onClick={() => { setSidebarPanel(id); setProjectTab("workspace"); setSidebarQuery(""); }}>
+                <button key={id} type="button" aria-label={t(labelKey)} title={t(labelKey)} className={`view-rail__item ${sidebarPanel === id ? "is-active" : ""}`} onClick={() => { cancelLoreMultiSelection(); setSidebarPanel(id); setProjectTab("workspace"); setSidebarQuery(""); }}>
                   <SidebarIcon name={id} active={sidebarPanel === id} />
                   {sidebarPanel === id && <span>{t(labelKey)}</span>}
                 </button>
@@ -694,8 +752,7 @@ export default function AppWorkspace({
               <button type="button" className="view-rail__exit" onClick={() => void exitWorkspace()} title="Salir del proyecto"><SidebarIcon name="exit" /></button>
           </nav>
 
-          {sidebarVisible && (
-            <section className="context-sidebar">
+          <section className="context-sidebar" aria-hidden={!sidebarVisible}>
               <header className="context-sidebar__project">
                 <label className="workspace-sidebar__project-avatar" style={projectImage ? { backgroundImage: `url(${projectImage})` } : { backgroundColor: avatarColor }} title="Cambiar imagen del proyecto">
                   {!projectImage && projectInitial}
@@ -705,7 +762,7 @@ export default function AppWorkspace({
                   <div className="workspace-sidebar__title">{projectName}</div>
                   {projectTab === "workspace" && <div className="workspace-sidebar__count">{t("sidebar.nodeCount", { count: workspace.nodes.length })}</div>}
                 </div>
-                <button type="button" onClick={() => { setSelectedTrashNodeId(null); setProjectTab((current) => current === "settings" ? "workspace" : "settings"); }} title="Ajustes del proyecto" className={`workspace-sidebar__settings ${projectTab === "settings" ? "is-active" : ""}`}><SidebarIcon name="settings" /></button>
+                <button type="button" onClick={() => { cancelLoreMultiSelection(); setSelectedTrashNodeId(null); setProjectTab((current) => current === "settings" ? "workspace" : "settings"); }} title="Ajustes del proyecto" className={`workspace-sidebar__settings ${projectTab === "settings" ? "is-active" : ""}`}><SidebarIcon name="settings" /></button>
               </header>
 
               {projectTab === "settings" ? (
@@ -715,7 +772,7 @@ export default function AppWorkspace({
                     ["changelog", "history", "sidebar.settings.history"],
                     ["trash", "trash", "sidebar.settings.trash"],
                   ] as const).map(([id, icon, labelKey]) => (
-                    <button key={id} type="button" className={settingsPanel === id ? "is-active" : ""} onClick={() => { setSelectedTrashNodeId(null); setSettingsPanel(id); }}><SidebarIcon name={icon} /><span>{t(labelKey)}</span></button>
+                    <button key={id} type="button" className={settingsPanel === id ? "is-active" : ""} onClick={() => { cancelLoreMultiSelection(); setSelectedTrashNodeId(null); setSettingsPanel(id); }}><SidebarIcon name={icon} /><span>{t(labelKey)}</span></button>
                   ))}
                 </nav>
               ) : (
@@ -723,9 +780,9 @@ export default function AppWorkspace({
                   <div className={`context-toolbar ${sidebarSearchOpen ? "is-searching" : ""}`}>
                     <div className="context-toolbar__actions">
                       {sidebarPanel === "lore" && <>
-                        <button type="button" onClick={() => setLoreAddOpen(true)} title={t("sidebar.addNode")}><SidebarIcon name="add" /></button>
-                        <button type="button" onClick={() => workspace.openCreate(null, "categoria")} title={t("sidebar.addFolder")}><SidebarIcon name="folder" /></button>
-                        <button type="button" onClick={() => sidebarImageInputRef.current?.click()} title={t("sidebar.addImage")}><SidebarIcon name="image-add" /></button>
+                        <button type="button" onClick={() => { cancelLoreMultiSelection(); setLoreAddOpen(true); }} title={t("sidebar.addNode")}><SidebarIcon name="add" /></button>
+                        <button type="button" onClick={() => { cancelLoreMultiSelection(); workspace.openCreate(null, "categoria"); }} title={t("sidebar.addFolder")}><SidebarIcon name="folder" /></button>
+                        <button type="button" onClick={() => { cancelLoreMultiSelection(); sidebarImageInputRef.current?.click(); }} title={t("sidebar.addImage")}><SidebarIcon name="image-add" /></button>
                         <input ref={sidebarImageInputRef} hidden type="file" accept="image/*,.pdf,application/pdf" onChange={(event) => { const file = event.target.files?.[0]; if (file) void createNodeFromFile(file, null); event.currentTarget.value = ""; }} />
                       </>}
                     </div>
@@ -735,14 +792,13 @@ export default function AppWorkspace({
                     </div>
                   </div>
                   {sidebarPanel === "lore" ? (
-                    <SidebarTree {...workspace} selectedLoreIds={selectedLoreIds} setSelectedLoreIds={setSelectedLoreIds} query={sidebarQuery} onFileDrop={(file, parentId) => void createNodeFromFile(file, parentId)} selectedId={workspace.selectedId} setSelectedId={(id) => { setSelectedTrashNodeId(null); workspace.setSelectedId(id); }} setContextMenu={(menu) => setContextMenu(menu)} />
+                    <SidebarTree {...workspace} selectedLoreIds={selectedLoreIds} setSelectedLoreIds={setSelectedLoreIds} query={sidebarQuery} onFileDrop={(file, parentId) => void createNodeFromFile(file, parentId)} selectedId={workspace.selectedId} contextMenuNodeId={contextMenu?.context === "lore" ? contextMenu.nodeId : null} setSelectedId={(id) => { setSelectedTrashNodeId(null); workspace.setSelectedId(id); }} setContextMenu={(menu) => setContextMenu({ ...menu, context: "lore" })} />
                   ) : (
-                    <NodePanels panel={sidebarPanel} query={sidebarQuery} nodes={workspace.nodes} recentNodes={workspace.recentNodes} recentActivity={workspace.recentActivity} selectedId={workspace.selectedId} onSelect={(id) => { setSelectedTrashNodeId(null); workspace.setSelectedId(id); }} />
+                    <NodePanels onContextMenu={setContextMenu} panel={sidebarPanel} query={sidebarQuery} nodes={workspace.nodes} recentNodes={workspace.recentNodes} recentActivity={workspace.recentActivity} selectedId={workspace.selectedId} onSelect={(id) => { setSelectedTrashNodeId(null); setSelectedLoreIds([id]); workspace.setSelectedId(id); }} />
                   )}
                 </>
               )}
-            </section>
-          )}
+          </section>
         </aside>
 
         {sidebarVisible && (
@@ -1045,39 +1101,9 @@ export default function AppWorkspace({
                   />
                 </>
               ) : selectedNode.type === "categoria" ? (
-                <FolderNodeView node={selectedNode} nodes={workspace.nodes} onSelect={workspace.setSelectedId} />
+                <FolderNodeView onContextMenu={setContextMenu} node={selectedNode} nodes={workspace.nodes} onSelect={workspace.setSelectedId} />
               ) : selectedNode.type === "calendario" ? (
-                <CalendarNodeView
-                  node={selectedNode}
-                  nodes={workspace.nodes}
-                  deletedNodes={workspace.deletedNodes}
-                  onContentChange={workspace.updateContent}
-                  onCreateTempo={(date, startTime, subtype, endDate, weeklyVisualOrder) => createTempoNode(selectedNode.id, date, startTime, subtype, endDate, weeklyVisualOrder)}
-                  onMoveTempo={moveTempoNode}
-                  onRenameTempo={workspace.renameNode}
-                  onDeleteTempo={workspace.deleteNode}
-                  setExpanded={workspace.setExpanded}
-                  onOpenDeletedNode={(id) => {
-                    openDeletedNode(id);
-                  }}
-                  onOpenNodeView={(id) => {
-                    setSelectedTrashNodeId(null);
-                    setProjectTab("workspace");
-                    setView("list");
-                    workspace.setSelectedId(id);
-                  }}
-                  onFileImport={async (file: File, parentId?: string | null) => {
-                    return createNodeFromFile(file, parentId ?? selectedNode.id);
-                  }}
-                  onSlashCommand={handleSlashCommand}
-                  onRegisterNavigation={(handler) => {
-                    calendarNavigation.current = handler;
-                    return () => {
-                      if (calendarNavigation.current === handler) calendarNavigation.current = null;
-                    };
-                  }}
-                  timeFormat={timeFormat}
-                />
+                renderCalendar(selectedNode)
               ) : selectedNode.type === "tempo" ? (
                 <TempoInspector
                   tempo={selectedNode}
@@ -1121,6 +1147,7 @@ export default function AppWorkspace({
                 />
               ) : (
                 <NodalNodeView
+                  renderCalendar={renderCalendar}
                   node={selectedNode}
                   nodes={workspace.nodes}
                   deletedNodes={workspace.deletedNodes}
@@ -1182,15 +1209,34 @@ export default function AppWorkspace({
       {contextMenu && (
         <ContextMenu
           menu={contextMenu}
-          onCreate={workspace.openCreate}
+          onCreate={(parentId) => {
+            workspace.openCreate(parentId);
+            cancelLoreMultiSelection();
+          }}
+          onRename={(id) => {
+            const node = workspace.nodes.find((item) => item.id === id);
+            if (!node) return;
+            setSelectedTrashNodeId(null);
+            setProjectTab("workspace");
+            setSidebarPanel("lore");
+            setSidebarQuery("");
+            setSelectedLoreIds([id]);
+            workspace.startRename(node);
+          }}
           onView={(id) => {
             setSelectedTrashNodeId(null);
             setProjectTab("workspace");
             setView("list");
+            setSelectedLoreIds([id]);
             workspace.setSelectedId(id);
           }}
           removeCount={selectedLoreIds.includes(contextMenu.nodeId ?? "") ? selectedLoreIds.length : 1}
+          canDelete={!contextMenu.nodeId || workspace.canDeleteNode(contextMenu.nodeId)}
           onDelete={(id) => {
+            workspace.deleteNode(id);
+            setSelectedLoreIds((current) => current.filter((selectedId) => selectedId !== id));
+          }}
+          onRemoveFromLore={(id) => {
             workspace.removeFromLore(selectedLoreIds.includes(id) ? selectedLoreIds : [id]);
             setSelectedLoreIds([]);
             workspace.setCreating(null);

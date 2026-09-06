@@ -6,7 +6,8 @@ import {
   getImageResourceInfo,
   hashImageFile,
   createImageContent,
-  compressImageSource,
+  getDataUrlByteSize,
+  getImageMimeType,
 } from "../utils/imageResource";
 import { isDesktopRuntime } from "../project/runtime";
 import NodeTypeLabel from "./NodeTypeLabel";
@@ -27,7 +28,13 @@ export default function ImageNodeView({
   onUseAsProjectCover,
 }: ImageNodeViewProps) {
   const resource = getImageResourceInfo(node.content, node.name);
-  const [dimensions, setDimensions] = useState<{ width: number; height: number } | null>(null);
+  const [inspection, setInspection] = useState<{
+    width: number;
+    height: number;
+    storedSize: number | null;
+    mimeType: string | null;
+    hasTransparency: boolean | null;
+  } | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [editingName, setEditingName] = useState(node.name);
   const [editingDescription, setEditingDescription] = useState(resource?.description || "");
@@ -49,12 +56,54 @@ export default function ImageNodeView({
 
   useEffect(() => {
     if (!resource) {
-      setDimensions(null);
+      setInspection(null);
       return;
     }
+    let cancelled = false;
     const image = new Image();
-    image.onload = () => setDimensions({ width: image.naturalWidth, height: image.naturalHeight });
+    image.onload = () => {
+      let hasTransparency: boolean | null = null;
+      if (getImageMimeType(resource.src) === "image/jpeg") {
+        hasTransparency = false;
+      } else {
+        try {
+          const maxSampleSize = 256;
+          const scale = Math.min(1, maxSampleSize / image.naturalWidth, maxSampleSize / image.naturalHeight);
+          const sampleWidth = Math.max(1, Math.round(image.naturalWidth * scale));
+          const sampleHeight = Math.max(1, Math.round(image.naturalHeight * scale));
+          const canvas = document.createElement("canvas");
+          canvas.width = sampleWidth;
+          canvas.height = sampleHeight;
+          const context = canvas.getContext("2d", { willReadFrequently: true });
+          if (context) {
+            context.drawImage(image, 0, 0, sampleWidth, sampleHeight);
+            const pixels = context.getImageData(0, 0, sampleWidth, sampleHeight).data;
+            hasTransparency = false;
+            for (let index = 3; index < pixels.length; index += 4) {
+              if (pixels[index] < 255) {
+                hasTransparency = true;
+                break;
+              }
+            }
+          }
+        } catch {
+          hasTransparency = null;
+        }
+      }
+      if (!cancelled) {
+        setInspection({
+          width: image.naturalWidth,
+          height: image.naturalHeight,
+          storedSize: getDataUrlByteSize(resource.src),
+          mimeType: getImageMimeType(resource.src),
+          hasTransparency,
+        });
+      }
+    };
     image.src = resource.src;
+    return () => {
+      cancelled = true;
+    };
   }, [resource?.src]);
 
   const handleNameChange = (newName: string) => {
@@ -90,10 +139,9 @@ export default function ImageNodeView({
     const reader = new FileReader();
     reader.onload = async () => {
       if (typeof reader.result !== "string") return;
-      const compressed = await compressImageSource(reader.result);
       onContentChange(
         node.id,
-        createImageContent(compressed, file.name, file.size, hash, editingDescription)
+        createImageContent(reader.result, file.name, file.size, hash, editingDescription)
       );
       setMessage("Imagen actualizada.");
     };
@@ -243,12 +291,26 @@ export default function ImageNodeView({
 
         {message && <div className="image-node-view__message">{message}</div>}
         <dl className="image-node-view__metadata">
+          <dt>Archivo</dt>
+          <dd>{resource.fileName}</dd>
           <dt>Extensión</dt>
           <dd>{resource.extension || "No disponible"}</dd>
-          <dt>Tamaño</dt>
+          <dt>Formato</dt>
+          <dd>{inspection?.mimeType || "No disponible"}</dd>
+          <dt>Tamaño original</dt>
           <dd>{resource.fileSize === null ? "No disponible" : `${resource.fileSize.toLocaleString()} bytes`}</dd>
+          <dt>Tamaño almacenado</dt>
+          <dd>{inspection?.storedSize === null || inspection?.storedSize === undefined ? "No disponible" : `${inspection.storedSize.toLocaleString()} bytes`}</dd>
+          <dt>Reducción</dt>
+          <dd>{resource.fileSize && inspection?.storedSize !== null && inspection?.storedSize !== undefined && inspection.storedSize < resource.fileSize ? `${Math.round((1 - inspection.storedSize / resource.fileSize) * 100)}%` : "Sin reducción"}</dd>
           <dt>Dimensiones</dt>
-          <dd>{dimensions ? `${dimensions.width} × ${dimensions.height}px` : "No disponible"}</dd>
+          <dd>{inspection ? `${inspection.width} × ${inspection.height}px` : "No disponible"}</dd>
+          <dt>Relación</dt>
+          <dd>{inspection ? `${(inspection.width / inspection.height).toFixed(2)}:1` : "No disponible"}</dd>
+          <dt>Transparencia</dt>
+          <dd>{inspection?.hasTransparency === true ? "Sí" : inspection?.hasTransparency === false ? "No" : "No disponible"}</dd>
+          <dt>Hash SHA-256</dt>
+          <dd title={resource.hash || undefined}>{resource.hash || "No disponible"}</dd>
         </dl>
       </div>
     </div>

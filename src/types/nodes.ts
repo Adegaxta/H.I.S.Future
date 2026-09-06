@@ -16,9 +16,11 @@ export interface CreatingState {
 }
 
 export interface ContextMenuState {
+  context: "lore" | "types" | "recent" | "folder";
   x: number;
   y: number;
   nodeId: string | null;
+  extended?: boolean;
 }
 
 export type DropPosition = "before" | "inside" | "after";

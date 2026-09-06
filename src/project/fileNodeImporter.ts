@@ -3,7 +3,6 @@ import type { TranslationKey } from "../i18n/translations";
 import type { NodeItem } from "../types/nodes";
 import { getChildren } from "../utils/nodeTree";
 import {
-  compressImageSource,
   createImageContent,
   getImageResourceInfo,
   hashImageFile,
@@ -107,7 +106,7 @@ export async function importFileAsNode(
       reader.readAsDataURL(file);
     });
     const content = createImageContent(
-      await compressImageSource(source),
+      source,
       file.name,
       file.size,
       hash,

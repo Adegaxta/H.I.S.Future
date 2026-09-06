@@ -38,6 +38,7 @@ interface CalendarNodeViewProps {
   onFileImport?: (file: File, parentId?: string | null) => Promise<NodeItem | null> | NodeItem | null;
   onSlashCommand?: (tag: string) => boolean;
   onRegisterNavigation: (handler: NavigationHandler) => () => void;
+  showTypeLabel?: boolean;
 }
 
 interface TempoEntry {
@@ -122,7 +123,7 @@ export default function CalendarNodeView({
   node, nodes, deletedNodes, timeFormat, onContentChange, onCreateTempo,
   onMoveTempo, onRenameTempo, onDeleteTempo, setExpanded, onOpenDeletedNode,
   onOpenNodeView, onFileImport, onSlashCommand,
-  onRegisterNavigation,
+  onRegisterNavigation, showTypeLabel = true,
 }: CalendarNodeViewProps) {
   const meta = getCalendarMeta(node.content);
   const currentDate = dateFromIso(meta.currentDate);
@@ -135,6 +136,13 @@ export default function CalendarNodeView({
   const [adjacentMonthTipVisible, setAdjacentMonthTipVisible] = useState(false);
   const [tempoMenu, setTempoMenu] = useState<{ x: number; y: number; tempoId: string } | null>(null);
   const [weeklyTempoView, setWeeklyTempoView] = useState(false);
+  useEffect(() => {
+    const today = localIsoDate();
+    if (meta.currentDate === today) return;
+    const nextMeta = { ...meta, currentDate: today };
+    navigationHistory.current = { entries: [{ meta: nextMeta, weeklyTempoView: false }], index: 0 };
+    onContentChange(node.id, setCalendarMeta(node.content, nextMeta));
+  }, [node.id]);
   const normalizedQuery = query.trim().toLocaleLowerCase("es");
   const allTempos: TempoEntry[] = calendarTempos(nodes, node.id)
     .map((item) => ({ node: item, meta: getTempoMeta(item.content), description: getTempoDescription(item.content) }));
@@ -426,7 +434,7 @@ export default function CalendarNodeView({
 
   return (
     <section className={`calendar-node calendar-node--${meta.view}`}>
-      <NodeTypeLabel type="calendario" />
+      {showTypeLabel && <NodeTypeLabel type="calendario" />}
       <header className="calendar-node__header">
         <div className="calendar-node__navigation"><button type="button" onClick={() => move(-1)}>‹</button><button type="button" onClick={() => updateMeta({ ...meta, currentDate: localIsoDate() })}>Hoy</button><button type="button" onClick={() => move(1)}>›</button></div>
         <div className={`calendar-node__identity${meta.view === "day" && localIsoDate(currentDate) === localIsoDate() ? " is-today" : ""}`}><h1>{calendarHeading(currentDate, meta.view)}</h1><p>{node.name}</p></div>

@@ -1,12 +1,12 @@
 import type { CSSProperties } from "react";
-import type { NodeItem } from "../types/nodes";
+import type { ContextMenuState, NodeItem } from "../types/nodes";
 import { getNodeDefinition, getNodeDisplayLabel } from "../defs/nodeTypes";
-import { getChildren, getEffectiveNodeType } from "../utils/nodeTree";
+import { getChildren, getEffectiveNodeType, opensNodeViewOnClick } from "../utils/nodeTree";
 import { useLocale } from "../i18n/LocaleContext";
 import { NodeIcon } from "./SidebarIcon";
 import NodeTypeLabel from "./NodeTypeLabel";
 
-export default function FolderNodeView({ node, nodes, onSelect }: { node: NodeItem; nodes: NodeItem[]; onSelect: (id: string) => void }) {
+export default function FolderNodeView({ node, nodes, onSelect, onContextMenu }: { node: NodeItem; nodes: NodeItem[]; onSelect: (id: string) => void; onContextMenu: (menu: ContextMenuState) => void }) {
   const { t } = useLocale();
   const children = getChildren(nodes, node.id);
   return (
@@ -19,7 +19,7 @@ export default function FolderNodeView({ node, nodes, onSelect }: { node: NodeIt
           {children.map((child) => {
             const type = getEffectiveNodeType(nodes, child);
             return <li key={child.id}>
-              <button type="button" onClick={() => onSelect(child.id)} style={{ "--node-color": getNodeDefinition(type).color } as CSSProperties}>
+              <button type="button" onClick={() => { if (opensNodeViewOnClick(child)) onSelect(child.id); }} onContextMenu={(event) => { event.preventDefault(); event.stopPropagation(); onContextMenu({ context: "folder", nodeId: child.id, x: event.clientX, y: event.clientY, extended: event.shiftKey }); }} style={{ "--node-color": getNodeDefinition(type).color } as CSSProperties}>
                 <NodeIcon type={type} />
                 <span><strong>{child.name}</strong><small>{getNodeDisplayLabel(type, t)}</small></span>
               </button>

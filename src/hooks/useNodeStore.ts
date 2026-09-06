@@ -1,3 +1,5 @@
+import { useLocale } from "../i18n/LocaleContext";
+import { courseAwareDeletionIds, courseTitleFromName, hasMissingCourseCalendar, setNodalMeta, reconcileCourseCalendars, synchronizedNodeIds } from "../utils/nodalMeta";
 import { useDebouncedPersistence } from "./useDebouncedPersistence";
 import { useEffect, useRef, useState } from "react";
 import { listNodes, saveNodes, loadDeletedNodes } from "../project/nodeRepository";
@@ -5,8 +7,13 @@ import { getNodeDefinition } from "../defs/nodeTypes";
 import type { BaseNodeType, NodeItem } from "../types/nodes";
 import { setLoreMembership } from "../utils/loreTree";
 import {
-  collectDescendantIds,
+  changedNodeIds,
+  recordRecentActivity,
+  type RecentActivityKind,
+} from "../utils/recentActivity";
+import {
   getChildren,
+  reorderMultipleNodes,
   reorderNodes,
   sanitizeParentIds,
   sortNodesForPersistence,
@@ -14,6 +21,7 @@ import {
 } from "../utils/nodeTree";
 
 export function useNodeStore(projectKey?: string) {
+  const { t } = useLocale();
   const trashKey = projectKey ? `hisfuture.project.trash.${projectKey}` : null;
   const recentKey = projectKey ? `hisfuture.project.recent-nodes.${projectKey}` : null;
   const [nodes, setNodes] = useState<NodeItem[]>([]);
@@ -78,8 +86,8 @@ export function useNodeStore(projectKey?: string) {
     changeVersionRef.current += 1;
   };
 
-  const markRecent = (nodeId: string) => {
-    setRecentActivity((current) => ({ ...current, [nodeId]: Date.now() }));
+  const markRecent = (nodeId: string, kind: RecentActivityKind) => {
+    setRecentActivity((current) => recordRecentActivity(current, nodeId, kind));
   };
 
   useEffect(() => {
@@ -87,9 +95,7 @@ export function useNodeStore(projectKey?: string) {
     localStorage.setItem(recentKey, JSON.stringify(recentActivity));
   }, [recentActivity, recentKey]);
 
-  useEffect(() => {
-    if (selectedId) markRecent(selectedId);
-  }, [selectedId]);
+  // Navigation does not modify activity; mutation handlers below own recent timestamps.
 
   useEffect(() => {
     let cancelled = false;
@@ -98,12 +104,12 @@ export function useNodeStore(projectKey?: string) {
         const [stored, trash] = await Promise.all([listNodes(), loadDeletedNodes()]);
         if (cancelled) return;
         persistedVersionRef.current = changeVersionRef.current;
-        setNodes(stored);
-        if (trash !== null) setDeletedNodes(trash);
-        else {
-          setDeletedNodes((legacy) => legacy.filter((node) => !stored.some((active) => active.id === node.id)));
-          markDirty(); // Persist the legacy local trash in the project on first load.
-        }
+        const previousTrash = trash ?? deletedNodesRef.current.filter((node) => !stored.some((active) => active.id === node.id));
+        const repaired = reconcileCourseCalendars(stored, previousTrash, t("nodes.calendar.label"));
+        setNodes(repaired.nodes);
+        setDeletedNodes(repaired.deletedNodes);
+        deletedNodesRef.current = repaired.deletedNodes;
+        if (trash === null || repaired.nodes !== stored || repaired.deletedNodes !== previousTrash) markDirty();
         setHydrated(true);
       } catch (error) {
         console.error(error);
@@ -119,6 +125,22 @@ export function useNodeStore(projectKey?: string) {
       cancelled = true;
     };
   }, []);
+
+  // Safety net for already-open projects and state changes outside normal mutations.
+  // Use the latest state in the updater so repeated effects cannot allocate duplicates.
+  useEffect(() => {
+    if (!hydrated || loadFailed || !hasMissingCourseCalendar(nodes)) return;
+    setNodes((current) => {
+      if (!hasMissingCourseCalendar(current)) return current;
+      const repaired = reconcileCourseCalendars(current, deletedNodesRef.current, t("nodes.calendar.label"));
+      if (repaired.deletedNodes !== deletedNodesRef.current) {
+        deletedNodesRef.current = repaired.deletedNodes;
+        setDeletedNodes(repaired.deletedNodes);
+      }
+      if (repaired.nodes !== current) markDirty();
+      return repaired.nodes;
+    });
+  }, [hydrated, loadFailed, nodes, deletedNodes, t]);
 
   const isDirty =
     hydrated && !loadFailed && persistedVersionRef.current !== changeVersionRef.current;
@@ -145,27 +167,48 @@ export function useNodeStore(projectKey?: string) {
     return enqueueSave(snapshot, changeVersionRef.current);
   };
 
+  const reconcile = (next: NodeItem[]) => {
+    const repaired = reconcileCourseCalendars(next, deletedNodesRef.current, t("nodes.calendar.label"));
+    if (repaired.deletedNodes !== deletedNodesRef.current) {
+      deletedNodesRef.current = repaired.deletedNodes;
+      setDeletedNodes(repaired.deletedNodes);
+    }
+    return repaired.nodes;
+  };
   const mutateNodes = (update: (current: NodeItem[]) => NodeItem[]) => {
     setNodes((current) => {
-      const next = update(current);
-      if (next !== current) markDirty();
+      const next = reconcile(update(current));
+      if (next !== current) {
+        markDirty();
+        const changedIds = changedNodeIds(current, next);
+        if (changedIds.length) {
+          const timestamp = Date.now();
+          setRecentActivity((activity) => changedIds.reduce(
+            (result, id) => recordRecentActivity(result, id, "edit", timestamp),
+            activity,
+          ));
+        }
+      }
       return next;
     });
   };
   const selectedNode = nodes.find((node) => node.id === selectedId);
   const recentNodes = nodes
-    .filter((node) => Boolean(recentActivity[node.id]))
+    .filter((node) => Boolean(recentActivity[node.id]) && node.type !== "categoria")
     .sort((a, b) => recentActivity[b.id] - recentActivity[a.id]);
-  const selectNode = (id: string | null) => setSelectedId(id);
+  const selectNode = (id: string | null) => {
+    setSelectedId(id);
+    if (id) markRecent(id, "navigate");
+  };
   const updateContent = (nodeId: string, content: string) => {
     setNodes((current) => {
       const node = current.find((item) => item.id === nodeId);
       if (!node || node.content === content) return current;
       markDirty();
-      markRecent(nodeId);
-      return current.map((item) =>
+      markRecent(nodeId, "edit");
+      return reconcile(current.map((item) =>
         item.id === nodeId ? { ...item, content } : item,
-      );
+      ));
     });
   };
   const createNode = (
@@ -177,9 +220,9 @@ export function useNodeStore(projectKey?: string) {
   ) => {
     const id = crypto.randomUUID();
     setNodes((current) => {
-      markRecent(id);
+      markRecent(id, "create");
       markDirty();
-      return [
+      return reconcile([
         ...current,
         {
           id,
@@ -189,7 +232,7 @@ export function useNodeStore(projectKey?: string) {
           order: getChildren(current, parentId).length,
           content,
         },
-      ];
+      ]);
     });
     if (parentId) setExpanded((current) => ({ ...current, [parentId]: true }));
     if (selectCreated && getNodeDefinition(type).selectOnCreation) setSelectedId(id);
@@ -201,14 +244,14 @@ export function useNodeStore(projectKey?: string) {
       const node = current.find((item) => item.id === id);
       if (!node || node.name === nextName) return current;
       markDirty();
-      markRecent(id);
-      return current.map((item) =>
-        item.id === id ? { ...item, name: nextName } : item,
-      );
+      markRecent(id, "rename");
+      return reconcile(current.map((item) =>
+        item.id === id ? { ...item, name: nextName, content: item.type === "curso" ? setNodalMeta(item.content, { courseTitle: courseTitleFromName({ ...item, name: nextName }) }) : item.content } : item,
+      ));
     });
   const deleteNode = (id: string) => {
     setNodes((current) => {
-      const ids = collectDescendantIds(current, id);
+      const ids = courseAwareDeletionIds(current, [id]);
       const removed = current.filter((node) => ids.has(node.id));
       if (!removed.length) return current;
       markDirty();
@@ -220,7 +263,7 @@ export function useNodeStore(projectKey?: string) {
       setSelectedId((selected) =>
         selected && !ids.has(selected) ? selected : null,
       );
-      return current.filter((node) => !ids.has(node.id));
+      return current.filter((node) => !ids.has(node.id)).map((node) => node.parentId && ids.has(node.parentId) ? { ...node, parentId: null } : node);
     });
   };
   const changeLoreMembership = (ids: string[], visible: boolean) => {
@@ -231,21 +274,21 @@ export function useNodeStore(projectKey?: string) {
     });
   };
   const restoreDeletedNodes = () => {
-    const ids = new Set(selectedDeletedIds);
+    const ids = synchronizedNodeIds(deletedNodes, selectedDeletedIds);
     if (!ids.size) return;
     const restoring = deletedNodes.filter((node) => ids.has(node.id));
     if (!restoring.length) return;
     markDirty();
-    setNodes((current) => [
+    setNodes((current) => reconcile([
       ...current,
       ...restoring.filter((node) => !current.some((item) => item.id === node.id)),
-    ]);
+    ]));
     setDeletedNodes((current) => current.filter((node) => !ids.has(node.id)));
     setSelectedDeletedIds([]);
     setDeletedSelectionAnchorId(null);
   };
   const permanentlyDeleteNodes = () => {
-    const ids = new Set(selectedDeletedIds);
+    const ids = synchronizedNodeIds(deletedNodes, selectedDeletedIds);
     if (!ids.size) return;
     markDirty();
     setDeletedNodes((current) => current.filter((node) => !ids.has(node.id)));
@@ -293,8 +336,29 @@ export function useNodeStore(projectKey?: string) {
           node.parentId !== current[index].parentId ||
           node.order !== current[index].order,
       );
-      if (changed) markRecent(draggedId);
+      if (changed) markRecent(draggedId, "move");
       if (changed) markDirty();
+      return next;
+    });
+    if (targetId && position === "inside")
+      setExpanded((current) => ({ ...current, [targetId]: true }));
+  };
+  const moveNodes = (
+    draggedIds: string[],
+    targetId: string | null,
+    position: "before" | "inside" | "after",
+  ) => {
+    setNodes((current) => {
+      const next = reorderMultipleNodes(current, draggedIds, targetId, position);
+      const movedIds = draggedIds.filter((id) => {
+        const before = current.find((node) => node.id === id);
+        const after = next.find((node) => node.id === id);
+        return before && after && (before.parentId !== after.parentId || before.order !== after.order);
+      });
+      if (movedIds.length) {
+        movedIds.forEach((id) => markRecent(id, "move"));
+        markDirty();
+      }
       return next;
     });
     if (targetId && position === "inside")
@@ -307,7 +371,7 @@ export function useNodeStore(projectKey?: string) {
     hydrated,
     setNodes,
     selectedId,
-    setSelectedId,
+    setSelectedId: selectNode,
     selectedNode,
     recentNodes,
     recentActivity,
@@ -319,6 +383,7 @@ export function useNodeStore(projectKey?: string) {
     createNode,
     renameNode,
     deleteNode,
+    canDeleteNode: (id: string) => courseAwareDeletionIds(nodes, [id]).has(id),
     removeFromLore: (ids: string[]) => changeLoreMembership(ids, false),
     addToLore: (ids: string[]) => changeLoreMembership(ids, true),
     deletedNodes,
@@ -328,6 +393,7 @@ export function useNodeStore(projectKey?: string) {
     restoreDeletedNodes,
     permanentlyDeleteNodes,
     moveNode,
+    moveNodes,
     saveNow,
   };
 }

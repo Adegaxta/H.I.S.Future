@@ -2,8 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useLocale } from "../i18n/LocaleContext";
 import type { BaseNodeType, NodeItem } from "../types/nodes";
-import { calendarTempos, courseNodeName, courseTasks, ensureCourseCalendar, getNodalMeta, patchNodal, relatedNode, scheduleTask, withRelation, withoutRelation } from "../utils/nodalMeta";
-import { getCalendarMeta, getTempoMeta, type TimeFormat } from "../utils/temporalMeta";
+import { courseNodeName, courseTasks, ensureCourseCalendar, getNodalMeta, patchNodal, relatedNode, scheduleTask, withRelation, withoutRelation } from "../utils/nodalMeta";
+import { getTempoMeta, type TimeFormat } from "../utils/temporalMeta";
 import { resolveVideoSource } from "../utils/videoSource";
 import { getImageResourceInfo } from "../utils/imageResource";
 import { normalizeWebUrl } from "../utils/webUrl";
@@ -39,40 +39,23 @@ function CourseNav({ tab, setTab }: { tab: string; setTab: (tab: "syllabus" | "r
   const items = [["syllabus","syllable","course.syllabus"],["room","classroom","course.room"],["classes","classes_video","course.classes"],["content","content","course.content"],["evaluations","Evaluation","course.evaluations"]] as const;
   return <nav className="course-nav">{items.map(([id, icon, key]) => <button key={id} type="button" className={tab === id ? "is-active" : ""} onClick={() => setTab(id)}><NodalIcon name={icon} />{t(key)}</button>)}</nav>;
 }
-const isoDate = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-function CourseCalendarPreview({ calendar, tempos, locale, onOpen }: { calendar: NodeItem | undefined; tempos: NodeItem[]; locale: string; onOpen: (id: string) => void }) {
-  const anchor = calendar ? new Date(`${getCalendarMeta(calendar.content).currentDate}T12:00:00`) : new Date();
-  const monday = new Date(anchor);
-  monday.setDate(anchor.getDate() - ((anchor.getDay() + 6) % 7));
-  const days = Array.from({ length: 7 }, (_, index) => { const date = new Date(monday); date.setDate(monday.getDate() + index); return date; });
-  const hours = Array.from({ length: 11 }, (_, index) => index + 8);
-  const entriesFor = (date: Date) => tempos.filter((tempo) => {
-    const meta = getTempoMeta(tempo.content);
-    const day = isoDate(date);
-    if (meta.subtype !== "weekly") return meta.date === day;
-    const weekday = ((date.getDay() + 6) % 7 + 1) as 1 | 2 | 3 | 4 | 5 | 6 | 7;
-    return day >= meta.date && (!meta.endDate || day <= meta.endDate) && (!meta.activeWeekdays || meta.activeWeekdays.includes(weekday));
-  });
-  return <div className="course-calendar-preview" aria-label={calendar?.name}>
-    <div className="course-calendar-preview__heading"><span />{days.map((date) => <time key={isoDate(date)}><small>{new Intl.DateTimeFormat(locale, { weekday: "short" }).format(date).replace(".", "")}</small><b>{date.getDate()}</b></time>)}</div>
-    <div className="course-calendar-preview__body"><div className="course-calendar-preview__hours">{hours.map((hour) => <span key={hour}>{hour}:00</span>)}</div>{days.map((date) => <div className="course-calendar-preview__day" key={isoDate(date)}>{hours.map((hour) => <i key={hour} />)}{entriesFor(date).map((tempo) => { const meta = getTempoMeta(tempo.content); const hour = meta.startTime ? Number(meta.startTime.slice(0, 2)) : 8; return <button key={tempo.id} style={{ gridRow: `${Math.max(1, Math.min(11, hour - 7))} / span 1`, borderColor: meta.color }} title={tempo.name} onClick={() => onOpen(tempo.id)}>{tempo.name}</button>; })}</div>)}</div>
-  </div>;
-}
-export function CourseNodeView(props: NodalViewProps) {
+export function CourseNodeView(props: NodalViewProps & { renderCalendar: (calendar: NodeItem, embedded?: boolean) => React.ReactNode }) {
   const { node, nodes, onMutate, onOpen, onImport } = props;
-  const { locale, t } = useLocale();
+  const { t } = useLocale();
   const [tab, setTab] = useState<"syllabus" | "room" | "classes" | "content" | "evaluations">("syllabus");
   const [picker, setPicker] = useState<{ role: "syllabus" | "class" | "content" | "cover"; types?: BaseNodeType[] } | null>(null);
   const [query, setQuery] = useState("");
   const [descriptionOpen, setDescriptionOpen] = useState(false);
+  const [scheduleOpen, setScheduleOpen] = useState(true);
+  const [coverOpen, setCoverOpen] = useState(true);
   const meta = getNodalMeta(node.content);
   const [courseTitle, setCourseTitle] = useState(() => meta.courseTitle || node.name);
-  useEffect(() => { const nextMeta = getNodalMeta(node.content); setTab("syllabus"); setPicker(null); setQuery(""); setDescriptionOpen(Boolean(nextMeta.description)); setCourseTitle(nextMeta.courseTitle || node.name); }, [node.id]);
+  useEffect(() => { const nextMeta = getNodalMeta(node.content); setTab("syllabus"); setScheduleOpen(true); setCoverOpen(true); setPicker(null); setQuery(""); setDescriptionOpen(Boolean(nextMeta.description)); setCourseTitle(nextMeta.courseTitle || node.name); }, [node.id]);
+  useEffect(() => setCourseTitle(meta.courseTitle || node.name), [meta.courseTitle, node.name]);
   const syllabus = relatedNode(nodes, node, "syllabus");
   const cover = relatedNode(nodes, node, "cover");
   const coverResource = cover ? getImageResourceInfo(cover.content, cover.name) : null;
   const calendar = relatedNode(nodes, node, "calendar");
-  const calendarEntries = calendar ? calendarTempos(nodes, calendar.id) : [];
   const tasks = courseTasks(nodes, node.id);
   const patch = (value: Parameters<typeof patchNodal>[2]) => onMutate((current) => patchNodal(current, node.id, value));
   const updateIdentity = (change: Partial<Pick<typeof meta, "code" | "courseTitle" | "modality">>) => {
@@ -97,11 +80,17 @@ export function CourseNodeView(props: NodalViewProps) {
   return <section className="course-node-view">
     <div className="course-node-view__identity"><NodeTypeLabel type="curso" />
       <div className="course-identity-fields"><input value={meta.code} placeholder={t("course.code")} aria-label={t("course.code")} onChange={(e) => updateIdentity({ code: e.target.value })} /><input value={courseTitle} placeholder={t("course.name")} aria-label={t("course.name")} onChange={(e) => setCourseTitle(e.target.value)} onBlur={() => updateIdentity({ courseTitle })} onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); if (e.key === "Escape") setCourseTitle(meta.courseTitle || node.name); }} /><input value={meta.modality} placeholder={t("course.modality")} aria-label={t("course.modality")} onChange={(e) => updateIdentity({ modality: e.target.value })} /></div>
-      <div className="course-section-title"><span className="course-caret" />{t("course.cover")}</div>
-      {cover ? <div className="course-cover" style={coverResource ? { backgroundImage: `url(${coverResource.src})` } : undefined}><i className="corner corner--tl" /><i className="corner corner--tr" /><i className="corner corner--bl" /><i className="corner corner--br" /><NodeReference node={cover} nodes={nodes} onOpen={onOpen} /><button className="nodal-unlink" title={t("nodal.unlink")} onClick={() => onMutate((current) => withRelation(current,node.id,"cover",null))}>×</button></div> : <button className="course-cover" type="button" aria-label={t("course.cover")} onClick={() => setPicker({ role: "cover", types: ["imagen"] })}><i className="corner corner--tl" /><i className="corner corner--tr" /><i className="corner corner--bl" /><i className="corner corner--br" /><SidebarIcon name="image-add" /></button>}
       <label className="course-link-field"><span><NodeIcon type="curso" />{t("course.link")}</span><span className="course-link-input"><NodalIcon name="link_2" /><input type="url" value={meta.url} aria-label={t("course.link")} onChange={(e) => patch({ url: e.target.value })} /></span></label>
-      <div className={`course-description-field${descriptionOpen ? " is-open" : ""}`}><button type="button" onClick={() => setDescriptionOpen((current) => !current)} aria-expanded={descriptionOpen}><span className="course-caret" /><span className={meta.description ? "has-value" : ""}>{descriptionOpen && meta.description ? "" : meta.description || t("course.description")}</span></button>{descriptionOpen && <textarea autoFocus value={meta.description} placeholder={t("course.description")} aria-label={t("course.description")} onChange={(e) => patch({ description: e.target.value })} />}</div>
-      <div className="course-schedule"><strong><NodeIcon type="calendario" />{t("course.schedule")}</strong><CourseCalendarPreview calendar={calendar} tempos={calendarEntries} locale={locale} onOpen={onOpen} /></div>
+      <button className="course-section-title" type="button" onClick={() => setCoverOpen((current) => !current)} aria-expanded={coverOpen} aria-controls={`course-cover-${node.id}`}><span className={`course-caret${coverOpen ? "" : " is-collapsed"}`} />{t("course.cover")}</button>
+      {coverOpen && (cover ? <div id={`course-cover-${node.id}`} className="course-cover" style={coverResource ? { backgroundImage: `url(${coverResource.src})` } : undefined}><i className="corner corner--tl" /><i className="corner corner--tr" /><i className="corner corner--bl" /><i className="corner corner--br" /><NodeReference node={cover} nodes={nodes} onOpen={onOpen} /><button className="nodal-unlink" title={t("nodal.unlink")} onClick={() => onMutate((current) => withRelation(current,node.id,"cover",null))}>×</button></div> : <button className="course-cover" type="button" aria-label={t("course.cover")} onClick={() => setPicker({ role: "cover", types: ["imagen"] })}><i className="corner corner--tl" /><i className="corner corner--tr" /><i className="corner corner--bl" /><i className="corner corner--br" /><SidebarIcon name="image-add" /></button>)}
+      <div className={`course-description-field${descriptionOpen ? " is-open" : ""}`}>
+        <button type="button" onClick={() => setDescriptionOpen((current) => !current)} aria-expanded={descriptionOpen} aria-controls={`course-description-${node.id}`}><span className="course-caret" aria-hidden="true" />{t("course.description")}</button>
+        {descriptionOpen && <textarea id={`course-description-${node.id}`} value={meta.description} aria-label={t("course.description")} onChange={(e) => patch({ description: e.target.value })} />}
+      </div>
+      <div className={`course-schedule${scheduleOpen ? " is-open" : ""}`}>
+        <button className="course-schedule__toggle" type="button" onClick={() => setScheduleOpen((current) => !current)} aria-expanded={scheduleOpen} aria-controls={`course-schedule-${node.id}`}><span className="course-caret" aria-hidden="true" />{t("course.schedule")}</button>
+        {scheduleOpen && <div id={`course-schedule-${node.id}`} className="course-schedule__calendar">{calendar && props.renderCalendar(calendar, true)}</div>}
+      </div>
     </div>
     <div className="course-node-view__context"><CourseNav tab={tab} setTab={setTab} />
       {tab === "syllabus" && <div className="course-context-panel course-syllabus">{syllabus ? <><PdfNodeView node={syllabus} /><button onClick={() => onOpen(syllabus.id)}>{t("nodal.open")}</button></> : <button className="course-empty-action" onClick={() => setPicker({ role: "syllabus", types: ["pdf"] })}>{t("course.addSyllabus")}<b>＋</b></button>}</div>}
@@ -145,7 +134,7 @@ export function VideoNodeView({ node, onMutate, onRename, onOpen: _onOpen, nodes
 }
 
 // The domain module owns view selection; the workspace supplies shared services.
-export function NodalNodeView(props: React.ComponentProps<typeof TaskNodeView> & { children?: React.ReactNode }) {
+export function NodalNodeView(props: React.ComponentProps<typeof TaskNodeView> & { children?: React.ReactNode; renderCalendar: (calendar: NodeItem, embedded?: boolean) => React.ReactNode }) {
   switch (props.node.type) {
     case "curso": return <CourseNodeView {...props} />;
     case "tarea": return <TaskNodeView {...props} />;

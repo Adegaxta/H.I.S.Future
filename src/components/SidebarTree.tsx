@@ -17,7 +17,7 @@ import { useLocale } from "../i18n/LocaleContext";
 import { findImportableFile, isImportableDragItem } from "../project/fileNodeImporter";
 import { NodeIcon } from "./SidebarIcon";
 import { useSearchReveal } from "../hooks/useSearchReveal";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { getLoreNodes, selectLoreRange } from "../utils/loreTree";
 
 interface SidebarTreeProps {
@@ -25,6 +25,7 @@ interface SidebarTreeProps {
   setSelectedLoreIds: (ids: string[]) => void;
   nodes: NodeItem[];
   selectedId: string | null;
+  contextMenuNodeId?: string | null;
   expanded: Record<string, boolean>;
   creating: CreatingState | null;
   setCreating: (creating: CreatingState | null) => void;
@@ -47,6 +48,7 @@ interface SidebarTreeProps {
     x: number;
     y: number;
     nodeId: string | null;
+    extended?: boolean;
   }) => void;
   setDropTarget: (target: DropTarget | null) => void;
   setDragPreviewPosition: (position: { x: number; y: number }) => void;
@@ -56,6 +58,7 @@ interface SidebarTreeProps {
   resetDrag: () => void;
   dropTargetRef: React.MutableRefObject<DropTarget | null>;
   draggedId: React.MutableRefObject<string | null>;
+  draggedIds: React.MutableRefObject<string[]>;
   pointerStart: React.MutableRefObject<{ x: number; y: number }>;
   pointerDragging: React.MutableRefObject<boolean>;
   isPointerDown: React.MutableRefObject<boolean>;
@@ -70,6 +73,7 @@ export default function SidebarTree(props: SidebarTreeProps) {
   const {
     nodes: projectNodes,
     selectedId,
+    contextMenuNodeId,
     expanded,
     creating,
     draftName,
@@ -80,6 +84,15 @@ export default function SidebarTree(props: SidebarTreeProps) {
   } = props;
   const nodes = getLoreNodes(projectNodes);
   const selectionAnchor = useRef<string | null>(null);
+  useEffect(() => {
+    if (!props.selectedLoreIds.length) {
+      selectionAnchor.current = null;
+      return;
+    }
+    if (!selectionAnchor.current || !props.selectedLoreIds.includes(selectionAnchor.current)) {
+      selectionAnchor.current = props.selectedLoreIds[props.selectedLoreIds.length - 1];
+    }
+  }, [props.selectedLoreIds]);
   const normalizedQuery = (props.query ?? "").trim().toLocaleLowerCase(locale);
   const matches = (node: NodeItem) => node.name.toLocaleLowerCase(locale).includes(normalizedQuery);
   const searchRef = useSearchReveal(normalizedQuery, nodes.filter(matches).map((node) => node.id).join(","));
@@ -113,6 +126,24 @@ export default function SidebarTree(props: SidebarTreeProps) {
     }
     if (opensNodeViewOnClick(node)) props.setSelectedId(node.id);
   };
+  const cancelMultiSelection = () => {
+    if (props.selectedLoreIds.length <= 1) return;
+    const keepId = selectedId && props.selectedLoreIds.includes(selectedId)
+      ? selectedId
+      : props.selectedLoreIds[0];
+    props.setSelectedLoreIds(keepId ? [keepId] : []);
+    selectionAnchor.current = keepId ?? null;
+  };
+  useEffect(() => {
+    const collapseSelectionOutsideTree = (event: PointerEvent) => {
+      if (props.selectedLoreIds.length <= 1) return;
+      const target = event.target;
+      if (target instanceof Element && target.closest(".lore-tree, .his-context-menu")) return;
+      cancelMultiSelection();
+    };
+    document.addEventListener("pointerdown", collapseSelectionOutsideTree);
+    return () => document.removeEventListener("pointerdown", collapseSelectionOutsideTree);
+  }, [props.selectedLoreIds, selectedId]);
 
   const renderCreateForm = () => (
     <div className="lore-create-form"
@@ -157,7 +188,7 @@ export default function SidebarTree(props: SidebarTreeProps) {
     const canContainChildren =
       isFolder || children.length > 0 || creating?.parentId === node.id;
     const isExpanded = expanded[node.id] || (Boolean(normalizedQuery) && visibleIds.has(node.id));
-    const isSelected = props.selectedLoreIds.length || selectionAnchor.current ? props.selectedLoreIds.includes(node.id) : node.id === selectedId;
+    const isSelected = contextMenuNodeId === node.id || (props.selectedLoreIds.length || selectionAnchor.current ? props.selectedLoreIds.includes(node.id) : node.id === selectedId);
     const activeDropPosition =
       dropTarget?.id === node.id ? dropTarget.position : null;
     return (
@@ -169,7 +200,7 @@ export default function SidebarTree(props: SidebarTreeProps) {
           onPointerDown={(event: ReactPointerEvent<HTMLDivElement>) => {
             if (
               event.button !== 0 ||
-              event.ctrlKey || event.metaKey || event.shiftKey || props.selectedLoreIds.length > 1 ||
+              event.ctrlKey || event.metaKey || event.shiftKey ||
               (event.target instanceof Element &&
                 event.target.closest("[data-no-drag]"))
             ) {
@@ -196,6 +227,9 @@ export default function SidebarTree(props: SidebarTreeProps) {
               props.pointerDragging.current = true;
               props.suppressClick.current = true;
               props.draggedId.current = node.id;
+              props.draggedIds.current = props.selectedLoreIds.includes(node.id)
+                ? [...props.selectedLoreIds]
+                : [node.id];
               props.setDragPreviewId(node.id);
               props.setIsDraggingNode(true);
             }
@@ -257,16 +291,16 @@ export default function SidebarTree(props: SidebarTreeProps) {
             props.setCreating(null);
             props.setSelectedLoreIds([node.id]);
             selectionAnchor.current = node.id;
-            props.setSelectedId(node.id);
+            if (opensNodeViewOnClick(node)) props.setSelectedId(node.id);
           }}
           onContextMenu={(event) => {
             event.preventDefault();
             event.stopPropagation();
-            if (!props.selectedLoreIds.includes(node.id)) props.setSelectedLoreIds([node.id]);
             props.setContextMenu({
               x: event.clientX,
               y: event.clientY,
               nodeId: node.id,
+              extended: event.shiftKey,
             });
           }}
         >
@@ -278,6 +312,7 @@ export default function SidebarTree(props: SidebarTreeProps) {
             }}
             onDoubleClick={(event) => {
               event.stopPropagation();
+              cancelMultiSelection();
               props.startRename(node);
             }}
             className="lore-node__name"
@@ -314,6 +349,7 @@ export default function SidebarTree(props: SidebarTreeProps) {
             data-no-drag="true"
             onClick={(event) => {
               event.stopPropagation();
+              cancelMultiSelection();
               props.openCreate(node.id);
               props.setExpanded((current) => ({ ...current, [node.id]: true }));
             }}
@@ -409,6 +445,10 @@ export default function SidebarTree(props: SidebarTreeProps) {
           y: event.clientY,
           nodeId: null,
         });
+      }}
+      onClick={(event) => {
+        if (event.target instanceof Element && event.target.closest("[data-node-id], .lore-create-form")) return;
+        cancelMultiSelection();
       }}
       className="lore-tree"
     >

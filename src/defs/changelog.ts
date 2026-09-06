@@ -26,7 +26,7 @@ interface LocalizedChangelogEntry extends ChangelogEntryBase {
 
 export type ChangelogEntry = LegacyChangelogEntry | LocalizedChangelogEntry;
 
-export const CURRENT_VERSION = "0.5.2";
+export const CURRENT_VERSION = "0.5.3";
 
 // All new releases use the 0.5.0 layout with complete Spanish/English keys.
 // Keep legacy entries readable without rewriting their historical content.
@@ -39,13 +39,26 @@ const CURRENT_RELEASE: ReleaseChangelogEntry = {
   version: CURRENT_VERSION,
   date: "2026-09-06",
   category: "Editor",
-  titleKey: "changelog.0_5_2.title",
-  summaryKey: "changelog.0_5_2.summary",
+  titleKey: "changelog.0_5_3.title",
+  summaryKey: "changelog.0_5_3.summary",
   changeKeys: [],
   sections: [
     {
-      titleKey: "changelog.0_5_2.tree",
-      changeKeys: ["changelog.0_5_2.doubleClick", "changelog.0_5_2.rename", "changelog.0_5_2.drag"],
+      titleKey: "changelog.0_5_3.course",
+      changeKeys: ["changelog.0_5_3.horizontal", "changelog.0_5_3.cover", "changelog.0_5_3.link"],
+    },
+    {
+      titleKey: "changelog.0_5_3.calendar",
+      changeKeys: ["changelog.0_5_3.embedded", "changelog.0_5_3.scroll", "changelog.0_5_3.month"],
+    },
+    {
+      titleKey: "changelog.0_5_3.syllabus",
+      changeKeys: ["changelog.0_5_3.pdf", "changelog.0_5_3.tempo", "changelog.0_5_3.responsive"],
+    },
+    {
+      titleKey: "changelog.0_5_3.polish",
+      kind: "fix",
+      changeKeys: ["changelog.0_5_3.label", "changelog.0_5_3.standalone", "changelog.0_5_3.viewport"],
     },
   ],
 };
@@ -82,8 +95,24 @@ const PREVIOUS_RELEASE: ReleaseChangelogEntry = {
   ],
 };
 
+const TREE_RELEASE: ReleaseChangelogEntry = {
+  version: "0.5.2",
+  date: "2026-09-06",
+  category: "Editor",
+  titleKey: "changelog.0_5_2.title",
+  summaryKey: "changelog.0_5_2.summary",
+  changeKeys: [],
+  sections: [
+    {
+      titleKey: "changelog.0_5_2.tree",
+      changeKeys: ["changelog.0_5_2.doubleClick", "changelog.0_5_2.rename", "changelog.0_5_2.drag"],
+    },
+  ],
+};
+
 export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
   CURRENT_RELEASE,
+  TREE_RELEASE,
   PREVIOUS_RELEASE,
   {
     version: "0.5.0",

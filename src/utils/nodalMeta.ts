@@ -93,13 +93,82 @@ export function calendarTempos(nodes: NodeItem[], calendarId: string): NodeItem[
   return nodes.filter((n) => n.type === "tempo" && (relationId(n, "calendar") === calendarId || (!relationId(n, "calendar") && n.parentId === calendarId) || taskTempos.has(n.id)));
 }
 export function makeNode(nodes: NodeItem[], id: string, type: BaseNodeType, name: string, content = getNodeDefinition(type).defaultContent): NodeItem {
-  // Composition never assigns a Lore parent: deleting a source cannot cascade into its targets.
+  // Semantic relations are independent of Lore placement and hierarchy.
   return { id, type, name, parentId: null, order: nodes.filter((n) => !n.parentId).length, content };
 }
-export function ensureCourseCalendar(nodes: NodeItem[], courseId: string, id: string, name: string): NodeItem[] {
+export function courseTitleFromName(course: NodeItem): string {
+  const meta = getNodalMeta(course.content);
+  let title = course.name.trim();
+  if (meta.code && title.startsWith(`${meta.code} - `)) title = title.slice(meta.code.length + 3);
+  if (meta.modality && title.endsWith(` (${meta.modality})`)) title = title.slice(0, -(meta.modality.length + 3));
+  return title;
+}
+export function courseCalendarName(course: NodeItem, label = "Calendario"): string {
+  return `${label} - ${getNodalMeta(course.content).courseTitle.trim() || courseTitleFromName(course)}`;
+}
+export function ensureCourseCalendar(nodes: NodeItem[], courseId: string, id: string, _name?: string): NodeItem[] {
   const course = nodes.find((n) => n.id === courseId && n.type === "curso");
-  if (!course || relationId(course, "calendar")) return nodes;
-  return withRelation([...nodes, makeNode(nodes, id, "calendario", name, createCalendarContent())], courseId, "calendar", id);
+  if (!course || relatedNode(nodes, course, "calendar")?.type === "calendario") return nodes;
+  const calendar = { ...makeNode(nodes, id, "calendario", courseCalendarName(course), createCalendarContent()), loreHidden: true };
+  return withRelation([...nodes, calendar], courseId, "calendar", id);
+}
+
+// Reconcile at store boundaries, never during render. Recover existing identity first.
+export function hasMissingCourseCalendar(nodes: NodeItem[]): boolean {
+  return nodes.some((node) => node.type === "curso" && relatedNode(nodes, node, "calendar")?.type !== "calendario");
+}
+
+export function reconcileCourseCalendars(nodes: NodeItem[], deletedNodes: NodeItem[], label = "Calendario", newId = () => crypto.randomUUID()) {
+  let next = nodes;
+  let trash = deletedNodes;
+  for (const original of nodes.filter((n) => n.type === "curso")) {
+    let course = next.find((n) => n.id === original.id)!;
+    const relations = getNodalMeta(course.content).relations.filter((r) => r.role === "calendar");
+    let calendar = relations.map((r) => [...next, ...trash].find((n) => n.id === r.targetId && n.type === "calendario")).find(Boolean);
+    if (calendar && !next.some((n) => n.id === calendar!.id)) {
+      const recovering = synchronizedNodeIds(trash, [calendar.id]);
+      const restored = trash.filter((n) => recovering.has(n.id) && !next.some((active) => active.id === n.id));
+      const activeIds = new Set([...next, ...restored].map((n) => n.id));
+      next = [...next, ...restored.map((n) => n.parentId && !activeIds.has(n.parentId) ? { ...n, parentId: null } : n)];
+      trash = trash.filter((n) => !recovering.has(n.id));
+    }
+    if (!calendar) {
+      next = ensureCourseCalendar(next, course.id, newId());
+      course = next.find((n) => n.id === course.id)!;
+      calendar = relatedNode(next, course, "calendar")!;
+    }
+    if (relations.length !== 1 || relations[0]?.targetId !== calendar.id) next = withRelation(next, course.id, "calendar", calendar.id);
+    const name = courseCalendarName(course, label);
+    if (calendar.name !== name) next = next.map((n) => n.id === calendar!.id ? { ...n, name } : n);
+  }
+  return { nodes: next, deletedNodes: trash };
+}
+
+// Course -> Calendar is synchronization, not a child or an ordinary reference.
+export function synchronizedNodeIds(nodes: NodeItem[], selected: Iterable<string>): Set<string> {
+  const ids = new Set(selected);
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const node of nodes) {
+      const calendarId = node.type === "curso" ? relationId(node, "calendar") : undefined;
+      if (calendarId && ids.has(node.id) && !ids.has(calendarId)) { ids.add(calendarId); changed = true; }
+      if (node.parentId && ids.has(node.parentId) && !ids.has(node.id)) { ids.add(node.id); changed = true; }
+    }
+  }
+  return ids;
+}
+
+// A principal Calendar cannot be removed independently while its Course is active.
+export function courseAwareDeletionIds(nodes: NodeItem[], selected: Iterable<string>): Set<string> {
+  const ids = synchronizedNodeIds(nodes, selected);
+  for (const course of nodes.filter((n) => n.type === "curso" && !ids.has(n.id))) {
+    const calendar = relatedNode(nodes, course, "calendar");
+    if (calendar?.type === "calendario") {
+      for (const id of synchronizedNodeIds(nodes, [calendar.id])) ids.delete(id);
+    }
+  }
+  return ids;
 }
 export function scheduleTask(nodes: NodeItem[], taskId: string, tempoId: string, calendarId: string, calendarName: string, subtype: TempoSubtype): NodeItem[] {
   const task = nodes.find((n) => n.id === taskId && n.type === "tarea");

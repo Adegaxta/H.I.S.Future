@@ -35,6 +35,7 @@ export function useTreeController(
     y: number;
   } | null>(null);
   const draggedId = useRef<string | null>(null);
+  const draggedIds = useRef<string[]>([]);
   const pointerStart = useRef({ x: 0, y: 0 });
   const pointerDragging = useRef(false);
   const isPointerDown = useRef(false);
@@ -51,6 +52,7 @@ export function useTreeController(
     isPointerDown.current = false;
     pointerDragging.current = false;
     draggedId.current = null;
+    draggedIds.current = [];
     if (dragged) {
       suppressClick.current = true;
       window.setTimeout(() => {
@@ -112,12 +114,16 @@ export function useTreeController(
     targetId: string | null,
     position: DropPosition = "inside",
   ) => {
-    const dragged = draggedId.current;
-    if (dragged == null || dragged === targetId) {
+    const dragged = draggedIds.current.length
+      ? draggedIds.current
+      : draggedId.current
+        ? [draggedId.current]
+        : [];
+    if (!dragged.length || dragged.includes(targetId ?? "")) {
       resetDrag();
       return;
     }
-    store.moveNode(dragged, targetId, position);
+    store.moveNodes(dragged, targetId, position);
     resetDrag();
   };
 
@@ -150,6 +156,7 @@ export function useTreeController(
     resetDrag,
     dropTargetRef,
     draggedId,
+    draggedIds,
     pointerStart,
     pointerDragging,
     isPointerDown,

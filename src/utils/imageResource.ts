@@ -7,6 +7,32 @@ export interface ImageResourceInfo {
   description: string;
 }
 
+export function getImageMimeType(src: string): string | null {
+  if (!src.startsWith("data:")) return null;
+  const separator = src.indexOf(",");
+  if (separator < 0) return null;
+  const metadata = src.slice(5, separator).split(";", 1)[0].trim().toLowerCase();
+  return metadata || null;
+}
+
+export function getDataUrlByteSize(src: string): number | null {
+  if (!src.startsWith("data:")) return null;
+  const separator = src.indexOf(",");
+  if (separator < 0) return null;
+  const metadata = src.slice(5, separator);
+  const data = src.slice(separator + 1);
+  if (/;base64/i.test(metadata)) {
+    const normalized = data.replace(/\s/g, "");
+    const padding = normalized.endsWith("==") ? 2 : normalized.endsWith("=") ? 1 : 0;
+    return Math.max(0, Math.floor(normalized.length * 3 / 4) - padding);
+  }
+  try {
+    return new TextEncoder().encode(decodeURIComponent(data)).byteLength;
+  } catch {
+    return null;
+  }
+}
+
 export function getImageResourceInfo(content: string, fallbackName: string): ImageResourceInfo | null {
   const image = new DOMParser()
     .parseFromString(content, "text/html")
@@ -44,64 +70,6 @@ export function createImageContent(
   image.dataset.imageHash = hash;
   image.dataset.imageDescription = description;
   return `<p>${image.outerHTML}</p>`;
-}
-
-export async function compressImageSource(
-  src: string,
-  options: {
-    maxWidth?: number;
-    maxHeight?: number;
-    quality?: number;
-  } = {},
-): Promise<string> {
-  const {
-    maxWidth = 1600,
-    maxHeight = 1600,
-    quality = 0.72,
-  } = options;
-
-  if (!src.startsWith("data:image/")) return src;
-
-  const mime = src.slice(5, src.indexOf(";", 5) >= 0 ? src.indexOf(";", 5) : src.length) || "image/png";
-  if (mime === "image/svg+xml" || mime === "image/gif") return src;
-
-  const image = await new Promise<HTMLImageElement>((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error("No se pudo cargar la imagen para comprimirla."));
-    img.src = src;
-  });
-
-  const ratio = Math.min(1, maxWidth / image.naturalWidth, maxHeight / image.naturalHeight);
-  const width = Math.max(1, Math.round(image.naturalWidth * ratio));
-  const height = Math.max(1, Math.round(image.naturalHeight * ratio));
-
-  const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
-
-  const context = canvas.getContext("2d");
-  if (!context) return src;
-
-  context.fillStyle = "#ffffff";
-  context.fillRect(0, 0, width, height);
-  context.drawImage(image, 0, 0, width, height);
-
-  const blob = await new Promise<Blob | null>((resolve) => {
-    canvas.toBlob(resolve, "image/jpeg", quality);
-  });
-
-  if (!blob) return src;
-
-  const compressed = await new Promise<string>((resolve) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : src);
-    reader.onerror = () => resolve(src);
-    reader.readAsDataURL(blob);
-  });
-
-  if (compressed.length >= src.length) return src;
-  return compressed;
 }
 
 export async function hashImageFile(file: File): Promise<string> {

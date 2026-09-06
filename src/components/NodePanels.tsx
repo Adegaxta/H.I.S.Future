@@ -1,7 +1,7 @@
 import { useMemo, useState, type CSSProperties } from "react";
-import type { NodeItem, RenderNodeType } from "../types/nodes";
+import type { ContextMenuState, NodeItem, RenderNodeType } from "../types/nodes";
 import { NODE_REGISTRY, getNodeDefinition, getNodeDisplayLabel } from "../defs/nodeTypes";
-import { getEffectiveNodeType } from "../utils/nodeTree";
+import { getEffectiveNodeType, opensNodeViewOnClick } from "../utils/nodeTree";
 import { useLocale } from "../i18n/LocaleContext";
 import { NodeIcon, SidebarIcon } from "./SidebarIcon";
 import { useSearchReveal } from "../hooks/useSearchReveal";
@@ -14,11 +14,12 @@ interface NodePanelsProps {
   selectedId: string | null;
   query: string;
   onSelect: (id: string) => void;
+  onContextMenu: (menu: ContextMenuState) => void;
 }
 
 const startOfDay = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
 
-export default function NodePanels({ panel, nodes, recentNodes, recentActivity, selectedId, query, onSelect }: NodePanelsProps) {
+export default function NodePanels({ panel, nodes, recentNodes, recentActivity, selectedId, query, onSelect, onContextMenu }: NodePanelsProps) {
   const { locale, t } = useLocale();
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const normalizedQuery = query.trim().toLocaleLowerCase(locale);
@@ -42,7 +43,7 @@ export default function NodePanels({ panel, nodes, recentNodes, recentActivity, 
       {recentGroups.length === 0 ? <div className="node-panels__empty">{t("sidebar.noRecent")}</div> : recentGroups.map(([label, items]) => (
         <section className="recent-group" key={label}>
           <h3 className={normalizedQuery && !items.some(matches) ? "is-search-dimmed" : ""}>{label}</h3>
-          {items.map((node) => <NodeRow key={node.id} node={node} nodes={nodes} selected={node.id === selectedId} onSelect={onSelect} searchMatch={normalizedQuery ? matches(node) : undefined} />)}
+          {items.map((node) => <NodeRow key={node.id} node={node} nodes={nodes} selected={node.id === selectedId} onSelect={onSelect} context={panel} onContextMenu={onContextMenu} searchMatch={normalizedQuery ? matches(node) : undefined} />)}
         </section>
       ))}
     </div>
@@ -62,7 +63,7 @@ export default function NodePanels({ panel, nodes, recentNodes, recentActivity, 
               <span className="type-group__count">{items.length}</span>
               <SidebarIcon name={isCollapsed ? "arrow-close" : "arrow-open"} className="type-group__chevron" />
             </button>
-            {!isCollapsed && items.map((node) => <NodeRow key={node.id} node={node} nodes={nodes} selected={node.id === selectedId} onSelect={onSelect} compact searchMatch={normalizedQuery ? matches(node) : undefined} />)}
+            {!isCollapsed && items.map((node) => <NodeRow key={node.id} node={node} nodes={nodes} selected={node.id === selectedId} onSelect={onSelect} context={panel} onContextMenu={onContextMenu} compact searchMatch={normalizedQuery ? matches(node) : undefined} />)}
           </section>
         );
       })}
@@ -70,10 +71,10 @@ export default function NodePanels({ panel, nodes, recentNodes, recentActivity, 
   );
 }
 
-function NodeRow({ node, nodes, selected, onSelect, compact = false, searchMatch }: { node: NodeItem; nodes: NodeItem[]; selected: boolean; compact?: boolean; searchMatch?: boolean; onSelect: (id: string) => void }) {
+function NodeRow({ node, nodes, selected, onSelect, context, onContextMenu, compact = false, searchMatch }: { node: NodeItem; nodes: NodeItem[]; selected: boolean; compact?: boolean; searchMatch?: boolean; onSelect: (id: string) => void; context: "recent" | "types"; onContextMenu: (menu: ContextMenuState) => void }) {
   const type = getEffectiveNodeType(nodes, node);
   return (
-    <button type="button" data-search-match={searchMatch} className={`context-node-row ${selected ? "is-selected" : ""} ${compact ? "is-compact" : ""} ${searchMatch === false ? "is-search-dimmed" : ""}`} style={{ "--node-color": getNodeDefinition(type).color } as CSSProperties} onClick={() => onSelect(node.id)} title={node.name}>
+    <button type="button" data-search-match={searchMatch} className={`context-node-row ${selected ? "is-selected" : ""} ${compact ? "is-compact" : ""} ${searchMatch === false ? "is-search-dimmed" : ""}`} style={{ "--node-color": getNodeDefinition(type).color } as CSSProperties} onClick={() => { if (opensNodeViewOnClick(node)) onSelect(node.id); }} onContextMenu={(event) => { event.preventDefault(); event.stopPropagation(); onContextMenu({ context, nodeId: node.id, x: event.clientX, y: event.clientY, extended: event.shiftKey }); }} title={node.name}>
       <NodeIcon type={type} />
       <span className="context-node-row__name">{node.name}</span>
     </button>
