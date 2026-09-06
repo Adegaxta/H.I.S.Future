@@ -1,3 +1,6 @@
+import { isDesktopRuntime } from "../project/runtime";
+import { useWorkspaceNavigation, type NavigationHandler } from "../hooks/useWorkspaceNavigation";
+import { readEditorContent } from "../utils/editorPersistence";
 import { AVATAR_COLORS } from "../defs/palette";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { NODE_REGISTRY, getNodeDefinition, getNodeDisplayLabel } from "../defs/nodeTypes";
@@ -19,7 +22,7 @@ import FolderNodeView from "./FolderNodeView";
 import GraphView from "./GraphView";
 import CalendarNodeView from "./CalendarNodeView";
 import TempoInspector from "./TempoInspector";
-import { CourseNodeView, TaskNodeView, VideoNodeView } from "./NodalViews";
+import { NodalNodeView } from "./NodalViews";
 import { getPageMeta } from "../utils/pageMeta";
 import { createCalendarContent, createTempoContent, DEFAULT_TEMPO_COLOR, setTempoMeta, type TempoMeta, type TempoSubtype, type TimeFormat } from "../utils/temporalMeta";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -47,10 +50,6 @@ interface AppWorkspaceProps {
 }
 
 const MAX_LOCAL_STORAGE_STRING_BYTES = 900_000;
-
-type NavigationEntry =
-  | { kind: "node"; id: string }
-  | { kind: "trash"; id: string };
 
 function TrashNodePreview({ node }: { node: NodeItem }) {
   const parsed = new DOMParser().parseFromString(node.content, "text/html");
@@ -155,11 +154,7 @@ export default function AppWorkspace({
   const [trashActionsMenu, setTrashActionsMenu] = useState<{ x: number; y: number } | null>(null);
   const editorRef = useRef<HTMLDivElement | null>(null);
   const resizing = useRef(false);
-  const navigationHistory = useRef<{ entries: NavigationEntry[]; index: number }>({
-    entries: [],
-    index: -1,
-  });
-  const calendarNavigation = useRef<((direction: -1 | 1) => boolean) | null>(null);
+  const calendarNavigation = useRef<NavigationHandler | null>(null);
   const selectedNode = workspace.nodes.find(
     (node) => node.id === workspace.selectedId,
   );
@@ -180,48 +175,11 @@ export default function AppWorkspace({
     if (workspace.selectedId) setSelectedTrashNodeId(null);
   }, [workspace.selectedId]);
 
-  useEffect(() => {
-    const id = workspace.selectedId;
-    if (!id) return;
-    const history = navigationHistory.current;
-    const currentEntry = history.entries[history.index];
-    if (currentEntry?.kind === "node" && currentEntry.id === id) return;
-    const current = history.entries.slice(0, history.index + 1);
-    if (current[current.length - 1]?.kind === "node" && current[current.length - 1].id === id) return;
-    navigationHistory.current = {
-      entries: [...current, { kind: "node", id }],
-      index: current.length,
-    };
-  }, [workspace.selectedId]);
-
-  useEffect(() => {
-    const id = selectedTrashNodeId;
-    if (!id) return;
-    const history = navigationHistory.current;
-    const currentEntry = history.entries[history.index];
-    if (currentEntry?.kind === "trash" && currentEntry.id === id) return;
-    const current = history.entries.slice(0, history.index + 1);
-    if (current[current.length - 1]?.kind === "trash" && current[current.length - 1].id === id) return;
-    navigationHistory.current = {
-      entries: [...current, { kind: "trash", id }],
-      index: current.length,
-    };
-  }, [selectedTrashNodeId]);
-
-  useEffect(() => {
-    const handleMouseButton = (event: globalThis.MouseEvent) => {
-      if (event.button !== 3 && event.button !== 4) return;
-      const direction = event.button === 3 ? -1 : 1;
-      if (selectedNode?.type === "calendario" && calendarNavigation.current?.(direction)) {
-        event.preventDefault();
-        return;
-      }
-      const history = navigationHistory.current;
-      const nextIndex = history.index + direction;
-      if (nextIndex < 0 || nextIndex >= history.entries.length) return;
-      event.preventDefault();
-      const next = history.entries[nextIndex];
-      history.index = nextIndex;
+  useWorkspaceNavigation({
+    selectedId: workspace.selectedId,
+    selectedTrashId: selectedTrashNodeId,
+    navigateWithinView: (direction) => selectedNode?.type === "calendario" && Boolean(calendarNavigation.current?.(direction)),
+    onNavigate: (next) => {
       if (next.kind === "trash") {
         workspace.setSelectedId(null);
         setProjectTab("settings");
@@ -233,10 +191,8 @@ export default function AppWorkspace({
         setView("list");
         workspace.setSelectedId(next.id);
       }
-    };
-    window.addEventListener("mousedown", handleMouseButton);
-    return () => window.removeEventListener("mousedown", handleMouseButton);
-  }, [workspace, selectedNode?.id, selectedNode?.type]);
+    },
+  });
 
   const onMouseDown = useCallback(() => {
     resizing.current = true;
@@ -299,9 +255,13 @@ export default function AppWorkspace({
     (node) => node.id === workspace.dragPreviewId,
   );
   const closingWindowRef = useRef(false);
+  const allowWindowCloseRef = useRef(false);
   const getCurrentSnapshot = () => {
     const currentNodeId = workspace.selectedId;
-    const currentHtml = editorRef.current?.innerHTML;
+    const editor = editorRef.current;
+    const active = workspace.nodes.find((node) => node.id === currentNodeId);
+    const currentHtml = editor && active && editor.getAttribute("data-active-id") === active.id
+      ? readEditorContent(editor, active) : undefined;
     return currentNodeId && currentHtml !== undefined
       ? workspace.nodes.map((node) =>
           node.id === currentNodeId ? { ...node, content: currentHtml } : node,
@@ -330,13 +290,14 @@ export default function AppWorkspace({
     try {
       await saveCurrentWorkspace();
     } catch (error) {
-      console.error("No se pudo guardar el proyecto antes de salir", error);
+      setFileImportError(String(error));
+      return;
     }
 
     try {
       await onExitProject();
     } catch (error) {
-      console.error("No se pudo cerrar el proyecto", error);
+      setFileImportError(String(error));
     }
   };
   const closeApplication = async () => {
@@ -346,18 +307,21 @@ export default function AppWorkspace({
     try {
       await saveCurrentWorkspace();
     } catch (error) {
-      console.error("No se pudo guardar el proyecto antes de cerrar", error);
-    }
-
-    try {
-      await onExitProject();
-    } catch (error) {
-      console.error("No se pudo empaquetar el proyecto antes de cerrar", error);
+      setFileImportError(String(error));
       closingWindowRef.current = false;
       return;
     }
 
     try {
+      await onExitProject();
+    } catch (error) {
+      setFileImportError(String(error));
+      closingWindowRef.current = false;
+      return;
+    }
+
+    try {
+      allowWindowCloseRef.current = true;
       await closeWindowSafely();
     } catch (error) {
       console.error("No se pudo cerrar la ventana", error);
@@ -365,6 +329,20 @@ export default function AppWorkspace({
       closingWindowRef.current = false;
     }
   };
+  const closeApplicationRef = useRef(closeApplication);
+  closeApplicationRef.current = closeApplication;
+  useEffect(() => {
+    if (!isDesktopRuntime()) return;
+    let disposed = false;
+    let unlisten: (() => void) | undefined;
+    void getCurrentWindow().onCloseRequested((event) => {
+      if (allowWindowCloseRef.current) return;
+      event.preventDefault();
+      if (!closingWindowRef.current) void closeApplicationRef.current();
+    }).then((stop) => { if (disposed) stop(); else unlisten = stop; })
+      .catch((error) => setFileImportError(String(error)));
+    return () => { disposed = true; unlisten?.(); };
+  }, []);
   const projectInitial = projectName.trim().charAt(0).toUpperCase() || "P";
   const findCoverNode = () => {
     const storedId = localStorage.getItem(coverNodeStorageKey);
@@ -688,9 +666,9 @@ export default function AppWorkspace({
         </div>
       </header>
 
-      {fileImportError && (
+      {(fileImportError || workspace.persistenceError) && (
         <div className="workspace-file-import-error" role="alert">
-          <span>{fileImportError}</span>
+          <span>{fileImportError || workspace.persistenceError}</span>
           <button type="button" onClick={() => setFileImportError(null)} aria-label={t("fileImport.dismiss")}>×</button>
         </div>
       )}
@@ -933,12 +911,12 @@ export default function AppWorkspace({
                       <span>{entry.date}</span>
                     </div>
                     <h2>{"titleKey" in entry ? t(entry.titleKey) : entry.title}</h2>
-                    {"summary" in entry && entry.summary && <p className="changelog-entry__summary">{entry.summary}</p>}
+                    {"summaryKey" in entry && entry.summaryKey ? <p className="changelog-entry__summary">{t(entry.summaryKey)}</p> : "summary" in entry && entry.summary && <p className="changelog-entry__summary">{entry.summary}</p>}
                     {"sections" in entry && entry.sections ? (
                       <div className="changelog-entry__sections">
-                        {entry.sections.map((section) => <section className={section.kind === "fix" ? "is-fix" : ""} key={section.title}>
-                          <h3>{section.title}</h3>
-                          <ul>{section.changes.map((change) => <li key={change}>{change}</li>)}</ul>
+                        {entry.sections.map((section) => <section className={section.kind === "fix" ? "is-fix" : ""} key={"titleKey" in section ? section.titleKey : section.title}>
+                          <h3>{"titleKey" in section ? t(section.titleKey) : section.title}</h3>
+                          <ul>{("changeKeys" in section ? section.changeKeys.map((key) => t(key)) : section.changes).map((change) => <li key={change}>{change}</li>)}</ul>
                         </section>)}
                       </div>
                     ) : (
@@ -1141,17 +1119,8 @@ export default function AppWorkspace({
                     safeLocalStorageSet(coverNodeStorageKey, nodeId);
                   }}
                 />
-              ) : selectedNode.type === "curso" ? (
-                <CourseNodeView
-                  node={selectedNode}
-                  nodes={workspace.nodes}
-                  onMutate={workspace.mutateNodes}
-                  onOpen={workspace.setSelectedId}
-                  onRename={workspace.renameNode}
-                  onImport={(file) => createNodeFromFile(file, null)}
-                />
-              ) : selectedNode.type === "tarea" ? (
-                <TaskNodeView
+              ) : (
+                <NodalNodeView
                   node={selectedNode}
                   nodes={workspace.nodes}
                   deletedNodes={workspace.deletedNodes}
@@ -1162,18 +1131,7 @@ export default function AppWorkspace({
                   onRename={workspace.renameNode}
                   onImport={(file) => createNodeFromFile(file, null)}
                   onDelete={workspace.deleteNode}
-                />
-              ) : selectedNode.type === "video" ? (
-                <VideoNodeView
-                  node={selectedNode}
-                  nodes={workspace.nodes}
-                  onMutate={workspace.mutateNodes}
-                  onOpen={workspace.setSelectedId}
-                  onRename={workspace.renameNode}
-                  onImport={(file) => createNodeFromFile(file, null)}
-                  onDelete={workspace.deleteNode}
-                />
-              ) : (
+                >
                 <RichTextEditor
                   node={selectedNode}
                   nodes={workspace.nodes}
@@ -1214,6 +1172,7 @@ export default function AppWorkspace({
                     outline: "none",
                   }}
                 />
+                </NodalNodeView>
               )}
             </div>
           )}

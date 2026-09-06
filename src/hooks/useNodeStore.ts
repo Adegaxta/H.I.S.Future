@@ -1,6 +1,6 @@
 import { useDebouncedPersistence } from "./useDebouncedPersistence";
 import { useEffect, useRef, useState } from "react";
-import { listNodes, saveNodes } from "../project/nodeRepository";
+import { listNodes, saveNodes, loadDeletedNodes } from "../project/nodeRepository";
 import { getNodeDefinition } from "../defs/nodeTypes";
 import type { BaseNodeType, NodeItem } from "../types/nodes";
 import { setLoreMembership } from "../utils/loreTree";
@@ -12,31 +12,6 @@ import {
   sortNodesForPersistence,
   wouldCreateCycle,
 } from "../utils/nodeTree";
-
-const MAX_TRASH_STORAGE_BYTES = 900_000;
-
-const safePersistTrash = (key: string, value: NodeItem[]) => {
-  try {
-    const serialized = JSON.stringify(value);
-    const size = new Blob([serialized]).size;
-    if (size > MAX_TRASH_STORAGE_BYTES) {
-      console.warn(
-        `[trash] Se descarta la persistencia de la papelera: ${(size / 1024 / 1024).toFixed(1)} MB excede el límite seguro.`,
-      );
-      localStorage.removeItem(key);
-      return;
-    }
-
-    localStorage.setItem(key, serialized);
-  } catch (error) {
-    console.warn("[trash] No se pudo guardar la papelera en localStorage.", error);
-    try {
-      localStorage.removeItem(key);
-    } catch {
-      // Ignorado.
-    }
-  }
-};
 
 export function useNodeStore(projectKey?: string) {
   const trashKey = projectKey ? `hisfuture.project.trash.${projectKey}` : null;
@@ -66,22 +41,26 @@ export function useNodeStore(projectKey?: string) {
   const [hydrated, setHydrated] = useState(false);
   const [loadFailed, setLoadFailed] = useState(false);
   const nodesRef = useRef(nodes);
+  const deletedNodesRef = useRef(deletedNodes);
+  deletedNodesRef.current = deletedNodes;
+  const [persistenceError, setPersistenceError] = useState<string | null>(null);
   const changeVersionRef = useRef(0);
   const persistedVersionRef = useRef(0);
-  const pendingSaveRef = useRef<{ nodes: NodeItem[]; version: number } | null>(null);
+  const pendingSaveRef = useRef<{ nodes: NodeItem[]; deletedNodes: NodeItem[]; version: number } | null>(null);
   const saveQueueRef = useRef<Promise<void> | null>(null);
 
   nodesRef.current = nodes;
 
   const enqueueSave = (snapshot: NodeItem[], version: number) => {
-    pendingSaveRef.current = { nodes: snapshot, version };
+    pendingSaveRef.current = { nodes: snapshot, deletedNodes: deletedNodesRef.current, version };
     if (saveQueueRef.current) return saveQueueRef.current;
     const save = (async () => {
       while (pendingSaveRef.current) {
         const next = pendingSaveRef.current;
         pendingSaveRef.current = null;
         const toSave = sortNodesForPersistence(sanitizeParentIds(next.nodes));
-        await saveNodes(toSave);
+        await saveNodes(toSave, next.deletedNodes);
+        setPersistenceError(null);
         console.log(
           `%c[guardado] ${new Date().toLocaleTimeString()} — ${toSave.length} nodos persistidos`,
           "color: #4dd8c0; font-weight: bold;",
@@ -113,22 +92,23 @@ export function useNodeStore(projectKey?: string) {
   }, [selectedId]);
 
   useEffect(() => {
-    if (!trashKey) return;
-    safePersistTrash(trashKey, deletedNodes);
-  }, [deletedNodes, trashKey]);
-
-  useEffect(() => {
     let cancelled = false;
     const load = async () => {
       try {
-        const stored = await listNodes();
+        const [stored, trash] = await Promise.all([listNodes(), loadDeletedNodes()]);
         if (cancelled) return;
         persistedVersionRef.current = changeVersionRef.current;
         setNodes(stored);
+        if (trash !== null) setDeletedNodes(trash);
+        else {
+          setDeletedNodes((legacy) => legacy.filter((node) => !stored.some((active) => active.id === node.id)));
+          markDirty(); // Persist the legacy local trash in the project on first load.
+        }
         setHydrated(true);
       } catch (error) {
         console.error(error);
         if (!cancelled) {
+          setPersistenceError(String(error));
           setLoadFailed(true);
           setHydrated(true);
         }
@@ -140,30 +120,28 @@ export function useNodeStore(projectKey?: string) {
     };
   }, []);
 
-    const isDirty =
+  const isDirty =
     hydrated && !loadFailed && persistedVersionRef.current !== changeVersionRef.current;
 
   const persistence = useDebouncedPersistence(
-    nodes,
+    [nodes, deletedNodes],
     isDirty,
     () => {
       void enqueueSave(nodesRef.current, changeVersionRef.current).catch((error) =>
-        console.error(error),
+        setPersistenceError(String(error)),
       );
     },
     { debounceMs: 500, maxWaitMs: 4000 },
   );
 
-    const saveNow = (snapshot = nodesRef.current) => {
-    if (loadFailed) {
+  const saveNow = (snapshot = nodesRef.current) => {
+    if (!hydrated || loadFailed) {
       return Promise.reject(
         new Error("No se puede guardar: no se pudo cargar el proyecto."),
       );
     }
     persistence.cancelPending();
-    if (persistedVersionRef.current === changeVersionRef.current) {
-      return Promise.resolve();
-    }
+
     return enqueueSave(snapshot, changeVersionRef.current);
   };
 
@@ -214,7 +192,7 @@ export function useNodeStore(projectKey?: string) {
       ];
     });
     if (parentId) setExpanded((current) => ({ ...current, [parentId]: true }));
-    if (selectCreated && (type === "pagina" || type === "curso" || type === "tarea" || type === "video")) setSelectedId(id);
+    if (selectCreated && getNodeDefinition(type).selectOnCreation) setSelectedId(id);
     return id;
   };
   const renameNode = (id: string, name: string) =>
@@ -325,6 +303,7 @@ export function useNodeStore(projectKey?: string) {
 
   return {
     nodes,
+    persistenceError,
     hydrated,
     setNodes,
     selectedId,

@@ -23,6 +23,7 @@ export interface NodeDefinition<T extends string = string> {
   color: string;
   canContainChildren: boolean;
   availableInCreation: boolean;
+  selectOnCreation: boolean;
   showInTypePanel: boolean;
   concept?: NodeConceptDefinition;
   defaultContent: string;
@@ -40,6 +41,7 @@ const NODE_DEFINITIONS = [
     color: PALETTE.categoria,
     canContainChildren: true,
     availableInCreation: true,
+    selectOnCreation: false,
     showInTypePanel: true,
     concept: { id: "categories", labelKey: "concepts.categories" },
     defaultContent: "<p><br></p>",
@@ -51,6 +53,7 @@ const NODE_DEFINITIONS = [
     color: PALETTE.pagina,
     canContainChildren: false,
     availableInCreation: true,
+    selectOnCreation: true,
     showInTypePanel: true,
     concept: { id: "pages", labelKey: "concepts.pages" },
     defaultContent: "<p><br></p>",
@@ -62,6 +65,7 @@ const NODE_DEFINITIONS = [
     color: PALETTE.imagen,
     canContainChildren: false,
     availableInCreation: false,
+    selectOnCreation: false,
     showInTypePanel: true,
     concept: { id: "images", labelKey: "concepts.images" },
     defaultContent: "<p><br></p>",
@@ -73,6 +77,7 @@ const NODE_DEFINITIONS = [
     color: PALETTE.calendario,
     canContainChildren: true,
     availableInCreation: false,
+    selectOnCreation: false,
     showInTypePanel: true,
     concept: { id: "calendars", labelKey: "concepts.calendars" },
     defaultContent: "<p><br></p>",
@@ -84,6 +89,7 @@ const NODE_DEFINITIONS = [
     color: PALETTE.tempo,
     canContainChildren: false,
     availableInCreation: false,
+    selectOnCreation: false,
     showInTypePanel: true,
     defaultContent: "<p><br></p>",
   },
@@ -94,13 +100,17 @@ const NODE_DEFINITIONS = [
     color: PALETTE.pdf,
     canContainChildren: false,
     availableInCreation: false,
+    selectOnCreation: false,
     showInTypePanel: true,
     concept: { id: "pdf", labelKey: "concepts.pdf", categoryId: "documents" },
     defaultContent: "<p><br></p>",
   },
-  { type: "curso", labelKey: "nodes.course.label", nodeNameKey: "nodes.course.nodeName", color: PALETTE.curso, canContainChildren: false, availableInCreation: true, showInTypePanel: true, concept: { id: "courses", labelKey: "concepts.courses" }, defaultContent: "<p><br></p>" },
-  { type: "tarea", labelKey: "nodes.task.label", nodeNameKey: "nodes.task.nodeName", color: PALETTE.tarea, canContainChildren: false, availableInCreation: true, showInTypePanel: true, concept: { id: "tasks", labelKey: "concepts.tasks" }, defaultContent: "<p><br></p>" },
-  { type: "video", labelKey: "nodes.video.label", nodeNameKey: "nodes.video.nodeName", color: PALETTE.video, canContainChildren: false, availableInCreation: true, showInTypePanel: true, concept: { id: "videos", labelKey: "concepts.videos" }, defaultContent: "<p><br></p>" },
+  { type: "curso", labelKey: "nodes.course.label", nodeNameKey: "nodes.course.nodeName", color: PALETTE.curso, canContainChildren: false, availableInCreation: true,
+    selectOnCreation: true, showInTypePanel: true, concept: { id: "courses", labelKey: "concepts.courses" }, defaultContent: "<p><br></p>" },
+  { type: "tarea", labelKey: "nodes.task.label", nodeNameKey: "nodes.task.nodeName", color: PALETTE.tarea, canContainChildren: false, availableInCreation: true,
+    selectOnCreation: true, showInTypePanel: true, concept: { id: "tasks", labelKey: "concepts.tasks" }, defaultContent: "<p><br></p>" },
+  { type: "video", labelKey: "nodes.video.label", nodeNameKey: "nodes.video.nodeName", color: PALETTE.video, canContainChildren: false, availableInCreation: true,
+    selectOnCreation: true, showInTypePanel: true, concept: { id: "videos", labelKey: "concepts.videos" }, defaultContent: "<p><br></p>" },
 ] as const satisfies readonly NodeDefinition[];
 
 export type BaseNodeType = (typeof NODE_DEFINITIONS)[number]["type"];

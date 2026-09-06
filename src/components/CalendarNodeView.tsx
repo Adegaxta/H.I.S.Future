@@ -1,3 +1,4 @@
+import type { NavigationHandler } from "../hooks/useWorkspaceNavigation";
 import { calendarTempos } from "../utils/nodalMeta";
 import { useEffect, useRef, useState } from "react";
 import type { NodeItem } from "../types/nodes";
@@ -36,7 +37,7 @@ interface CalendarNodeViewProps {
   onOpenNodeView: (id: string, x: number, y: number) => void;
   onFileImport?: (file: File, parentId?: string | null) => Promise<NodeItem | null> | NodeItem | null;
   onSlashCommand?: (tag: string) => boolean;
-  onRegisterNavigation: (handler: (direction: -1 | 1) => boolean) => () => void;
+  onRegisterNavigation: (handler: NavigationHandler) => () => void;
 }
 
 interface TempoEntry {

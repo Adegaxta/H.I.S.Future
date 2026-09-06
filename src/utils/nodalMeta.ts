@@ -1,3 +1,5 @@
+import { stringifyHtmlMetadata } from "./htmlMetadata";
+import { getNodeDefinition } from "../defs/nodeTypes";
 import type { BaseNodeType, NodeItem } from "../types/nodes";
 import { createCalendarContent, createTempoContent, DEFAULT_TEMPO_COLOR, localIsoDate, type TempoSubtype } from "./temporalMeta";
 
@@ -49,7 +51,7 @@ export function getNodalMeta(content: string): NodalMeta {
 }
 export function setNodalMeta(content: string, patch: Partial<NodalMeta>): string {
   // Escaping angle brackets prevents titles/URLs/transcripts from closing the HTML comment.
-  const json = JSON.stringify({ ...rawMeta(content), ...patch, version: 1 }).replace(/</g, "\\u003c").replace(/>/g, "\\u003e");
+  const json = stringifyHtmlMetadata({ ...rawMeta(content), ...patch, version: 1 });
   return `<!--hisfuture-nodal-meta:${json}-->${content.replace(PATTERN, "")}`;
 }
 export const relationId = (node: NodeItem, role: RelationRole) => getNodalMeta(node.content).relations.find((r) => r.role === role)?.targetId;
@@ -90,7 +92,7 @@ export function calendarTempos(nodes: NodeItem[], calendarId: string): NodeItem[
   const taskTempos = new Set(nodes.filter((n) => n.type === "tarea" && courses.has(relationId(n, "course") ?? "")).map((n) => relationId(n, "tempo")));
   return nodes.filter((n) => n.type === "tempo" && (relationId(n, "calendar") === calendarId || (!relationId(n, "calendar") && n.parentId === calendarId) || taskTempos.has(n.id)));
 }
-export function makeNode(nodes: NodeItem[], id: string, type: BaseNodeType, name: string, content = "<p><br></p>"): NodeItem {
+export function makeNode(nodes: NodeItem[], id: string, type: BaseNodeType, name: string, content = getNodeDefinition(type).defaultContent): NodeItem {
   // Composition never assigns a Lore parent: deleting a source cannot cascade into its targets.
   return { id, type, name, parentId: null, order: nodes.filter((n) => !n.parentId).length, content };
 }

@@ -1,8 +1,7 @@
 import { useEffect, useRef } from "react";
 import type { FormEventHandler, FocusEventHandler, RefObject } from "react";
 import type { NodeItem } from "../types/nodes";
-import { getPageMeta, setPageMeta } from "../utils/pageMeta";
-import { getTempoMeta, setTempoMeta } from "../utils/temporalMeta";
+import { readEditorContent } from "../utils/editorPersistence";
 
 interface UseRichTextEditorOptions {
   node: NodeItem | undefined;
@@ -56,14 +55,7 @@ export function useRichTextEditor({
   const syncContent = () => {
     cancelScheduled();
     if (editorRef.current && node) {
-      const persistableEditor = editorRef.current.cloneNode(true) as HTMLElement;
-      persistableEditor.querySelectorAll("[data-editor-placeholder]").forEach((block) => block.removeAttribute("data-editor-placeholder"));
-      const html = persistableEditor.innerHTML;
-      const content = node.content.includes("<!--hisfuture-page-meta:")
-        ? setPageMeta(html, getPageMeta(node.content))
-        : node.content.includes("<!--hisfuture-tempo-meta:")
-          ? setTempoMeta(html, getTempoMeta(node.content))
-          : html;
+      const content = readEditorContent(editorRef.current, node);
       onContentChange(node.id, content);
     }
   };

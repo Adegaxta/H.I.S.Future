@@ -107,8 +107,13 @@ fn list_nodes(state: tauri::State<ProjectState>) -> Result<Vec<NodeRecord>, Stri
 }
 
 #[tauri::command]
-fn save_nodes(nodes: Vec<NodeRecord>, state: tauri::State<ProjectState>) -> Result<(), String> {
-    project::save_nodes(&state, nodes)
+fn save_nodes(
+    nodes: Vec<NodeRecord>,
+    hidden_ids: Option<Vec<String>>,
+    deleted_nodes: Option<String>,
+    state: tauri::State<ProjectState>,
+) -> Result<(), String> {
+    project::save_workspace(&state, nodes, hidden_ids, deleted_nodes)
 }
 
 #[tauri::command]

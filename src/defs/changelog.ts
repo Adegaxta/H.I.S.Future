@@ -20,15 +20,57 @@ interface LegacyChangelogEntry extends ChangelogEntryBase {
 interface LocalizedChangelogEntry extends ChangelogEntryBase {
   titleKey: TranslationKey;
   changeKeys: TranslationKey[];
+  summaryKey?: TranslationKey;
+  sections?: { titleKey: TranslationKey; changeKeys: TranslationKey[]; kind?: "feature" | "fix" }[];
 }
 
 export type ChangelogEntry = LegacyChangelogEntry | LocalizedChangelogEntry;
 
-export const CURRENT_VERSION = "0.5.0";
+export const CURRENT_VERSION = "0.5.1";
+
+// All new releases use the 0.5.0 layout with complete Spanish/English keys.
+// Keep legacy entries readable without rewriting their historical content.
+interface ReleaseChangelogEntry extends LocalizedChangelogEntry {
+  summaryKey: TranslationKey;
+  sections: NonNullable<LocalizedChangelogEntry["sections"]>;
+}
+
+const CURRENT_RELEASE: ReleaseChangelogEntry = {
+  version: CURRENT_VERSION,
+  date: "2026-09-06",
+  category: "Sistema",
+  titleKey: "changelog.0_5_1.title",
+  summaryKey: "changelog.0_5_1.summary",
+  changeKeys: [],
+  sections: [
+    {
+      titleKey: "changelog.0_5_1.saves",
+      changeKeys: ["changelog.0_5_1.atomic", "changelog.0_5_1.snapshot", "changelog.0_5_1.trash"],
+    },
+    {
+      titleKey: "changelog.0_5_1.foundations",
+      changeKeys: ["changelog.0_5_1.registry", "changelog.0_5_1.workspace", "changelog.0_5_1.relations"],
+    },
+    {
+      titleKey: "changelog.0_5_1.paths",
+      changeKeys: ["changelog.0_5_1.navigation", "changelog.0_5_1.calendar"],
+    },
+    {
+      titleKey: "changelog.0_5_1.checks",
+      changeKeys: ["changelog.0_5_1.invariants", "changelog.0_5_1.contract"],
+    },
+    {
+      titleKey: "changelog.0_5_1.fixes",
+      kind: "fix",
+      changeKeys: ["changelog.0_5_1.links", "changelog.0_5_1.closing", "changelog.0_5_1.temporary", "changelog.0_5_1.metadata"],
+    },
+  ],
+};
 
 export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
+  CURRENT_RELEASE,
   {
-    version: CURRENT_VERSION,
+    version: "0.5.0",
     date: "2026-09-05",
     title: "NODOS & NEXOS — LA GRAN ACTUALIZACIÓN ACADÉMICA",
     category: "Sistema",

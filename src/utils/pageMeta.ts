@@ -1,3 +1,4 @@
+import { stringifyHtmlMetadata } from "./htmlMetadata";
 export interface PageMeta {
   description: string;
   iconNodeId: string | null;
@@ -49,9 +50,9 @@ export function getPageMeta(content: string): PageMeta {
 }
 
 export function setPageMeta(content: string, meta: PageMeta): string {
-  const serialized = `${META_PREFIX}${JSON.stringify(meta)}${META_SUFFIX}`;
+  const serialized = `${META_PREFIX}${stringifyHtmlMetadata(meta)}${META_SUFFIX}`;
   const pattern = /<!--hisfuture-page-meta:[\s\S]*?-->/;
   return pattern.test(content)
-    ? content.replace(pattern, serialized)
+    ? content.replace(pattern, () => serialized)
     : `${serialized}${content}`;
 }

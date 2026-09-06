@@ -1,3 +1,4 @@
+import { stringifyHtmlMetadata } from "./htmlMetadata";
 export interface PdfResourceInfo {
   resourceId: string;
   fileName: string;
@@ -9,7 +10,7 @@ const PDF_META_PREFIX = "<!--hisfuture-pdf-resource:";
 const PDF_META_SUFFIX = "-->";
 
 export function createPdfContent(resource: PdfResourceInfo): string {
-  return `${PDF_META_PREFIX}${JSON.stringify(resource)}${PDF_META_SUFFIX}<p><br></p>`;
+  return `${PDF_META_PREFIX}${stringifyHtmlMetadata(resource)}${PDF_META_SUFFIX}<p><br></p>`;
 }
 
 export function getPdfResourceInfo(content: string): PdfResourceInfo | null {

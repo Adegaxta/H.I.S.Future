@@ -181,6 +181,28 @@ fn repair_links_foreign_key(db: &mut Connection) -> Result<(), String> {
 
 fn init_database(path: &Path) -> Result<Connection, String> {
     let mut db = Connection::open(path).map_err(|err| format!("No se pudo abrir SQLite: {err}"))?;
+    let has_meta: bool = db
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name = 'project_meta')",
+            [],
+            |row| row.get(0),
+        )
+        .map_err(|err| format!("No se pudo comprobar la versión: {err}"))?;
+    if has_meta {
+        let version: Option<String> = db
+            .query_row(
+                "SELECT value FROM project_meta WHERE key = 'nodal_schema_version'",
+                [],
+                |row| row.get(0),
+            )
+            .optional()
+            .map_err(|err| format!("No se pudo leer la versión Nodal: {err}"))?;
+        if version.as_deref().is_some_and(|v| v != "1") {
+            return Err(
+                "La versión Nodal del proyecto no es compatible; no se modificó su esquema.".into(),
+            );
+        }
+    }
     db.execute_batch(SCHEMA)
         .map_err(|err| format!("No se pudo inicializar el esquema: {err}"))?;
     let schema: String = db
@@ -219,6 +241,19 @@ fn init_database(path: &Path) -> Result<Connection, String> {
         .map_err(|err| format!("No se pudo actualizar el esquema de nodos: {err}"))?;
     }
     repair_links_foreign_key(&mut db)?;
+    let broken: bool = db
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM pragma_foreign_key_check)",
+            [],
+            |row| row.get(0),
+        )
+        .map_err(|err| format!("No se pudo comprobar la integridad: {err}"))?;
+    if broken {
+        return Err(
+            "El proyecto contiene referencias SQLite inválidas; no se puede abrir para editar."
+                .into(),
+        );
+    }
     db.execute(
         "INSERT OR REPLACE INTO project_meta (key, value) VALUES ('nodal_schema_version', '1')",
         [],
@@ -250,19 +285,54 @@ fn archive_project_info(name: String, archive_path: &Path, working_folder: &Path
 }
 
 fn temporary_project_folder() -> Result<PathBuf, String> {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static NEXT_FOLDER: AtomicU64 = AtomicU64::new(0);
+    loop {
+        let suffix = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos();
+        let sequence = NEXT_FOLDER.fetch_add(1, Ordering::Relaxed);
+        let folder = std::env::temp_dir().join(format!(
+            "hisfuture-project-{}-{suffix}-{sequence}",
+            std::process::id()
+        ));
+        // Never reuse an existing extraction directory, even across processes.
+        match fs::create_dir(&folder) {
+            Ok(()) => return Ok(folder),
+            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(error) => {
+                return Err(format!(
+                    "No se pudo crear el espacio temporal del proyecto: {error}"
+                ))
+            }
+        }
+    }
+}
+
+fn zip_directory(folder: &Path, archive_path: &Path) -> Result<(), String> {
     let suffix = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_nanos();
-    let folder = std::env::temp_dir().join(format!("hisfuture-project-{suffix}"));
-    fs::create_dir_all(&folder)
-        .map_err(|err| format!("No se pudo crear el espacio temporal del proyecto: {err}"))?;
-    Ok(folder)
+    let temporary = archive_path.with_extension(format!("his-{suffix}.tmp"));
+    let result = (|| {
+        let file = fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&temporary)
+            .map_err(|err| format!("No se pudo preparar el archivo .his: {err}"))?;
+        write_archive(folder, file)?;
+        fs::rename(&temporary, archive_path)
+            .map_err(|err| format!("No se pudo reemplazar el .his; se conserva el original: {err}"))
+    })();
+    if result.is_err() {
+        let _ = fs::remove_file(&temporary);
+    }
+    result
 }
 
-fn zip_directory(folder: &Path, archive_path: &Path) -> Result<(), String> {
-    let file = fs::File::create(archive_path)
-        .map_err(|err| format!("No se pudo crear el archivo .his: {err}"))?;
+fn write_archive(folder: &Path, file: fs::File) -> Result<(), String> {
     let mut writer = ZipWriter::new(file);
     let options = SimpleFileOptions::default()
         .compression_method(CompressionMethod::Deflated)
@@ -311,7 +381,9 @@ fn zip_directory(folder: &Path, archive_path: &Path) -> Result<(), String> {
     }
     writer
         .finish()
-        .map_err(|err| format!("No se pudo cerrar el archivo .his: {err}"))?;
+        .map_err(|err| format!("No se pudo cerrar el archivo .his: {err}"))?
+        .sync_all()
+        .map_err(|err| format!("No se pudo sincronizar el .his: {err}"))?;
     Ok(())
 }
 
@@ -368,6 +440,12 @@ pub fn convert_project_folder(
 ) -> Result<String, String> {
     let source = PathBuf::from(source_folder.trim());
     let project_name = validate_project_folder(&source)?;
+    if fs::metadata(source.join(format!("{DATABASE_FILE}-wal"))).is_ok_and(|meta| meta.len() > 0) {
+        return Err(
+            "Cierra la conexión SQLite del proyecto antes de convertirlo: hay cambios en WAL."
+                .into(),
+        );
+    }
     let requested_archive = PathBuf::from(archive_path.trim());
     if !requested_archive.parent().is_some_and(Path::is_dir) {
         return Err("La ubicación elegida no es una carpeta válida.".into());
@@ -405,7 +483,9 @@ fn extract_archive(archive_path: &Path) -> Result<PathBuf, String> {
         let mut entry = archive
             .by_index(index)
             .map_err(|err| format!("No se pudo leer el contenido del .his: {err}"))?;
-        let relative = Path::new(entry.name());
+        let relative = entry
+            .enclosed_name()
+            .ok_or("El proyecto .his contiene una ruta insegura.")?;
         if relative.is_absolute()
             || relative
                 .components()
@@ -413,7 +493,7 @@ fn extract_archive(archive_path: &Path) -> Result<PathBuf, String> {
         {
             return Err("El proyecto .his contiene una ruta insegura.".into());
         }
-        let output = folder.join(relative);
+        let output = folder.join(&relative);
         if entry.is_dir() {
             fs::create_dir_all(&output)
                 .map_err(|err| format!("No se pudo extraer el proyecto .his: {err}"))?;
@@ -456,6 +536,9 @@ fn open_folder(folder: &Path) -> Result<OpenProject, String> {
         return Err(format!(
             "No se encontró {DATABASE_FILE} en esa carpeta. Elige un proyecto de HIS Future."
         ));
+    }
+    if manifest_path(folder).exists() {
+        validate_project_folder(folder)?;
     }
     let name = read_manifest_name(folder).unwrap_or_else(|| {
         folder
@@ -582,6 +665,9 @@ pub fn set_open_project(state: &ProjectState, project: OpenProject) -> Result<Pr
     let mut guard = state
         .lock()
         .map_err(|_| "No se pudo bloquear el estado del proyecto.".to_string())?;
+    if guard.is_some() {
+        return Err("Cierra el proyecto actual antes de abrir otro.".into());
+    }
     *guard = Some(project);
     Ok(info)
 }
@@ -592,12 +678,31 @@ pub fn close_project(state: &ProjectState) -> Result<(), String> {
         .map_err(|_| "No se pudo bloquear el estado del proyecto.".to_string())?;
     if let Some(project) = guard.as_ref() {
         if let Some(archive_path) = project.archive_path.as_ref() {
-            zip_directory(&project.working_folder, archive_path)?;
+            let (busy, _, _): (i64, i64, i64) = project
+                .db
+                .query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |row| {
+                    Ok((row.get(0)?, row.get(1)?, row.get(2)?))
+                })
+                .map_err(|err| format!("No se pudo preparar SQLite para empaquetar: {err}"))?;
+            if busy != 0 {
+                return Err("SQLite está ocupado; el proyecto sigue abierto.".into());
+            }
+            zip_directory(&project.working_folder, archive_path).map_err(|err| {
+                format!(
+                    "{err} Copia de trabajo conservada en {}",
+                    project.working_folder.display()
+                )
+            })?;
         }
     }
     if let Some(project) = guard.take() {
-        if project.archive_path.is_some() {
-            remove_temporary_folder(&project.working_folder);
+        let temporary = project
+            .archive_path
+            .is_some()
+            .then(|| project.working_folder.clone());
+        drop(project);
+        if let Some(folder) = temporary {
+            remove_temporary_folder(&folder);
         }
     }
     Ok(())
@@ -633,7 +738,54 @@ pub fn list_nodes(state: &ProjectState) -> Result<Vec<NodeRecord>, String> {
     Ok(nodes)
 }
 
+#[cfg(test)]
 pub fn save_nodes(state: &ProjectState, nodes: Vec<NodeRecord>) -> Result<(), String> {
+    save_workspace(state, nodes, None, None)
+}
+
+// One transaction owns active entities, Lore membership and trash.
+pub fn save_workspace(
+    state: &ProjectState,
+    nodes: Vec<NodeRecord>,
+    hidden_ids: Option<Vec<String>>,
+    deleted_nodes: Option<String>,
+) -> Result<(), String> {
+    let ids: HashSet<&str> = nodes.iter().map(|node| node.id.as_str()).collect();
+    if ids.len() != nodes.len() || ids.contains("") {
+        return Err("El proyecto contiene identidades vacías o duplicadas.".into());
+    }
+    if let Some(ref hidden) = hidden_ids {
+        if hidden.iter().any(|id| !ids.contains(id.as_str())) {
+            return Err("Lore contiene un ID inexistente.".into());
+        }
+    }
+    if let Some(ref deleted) = deleted_nodes {
+        let trash: Vec<NodeRecord> =
+            serde_json::from_str(deleted).map_err(|err| format!("Papelera inválida: {err}"))?;
+        let mut trash_ids = HashSet::new();
+        if trash.iter().any(|node| {
+            node.id.is_empty() || ids.contains(node.id.as_str()) || !trash_ids.insert(&node.id)
+        }) {
+            return Err("La papelera contiene identidades duplicadas o activas.".into());
+        }
+    }
+    // Hierarchy validation deliberately does not reinterpret semantic references.
+    let by_id: std::collections::HashMap<_, _> =
+        nodes.iter().map(|node| (node.id.as_str(), node)).collect();
+    for node in &nodes {
+        let mut seen = HashSet::new();
+        let mut current = Some(node.id.as_str());
+        while let Some(id) = current {
+            if !seen.insert(id) {
+                return Err("La jerarquía contiene un ciclo.".into());
+            }
+            current = by_id
+                .get(id)
+                .ok_or("La jerarquía contiene un padre inexistente.")?
+                .parent_id
+                .as_deref();
+        }
+    }
     let mut guard = state
         .lock()
         .map_err(|_| "No se pudo bloquear el estado del proyecto.".to_string())?;
@@ -642,52 +794,44 @@ pub fn save_nodes(state: &ProjectState, nodes: Vec<NodeRecord>) -> Result<(), St
         .db
         .transaction()
         .map_err(|err| format!("No se pudo iniciar la transacción: {err}"))?;
-    tx.execute_batch("PRAGMA foreign_keys = OFF;")
-        .map_err(|err| format!("No se pudieron desactivar las claves foráneas: {err}"))?;
-    tx.execute("DELETE FROM links", [])
-        .map_err(|err| format!("No se pudieron limpiar los enlaces: {err}"))?;
-    tx.execute("DELETE FROM nodes", [])
-        .map_err(|err| format!("No se pudieron limpiar los nodos: {err}"))?;
-    {
-        let mut insert = tx
-            .prepare(
-                "INSERT INTO nodes (id, name, type, parent_id, sort_order, content)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            )
-            .map_err(|err| format!("No se pudo preparar el guardado: {err}"))?;
-        for node in nodes {
-            if ![
-                "categoria",
-                "pagina",
-                "imagen",
-                "calendario",
-                "tempo",
-                "pdf",
-                "curso",
-                "tarea",
-                "video",
-            ]
-            .contains(&node.node_type.as_str())
-            {
-                return Err(format!("Tipo de nodo no válido: {}", node.node_type));
-            }
-            insert
-                .execute(params![
-                    node.id,
-                    node.name,
-                    node.node_type,
-                    node.parent_id,
-                    node.order,
-                    node.content,
-                ])
-                .map_err(|err| format!("No se pudo guardar el nodo {}: {err}", node.id))?;
+    tx.execute_batch("PRAGMA defer_foreign_keys = ON;")
+        .map_err(|err| err.to_string())?;
+    let previous: Vec<String> = {
+        let mut statement = tx
+            .prepare("SELECT id FROM nodes")
+            .map_err(|err| err.to_string())?;
+        let rows = statement
+            .query_map([], |row| row.get(0))
+            .map_err(|err| err.to_string())?;
+        rows.collect::<Result<_, _>>()
+            .map_err(|err| err.to_string())?
+    };
+    for node in &nodes {
+        tx.execute("INSERT INTO nodes (id, name, type, parent_id, sort_order, content) VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+            ON CONFLICT(id) DO UPDATE SET name=excluded.name, type=excluded.type, parent_id=excluded.parent_id, sort_order=excluded.sort_order, content=excluded.content",
+            params![node.id, node.name, node.node_type, node.parent_id, node.order, node.content])
+            .map_err(|err| format!("No se pudo guardar el nodo {}: {err}", node.id))?;
+    }
+    for id in previous {
+        if !ids.contains(id.as_str()) {
+            tx.execute("DELETE FROM nodes WHERE id = ?1", [id])
+                .map_err(|err| err.to_string())?;
         }
     }
-    tx.execute_batch("PRAGMA foreign_keys = ON;")
-        .map_err(|err| format!("No se pudieron reactivar las claves foráneas: {err}"))?;
+    for (key, value) in [
+        (
+            "loreHiddenIds",
+            hidden_ids.map(|ids| serde_json::to_string(&ids).expect("string IDs")),
+        ),
+        ("deletedNodes", deleted_nodes),
+    ] {
+        if let Some(value) = value {
+            tx.execute("INSERT INTO project_meta (key, value) VALUES (?1, ?2) ON CONFLICT(key) DO UPDATE SET value=excluded.value", params![key, value])
+                .map_err(|err| format!("No se pudo guardar {key}: {err}"))?;
+        }
+    }
     tx.commit()
-        .map_err(|err| format!("No se pudo confirmar el guardado: {err}"))?;
-    Ok(())
+        .map_err(|err| format!("No se pudo confirmar el guardado: {err}"))
 }
 
 fn validate_resource_identity(value: &str) -> Result<(), String> {
@@ -781,7 +925,7 @@ pub fn delete_project_resource(
 }
 
 pub fn get_project_setting(state: &ProjectState, key: String) -> Result<Option<String>, String> {
-    if key != "locale" && key != "loreHiddenIds" {
+    if key != "locale" && key != "loreHiddenIds" && key != "deletedNodes" {
         return Err("Configuración de proyecto no compatible.".into());
     }
     let guard = state
@@ -844,6 +988,221 @@ pub fn project_name_from_meta(db: &Connection) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn test_root(label: &str) -> PathBuf {
+        let root = std::env::temp_dir().join(format!(
+            "hisfuture-{label}-{}",
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir_all(&root).unwrap();
+        root
+    }
+
+    fn test_node(id: &str, kind: &str, parent: Option<&str>) -> NodeRecord {
+        NodeRecord {
+            id: id.into(),
+            name: id.into(),
+            node_type: kind.into(),
+            parent_id: parent.map(str::to_string),
+            order: 0,
+            content: format!("<p>{id}</p>"),
+        }
+    }
+
+    #[test]
+    fn concurrent_sessions_reserve_distinct_working_folders() {
+        let workers: Vec<_> = (0..32)
+            .map(|_| std::thread::spawn(temporary_project_folder))
+            .collect();
+        let folders: Vec<_> = workers
+            .into_iter()
+            .map(|worker| worker.join().unwrap().unwrap())
+            .collect();
+        assert_eq!(folders.iter().collect::<HashSet<_>>().len(), folders.len());
+        for folder in folders {
+            fs::remove_dir(folder).unwrap();
+        }
+    }
+
+    #[test]
+    fn snapshot_preserves_links_and_rolls_back_partial_failure() {
+        let root = test_root("snapshot");
+        let state = Mutex::new(Some(
+            create_project(root.to_string_lossy().into(), "Test".into()).unwrap(),
+        ));
+        let nodes = vec![
+            test_node("child", "pagina", Some("parent")),
+            test_node("parent", "categoria", None),
+        ];
+        save_workspace(
+            &state,
+            nodes.clone(),
+            Some(vec!["child".into()]),
+            Some("[]".into()),
+        )
+        .unwrap();
+        state
+            .lock()
+            .unwrap()
+            .as_ref()
+            .unwrap()
+            .db
+            .execute("INSERT INTO links VALUES ('child','parent')", [])
+            .unwrap();
+        save_nodes(&state, nodes.clone()).unwrap();
+        assert_eq!(
+            state
+                .lock()
+                .unwrap()
+                .as_ref()
+                .unwrap()
+                .db
+                .query_row("SELECT COUNT(*) FROM links", [], |r| r.get::<_, i64>(0))
+                .unwrap(),
+            1
+        );
+        let before = list_nodes(&state).unwrap();
+        let mut invalid = nodes.clone();
+        invalid[0].name = "must rollback".into();
+        invalid[1].node_type = "unknown".into();
+        assert!(save_workspace(&state, invalid, Some(vec![]), Some("[]".into())).is_err());
+        assert_eq!(list_nodes(&state).unwrap(), before);
+        assert_eq!(
+            get_project_setting(&state, "loreHiddenIds".into()).unwrap(),
+            Some("[\"child\"]".into())
+        );
+        assert!(save_nodes(&state, vec![nodes[0].clone(), nodes[0].clone()]).is_err());
+        let mut cycle = nodes.clone();
+        cycle[1].parent_id = Some("child".into());
+        assert!(save_nodes(&state, cycle).is_err());
+        assert_eq!(list_nodes(&state).unwrap(), before);
+        // Moving a child out before deleting its former parent must not cascade into it.
+        let mut moved = nodes[0].clone();
+        moved.parent_id = None;
+        save_nodes(&state, vec![moved.clone()]).unwrap();
+        assert_eq!(list_nodes(&state).unwrap(), vec![moved]);
+        close_project(&state).unwrap();
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn all_registered_types_trash_and_resources_survive_archive_roundtrip() {
+        let root = test_root("roundtrip");
+        let path = root.join("All.his");
+        let state = Mutex::new(Some(
+            create_project_file(path.to_string_lossy().into(), "All".into()).unwrap(),
+        ));
+        let definitions = include_str!("../../src/defs/nodeTypes.ts");
+        let types = [
+            "categoria",
+            "pagina",
+            "imagen",
+            "calendario",
+            "tempo",
+            "pdf",
+            "curso",
+            "tarea",
+            "video",
+        ];
+        let mut nodes: Vec<_> = types
+            .iter()
+            .enumerate()
+            .map(|(i, kind)| {
+                assert!(definitions.contains(&format!("type: \"{kind}\"")));
+                let mut node = test_node(kind, kind, None);
+                node.order = i as i64;
+                node
+            })
+            .collect();
+        nodes[7].content = "<!--hisfuture-nodal-meta:{\"version\":1,\"relations\":[{\"role\":\"course\",\"targetId\":\"curso\"},{\"role\":\"tempo\",\"targetId\":\"tempo\"}]}--><p>Task</p>".into();
+        let pdf = b"%PDF-1.4 archive resource".to_vec();
+        store_project_resource(&state, "pdf".into(), "resource".into(), pdf.clone()).unwrap();
+        let deleted = nodes.remove(7);
+        let trash = serde_json::to_string(&vec![deleted.clone()]).unwrap();
+        save_workspace(
+            &state,
+            nodes.clone(),
+            Some(vec!["pdf".into()]),
+            Some(trash.clone()),
+        )
+        .unwrap();
+        close_project(&state).unwrap();
+        let reopened = Mutex::new(Some(
+            open_project_from_path(path.to_string_lossy().into()).unwrap(),
+        ));
+        assert_eq!(list_nodes(&reopened).unwrap(), nodes);
+        assert_eq!(
+            get_project_setting(&reopened, "deletedNodes".into()).unwrap(),
+            Some(trash)
+        );
+        assert_eq!(
+            read_project_resource(&reopened, "pdf".into(), "resource".into()).unwrap(),
+            pdf
+        );
+        nodes.push(deleted.clone());
+        save_workspace(&reopened, nodes, Some(vec![]), Some("[]".into())).unwrap();
+        close_project(&reopened).unwrap();
+        let restored = Mutex::new(Some(
+            open_project_from_path(path.to_string_lossy().into()).unwrap(),
+        ));
+        assert_eq!(
+            list_nodes(&restored)
+                .unwrap()
+                .into_iter()
+                .find(|n| n.id == deleted.id),
+            Some(deleted)
+        );
+        close_project(&restored).unwrap();
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn failed_pack_keeps_original_and_open_session_for_retry() {
+        let root = test_root("failed-pack");
+        let path = root.join("Safe.his");
+        let project = create_project_file(path.to_string_lossy().into(), "Safe".into()).unwrap();
+        let folder = project.working_folder.clone();
+        let original = fs::read(&path).unwrap();
+        let missing = folder.with_extension("missing");
+        let state = Mutex::new(Some(project));
+        state.lock().unwrap().as_mut().unwrap().working_folder = missing;
+        assert!(close_project(&state).is_err());
+        assert!(state.lock().unwrap().is_some());
+        assert_eq!(fs::read(&path).unwrap(), original);
+        state.lock().unwrap().as_mut().unwrap().working_folder = folder.clone();
+        close_project(&state).unwrap();
+        assert!(!folder.exists());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn future_schema_is_rejected_without_downgrading_metadata() {
+        let root = test_root("future-schema");
+        let path = root.join(DATABASE_FILE);
+        let db = init_database(&path).unwrap();
+        db.execute(
+            "UPDATE project_meta SET value='99' WHERE key='nodal_schema_version'",
+            [],
+        )
+        .unwrap();
+        drop(db);
+        assert!(init_database(&path).is_err());
+        let db = Connection::open(&path).unwrap();
+        assert_eq!(
+            db.query_row(
+                "SELECT value FROM project_meta WHERE key='nodal_schema_version'",
+                [],
+                |r| r.get::<_, String>(0)
+            )
+            .unwrap(),
+            "99"
+        );
+        drop(db);
+        fs::remove_dir_all(root).unwrap();
+    }
 
     #[test]
     fn deserializes_frontend_node_payload_with_parent_id() {

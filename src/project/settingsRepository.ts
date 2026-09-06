@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { asErrorMessage } from "./runtime";
 
-export async function getProjectSetting(key: "locale" | "loreHiddenIds"): Promise<string | null> {
+export async function getProjectSetting(key: "locale" | "loreHiddenIds" | "deletedNodes"): Promise<string | null> {
   try {
     return await invoke<string | null>("get_project_setting", { key });
   } catch (error) {

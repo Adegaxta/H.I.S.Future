@@ -1,3 +1,4 @@
+import { stringifyHtmlMetadata } from "./htmlMetadata";
 export type CalendarView = "month" | "week" | "day";
 export type TimeFormat = "12h" | "24h";
 export type TempoSubtype = "daily" | "weekly" | "monthly" | "annual";
@@ -59,11 +60,11 @@ function readMeta<T>(content: string, prefix: string): Partial<T> | null {
 }
 
 function writeMeta(content: string, prefix: string, meta: object): string {
-  const serialized = `${prefix}${JSON.stringify(meta)}${META_SUFFIX}`;
+  const serialized = `${prefix}${stringifyHtmlMetadata(meta)}${META_SUFFIX}`;
   const escaped = prefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const pattern = new RegExp(`${escaped}[\\s\\S]*?${META_SUFFIX}`);
   return pattern.test(content)
-    ? content.replace(pattern, serialized)
+    ? content.replace(pattern, () => serialized)
     : `${serialized}${content}`;
 }
 

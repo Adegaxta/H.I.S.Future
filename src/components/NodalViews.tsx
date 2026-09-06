@@ -143,3 +143,13 @@ export function VideoNodeView({ node, onMutate, onRename, onOpen: _onOpen, nodes
     <div className="video-transcript"><header><h2><NodalIcon name="audio_capture" />{t("video.transcript")}</h2><SearchAction value={query} onChange={setQuery} /></header>{query && <small>{t("video.matches",{count:matches})}</small>}<textarea value={meta.transcript} placeholder={t("video.transcriptHint")} onChange={(e) => patch({ transcript:e.target.value })} /></div>
   </section>;
 }
+
+// The domain module owns view selection; the workspace supplies shared services.
+export function NodalNodeView(props: React.ComponentProps<typeof TaskNodeView> & { children?: React.ReactNode }) {
+  switch (props.node.type) {
+    case "curso": return <CourseNodeView {...props} />;
+    case "tarea": return <TaskNodeView {...props} />;
+    case "video": return <VideoNodeView {...props} />;
+    default: return props.children;
+  }
+}

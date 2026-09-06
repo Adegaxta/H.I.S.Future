@@ -76,6 +76,7 @@ export function useProjectSession() {
         setProject(null);
       } catch (caught) {
         setError(asErrorMessage(caught));
+        throw caught;
       } finally {
         setBusy(false);
       }

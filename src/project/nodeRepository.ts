@@ -2,7 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type { NodeItem } from "../types/nodes";
 import { asErrorMessage } from "./runtime";
 import type { PersistedNode } from "./types";
-import { getProjectSetting, setProjectSetting } from "./settingsRepository";
+import { getProjectSetting } from "./settingsRepository";
 
 function toNodeItem(record: PersistedNode): NodeItem {
   return {
@@ -38,11 +38,24 @@ export async function listNodes(): Promise<NodeItem[]> {
   }
 }
 
-export async function saveNodes(nodes: NodeItem[]): Promise<void> {
+export async function saveNodes(nodes: NodeItem[], deletedNodes: NodeItem[]): Promise<void> {
   try {
-    await invoke("save_nodes", { nodes: nodes.map(toRecord) });
-    await setProjectSetting("loreHiddenIds", JSON.stringify(nodes.filter((node) => node.loreHidden).map((node) => node.id)));
+    await invoke("save_nodes", {
+      nodes: nodes.map(toRecord),
+      hiddenIds: nodes.filter((node) => node.loreHidden).map((node) => node.id),
+      deletedNodes: JSON.stringify(deletedNodes),
+    });
   } catch (error) {
     throw new Error(asErrorMessage(error));
   }
+}
+
+export async function loadDeletedNodes(): Promise<NodeItem[] | null> {
+  const value = await getProjectSetting("deletedNodes");
+  if (value === null) return null;
+  const nodes: unknown = JSON.parse(value);
+  if (!Array.isArray(nodes) || nodes.some((node) => !node || typeof node.id !== "string" || typeof node.content !== "string")) {
+    throw new Error("La papelera del proyecto no es válida.");
+  }
+  return nodes as NodeItem[];
 }
