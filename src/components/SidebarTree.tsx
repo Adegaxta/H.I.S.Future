@@ -12,7 +12,7 @@ import type {
   RenderNodeType,
 } from "../types/nodes";
 import { NODE_REGISTRY, getNodeDefinition, getNodeDisplayLabel } from "../defs/nodeTypes";
-import { getChildren, getEffectiveNodeType } from "../utils/nodeTree";
+import { getChildren, getEffectiveNodeType, opensNodeViewOnClick } from "../utils/nodeTree";
 import { useLocale } from "../i18n/LocaleContext";
 import { findImportableFile, isImportableDragItem } from "../project/fileNodeImporter";
 import { NodeIcon } from "./SidebarIcon";
@@ -111,7 +111,7 @@ export default function SidebarTree(props: SidebarTreeProps) {
     if (getNodeDefinition(type).canContainChildren || type === "pagina-carpeta") {
       props.setExpanded((current) => ({ ...current, [node.id]: !current[node.id] }));
     }
-    props.setSelectedId(node.id);
+    if (opensNodeViewOnClick(node)) props.setSelectedId(node.id);
   };
 
   const renderCreateForm = () => (
@@ -249,6 +249,16 @@ export default function SidebarTree(props: SidebarTreeProps) {
             event.stopPropagation();
             selectLoreNode(node, event);
           }}
+          onDoubleClick={(event: ReactMouseEvent) => {
+            const target = event.target;
+            if (target instanceof Element && target.closest(".lore-node__name, .lore-node__add")) return;
+            event.preventDefault();
+            event.stopPropagation();
+            props.setCreating(null);
+            props.setSelectedLoreIds([node.id]);
+            selectionAnchor.current = node.id;
+            props.setSelectedId(node.id);
+          }}
           onContextMenu={(event) => {
             event.preventDefault();
             event.stopPropagation();
@@ -262,8 +272,6 @@ export default function SidebarTree(props: SidebarTreeProps) {
         >
           <NodeIcon type={type} className={isFolder && isExpanded ? "is-open" : ""} />
           <span
-            data-no-drag="true"
-            onPointerDown={(event) => event.stopPropagation()}
             onClick={(event) => {
               event.stopPropagation();
               selectLoreNode(node, event);

@@ -2044,7 +2044,7 @@ body,
   width: 100%;
   max-width: none;
   min-height: 100%;
-  padding: 36px 36px 36px 96px;
+  padding: 56px 36px 36px 96px;
 }
 
 /* Tipo del nodo encima del titulo del editor. */
@@ -3868,6 +3868,8 @@ body,
   background: var(--his-surface-sidebar);
   border-right: 0;
   overflow: hidden;
+  transition: width 220ms ease;
+  will-change: width;
 }
 
 .workspace-sidebar.is-collapsed {
@@ -3876,6 +3878,7 @@ body,
 
 .view-rail {
   position: relative;
+  z-index: 2;
   display: flex;
   width: 80px;
   min-width: 80px;
@@ -3973,7 +3976,7 @@ body,
 
 .course-node-view { display: grid; grid-template-columns: minmax(0, 1.42fr) minmax(360px, 1fr); gap: 36px; }
 .course-node-view__identity, .course-node-view__context { min-width: 0; }
-.editor-page:has(.course-node-view) { padding-top: 49px; }
+.editor-page:has(.course-node-view) { padding-top: 56px; }
 .editor-page:has(.course-node-view) > .course-node-view .editor-page__type { margin-top: 2px; }
 .course-identity-fields { display: grid; grid-template-columns: 1fr 1.35fr .58fr; gap: 34px; margin: 15px 0 8px; }
 .course-identity-fields input, .course-link-field input, .course-description-field textarea, .room-link input { width: 100%; border: 0; border-bottom: 1px solid transparent; border-radius: 0; padding: 4px 0; background: transparent; color: #e8e9ea; outline: 0; font: inherit; }
@@ -4117,11 +4120,24 @@ body,
 .view-rail__exit .sidebar-icon { width: 25px; height: 25px; }
 
 .context-sidebar {
+  position: relative;
+  z-index: 1;
   display: flex;
   min-width: 0;
   flex: 1;
   flex-direction: column;
   background: var(--his-surface-sidebar);
+  overflow: hidden;
+  transform: translateX(0);
+  opacity: 1;
+  transition: transform 220ms ease, opacity 150ms ease;
+  will-change: transform, opacity;
+}
+
+.workspace-sidebar.is-collapsed .context-sidebar {
+  transform: translateX(-100%);
+  opacity: 0;
+  pointer-events: none;
 }
 
 .context-sidebar__project {
@@ -4212,6 +4228,8 @@ body,
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
+  width: fit-content;
+  max-width: 100%;
   min-width: 0;
   overflow: hidden;
   color: var(--his-text-primary);

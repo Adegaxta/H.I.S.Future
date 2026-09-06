@@ -26,7 +26,7 @@ interface LocalizedChangelogEntry extends ChangelogEntryBase {
 
 export type ChangelogEntry = LegacyChangelogEntry | LocalizedChangelogEntry;
 
-export const CURRENT_VERSION = "0.5.1";
+export const CURRENT_VERSION = "0.5.2";
 
 // All new releases use the 0.5.0 layout with complete Spanish/English keys.
 // Keep legacy entries readable without rewriting their historical content.
@@ -37,6 +37,21 @@ interface ReleaseChangelogEntry extends LocalizedChangelogEntry {
 
 const CURRENT_RELEASE: ReleaseChangelogEntry = {
   version: CURRENT_VERSION,
+  date: "2026-09-06",
+  category: "Editor",
+  titleKey: "changelog.0_5_2.title",
+  summaryKey: "changelog.0_5_2.summary",
+  changeKeys: [],
+  sections: [
+    {
+      titleKey: "changelog.0_5_2.tree",
+      changeKeys: ["changelog.0_5_2.doubleClick", "changelog.0_5_2.rename", "changelog.0_5_2.drag"],
+    },
+  ],
+};
+
+const PREVIOUS_RELEASE: ReleaseChangelogEntry = {
+  version: "0.5.1",
   date: "2026-09-06",
   category: "Sistema",
   titleKey: "changelog.0_5_1.title",
@@ -69,6 +84,7 @@ const CURRENT_RELEASE: ReleaseChangelogEntry = {
 
 export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
   CURRENT_RELEASE,
+  PREVIOUS_RELEASE,
   {
     version: "0.5.0",
     date: "2026-09-05",
