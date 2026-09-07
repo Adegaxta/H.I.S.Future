@@ -86,6 +86,24 @@ Si también se desea descartar el borrador nuevo, eliminar manualmente solo `.re
 
 Después de confirmar, el commit y el tag se crean localmente y se envían juntos. Si el push falla, no llega ninguna de las dos referencias a GitHub; corregir la causa y reintentar el push atómico mostrado por el error. Si el tag ya llegó a GitHub, el workflow ya está activado: para detenerlo antes de publicar, cancelar inmediatamente el job desde **Actions**. Si el fallo ocurrió durante la carga, puede quedar un borrador privado que debe revisarse o eliminarse manualmente; nunca se convierte en release pública salvo que la verificación final pase.
 
+## Recuperar un fallo posterior al commit
+
+Si el script falla después de crear `chore: release vX.Y.Z`, no volver a ejecutar el modo normal: la versión ya no es un incremento. Primero corregir y confirmar el problema de automatización, dejando el árbol completamente limpio. Después ejecutar explícitamente:
+
+```powershell
+.\scripts\release.ps1 X.Y.Z -Resume
+```
+
+El modo de recuperación vuelve a validar versiones, notas, build, pruebas y formato, pero no hace otro bump ni crea otro commit de release. Busca un único commit con asunto exacto `chore: release vX.Y.Z`, comprueba que pertenece a la historia de `HEAD` y limita los commits posteriores a archivos de automatización/documentación. Luego aplica estas reglas:
+
+- **Commit de release local, sin tag local ni remoto:** crea una vez el tag local sobre el `HEAD` ya corregido y propone el push atómico.
+- **Tag local, sin tag remoto:** valida el commit apuntado y reutiliza ese tag; nunca lo mueve ni lo duplica.
+- **Commit ya presente en `origin`, sin tag remoto:** el push de rama es inocuo y se envía el tag faltante; solo ese tag dispara el workflow.
+- **Tag remoto presente:** se detiene antes de modificar nada. El workflow ya pudo comenzar y debe inspeccionarse en GitHub Actions.
+- **Commit ausente, duplicado o fuera de la historia actual; tag local divergente; cambios de aplicación posteriores al release:** se detiene y exige revisión humana.
+
+Antes del push se consulta el tag remoto una segunda vez para cerrar la ventana de carrera. El envío de rama y tag continúa siendo atómico. Si ese push falla, se puede repetir el mismo comando `-Resume`; el tag local no publicado se valida y reutiliza.
+
 ## Diagnosticar fallos
 
 Abrir **Actions > Release**, seleccionar la ejecución del tag y localizar el primer paso rojo:
@@ -100,6 +118,7 @@ Abrir **Actions > Release**, seleccionar la ejecución del tag y localizar el pr
 - **Generate / Validate latest.json**: revisar versión, nombre del repositorio/tag, URL, UTF-8 sin BOM, firma y que sus notas sean idénticas al archivo aprobado.
 - **Create / Verify draft release**: comprobar `contents: write`, límites de GitHub, que no exista ya una release para ese tag y que GitHub haya conservado exactamente el body aprobado.
 - **Publish release**: el borrador validado permanece privado; se puede inspeccionar en GitHub y reintentar o eliminar manualmente.
+- **Recovery mode**: leer el estado indicado. No borrar o mover tags hasta confirmar si existen en `origin`; un tag remoto significa que Actions ya pudo activarse.
 
 No reutilizar ni mover un tag que ya activó un intento de release. Corregir el problema, aumentar la versión y publicar un tag nuevo mantiene una trazabilidad inequívoca.
 

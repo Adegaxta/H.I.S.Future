@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "test:nodal": "node tests/nodal.test.mjs && node tests/import-invariants.test.mjs && node tests/ux-context.test.mjs && node tests/qol-0.1.2.test.mjs",
+    "test:release": "pwsh -NoProfile -File tests/release-script.test.ps1",
     "preview": "vite preview",
     "tauri": "tauri"
   },

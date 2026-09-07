@@ -88,6 +88,9 @@ jobs:
       - name: Run Nodal tests
         run: npm run test:nodal
 
+      - name: Test release automation
+        run: npm run test:release
+
       - name: Check Rust
         working-directory: src-tauri
         run: cargo check --locked --target x86_64-pc-windows-msvc
