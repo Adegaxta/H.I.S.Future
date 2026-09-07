@@ -26,7 +26,8 @@ import { NodalNodeView } from "./NodalViews";
 import { getPageMeta } from "../utils/pageMeta";
 import { createCalendarContent, createTempoContent, DEFAULT_TEMPO_COLOR, setTempoMeta, type TempoMeta, type TempoSubtype, type TimeFormat } from "../utils/temporalMeta";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { CHANGELOG_ENTRIES, CURRENT_VERSION } from "../defs/changelog";
+import { getVersion } from "@tauri-apps/api/app";
+import { CHANGELOG_ENTRIES } from "../defs/changelog";
 import {
   createImageContent,
   getImageResourceInfo,
@@ -124,6 +125,7 @@ export default function AppWorkspace({
   const [settingsPanel, setSettingsPanel] = useState<"general" | "trash" | "changelog">(
     "general",
   );
+  const [appVersion, setAppVersion] = useState<string | null>(null);
   const [trashView, setTrashView] = useState<"gallery" | "list">(() =>
     localStorage.getItem(trashViewStorageKey) === "list" ? "list" : "gallery",
   );
@@ -147,6 +149,10 @@ export default function AppWorkspace({
   useEffect(() => {
     localStorage.setItem(trashViewStorageKey, trashView);
   }, [trashView, trashViewStorageKey]);
+  useEffect(() => {
+    if (!isDesktopRuntime()) return;
+    void getVersion().then(setAppVersion).catch(() => setAppVersion(null));
+  }, []);
   useEffect(() => {
     if (sidebarSearchOpen) sidebarSearchRef.current?.focus();
   }, [sidebarSearchOpen]);
@@ -715,7 +721,7 @@ export default function AppWorkspace({
           </div>
         </div>
         <div className="workspace-header__right" data-tauri-drag-region="false">
-          <div className="workspace-header__version">v{CURRENT_VERSION}</div>
+          <div className="workspace-header__version">{appVersion ? `v${appVersion}` : "v—"}</div>
           <div className="workspace-header__window-controls">
             <button type="button" title="Minimizar" onClick={() => void getCurrentWindow().minimize()}><img src={windowMinimizeAsset} alt="" /></button>
             <button type="button" title="Maximizar" onClick={() => void getCurrentWindow().toggleMaximize()}><img src={windowMaximizeAsset} alt="" /></button>
@@ -1042,6 +1048,9 @@ export default function AppWorkspace({
                   <option value="24h">24 horas</option>
                 </select>
               </label>
+              <div className="project-settings__version" aria-label="Versión de la aplicación">
+                {appVersion ? `v${appVersion}` : "v—"}
+              </div>
             </section>
           ) : view === "graph" ? (
             <GraphView

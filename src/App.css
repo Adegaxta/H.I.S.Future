@@ -2059,6 +2059,18 @@ body,
   border-color: #4dd8c0;
 }
 
+/* Version de la aplicacion, anclada discretamente al pie de configuracion. */
+.project-settings__version {
+  width: 100%;
+  margin-top: auto;
+  padding-top: 48px;
+  color: #5f666e;
+  font-family: ui-monospace, "SF Mono", "Cascadia Code", monospace;
+  font-size: 10px;
+  line-height: 1;
+  text-align: right;
+}
+
 /* Ajustes de configuracion y papelera para moviles pequenos. */
 @media (max-width: 560px) {
   .project-settings {
