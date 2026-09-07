@@ -1,0 +1,301 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release-windows-x64:
+    name: Release Windows x64
+    runs-on: windows-2022
+    timeout-minutes: 60
+
+    steps:
+      - name: Check out tagged commit
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate tag and derive version
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          if ($env:RELEASE_TAG -notmatch '^v((0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*))$') {
+            throw "Release tags must have the exact form vX.Y.Z."
+          }
+
+          "RELEASE_VERSION=$($Matches[1])" >> $env:GITHUB_ENV
+          "RELEASE_TAG=$($env:RELEASE_TAG)" >> $env:GITHUB_ENV
+
+      - name: Validate approved release notes
+        shell: pwsh
+        run: |
+          $notesPath = Join-Path $PWD ".release-notes/$env:RELEASE_VERSION.md"
+          if (-not (Test-Path -LiteralPath $notesPath -PathType Leaf)) {
+            throw "Release notes are missing for $env:RELEASE_VERSION."
+          }
+
+          $bytes = [System.IO.File]::ReadAllBytes($notesPath)
+          if ($bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF) {
+            throw 'Release notes must be UTF-8 without BOM.'
+          }
+          try {
+            $content = [System.Text.UTF8Encoding]::new($false, $true).GetString($bytes)
+          } catch {
+            throw "Release notes are not valid UTF-8: $($_.Exception.Message)"
+          }
+          if ([string]::IsNullOrWhiteSpace($content)) {
+            throw 'Release notes cannot be empty.'
+          }
+
+          $nonEmptyLines = @(($content -split '\r?\n') | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+          $expectedHeading = "## H.I.S. $env:RELEASE_VERSION"
+          if ($nonEmptyLines.Count -lt 2 -or $nonEmptyLines[0].Trim() -cne $expectedHeading) {
+            throw "Release notes must start with '$expectedHeading' and contain a non-empty body."
+          }
+
+          "RELEASE_NOTES_PATH=$notesPath" >> $env:GITHUB_ENV
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Set up stable Rust
+        shell: pwsh
+        run: |
+          rustup toolchain install stable --profile minimal --no-self-update
+          rustup default stable
+          rustup target add x86_64-pc-windows-msvc
+          rustup component add rustfmt
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Run Nodal tests
+        run: npm run test:nodal
+
+      - name: Check Rust
+        working-directory: src-tauri
+        run: cargo check --locked --target x86_64-pc-windows-msvc
+
+      - name: Check Rust formatting
+        working-directory: src-tauri
+        run: cargo fmt --all -- --check
+
+      - name: Verify all source versions match the tag
+        shell: pwsh
+        run: |
+          $npmVersion = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          $npmLockVersion = (node -p "require('./package-lock.json').version").Trim()
+          if ($LASTEXITCODE -ne 0) {
+            throw "Could not read the version from package-lock.json."
+          }
+          $cargoText = Get-Content src-tauri/Cargo.toml -Raw
+          $cargoLockText = Get-Content src-tauri/Cargo.lock -Raw
+          $tauriVersion = (Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).version
+
+          if ($cargoText -notmatch '(?ms)^\[package\]\s*.*?^version\s*=\s*"([^"]+)"') {
+            throw "Could not read the package version from src-tauri/Cargo.toml."
+          }
+          $cargoVersion = $Matches[1]
+          if ($cargoLockText -notmatch '(?ms)^name = "hisfuture"\r?\nversion = "([^"]+)"') {
+            throw "Could not read the hisfuture version from src-tauri/Cargo.lock."
+          }
+          $cargoLockVersion = $Matches[1]
+
+          $versions = [ordered]@{
+            npm = $npmVersion
+            npmLock = $npmLockVersion
+            Cargo = $cargoVersion
+            CargoLock = $cargoLockVersion
+            Tauri = $tauriVersion
+          }
+
+          foreach ($entry in $versions.GetEnumerator()) {
+            if ($entry.Value -ne $env:RELEASE_VERSION) {
+              throw "$($entry.Key) version '$($entry.Value)' does not match tag version '$env:RELEASE_VERSION'."
+            }
+          }
+
+      - name: Verify signing secrets are configured
+        shell: pwsh
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:TAURI_SIGNING_PRIVATE_KEY)) {
+            throw "TAURI_SIGNING_PRIVATE_KEY is not configured."
+          }
+          if ([string]::IsNullOrEmpty($env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD)) {
+            throw "TAURI_SIGNING_PRIVATE_KEY_PASSWORD is not configured."
+          }
+
+      - name: Build signed Tauri installer
+        shell: pwsh
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: npm run tauri build -- --target x86_64-pc-windows-msvc
+
+      - name: Locate signed updater artifacts
+        shell: pwsh
+        run: |
+          $bundleDirectory = Join-Path $PWD 'src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis'
+          $artifactName = "hisfuture_$env:RELEASE_VERSION`_x64-setup.exe"
+          $artifactPath = Join-Path $bundleDirectory $artifactName
+          $signaturePath = "$artifactPath.sig"
+
+          if (-not (Test-Path -LiteralPath $artifactPath -PathType Leaf)) {
+            throw "Expected installer was not produced: $artifactName"
+          }
+          if (-not (Test-Path -LiteralPath $signaturePath -PathType Leaf)) {
+            throw "Expected updater signature was not produced: $artifactName.sig"
+          }
+
+          "ARTIFACT_PATH=$artifactPath" >> $env:GITHUB_ENV
+          "SIGNATURE_PATH=$signaturePath" >> $env:GITHUB_ENV
+          "LATEST_JSON_PATH=$(Join-Path $bundleDirectory 'latest.json')" >> $env:GITHUB_ENV
+
+      - name: Generate latest.json
+        shell: pwsh
+        env:
+          RELEASE_REPOSITORY: ${{ github.repository }}
+        run: |
+          $releaseNotes = [System.IO.File]::ReadAllText(
+            $env:RELEASE_NOTES_PATH,
+            [System.Text.UTF8Encoding]::new($false, $true)
+          )
+          ./scripts/generate-latest.ps1 `
+            -Version $env:RELEASE_VERSION `
+            -ArtifactPath $env:ARTIFACT_PATH `
+            -Tag $env:RELEASE_TAG `
+            -Repository $env:RELEASE_REPOSITORY `
+            -Notes $releaseNotes
+
+      - name: Validate latest.json
+        shell: pwsh
+        env:
+          RELEASE_REPOSITORY: ${{ github.repository }}
+        run: |
+          $bytes = [System.IO.File]::ReadAllBytes($env:LATEST_JSON_PATH)
+          if ($bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF) {
+            throw 'latest.json must be UTF-8 without BOM.'
+          }
+
+          $strictUtf8 = [System.Text.UTF8Encoding]::new($false, $true)
+          try {
+            $jsonText = $strictUtf8.GetString($bytes)
+            $manifest = $jsonText | ConvertFrom-Json -ErrorAction Stop
+          } catch {
+            throw "latest.json is not valid UTF-8 JSON: $($_.Exception.Message)"
+          }
+
+          $platformNames = @($manifest.platforms.PSObject.Properties.Name)
+          if ($platformNames.Count -ne 1 -or $platformNames[0] -ne 'windows-x86_64') {
+            throw 'latest.json must contain exactly platforms.windows-x86_64.'
+          }
+
+          $expectedSignature = (Get-Content -LiteralPath $env:SIGNATURE_PATH -Raw).Trim()
+          $expectedUrl = "https://github.com/$env:RELEASE_REPOSITORY/releases/download/$env:RELEASE_TAG/$(Split-Path $env:ARTIFACT_PATH -Leaf)"
+          $windows = $manifest.platforms.'windows-x86_64'
+
+          if ($manifest.version -ne $env:RELEASE_VERSION) {
+            throw 'latest.json contains the wrong version.'
+          }
+          $expectedNotes = [System.IO.File]::ReadAllText(
+            $env:RELEASE_NOTES_PATH,
+            [System.Text.UTF8Encoding]::new($false, $true)
+          )
+          if ($manifest.notes -cne $expectedNotes) {
+            throw 'latest.json notes are not identical to the approved release notes.'
+          }
+          if ($windows.url -ne $expectedUrl) {
+            throw 'latest.json contains the wrong release URL.'
+          }
+          if ($windows.signature -cne $expectedSignature) {
+            throw 'latest.json signature is not identical to the .sig file.'
+          }
+
+      - name: Ensure the release does not already exist
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view $env:RELEASE_TAG *> $null
+          $releaseExists = $LASTEXITCODE -eq 0
+          $global:LASTEXITCODE = 0
+          if ($releaseExists) {
+            throw "A GitHub Release already exists for $env:RELEASE_TAG."
+          }
+
+      - name: Create draft release and upload assets
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create $env:RELEASE_TAG `
+            $env:ARTIFACT_PATH `
+            $env:SIGNATURE_PATH `
+            $env:LATEST_JSON_PATH `
+            --verify-tag `
+            --draft `
+            --notes-file $env:RELEASE_NOTES_PATH `
+            --title "H.I.S. $env:RELEASE_VERSION"
+          if ($LASTEXITCODE -ne 0) {
+            throw 'Could not create the draft release and upload all assets.'
+          }
+
+      - name: Verify draft release assets
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $release = gh release view $env:RELEASE_TAG --json isDraft,tagName,name,body,assets | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) {
+            throw 'Could not inspect the draft release.'
+          }
+
+          $expectedAssets = @(
+            (Split-Path $env:ARTIFACT_PATH -Leaf),
+            (Split-Path $env:SIGNATURE_PATH -Leaf),
+            'latest.json'
+          ) | Sort-Object
+          $actualAssets = @($release.assets.name) | Sort-Object
+          $expectedBody = [System.IO.File]::ReadAllText(
+            $env:RELEASE_NOTES_PATH,
+            [System.Text.UTF8Encoding]::new($false, $true)
+          )
+
+          if (-not $release.isDraft -or $release.tagName -ne $env:RELEASE_TAG -or $release.name -ne "H.I.S. $env:RELEASE_VERSION") {
+            throw 'Draft release metadata is incorrect.'
+          }
+          if (@(Compare-Object $expectedAssets $actualAssets).Count -ne 0) {
+            throw 'Draft release assets are incomplete or unexpected.'
+          }
+          if ($release.body -cne $expectedBody) {
+            throw 'Draft release body is not identical to the approved release notes.'
+          }
+
+      - name: Publish release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release edit $env:RELEASE_TAG --draft=false --latest
+          if ($LASTEXITCODE -ne 0) {
+            throw 'The fully validated draft could not be published.'
+          }
