@@ -1,4 +1,4 @@
-import draftAsset from "../assets/icons/draft.svg";
+import draftAsset from "../assets/third-party/google-material/icons/draft.svg";
 import {
   EDITOR_BACKGROUND_COLORS,
   EDITOR_TEXT_COLORS,

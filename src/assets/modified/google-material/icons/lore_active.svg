@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Provenance: Google Material Symbols / Material Icons, Apache-2.0. Modified visually by Matias Escobedo. Exact glyph, version, and upstream revision not verified. -->
+<svg id="Capa_2" data-name="Capa 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18.02 23.32">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #fff;
+      }
+    </style>
+  </defs>
+  <g id="Capa_1-2" data-name="Capa 1">
+    <path class="cls-1" d="M18.02,8.74h-6.89v2.12h-4.24v-2.12h-2.65v-2.91h2.65V0H0v5.83h2.65v2.91H0v5.83h2.65v2.91H0v5.83h6.89v-5.83h-2.65v-2.91h2.65v-2.12h4.24v2.12h2.32v3.74h2v-3.74h2.57v-5.83ZM1.59,4.24V1.59h3.71v2.65H1.59ZM5.3,19.08v2.65H1.59v-2.65h3.71ZM5.3,12.98H1.59v-2.65h3.71v2.65ZM16.43,12.98h-3.71v-2.65h3.71v2.65Z"/>
+  </g>
+</svg>

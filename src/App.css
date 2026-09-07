@@ -1260,9 +1260,9 @@ body,
 }
 
 /* Iconos de las acciones de la papelera. */
-.trash-view__actions img {
-  width: 100%;
-  height: 100%;
+.trash-view__action-icon {
+  font-size: 22px;
+  line-height: 1;
 }
 
 /* Lista de elementos enviados a la papelera. */
@@ -3913,36 +3913,36 @@ body,
   -webkit-mask-size: contain;
 }
 
-.sidebar-icon--sidebar { --icon-url: url("./assets/icons/sidebar.svg"); }
-.sidebar-icon--settings { --icon-url: url("./assets/icons/settings.svg"); }
-.sidebar-icon--search { --icon-url: url("./assets/icons/search.svg"); }
-.sidebar-icon--add { --icon-url: url("./assets/icons/circle_add.svg"); }
-.sidebar-icon--folder { --icon-url: url("./assets/icons/create_folder_node.svg"); }
-.sidebar-icon--image-add { --icon-url: url("./assets/icons/create_image_node.svg"); }
-.sidebar-icon--general { --icon-url: url("./assets/icons/general.svg"); }
-.sidebar-icon--history { --icon-url: url("./assets/icons/deployed_code_history.svg"); }
-.sidebar-icon--trash { --icon-url: url("./assets/icons/trash_list.svg"); }
-.sidebar-icon--exit { --icon-url: url("./assets/icons/exit.svg"); }
-.sidebar-icon--arrow-open { --icon-url: url("./assets/icons/arrow_open.svg"); }
-.sidebar-icon--arrow-close { --icon-url: url("./assets/icons/arrow_close.svg"); }
-.sidebar-icon--lore { --icon-url: url("./assets/icons/lore_inactive.svg"); }
-.sidebar-icon--lore.is-active { --icon-url: url("./assets/icons/lore_active.svg"); }
-.sidebar-icon--recent { --icon-url: url("./assets/icons/recent_inactive.svg"); }
-.sidebar-icon--recent.is-active { --icon-url: url("./assets/icons/recent_active.svg"); }
-.sidebar-icon--types { --icon-url: url("./assets/icons/nodetype_inactive.svg"); }
-.sidebar-icon--types.is-active { --icon-url: url("./assets/icons/nodetype_active.svg"); }
+.sidebar-icon--sidebar { --icon-url: url("./assets/third-party/google-material/icons/sidebar.svg"); }
+.sidebar-icon--settings { --icon-url: url("./assets/original/ui/settings.svg"); }
+.sidebar-icon--search { --icon-url: url("./assets/third-party/google-material/icons/search.svg"); }
+.sidebar-icon--add { --icon-url: url("./assets/third-party/google-material/icons/circle_add.svg"); }
+.sidebar-icon--folder { --icon-url: url("./assets/third-party/google-material/icons/create_folder_node.svg"); }
+.sidebar-icon--image-add { --icon-url: url("./assets/third-party/google-material/icons/create_image_node.svg"); }
+.sidebar-icon--general { --icon-url: url("./assets/third-party/google-material/icons/general.svg"); }
+.sidebar-icon--history { --icon-url: url("./assets/third-party/google-material/icons/deployed_code_history.svg"); }
+.sidebar-icon--trash { --icon-url: url("./assets/third-party/google-material/icons/trash_list.svg"); }
+.sidebar-icon--exit { --icon-url: url("./assets/third-party/google-material/icons/exit.svg"); }
+.sidebar-icon--arrow-open { --icon-url: url("./assets/third-party/google-material/icons/arrow_open.svg"); }
+.sidebar-icon--arrow-close { --icon-url: url("./assets/third-party/google-material/icons/arrow_close.svg"); }
+.sidebar-icon--lore { --icon-url: url("./assets/third-party/google-material/icons/lore_inactive.svg"); }
+.sidebar-icon--lore.is-active { --icon-url: url("./assets/modified/google-material/icons/lore_active.svg"); }
+.sidebar-icon--recent { --icon-url: url("./assets/third-party/google-material/icons/recent_inactive.svg"); }
+.sidebar-icon--recent.is-active { --icon-url: url("./assets/modified/google-material/icons/recent_active.svg"); }
+.sidebar-icon--types { --icon-url: url("./assets/third-party/google-material/icons/nodetype_inactive.svg"); }
+.sidebar-icon--types.is-active { --icon-url: url("./assets/modified/google-material/icons/nodetype_active.svg"); }
 .node-type-icon--categoria,
-.node-type-icon--pagina-carpeta { --icon-url: url("./assets/icons/folder_inactive.svg"); }
+.node-type-icon--pagina-carpeta { --icon-url: url("./assets/third-party/google-material/icons/folder_inactive.svg"); }
 .node-type-icon--categoria.is-open,
-.node-type-icon--pagina-carpeta.is-open { --icon-url: url("./assets/icons/folder_active.svg"); }
-.node-type-icon--pagina { --icon-url: url("./assets/icons/nodes/node_page.svg"); }
-.node-type-icon--imagen { --icon-url: url("./assets/icons/nodes/node_image.svg"); }
-.node-type-icon--calendario { --icon-url: url("./assets/icons/nodes/node_calendar.svg"); }
-.node-type-icon--tempo { --icon-url: url("./assets/icons/nodes/node_tempo.svg"); }
-.node-type-icon--pdf { --icon-url: url("./assets/icons/nodes/node_pdf.svg"); }
-.node-type-icon--curso { --icon-url: url("./assets/icons/nodes/node_course.svg"); }
-.node-type-icon--tarea { --icon-url: url("./assets/icons/task.svg"); }
-.node-type-icon--video { --icon-url: url("./assets/icons/nodes/node_video.svg"); }
+.node-type-icon--pagina-carpeta.is-open { --icon-url: url("./assets/third-party/google-material/icons/folder_active.svg"); }
+.node-type-icon--pagina { --icon-url: url("./assets/third-party/google-material/icons/nodes/node_page.svg"); }
+.node-type-icon--imagen { --icon-url: url("./assets/third-party/google-material/icons/nodes/node_image.svg"); }
+.node-type-icon--calendario { --icon-url: url("./assets/third-party/google-material/icons/nodes/node_calendar.svg"); }
+.node-type-icon--tempo { --icon-url: url("./assets/third-party/google-material/icons/nodes/node_tempo.svg"); }
+.node-type-icon--pdf { --icon-url: url("./assets/third-party/google-material/icons/nodes/node_pdf.svg"); }
+.node-type-icon--curso { --icon-url: url("./assets/third-party/google-material/icons/nodes/node_course.svg"); }
+.node-type-icon--tarea { --icon-url: url("./assets/third-party/google-material/icons/task.svg"); }
+.node-type-icon--video { --icon-url: url("./assets/third-party/google-material/icons/nodes/node_video.svg"); }
 
 /* Composición Nodal: Curso, Tarea y Video comparten referencias, líneas y geometría. */
 .workspace-header { height: 40px; border-bottom: 0; background: #101315; }

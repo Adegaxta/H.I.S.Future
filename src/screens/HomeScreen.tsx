@@ -1,21 +1,21 @@
 import { FormEvent, useState } from "react";
 import type { ProjectInfo } from "../project/types";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import hisFutureIconAsset from "../assets/icons/HISFuture.ico";
-import hisPanelAsset from "../assets/ui/HIS_panel_1.svg";
-import converterAsset from "../assets/ui/hisconverter_button.svg";
-import createProjectAsset from "../assets/ui/create_project.svg";
-import importProjectAsset from "../assets/ui/import_project.svg";
-import panelBackgroundAsset from "../assets/ui/project_panel_background_alter_1.svg";
-import previewCircleAsset from "../assets/ui/project_preview_circle.svg";
-import threeLinesAsset from "../assets/ui/asset_3_line.svg";
-import boxAsset from "../assets/ui/Box.svg";
-import alterBoxAsset from "../assets/ui/alter_box_1.svg";
-import deleteAsset from "../assets/ui/delete_button.svg";
-import settingsAsset from "../assets/ui/settings_button_1.svg";
-import windowCloseAsset from "../assets/ui/window_close.svg";
-import windowMaximizeAsset from "../assets/ui/window_maximize.svg";
-import windowMinimizeAsset from "../assets/ui/window_minimize.svg";
+import hisFutureIconAsset from "../assets/original/icons/HISFuture.ico";
+import hisPanelAsset from "../assets/original/ui/HIS_panel_1.svg";
+import converterAsset from "../assets/original/ui/hisconverter_button.svg";
+import createProjectAsset from "../assets/original/ui/create_project.svg";
+import importProjectAsset from "../assets/original/ui/import_project.svg";
+import panelBackgroundAsset from "../assets/original/ui/project_panel_background_alter_1.svg";
+import previewCircleAsset from "../assets/original/ui/project_preview_circle.svg";
+import threeLinesAsset from "../assets/original/ui/asset_3_line.svg";
+import boxAsset from "../assets/original/ui/Box.svg";
+import alterBoxAsset from "../assets/original/ui/alter_box_1.svg";
+import deleteAsset from "../assets/original/ui/delete_button.svg";
+import settingsAsset from "../assets/original/ui/settings_button_1.svg";
+import windowCloseAsset from "../assets/original/ui/window_close.svg";
+import windowMaximizeAsset from "../assets/original/ui/window_maximize.svg";
+import windowMinimizeAsset from "../assets/original/ui/window_minimize.svg";
 
 interface HomeScreenProps {
   busy: boolean;

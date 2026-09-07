@@ -1,0 +1,7862 @@
+[
+  {
+    "package": "windows-link@0.2.1",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libwindows_link-ecab20142ec2436a.rlib",
+      "libwindows_link-ecab20142ec2436a.rmeta"
+    ]
+  },
+  {
+    "package": "stable_deref_trait@1.2.1",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "alloc",
+      "default",
+      "std"
+    ],
+    "artifactNames": [
+      "libstable_deref_trait-aee00e5830a038e4.rlib",
+      "libstable_deref_trait-aee00e5830a038e4.rmeta"
+    ]
+  },
+  {
+    "package": "cfg-if@1.0.4",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libcfg_if-a22f3e8a0b490112.rlib",
+      "libcfg_if-a22f3e8a0b490112.rmeta"
+    ]
+  },
+  {
+    "package": "unicode-ident@1.0.24",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libunicode_ident-8a6bd44b0b532bb7.rlib",
+      "libunicode_ident-8a6bd44b0b532bb7.rmeta"
+    ]
+  },
+  {
+    "package": "shlex@2.0.1",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "default",
+      "std"
+    ],
+    "artifactNames": [
+      "libshlex-ab7a3a66679a4ffc.rlib",
+      "libshlex-ab7a3a66679a4ffc.rmeta"
+    ]
+  },
+  {
+    "package": "version_check@0.9.5",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libversion_check-912bb7fb10a59bce.rlib",
+      "libversion_check-912bb7fb10a59bce.rmeta"
+    ]
+  },
+  {
+    "package": "smallvec@1.15.2",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "const_generics"
+    ],
+    "artifactNames": [
+      "libsmallvec-23b624fcad2c8730.rlib",
+      "libsmallvec-23b624fcad2c8730.rmeta"
+    ]
+  },
+  {
+    "package": "siphasher@1.0.3",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "default",
+      "std"
+    ],
+    "artifactNames": [
+      "libsiphasher-f551dbc7bdd84d91.rlib",
+      "libsiphasher-f551dbc7bdd84d91.rmeta"
+    ]
+  },
+  {
+    "package": "fastrand@2.5.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libfastrand-fdaa9146bbe65e5e.rlib",
+      "libfastrand-fdaa9146bbe65e5e.rmeta"
+    ]
+  },
+  {
+    "package": "autocfg@1.5.1",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libautocfg-a475902436736b65.rlib",
+      "libautocfg-a475902436736b65.rmeta"
+    ]
+  },
+  {
+    "package": "time-core@0.1.9",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libtime_core-e58a45c0c04b2288.rlib",
+      "libtime_core-e58a45c0c04b2288.rmeta"
+    ]
+  },
+  {
+    "package": "phf_shared@0.13.1",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "default",
+      "std"
+    ],
+    "artifactNames": [
+      "libphf_shared-fd9e90e803fd8486.rlib",
+      "libphf_shared-fd9e90e803fd8486.rmeta"
+    ]
+  },
+  {
+    "package": "num-conv@0.2.2",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libnum_conv-6502dc8e5db4ffa9.rlib",
+      "libnum_conv-6502dc8e5db4ffa9.rmeta"
+    ]
+  },
+  {
+    "package": "quote@1.0.47",
+    "kind": [
+      "custom-build"
+    ],
+    "optLevel": "0",
+    "features": [
+      "default",
+      "proc-macro"
+    ],
+    "artifactNames": [
+      "build-script-build.exe",
+      "build_script_build.pdb"
+    ]
+  },
+  {
+    "package": "proc-macro2@1.0.107",
+    "kind": [
+      "custom-build"
+    ],
+    "optLevel": "0",
+    "features": [
+      "default",
+      "proc-macro",
+      "span-locations"
+    ],
+    "artifactNames": [
+      "build-script-build.exe",
+      "build_script_build.pdb"
+    ]
+  },
+  {
+    "package": "serde@1.0.229",
+    "kind": [
+      "custom-build"
+    ],
+    "optLevel": "0",
+    "features": [
+      "alloc",
+      "default",
+      "derive",
+      "rc",
+      "serde_derive",
+      "std"
+    ],
+    "artifactNames": [
+      "build-script-build.exe",
+      "build_script_build.pdb"
+    ]
+  },
+  {
+    "package": "getrandom@0.4.3",
+    "kind": [
+      "custom-build"
+    ],
+    "optLevel": "0",
+    "features": [
+      "std"
+    ],
+    "artifactNames": [
+      "build-script-build.exe",
+      "build_script_build.pdb"
+    ]
+  },
+  {
+    "package": "icu_properties_data@2.3.0",
+    "kind": [
+      "custom-build"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "build-script-build.exe",
+      "build_script_build.pdb"
+    ]
+  },
+  {
+    "package": "serde_core@1.0.229",
+    "kind": [
+      "custom-build"
+    ],
+    "optLevel": "0",
+    "features": [
+      "alloc",
+      "rc",
+      "result",
+      "std"
+    ],
+    "artifactNames": [
+      "build-script-build.exe",
+      "build_script_build.pdb"
+    ]
+  },
+  {
+    "package": "thiserror@2.0.20",
+    "kind": [
+      "custom-build"
+    ],
+    "optLevel": "0",
+    "features": [
+      "default",
+      "std"
+    ],
+    "artifactNames": [
+      "build-script-build.exe",
+      "build_script_build.pdb"
+    ]
+  },
+  {
+    "package": "parking_lot_core@0.9.12",
+    "kind": [
+      "custom-build"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "build-script-build.exe",
+      "build_script_build.pdb"
+    ]
+  },
+  {
+    "package": "serde_core@1.0.229",
+    "kind": [
+      "custom-build"
+    ],
+    "optLevel": "0",
+    "features": [
+      "alloc",
+      "default",
+      "rc",
+      "result",
+      "std"
+    ],
+    "artifactNames": [
+      "build-script-build.exe",
+      "build_script_build.pdb"
+    ]
+  },
+  {
+    "package": "zmij@1.0.23",
+    "kind": [
+      "custom-build"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "build-script-build.exe",
+      "build_script_build.pdb"
+    ]
+  },
+  {
+    "package": "phf_generator@0.13.1",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libphf_generator-0b7a7c7299b7bcca.rlib",
+      "libphf_generator-0b7a7c7299b7bcca.rmeta"
+    ]
+  },
+  {
+    "package": "icu_normalizer_data@2.3.0",
+    "kind": [
+      "custom-build"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "build-script-build.exe",
+      "build_script_build.pdb"
+    ]
+  },
+  {
+    "package": "itoa@1.0.18",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libitoa-793daf9dc3dfaf68.rlib",
+      "libitoa-793daf9dc3dfaf68.rmeta"
+    ]
+  },
+  {
+    "package": "find-msvc-tools@0.1.11",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libfind_msvc_tools-37e795abe1a07525.rlib",
+      "libfind_msvc_tools-37e795abe1a07525.rmeta"
+    ]
+  },
+  {
+    "package": "scopeguard@1.2.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libscopeguard-1c7c677b686ea0a5.rlib",
+      "libscopeguard-1c7c677b686ea0a5.rmeta"
+    ]
+  },
+  {
+    "package": "utf8_iter@1.0.4",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libutf8_iter-017e68bc52ea76bf.rlib",
+      "libutf8_iter-017e68bc52ea76bf.rmeta"
+    ]
+  },
+  {
+    "package": "litemap@0.8.3",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "liblitemap-a4133a102b9fb44b.rlib",
+      "liblitemap-a4133a102b9fb44b.rmeta"
+    ]
+  },
+  {
+    "package": "getrandom@0.4.3",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "std"
+    ],
+    "artifactNames": [
+      "libgetrandom-c317f5106964efb4.rlib",
+      "libgetrandom-c317f5106964efb4.rmeta"
+    ]
+  },
+  {
+    "package": "icu_normalizer_data@2.3.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libicu_normalizer_data-43a37f93022763f4.rlib",
+      "libicu_normalizer_data-43a37f93022763f4.rmeta"
+    ]
+  },
+  {
+    "package": "writeable@0.6.4",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libwriteable-d6eb2c833e8f97b2.rlib",
+      "libwriteable-d6eb2c833e8f97b2.rmeta"
+    ]
+  },
+  {
+    "package": "memchr@2.8.3",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "alloc",
+      "default",
+      "std"
+    ],
+    "artifactNames": [
+      "libmemchr-2de562cdce209af2.rlib",
+      "libmemchr-2de562cdce209af2.rmeta"
+    ]
+  },
+  {
+    "package": "parking_lot_core@0.9.12",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libparking_lot_core-a3c0830dac629a01.rlib",
+      "libparking_lot_core-a3c0830dac629a01.rmeta"
+    ]
+  },
+  {
+    "package": "percent-encoding@2.3.2",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "alloc",
+      "default",
+      "std"
+    ],
+    "artifactNames": [
+      "libpercent_encoding-b60bbfb54054e63f.rlib",
+      "libpercent_encoding-b60bbfb54054e63f.rmeta"
+    ]
+  },
+  {
+    "package": "lock_api@0.4.14",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "atomic_usize",
+      "default"
+    ],
+    "artifactNames": [
+      "liblock_api-274b0ecfbe88364e.rlib",
+      "liblock_api-274b0ecfbe88364e.rmeta"
+    ]
+  },
+  {
+    "package": "typeid@1.0.3",
+    "kind": [
+      "custom-build"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "build-script-build.exe",
+      "build_script_build.pdb"
+    ]
+  },
+  {
+    "package": "serde_json@1.0.151",
+    "kind": [
+      "custom-build"
+    ],
+    "optLevel": "0",
+    "features": [
+      "alloc",
+      "default",
+      "raw_value",
+      "std",
+      "unbounded_depth"
+    ],
+    "artifactNames": [
+      "build-script-build.exe",
+      "build_script_build.pdb"
+    ]
+  },
+  {
+    "package": "generic-array@0.14.7",
+    "kind": [
+      "custom-build"
+    ],
+    "optLevel": "0",
+    "features": [
+      "more_lengths"
+    ],
+    "artifactNames": [
+      "build-script-build.exe",
+      "build_script_build.pdb"
+    ]
+  },
+  {
+    "package": "icu_properties_data@2.3.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libicu_properties_data-e703c87961b00f1c.rlib",
+      "libicu_properties_data-e703c87961b00f1c.rmeta"
+    ]
+  },
+  {
+    "package": "log@0.4.34",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "liblog-4fe6d83a81caaec6.rlib",
+      "liblog-4fe6d83a81caaec6.rmeta"
+    ]
+  },
+  {
+    "package": "phf_codegen@0.13.1",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libphf_codegen-0e33013985f2bb81.rlib",
+      "libphf_codegen-0e33013985f2bb81.rmeta"
+    ]
+  },
+  {
+    "package": "jobserver@0.1.35",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libjobserver-e50536aff0e3b0b8.rlib",
+      "libjobserver-e50536aff0e3b0b8.rmeta"
+    ]
+  },
+  {
+    "package": "zmij@1.0.23",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libzmij-beea1cebe9ac212b.rlib",
+      "libzmij-beea1cebe9ac212b.rmeta"
+    ]
+  },
+  {
+    "package": "equivalent@1.0.2",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libequivalent-1615c01eab4ce190.rlib",
+      "libequivalent-1615c01eab4ce190.rmeta"
+    ]
+  },
+  {
+    "package": "ident_case@1.0.1",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libident_case-0251a35cfd3bcb23.rlib",
+      "libident_case-0251a35cfd3bcb23.rmeta"
+    ]
+  },
+  {
+    "package": "windows-link@0.2.1",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libwindows_link-8460654ba35a1ce6.rlib",
+      "libwindows_link-8460654ba35a1ce6.rmeta"
+    ]
+  },
+  {
+    "package": "form_urlencoded@1.2.2",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "alloc",
+      "default",
+      "std"
+    ],
+    "artifactNames": [
+      "libform_urlencoded-0617daad499e52b5.rlib",
+      "libform_urlencoded-0617daad499e52b5.rmeta"
+    ]
+  },
+  {
+    "package": "new_debug_unreachable@1.0.6",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libdebug_unreachable-21fc0bb41c5e5914.rlib",
+      "libdebug_unreachable-21fc0bb41c5e5914.rmeta"
+    ]
+  },
+  {
+    "package": "erased-serde@0.4.10",
+    "kind": [
+      "custom-build"
+    ],
+    "optLevel": "0",
+    "features": [
+      "alloc"
+    ],
+    "artifactNames": [
+      "build-script-build.exe",
+      "build_script_build.pdb"
+    ]
+  },
+  {
+    "package": "powerfmt@0.2.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libpowerfmt-4a8645d7deb942f8.rlib",
+      "libpowerfmt-4a8645d7deb942f8.rmeta"
+    ]
+  },
+  {
+    "package": "strsim@0.11.1",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libstrsim-1434b93d4c99cf50.rlib",
+      "libstrsim-1434b93d4c99cf50.rmeta"
+    ]
+  },
+  {
+    "package": "thiserror@1.0.69",
+    "kind": [
+      "custom-build"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "build-script-build.exe",
+      "build_script_build.pdb"
+    ]
+  },
+  {
+    "package": "parking_lot@0.12.5",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "default"
+    ],
+    "artifactNames": [
+      "libparking_lot-349385ef20774b4b.rlib",
+      "libparking_lot-349385ef20774b4b.rmeta"
+    ]
+  },
+  {
+    "package": "precomputed-hash@0.1.1",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libprecomputed_hash-db26d13dbb3b1280.rlib",
+      "libprecomputed_hash-db26d13dbb3b1280.rmeta"
+    ]
+  },
+  {
+    "package": "quote@1.0.47",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "default",
+      "proc-macro"
+    ],
+    "artifactNames": [
+      "libquote-b01d939de42dad8c.rlib",
+      "libquote-b01d939de42dad8c.rmeta"
+    ]
+  },
+  {
+    "package": "anyhow@1.0.104",
+    "kind": [
+      "custom-build"
+    ],
+    "optLevel": "0",
+    "features": [
+      "default",
+      "std"
+    ],
+    "artifactNames": [
+      "build-script-build.exe",
+      "build_script_build.pdb"
+    ]
+  },
+  {
+    "package": "proc-macro2@1.0.107",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "default",
+      "proc-macro",
+      "span-locations"
+    ],
+    "artifactNames": [
+      "libproc_macro2-e3faa50079bae81b.rlib",
+      "libproc_macro2-e3faa50079bae81b.rmeta"
+    ]
+  },
+  {
+    "package": "base64@0.22.1",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "alloc",
+      "default",
+      "std"
+    ],
+    "artifactNames": [
+      "libbase64-4dbe79796cde709e.rlib",
+      "libbase64-4dbe79796cde709e.rmeta"
+    ]
+  },
+  {
+    "package": "bytes@1.12.1",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "default",
+      "std"
+    ],
+    "artifactNames": [
+      "libbytes-7fdd2a0046198db9.rlib",
+      "libbytes-7fdd2a0046198db9.rmeta"
+    ]
+  },
+  {
+    "package": "pkg-config@0.3.34",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libpkg_config-3d48ece60f3a0d4e.rlib",
+      "libpkg_config-3d48ece60f3a0d4e.rmeta"
+    ]
+  },
+  {
+    "package": "hashbrown@0.17.1",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libhashbrown-e93469a84ad472a1.rlib",
+      "libhashbrown-e93469a84ad472a1.rmeta"
+    ]
+  },
+  {
+    "package": "toml_writer@1.1.2+spec-1.1.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "alloc",
+      "std"
+    ],
+    "artifactNames": [
+      "libtoml_writer-a186ccf4f01393d5.rlib",
+      "libtoml_writer-a186ccf4f01393d5.rmeta"
+    ]
+  },
+  {
+    "package": "winnow@1.0.4",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libwinnow-f8b65109b84d3c13.rlib",
+      "libwinnow-f8b65109b84d3c13.rmeta"
+    ]
+  },
+  {
+    "package": "libc@0.2.189",
+    "kind": [
+      "custom-build"
+    ],
+    "optLevel": "0",
+    "features": [
+      "default",
+      "std"
+    ],
+    "artifactNames": [
+      "build-script-build.exe",
+      "build_script_build.pdb"
+    ]
+  },
+  {
+    "package": "time-macros@0.2.32",
+    "kind": [
+      "proc-macro"
+    ],
+    "optLevel": "0",
+    "features": [
+      "formatting",
+      "parsing"
+    ],
+    "artifactNames": [
+      "time_macros-529d32c4d1894f4a.dll",
+      "time_macros-529d32c4d1894f4a.dll.lib",
+      "time_macros-529d32c4d1894f4a.dll.exp",
+      "time_macros-529d32c4d1894f4a.pdb"
+    ]
+  },
+  {
+    "package": "windows_x86_64_msvc@0.52.6",
+    "kind": [
+      "custom-build"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "build-script-build.exe",
+      "build_script_build.pdb"
+    ]
+  },
+  {
+    "package": "cfg-if@1.0.4",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libcfg_if-c3fde10ad455b2cd.rlib",
+      "libcfg_if-c3fde10ad455b2cd.rmeta"
+    ]
+  },
+  {
+    "package": "stable_deref_trait@1.2.1",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libstable_deref_trait-b2a0d8ab796fb981.rlib",
+      "libstable_deref_trait-b2a0d8ab796fb981.rmeta"
+    ]
+  },
+  {
+    "package": "string_cache@0.9.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libstring_cache-5444f062601b10d4.rlib",
+      "libstring_cache-5444f062601b10d4.rmeta"
+    ]
+  },
+  {
+    "package": "string_cache_codegen@0.6.1",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libstring_cache_codegen-cc97a6a714c57d68.rlib",
+      "libstring_cache_codegen-cc97a6a714c57d68.rmeta"
+    ]
+  },
+  {
+    "package": "dtoa@1.0.11",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libdtoa-79c3ba955af8687c.rlib",
+      "libdtoa-79c3ba955af8687c.rmeta"
+    ]
+  },
+  {
+    "package": "dtoa-short@0.3.5",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libdtoa_short-16e19bb8db985ddc.rlib",
+      "libdtoa_short-16e19bb8db985ddc.rmeta"
+    ]
+  },
+  {
+    "package": "tendril@0.5.1",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libtendril-4622af020d0221b5.rlib",
+      "libtendril-4622af020d0221b5.rmeta"
+    ]
+  },
+  {
+    "package": "alloc-no-stdlib@2.0.4",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "liballoc_no_stdlib-d2f36d7e635abaf1.rlib",
+      "liballoc_no_stdlib-d2f36d7e635abaf1.rmeta"
+    ]
+  },
+  {
+    "package": "deranged@0.5.8",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "default"
+    ],
+    "artifactNames": [
+      "libderanged-5b7474b9835d673c.rlib",
+      "libderanged-5b7474b9835d673c.rmeta"
+    ]
+  },
+  {
+    "package": "unic-common@0.9.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "default"
+    ],
+    "artifactNames": [
+      "libunic_common-0f125cd30828050a.rlib",
+      "libunic_common-0f125cd30828050a.rmeta"
+    ]
+  },
+  {
+    "package": "ctor-proc-macro@0.0.7",
+    "kind": [
+      "proc-macro"
+    ],
+    "optLevel": "0",
+    "features": [
+      "default"
+    ],
+    "artifactNames": [
+      "ctor_proc_macro-8f37b5f6e9d607fd.dll",
+      "ctor_proc_macro-8f37b5f6e9d607fd.dll.lib",
+      "ctor_proc_macro-8f37b5f6e9d607fd.dll.exp",
+      "ctor_proc_macro-8f37b5f6e9d607fd.pdb"
+    ]
+  },
+  {
+    "package": "indexmap@2.14.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "default",
+      "std"
+    ],
+    "artifactNames": [
+      "libindexmap-141e4fd604919cc8.rlib",
+      "libindexmap-141e4fd604919cc8.rmeta"
+    ]
+  },
+  {
+    "package": "indexmap@1.9.3",
+    "kind": [
+      "custom-build"
+    ],
+    "optLevel": "0",
+    "features": [
+      "serde",
+      "serde-1"
+    ],
+    "artifactNames": [
+      "build-script-build.exe",
+      "build_script_build.pdb"
+    ]
+  },
+  {
+    "package": "selectors@0.36.1",
+    "kind": [
+      "custom-build"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "build-script-build.exe",
+      "build_script_build.pdb"
+    ]
+  },
+  {
+    "package": "toml_parser@1.1.3+spec-1.1.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "alloc",
+      "std"
+    ],
+    "artifactNames": [
+      "libtoml_parser-58b406f91813ebd8.rlib",
+      "libtoml_parser-58b406f91813ebd8.rmeta"
+    ]
+  },
+  {
+    "package": "unic-char-range@0.9.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "default"
+    ],
+    "artifactNames": [
+      "libunic_char_range-5d4787ca9863e010.rlib",
+      "libunic_char_range-5d4787ca9863e010.rmeta"
+    ]
+  },
+  {
+    "package": "unic-ucd-version@0.9.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libunic_ucd_version-d8fbc092c156553d.rlib",
+      "libunic_ucd_version-d8fbc092c156553d.rmeta"
+    ]
+  },
+  {
+    "package": "web_atoms@0.2.6",
+    "kind": [
+      "custom-build"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "build-script-build.exe",
+      "build_script_build.pdb"
+    ]
+  },
+  {
+    "package": "byteorder@1.5.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "default",
+      "std"
+    ],
+    "artifactNames": [
+      "libbyteorder-97833a86b8b4b956.rlib",
+      "libbyteorder-97833a86b8b4b956.rmeta"
+    ]
+  },
+  {
+    "package": "alloc-stdlib@0.2.4",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "liballoc_stdlib-b49cdc35c138f069.rlib",
+      "liballoc_stdlib-b49cdc35c138f069.rmeta"
+    ]
+  },
+  {
+    "package": "camino@1.2.5",
+    "kind": [
+      "custom-build"
+    ],
+    "optLevel": "0",
+    "features": [
+      "serde1"
+    ],
+    "artifactNames": [
+      "build-script-build.exe",
+      "build_script_build.pdb"
+    ]
+  },
+  {
+    "package": "unic-char-property@0.9.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libunic_char_property-9eb7a4ffe77c89a2.rlib",
+      "libunic_char_property-9eb7a4ffe77c89a2.rmeta"
+    ]
+  },
+  {
+    "package": "typeid@1.0.3",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libtypeid-7b669d14627db728.rlib",
+      "libtypeid-7b669d14627db728.rmeta"
+    ]
+  },
+  {
+    "package": "fnv@1.0.7",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "default",
+      "std"
+    ],
+    "artifactNames": [
+      "libfnv-55fabdc2ff8eb7a6.rlib",
+      "libfnv-55fabdc2ff8eb7a6.rmeta"
+    ]
+  },
+  {
+    "package": "servo_arc@0.4.3",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "default",
+      "track_alloc_size"
+    ],
+    "artifactNames": [
+      "libservo_arc-e6698748d803d946.rlib",
+      "libservo_arc-e6698748d803d946.rmeta"
+    ]
+  },
+  {
+    "package": "bit-vec@0.8.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "std"
+    ],
+    "artifactNames": [
+      "libbit_vec-2c8fdbdc191c3edd.rlib",
+      "libbit_vec-2c8fdbdc191c3edd.rmeta"
+    ]
+  },
+  {
+    "package": "bitflags@2.13.1",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libbitflags-7bc67bd6848511c3.rlib",
+      "libbitflags-7bc67bd6848511c3.rmeta"
+    ]
+  },
+  {
+    "package": "rustc-hash@2.1.3",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "default",
+      "std"
+    ],
+    "artifactNames": [
+      "librustc_hash-83460e161b335625.rlib",
+      "librustc_hash-83460e161b335625.rmeta"
+    ]
+  },
+  {
+    "package": "schemars@0.8.22",
+    "kind": [
+      "custom-build"
+    ],
+    "optLevel": "0",
+    "features": [
+      "default",
+      "derive",
+      "indexmap",
+      "preserve_order",
+      "schemars_derive",
+      "url",
+      "uuid1"
+    ],
+    "artifactNames": [
+      "build-script-build.exe",
+      "build_script_build.pdb"
+    ]
+  },
+  {
+    "package": "unic-ucd-ident@0.9.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "default",
+      "id",
+      "xid"
+    ],
+    "artifactNames": [
+      "libunic_ucd_ident-960218dd15ea2920.rlib",
+      "libunic_ucd_ident-960218dd15ea2920.rmeta"
+    ]
+  },
+  {
+    "package": "hashbrown@0.12.3",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "raw"
+    ],
+    "artifactNames": [
+      "libhashbrown-94cc04dedd4b8196.rlib",
+      "libhashbrown-94cc04dedd4b8196.rmeta"
+    ]
+  },
+  {
+    "package": "bit-set@0.8.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "default",
+      "std"
+    ],
+    "artifactNames": [
+      "libbit_set-e583a1854915f8a4.rlib",
+      "libbit_set-e583a1854915f8a4.rmeta"
+    ]
+  },
+  {
+    "package": "dyn-clone@1.0.20",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libdyn_clone-b7346a7edd177c8e.rlib",
+      "libdyn_clone-b7346a7edd177c8e.rmeta"
+    ]
+  },
+  {
+    "package": "ctor@0.8.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "proc_macro",
+      "std"
+    ],
+    "artifactNames": [
+      "libctor-598a683e0b7bef74.rlib",
+      "libctor-598a683e0b7bef74.rmeta"
+    ]
+  },
+  {
+    "package": "foldhash@0.2.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "default",
+      "std"
+    ],
+    "artifactNames": [
+      "libfoldhash-eeec48090d682384.rlib",
+      "libfoldhash-eeec48090d682384.rmeta"
+    ]
+  },
+  {
+    "package": "dunce@1.0.5",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libdunce-8292aa1c467f58d7.rlib",
+      "libdunce-8292aa1c467f58d7.rmeta"
+    ]
+  },
+  {
+    "package": "anyhow@1.0.104",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "default",
+      "std"
+    ],
+    "artifactNames": [
+      "libanyhow-d8269bfd95cea073.rlib",
+      "libanyhow-d8269bfd95cea073.rmeta"
+    ]
+  },
+  {
+    "package": "crossbeam-utils@0.8.22",
+    "kind": [
+      "custom-build"
+    ],
+    "optLevel": "0",
+    "features": [
+      "std"
+    ],
+    "artifactNames": [
+      "build-script-build.exe",
+      "build_script_build.pdb"
+    ]
+  },
+  {
+    "package": "serde_core@1.0.229",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "alloc",
+      "default",
+      "rc",
+      "result",
+      "std"
+    ],
+    "artifactNames": [
+      "libserde_core-5815e372eea8374a.rlib",
+      "libserde_core-5815e372eea8374a.rmeta"
+    ]
+  },
+  {
+    "package": "cc@1.4.4",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "parallel"
+    ],
+    "artifactNames": [
+      "libcc-2dac0771c9c18799.rlib",
+      "libcc-2dac0771c9c18799.rmeta"
+    ]
+  },
+  {
+    "package": "brotli-decompressor@5.0.3",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "alloc-stdlib",
+      "std"
+    ],
+    "artifactNames": [
+      "libbrotli_decompressor-8b4b75266e438418.rlib",
+      "libbrotli_decompressor-8b4b75266e438418.rmeta"
+    ]
+  },
+  {
+    "package": "serde_spanned@1.1.1",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "alloc",
+      "serde",
+      "std"
+    ],
+    "artifactNames": [
+      "libserde_spanned-67d187340cc5a72c.rlib",
+      "libserde_spanned-67d187340cc5a72c.rmeta"
+    ]
+  },
+  {
+    "package": "quick-xml@0.41.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "default"
+    ],
+    "artifactNames": [
+      "libquick_xml-9f1bcb5506b3f4f0.rlib",
+      "libquick_xml-9f1bcb5506b3f4f0.rmeta"
+    ]
+  },
+  {
+    "package": "uuid@1.25.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "default",
+      "rng",
+      "serde",
+      "std",
+      "v4"
+    ],
+    "artifactNames": [
+      "libuuid-97b3101b3343e96e.rlib",
+      "libuuid-97b3101b3343e96e.rmeta"
+    ]
+  },
+  {
+    "package": "toml_datetime@1.1.1+spec-1.1.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "alloc",
+      "serde",
+      "std"
+    ],
+    "artifactNames": [
+      "libtoml_datetime-2c03d17aff067271.rlib",
+      "libtoml_datetime-2c03d17aff067271.rmeta"
+    ]
+  },
+  {
+    "package": "semver@1.0.28",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "default",
+      "serde",
+      "std"
+    ],
+    "artifactNames": [
+      "libsemver-d47f21a04be7a6f4.rlib",
+      "libsemver-d47f21a04be7a6f4.rmeta"
+    ]
+  },
+  {
+    "package": "http@1.5.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "default",
+      "std"
+    ],
+    "artifactNames": [
+      "libhttp-e173e95de6cbc7f8.rlib",
+      "libhttp-e173e95de6cbc7f8.rmeta"
+    ]
+  },
+  {
+    "package": "serde_core@1.0.229",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "alloc",
+      "rc",
+      "result",
+      "std"
+    ],
+    "artifactNames": [
+      "libserde_core-cfa4239f0d5afe44.rlib",
+      "libserde_core-cfa4239f0d5afe44.rmeta"
+    ]
+  },
+  {
+    "package": "aho-corasick@1.1.5",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "perf-literal",
+      "std"
+    ],
+    "artifactNames": [
+      "libaho_corasick-5dba5f8c13f78e4e.rlib",
+      "libaho_corasick-5dba5f8c13f78e4e.rmeta"
+    ]
+  },
+  {
+    "package": "erased-serde@0.4.10",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "alloc"
+    ],
+    "artifactNames": [
+      "liberased_serde-70f8cb1281b591bc.rlib",
+      "liberased_serde-70f8cb1281b591bc.rmeta"
+    ]
+  },
+  {
+    "package": "camino@1.2.5",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "serde1"
+    ],
+    "artifactNames": [
+      "libcamino-c6040a56bb5c371a.rlib",
+      "libcamino-c6040a56bb5c371a.rmeta"
+    ]
+  },
+  {
+    "package": "memchr@2.8.3",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "alloc",
+      "default",
+      "std"
+    ],
+    "artifactNames": [
+      "libmemchr-866e3c58425226b5.rlib",
+      "libmemchr-866e3c58425226b5.rmeta"
+    ]
+  },
+  {
+    "package": "serde-untagged@0.1.9",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libserde_untagged-5d316afa325e72ed.rlib",
+      "libserde_untagged-5d316afa325e72ed.rmeta"
+    ]
+  },
+  {
+    "package": "smallvec@1.15.2",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "const_generics"
+    ],
+    "artifactNames": [
+      "libsmallvec-abfd624b4921b710.rlib",
+      "libsmallvec-abfd624b4921b710.rmeta"
+    ]
+  },
+  {
+    "package": "serde_json@1.0.151",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "alloc",
+      "default",
+      "raw_value",
+      "std",
+      "unbounded_depth"
+    ],
+    "artifactNames": [
+      "libserde_json-41b5fbcc2757435d.rlib",
+      "libserde_json-41b5fbcc2757435d.rmeta"
+    ]
+  },
+  {
+    "package": "time@0.3.55",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "alloc",
+      "default",
+      "formatting",
+      "macros",
+      "parsing",
+      "std"
+    ],
+    "artifactNames": [
+      "libtime-e0a0a13781ef9d7b.rlib",
+      "libtime-e0a0a13781ef9d7b.rmeta"
+    ]
+  },
+  {
+    "package": "glob@0.3.4",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libglob-7f78e4b29e803d2a.rlib",
+      "libglob-7f78e4b29e803d2a.rmeta"
+    ]
+  },
+  {
+    "package": "cfb@0.7.3",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libcfb-96f93a01284dddf1.rlib",
+      "libcfb-96f93a01284dddf1.rmeta"
+    ]
+  },
+  {
+    "package": "windows_x86_64_msvc@0.52.6",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libwindows_x86_64_msvc-613be7db097392c4.rlib",
+      "libwindows_x86_64_msvc-613be7db097392c4.rmeta"
+    ]
+  },
+  {
+    "package": "writeable@0.6.4",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libwriteable-cea0ab96003ceefc.rlib",
+      "libwriteable-cea0ab96003ceefc.rmeta"
+    ]
+  },
+  {
+    "package": "winapi-util@0.1.11",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libwinapi_util-84b8bf4e45fae7bf.rlib",
+      "libwinapi_util-84b8bf4e45fae7bf.rmeta"
+    ]
+  },
+  {
+    "package": "regex-syntax@0.8.11",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "default",
+      "std",
+      "unicode",
+      "unicode-age",
+      "unicode-bool",
+      "unicode-case",
+      "unicode-gencat",
+      "unicode-perl",
+      "unicode-script",
+      "unicode-segment"
+    ],
+    "artifactNames": [
+      "libregex_syntax-cd91d14c42a628e2.rlib",
+      "libregex_syntax-cd91d14c42a628e2.rmeta"
+    ]
+  },
+  {
+    "package": "litemap@0.8.3",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "liblitemap-67ba590af6b09acf.rlib",
+      "liblitemap-67ba590af6b09acf.rmeta"
+    ]
+  },
+  {
+    "package": "windows-targets@0.52.6",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libwindows_targets-a986ec7c2fbdbe9b.rlib",
+      "libwindows_targets-a986ec7c2fbdbe9b.rmeta"
+    ]
+  },
+  {
+    "package": "once_cell@1.21.4",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "alloc",
+      "default",
+      "race",
+      "std"
+    ],
+    "artifactNames": [
+      "libonce_cell-924789a76cc9749e.rlib",
+      "libonce_cell-924789a76cc9749e.rmeta"
+    ]
+  },
+  {
+    "package": "windows-link@0.1.3",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libwindows_link-688d826c3359e878.rlib",
+      "libwindows_link-688d826c3359e878.rmeta"
+    ]
+  },
+  {
+    "package": "same-file@1.0.6",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libsame_file-76ff902a986e82a8.rlib",
+      "libsame_file-76ff902a986e82a8.rmeta"
+    ]
+  },
+  {
+    "package": "infer@0.19.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "alloc",
+      "cfb",
+      "default",
+      "std"
+    ],
+    "artifactNames": [
+      "libinfer-7c1b1aced899a8a7.rlib",
+      "libinfer-7c1b1aced899a8a7.rmeta"
+    ]
+  },
+  {
+    "package": "utf8_iter@1.0.4",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libutf8_iter-cc8a6aabd91e2b3e.rlib",
+      "libutf8_iter-cc8a6aabd91e2b3e.rmeta"
+    ]
+  },
+  {
+    "package": "libc@0.2.189",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "default",
+      "std"
+    ],
+    "artifactNames": [
+      "liblibc-104da6fb33857503.rlib",
+      "liblibc-104da6fb33857503.rmeta"
+    ]
+  },
+  {
+    "package": "vswhom-sys@0.1.3",
+    "kind": [
+      "custom-build"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "build-script-build.exe",
+      "build_script_build.pdb"
+    ]
+  },
+  {
+    "package": "icu_normalizer_data@2.3.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libicu_normalizer_data-b4deb982b041691c.rlib",
+      "libicu_normalizer_data-b4deb982b041691c.rmeta"
+    ]
+  },
+  {
+    "package": "windows-sys@0.61.2",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "Wdk",
+      "Wdk_Foundation",
+      "Wdk_Storage",
+      "Wdk_Storage_FileSystem",
+      "Wdk_System",
+      "Wdk_System_IO",
+      "Win32",
+      "Win32_Foundation",
+      "Win32_Globalization",
+      "Win32_Networking",
+      "Win32_Networking_WinSock",
+      "Win32_Security",
+      "Win32_Storage",
+      "Win32_Storage_FileSystem",
+      "Win32_System",
+      "Win32_System_Com",
+      "Win32_System_Console",
+      "Win32_System_IO",
+      "Win32_System_Pipes",
+      "Win32_System_SystemInformation",
+      "Win32_System_SystemServices",
+      "Win32_System_Threading",
+      "Win32_System_WindowsProgramming",
+      "Win32_UI",
+      "Win32_UI_Shell",
+      "default"
+    ],
+    "artifactNames": [
+      "libwindows_sys-622efe99be83736e.rlib",
+      "libwindows_sys-622efe99be83736e.rmeta"
+    ]
+  },
+  {
+    "package": "heck@0.5.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libheck-dd3c308fd6b7f530.rlib",
+      "libheck-dd3c308fd6b7f530.rmeta"
+    ]
+  },
+  {
+    "package": "walkdir@2.5.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libwalkdir-4c377623210a9b3e.rlib",
+      "libwalkdir-4c377623210a9b3e.rmeta"
+    ]
+  },
+  {
+    "package": "syn@3.0.4",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "clone-impls",
+      "default",
+      "derive",
+      "extra-traits",
+      "parsing",
+      "printing",
+      "proc-macro"
+    ],
+    "artifactNames": [
+      "libsyn-24362a45261dbcea.rlib",
+      "libsyn-24362a45261dbcea.rmeta"
+    ]
+  },
+  {
+    "package": "icu_properties_data@2.3.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libicu_properties_data-e4998d9837af609f.rlib",
+      "libicu_properties_data-e4998d9837af609f.rmeta"
+    ]
+  },
+  {
+    "package": "log@0.4.34",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "liblog-aa1a5362b6244f7f.rlib",
+      "liblog-aa1a5362b6244f7f.rmeta"
+    ]
+  },
+  {
+    "package": "itoa@1.0.18",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libitoa-05af070db428c482.rlib",
+      "libitoa-05af070db428c482.rmeta"
+    ]
+  },
+  {
+    "package": "crc32fast@1.5.1",
+    "kind": [
+      "custom-build"
+    ],
+    "optLevel": "0",
+    "features": [
+      "default",
+      "std"
+    ],
+    "artifactNames": [
+      "build-script-build.exe",
+      "build_script_build.pdb"
+    ]
+  },
+  {
+    "package": "rustc_version@0.4.1",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "librustc_version-8a4bd769d8cfa945.rlib",
+      "librustc_version-8a4bd769d8cfa945.rmeta"
+    ]
+  },
+  {
+    "package": "toml@1.1.4+spec-1.1.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "default",
+      "display",
+      "parse",
+      "serde",
+      "std"
+    ],
+    "artifactNames": [
+      "libtoml-b7255cbe8c8bfcc4.rlib",
+      "libtoml-b7255cbe8c8bfcc4.rmeta"
+    ]
+  },
+  {
+    "package": "windows-result@0.3.4",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "std"
+    ],
+    "artifactNames": [
+      "libwindows_result-6cda3bb10b024d13.rlib",
+      "libwindows_result-6cda3bb10b024d13.rmeta"
+    ]
+  },
+  {
+    "package": "toml_datetime@0.7.5+spec-1.1.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "alloc",
+      "serde",
+      "std"
+    ],
+    "artifactNames": [
+      "libtoml_datetime-9c6e5068e5f96cf5.rlib",
+      "libtoml_datetime-9c6e5068e5f96cf5.rmeta"
+    ]
+  },
+  {
+    "package": "num-conv@0.2.2",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libnum_conv-6c97bf9c179e4e52.rlib",
+      "libnum_conv-6c97bf9c179e4e52.rmeta"
+    ]
+  },
+  {
+    "package": "num-traits@0.2.19",
+    "kind": [
+      "custom-build"
+    ],
+    "optLevel": "0",
+    "features": [
+      "i128",
+      "std"
+    ],
+    "artifactNames": [
+      "build-script-build.exe",
+      "build_script_build.pdb"
+    ]
+  },
+  {
+    "package": "typenum@1.20.1",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libtypenum-5ed78f9fc5f2ffa3.rlib",
+      "libtypenum-5ed78f9fc5f2ffa3.rmeta"
+    ]
+  },
+  {
+    "package": "windows-strings@0.4.2",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "std"
+    ],
+    "artifactNames": [
+      "libwindows_strings-8555ea24fbc95721.rlib",
+      "libwindows_strings-8555ea24fbc95721.rmeta"
+    ]
+  },
+  {
+    "package": "equivalent@1.0.2",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libequivalent-5e1bce0add3d9fe9.rlib",
+      "libequivalent-5e1bce0add3d9fe9.rmeta"
+    ]
+  },
+  {
+    "package": "displaydoc@0.2.7",
+    "kind": [
+      "proc-macro"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "displaydoc-f84f5e90f314103b.dll",
+      "displaydoc-f84f5e90f314103b.dll.lib",
+      "displaydoc-f84f5e90f314103b.dll.exp",
+      "displaydoc-f84f5e90f314103b.pdb"
+    ]
+  },
+  {
+    "package": "synstructure@0.13.2",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "default",
+      "proc-macro"
+    ],
+    "artifactNames": [
+      "libsynstructure-f620a0524eaad5ec.rlib",
+      "libsynstructure-f620a0524eaad5ec.rmeta"
+    ]
+  },
+  {
+    "package": "zerovec-derive@0.11.6",
+    "kind": [
+      "proc-macro"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "zerovec_derive-0be9f721fee94ed2.dll",
+      "zerovec_derive-0be9f721fee94ed2.dll.lib",
+      "zerovec_derive-0be9f721fee94ed2.dll.exp",
+      "zerovec_derive-0be9f721fee94ed2.pdb"
+    ]
+  },
+  {
+    "package": "vswhom-sys@0.1.3",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libvswhom_sys-53590812daa489a9.rlib",
+      "libvswhom_sys-53590812daa489a9.rmeta"
+    ]
+  },
+  {
+    "package": "option-ext@0.2.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "liboption_ext-6f73ec96b37be351.rlib",
+      "liboption_ext-6f73ec96b37be351.rmeta"
+    ]
+  },
+  {
+    "package": "serde_json@1.0.151",
+    "kind": [
+      "custom-build"
+    ],
+    "optLevel": "0",
+    "features": [
+      "alloc",
+      "default",
+      "raw_value",
+      "std"
+    ],
+    "artifactNames": [
+      "build-script-build.exe",
+      "build_script_build.pdb"
+    ]
+  },
+  {
+    "package": "generic-array@0.14.7",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "more_lengths"
+    ],
+    "artifactNames": [
+      "libgeneric_array-670b5a62e24d833f.rlib",
+      "libgeneric_array-670b5a62e24d833f.rmeta"
+    ]
+  },
+  {
+    "package": "vswhom@0.1.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libvswhom-e5f103f1426da994.rlib",
+      "libvswhom-e5f103f1426da994.rmeta"
+    ]
+  },
+  {
+    "package": "regex@1.13.1",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "default",
+      "perf",
+      "perf-backtrack",
+      "perf-cache",
+      "perf-dfa",
+      "perf-inline",
+      "perf-literal",
+      "perf-onepass",
+      "std",
+      "unicode",
+      "unicode-age",
+      "unicode-bool",
+      "unicode-case",
+      "unicode-gencat",
+      "unicode-perl",
+      "unicode-script",
+      "unicode-segment"
+    ],
+    "artifactNames": [
+      "libregex-0c2cfc089ed05c25.rlib",
+      "libregex-0c2cfc089ed05c25.rmeta"
+    ]
+  },
+  {
+    "package": "time-core@0.1.9",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libtime_core-4118f6177317f245.rlib",
+      "libtime_core-4118f6177317f245.rmeta"
+    ]
+  },
+  {
+    "package": "pin-project-lite@0.2.17",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libpin_project_lite-6ba308b755070fe5.rlib",
+      "libpin_project_lite-6ba308b755070fe5.rmeta"
+    ]
+  },
+  {
+    "package": "thiserror-impl@2.0.20",
+    "kind": [
+      "proc-macro"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "thiserror_impl-7b6c840e4247e85b.dll",
+      "thiserror_impl-7b6c840e4247e85b.dll.lib",
+      "thiserror_impl-7b6c840e4247e85b.dll.exp",
+      "thiserror_impl-7b6c840e4247e85b.pdb"
+    ]
+  },
+  {
+    "package": "powerfmt@0.2.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libpowerfmt-eaa8ed44b8223f1e.rlib",
+      "libpowerfmt-eaa8ed44b8223f1e.rmeta"
+    ]
+  },
+  {
+    "package": "serde_derive_internals@0.29.1",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libserde_derive_internals-54cbd97e1156f19f.rlib",
+      "libserde_derive_internals-54cbd97e1156f19f.rmeta"
+    ]
+  },
+  {
+    "package": "dirs-sys@0.5.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libdirs_sys-0d80574b4616222f.rlib",
+      "libdirs_sys-0d80574b4616222f.rmeta"
+    ]
+  },
+  {
+    "package": "percent-encoding@2.3.2",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "alloc",
+      "default",
+      "std"
+    ],
+    "artifactNames": [
+      "libpercent_encoding-4a10fcb3ba4f96a1.rlib",
+      "libpercent_encoding-4a10fcb3ba4f96a1.rmeta"
+    ]
+  },
+  {
+    "package": "thiserror@2.0.20",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "default",
+      "std"
+    ],
+    "artifactNames": [
+      "libthiserror-1ecd048a2382e47b.rlib",
+      "libthiserror-1ecd048a2382e47b.rmeta"
+    ]
+  },
+  {
+    "package": "scopeguard@1.2.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libscopeguard-fdccf29313e5dd4c.rlib",
+      "libscopeguard-fdccf29313e5dd4c.rmeta"
+    ]
+  },
+  {
+    "package": "dirs@6.0.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libdirs-d3963077751c2e35.rlib",
+      "libdirs-d3963077751c2e35.rmeta"
+    ]
+  },
+  {
+    "package": "brotli@8.0.4",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "alloc-stdlib",
+      "std"
+    ],
+    "artifactNames": [
+      "libbrotli-d0c7dd35d2e97a32.rlib",
+      "libbrotli-d0c7dd35d2e97a32.rmeta"
+    ]
+  },
+  {
+    "package": "form_urlencoded@1.2.2",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "alloc",
+      "default",
+      "std"
+    ],
+    "artifactNames": [
+      "libform_urlencoded-13c1c58ebff39373.rlib",
+      "libform_urlencoded-13c1c58ebff39373.rmeta"
+    ]
+  },
+  {
+    "package": "deranged@0.5.8",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "default"
+    ],
+    "artifactNames": [
+      "libderanged-803ef4949c0bdcfe.rlib",
+      "libderanged-803ef4949c0bdcfe.rmeta"
+    ]
+  },
+  {
+    "package": "thiserror@2.0.20",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "default",
+      "std"
+    ],
+    "artifactNames": [
+      "libthiserror-005fb7a0490910b8.rlib",
+      "libthiserror-005fb7a0490910b8.rmeta"
+    ]
+  },
+  {
+    "package": "crypto-common@0.1.7",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "std"
+    ],
+    "artifactNames": [
+      "libcrypto_common-3714a8d51887d254.rlib",
+      "libcrypto_common-3714a8d51887d254.rmeta"
+    ]
+  },
+  {
+    "package": "lock_api@0.4.14",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "atomic_usize",
+      "default"
+    ],
+    "artifactNames": [
+      "liblock_api-7f727036f211309d.rlib",
+      "liblock_api-7f727036f211309d.rmeta"
+    ]
+  },
+  {
+    "package": "block-buffer@0.10.4",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libblock_buffer-760806d10c1562ac.rlib",
+      "libblock_buffer-760806d10c1562ac.rmeta"
+    ]
+  },
+  {
+    "package": "typenum@1.20.1",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libtypenum-6b6bfec4a3c92761.rlib",
+      "libtypenum-6b6bfec4a3c92761.rmeta"
+    ]
+  },
+  {
+    "package": "zmij@1.0.23",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libzmij-3437e24d24a2bb5b.rlib",
+      "libzmij-3437e24d24a2bb5b.rmeta"
+    ]
+  },
+  {
+    "package": "windows-threading@0.1.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libwindows_threading-0940f2955dacfb40.rlib",
+      "libwindows_threading-0940f2955dacfb40.rmeta"
+    ]
+  },
+  {
+    "package": "regex-automata@0.4.18",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "alloc",
+      "dfa-onepass",
+      "hybrid",
+      "meta",
+      "nfa-backtrack",
+      "nfa-pikevm",
+      "nfa-thompson",
+      "perf-inline",
+      "perf-literal",
+      "perf-literal-multisubstring",
+      "perf-literal-substring",
+      "std",
+      "syntax",
+      "unicode",
+      "unicode-age",
+      "unicode-bool",
+      "unicode-case",
+      "unicode-gencat",
+      "unicode-perl",
+      "unicode-script",
+      "unicode-segment",
+      "unicode-word-boundary"
+    ],
+    "artifactNames": [
+      "libregex_automata-a593ab9421b38139.rlib",
+      "libregex_automata-a593ab9421b38139.rmeta"
+    ]
+  },
+  {
+    "package": "syn@2.0.119",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "clone-impls",
+      "default",
+      "derive",
+      "extra-traits",
+      "fold",
+      "full",
+      "parsing",
+      "printing",
+      "proc-macro",
+      "visit",
+      "visit-mut"
+    ],
+    "artifactNames": [
+      "libsyn-4e34326a3d1451e2.rlib",
+      "libsyn-4e34326a3d1451e2.rmeta"
+    ]
+  },
+  {
+    "package": "cpufeatures@0.2.17",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libcpufeatures-341004726dca8ec7.rlib",
+      "libcpufeatures-341004726dca8ec7.rmeta"
+    ]
+  },
+  {
+    "package": "windows-sys@0.59.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "Win32",
+      "Win32_Foundation",
+      "Win32_Security",
+      "Win32_Storage",
+      "Win32_Storage_FileSystem",
+      "Win32_System",
+      "Win32_System_Diagnostics",
+      "Win32_System_Diagnostics_Debug",
+      "Win32_System_Registry",
+      "Win32_System_Time",
+      "default"
+    ],
+    "artifactNames": [
+      "libwindows_sys-b85c20615af0af95.rlib",
+      "libwindows_sys-b85c20615af0af95.rmeta"
+    ]
+  },
+  {
+    "package": "digest@0.10.7",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "alloc",
+      "block-buffer",
+      "core-api",
+      "default",
+      "std"
+    ],
+    "artifactNames": [
+      "libdigest-fc8bdd8c23c195f9.rlib",
+      "libdigest-fc8bdd8c23c195f9.rmeta"
+    ]
+  },
+  {
+    "package": "generic-array@0.14.7",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "more_lengths"
+    ],
+    "artifactNames": [
+      "libgeneric_array-37347dd60fa094dd.rlib",
+      "libgeneric_array-37347dd60fa094dd.rmeta"
+    ]
+  },
+  {
+    "package": "bytes@1.12.1",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "default",
+      "std"
+    ],
+    "artifactNames": [
+      "libbytes-af02747a82dfef34.rlib",
+      "libbytes-af02747a82dfef34.rmeta"
+    ]
+  },
+  {
+    "package": "winnow@0.7.15",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libwinnow-7cedd73f7c01800b.rlib",
+      "libwinnow-7cedd73f7c01800b.rmeta"
+    ]
+  },
+  {
+    "package": "crossbeam-utils@0.8.22",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "std"
+    ],
+    "artifactNames": [
+      "libcrossbeam_utils-5f2b0cae4c57b8e9.rlib",
+      "libcrossbeam_utils-5f2b0cae4c57b8e9.rmeta"
+    ]
+  },
+  {
+    "package": "hashbrown@0.17.1",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libhashbrown-7e188cebad784359.rlib",
+      "libhashbrown-7e188cebad784359.rmeta"
+    ]
+  },
+  {
+    "package": "uuid@1.25.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "default",
+      "serde",
+      "std"
+    ],
+    "artifactNames": [
+      "libuuid-910489b1f492e131.rlib",
+      "libuuid-910489b1f492e131.rmeta"
+    ]
+  },
+  {
+    "package": "vcpkg@0.2.15",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libvcpkg-be9f24ff73e52cb0.rlib",
+      "libvcpkg-be9f24ff73e52cb0.rmeta"
+    ]
+  },
+  {
+    "package": "cssparser-macros@0.6.1",
+    "kind": [
+      "proc-macro"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "cssparser_macros-d0a92c2e41f49df0.dll",
+      "cssparser_macros-d0a92c2e41f49df0.dll.lib",
+      "cssparser_macros-d0a92c2e41f49df0.dll.exp",
+      "cssparser_macros-d0a92c2e41f49df0.pdb"
+    ]
+  },
+  {
+    "package": "windows-sys@0.61.2",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "Wdk",
+      "Wdk_Foundation",
+      "Wdk_Storage",
+      "Wdk_Storage_FileSystem",
+      "Wdk_System",
+      "Wdk_System_IO",
+      "Win32",
+      "Win32_Foundation",
+      "Win32_Globalization",
+      "Win32_Graphics",
+      "Win32_Graphics_Gdi",
+      "Win32_Networking",
+      "Win32_Networking_WinSock",
+      "Win32_Security",
+      "Win32_Storage",
+      "Win32_Storage_FileSystem",
+      "Win32_System",
+      "Win32_System_Com",
+      "Win32_System_Console",
+      "Win32_System_IO",
+      "Win32_System_LibraryLoader",
+      "Win32_System_Pipes",
+      "Win32_System_SystemInformation",
+      "Win32_System_SystemServices",
+      "Win32_System_Threading",
+      "Win32_System_WindowsProgramming",
+      "Win32_UI",
+      "Win32_UI_Accessibility",
+      "Win32_UI_Controls",
+      "Win32_UI_HiDpi",
+      "Win32_UI_Input",
+      "Win32_UI_Input_KeyboardAndMouse",
+      "Win32_UI_Shell",
+      "Win32_UI_WindowsAndMessaging",
+      "default"
+    ],
+    "artifactNames": [
+      "libwindows_sys-08b1d9dd4e6f8e3c.rlib",
+      "libwindows_sys-08b1d9dd4e6f8e3c.rmeta"
+    ]
+  },
+  {
+    "package": "serde_derive@1.0.229",
+    "kind": [
+      "proc-macro"
+    ],
+    "optLevel": "0",
+    "features": [
+      "default"
+    ],
+    "artifactNames": [
+      "serde_derive-d398f070a12b780e.dll",
+      "serde_derive-d398f070a12b780e.dll.lib",
+      "serde_derive-d398f070a12b780e.dll.exp",
+      "serde_derive-d398f070a12b780e.pdb"
+    ]
+  },
+  {
+    "package": "darling_core@0.23.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "strsim",
+      "suggestions"
+    ],
+    "artifactNames": [
+      "libdarling_core-6125bd0bb11b25ab.rlib",
+      "libdarling_core-6125bd0bb11b25ab.rmeta"
+    ]
+  },
+  {
+    "package": "winreg@0.55.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libwinreg-ef12ad809657edb9.rlib",
+      "libwinreg-ef12ad809657edb9.rmeta"
+    ]
+  },
+  {
+    "package": "phf_macros@0.13.1",
+    "kind": [
+      "proc-macro"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "phf_macros-21ce8686920c0945.dll",
+      "phf_macros-21ce8686920c0945.dll.lib",
+      "phf_macros-21ce8686920c0945.dll.exp",
+      "phf_macros-21ce8686920c0945.pdb"
+    ]
+  },
+  {
+    "package": "windows-implement@0.60.2",
+    "kind": [
+      "proc-macro"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "windows_implement-03a1d86cab9b3fda.dll",
+      "windows_implement-03a1d86cab9b3fda.dll.lib",
+      "windows_implement-03a1d86cab9b3fda.dll.exp",
+      "windows_implement-03a1d86cab9b3fda.pdb"
+    ]
+  },
+  {
+    "package": "phf@0.13.1",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "default",
+      "macros",
+      "phf_macros",
+      "std"
+    ],
+    "artifactNames": [
+      "libphf-61b98cf10c8a76b9.rlib",
+      "libphf-61b98cf10c8a76b9.rmeta"
+    ]
+  },
+  {
+    "package": "yoke-derive@0.8.2",
+    "kind": [
+      "proc-macro"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "yoke_derive-f4923e7f72e724cf.dll",
+      "yoke_derive-f4923e7f72e724cf.dll.lib",
+      "yoke_derive-f4923e7f72e724cf.dll.exp",
+      "yoke_derive-f4923e7f72e724cf.pdb"
+    ]
+  },
+  {
+    "package": "derive_more-impl@2.1.1",
+    "kind": [
+      "proc-macro"
+    ],
+    "optLevel": "0",
+    "features": [
+      "add",
+      "add_assign",
+      "default"
+    ],
+    "artifactNames": [
+      "derive_more_impl-0cea5ebfe81b0773.dll",
+      "derive_more_impl-0cea5ebfe81b0773.dll.lib",
+      "derive_more_impl-0cea5ebfe81b0773.dll.exp",
+      "derive_more_impl-0cea5ebfe81b0773.pdb"
+    ]
+  },
+  {
+    "package": "zerofrom-derive@0.1.7",
+    "kind": [
+      "proc-macro"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "zerofrom_derive-7a2b159225c9ec62.dll",
+      "zerofrom_derive-7a2b159225c9ec62.dll.lib",
+      "zerofrom_derive-7a2b159225c9ec62.dll.exp",
+      "zerofrom_derive-7a2b159225c9ec62.pdb"
+    ]
+  },
+  {
+    "package": "embed-resource@3.0.11",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libembed_resource-03f79a2f6b93ed61.rlib",
+      "libembed_resource-03f79a2f6b93ed61.rmeta"
+    ]
+  },
+  {
+    "package": "darling_macro@0.23.0",
+    "kind": [
+      "proc-macro"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "darling_macro-501e9710a27b7dae.dll",
+      "darling_macro-501e9710a27b7dae.dll.lib",
+      "darling_macro-501e9710a27b7dae.dll.exp",
+      "darling_macro-501e9710a27b7dae.pdb"
+    ]
+  },
+  {
+    "package": "windows-interface@0.59.3",
+    "kind": [
+      "proc-macro"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "windows_interface-132fcb564d6d3be1.dll",
+      "windows_interface-132fcb564d6d3be1.dll.lib",
+      "windows_interface-132fcb564d6d3be1.dll.exp",
+      "windows_interface-132fcb564d6d3be1.pdb"
+    ]
+  },
+  {
+    "package": "derive_more@2.1.1",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "add",
+      "add_assign",
+      "default",
+      "std"
+    ],
+    "artifactNames": [
+      "libderive_more-5445a73d750a3c27.rlib",
+      "libderive_more-5445a73d750a3c27.rmeta"
+    ]
+  },
+  {
+    "package": "darling@0.23.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "default",
+      "suggestions"
+    ],
+    "artifactNames": [
+      "libdarling-7453f3ca85c2cde1.rlib",
+      "libdarling-7453f3ca85c2cde1.rmeta"
+    ]
+  },
+  {
+    "package": "zerofrom@0.1.8",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "derive"
+    ],
+    "artifactNames": [
+      "libzerofrom-9650a11c771b755d.rlib",
+      "libzerofrom-9650a11c771b755d.rmeta"
+    ]
+  },
+  {
+    "package": "serde@1.0.229",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "alloc",
+      "default",
+      "derive",
+      "rc",
+      "serde_derive",
+      "std"
+    ],
+    "artifactNames": [
+      "libserde-97500ec788a7856a.rlib",
+      "libserde-97500ec788a7856a.rmeta"
+    ]
+  },
+  {
+    "package": "zerofrom@0.1.8",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "derive"
+    ],
+    "artifactNames": [
+      "libzerofrom-e16594451e88c21f.rlib",
+      "libzerofrom-e16594451e88c21f.rmeta"
+    ]
+  },
+  {
+    "package": "indexmap@2.14.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "default",
+      "serde",
+      "std"
+    ],
+    "artifactNames": [
+      "libindexmap-9a97decbd1124b58.rlib",
+      "libindexmap-9a97decbd1124b58.rmeta"
+    ]
+  },
+  {
+    "package": "serde@1.0.229",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "alloc",
+      "default",
+      "derive",
+      "rc",
+      "serde_derive",
+      "std"
+    ],
+    "artifactNames": [
+      "libserde-108652ce1cba3495.rlib",
+      "libserde-108652ce1cba3495.rmeta"
+    ]
+  },
+  {
+    "package": "schemars_derive@0.8.22",
+    "kind": [
+      "proc-macro"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "schemars_derive-92740eb5b982461b.dll",
+      "schemars_derive-92740eb5b982461b.dll.lib",
+      "schemars_derive-92740eb5b982461b.dll.exp",
+      "schemars_derive-92740eb5b982461b.pdb"
+    ]
+  },
+  {
+    "package": "tauri-winres@0.3.6",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libtauri_winres-03c35092f36c00dc.rlib",
+      "libtauri_winres-03c35092f36c00dc.rmeta"
+    ]
+  },
+  {
+    "package": "thiserror-impl@1.0.69",
+    "kind": [
+      "proc-macro"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "thiserror_impl-a5ec094c3cc4d58b.dll",
+      "thiserror_impl-a5ec094c3cc4d58b.dll.lib",
+      "thiserror_impl-a5ec094c3cc4d58b.dll.exp",
+      "thiserror_impl-a5ec094c3cc4d58b.pdb"
+    ]
+  },
+  {
+    "package": "tracing-attributes@0.1.31",
+    "kind": [
+      "proc-macro"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "tracing_attributes-ed27facd21be1f62.dll",
+      "tracing_attributes-ed27facd21be1f62.dll.lib",
+      "tracing_attributes-ed27facd21be1f62.dll.exp",
+      "tracing_attributes-ed27facd21be1f62.pdb"
+    ]
+  },
+  {
+    "package": "yoke@0.8.3",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "derive",
+      "zerofrom"
+    ],
+    "artifactNames": [
+      "libyoke-51e5383a22b62347.rlib",
+      "libyoke-51e5383a22b62347.rmeta"
+    ]
+  },
+  {
+    "package": "yoke@0.8.3",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "derive",
+      "zerofrom"
+    ],
+    "artifactNames": [
+      "libyoke-e9b4276f209f699f.rlib",
+      "libyoke-e9b4276f209f699f.rmeta"
+    ]
+  },
+  {
+    "package": "thiserror@1.0.69",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libthiserror-46c5737b6899a374.rlib",
+      "libthiserror-46c5737b6899a374.rmeta"
+    ]
+  },
+  {
+    "package": "indexmap@1.9.3",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "serde",
+      "serde-1"
+    ],
+    "artifactNames": [
+      "libindexmap-fc0f0d65c053eced.rlib",
+      "libindexmap-fc0f0d65c053eced.rmeta"
+    ]
+  },
+  {
+    "package": "cargo-platform@0.1.9",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libcargo_platform-1c78412ab26f055d.rlib",
+      "libcargo_platform-1c78412ab26f055d.rmeta"
+    ]
+  },
+  {
+    "package": "jsonptr@0.6.3",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "assign",
+      "default",
+      "delete",
+      "json",
+      "resolve",
+      "serde",
+      "std"
+    ],
+    "artifactNames": [
+      "libjsonptr-df9944930483ba3b.rlib",
+      "libjsonptr-df9944930483ba3b.rmeta"
+    ]
+  },
+  {
+    "package": "web_atoms@0.2.6",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libweb_atoms-bb15291c7b18294e.rlib",
+      "libweb_atoms-bb15291c7b18294e.rmeta"
+    ]
+  },
+  {
+    "package": "cssparser@0.36.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libcssparser-de05c8f4f8d31735.rlib",
+      "libcssparser-de05c8f4f8d31735.rmeta"
+    ]
+  },
+  {
+    "package": "zerotrie@0.2.5",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "yoke",
+      "zerofrom"
+    ],
+    "artifactNames": [
+      "libzerotrie-ebca3d4859002ed7.rlib",
+      "libzerotrie-ebca3d4859002ed7.rmeta"
+    ]
+  },
+  {
+    "package": "crypto-common@0.1.7",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "std"
+    ],
+    "artifactNames": [
+      "libcrypto_common-c5e03346db240118.rlib",
+      "libcrypto_common-c5e03346db240118.rmeta"
+    ]
+  },
+  {
+    "package": "markup5ever@0.38.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libmarkup5ever-86eaf334359378f5.rlib",
+      "libmarkup5ever-86eaf334359378f5.rmeta"
+    ]
+  },
+  {
+    "package": "zerovec@0.11.8",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "derive",
+      "yoke"
+    ],
+    "artifactNames": [
+      "libzerovec-375866f96b11f31e.rlib",
+      "libzerovec-375866f96b11f31e.rmeta"
+    ]
+  },
+  {
+    "package": "toml@0.9.12+spec-1.1.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "default",
+      "display",
+      "parse",
+      "serde",
+      "std"
+    ],
+    "artifactNames": [
+      "libtoml-7dac11265539c2dd.rlib",
+      "libtoml-7dac11265539c2dd.rmeta"
+    ]
+  },
+  {
+    "package": "json-patch@3.0.1",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "default",
+      "diff"
+    ],
+    "artifactNames": [
+      "libjson_patch-32690defeb240bfa.rlib",
+      "libjson_patch-32690defeb240bfa.rmeta"
+    ]
+  },
+  {
+    "package": "potential_utf@0.1.6",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "zerovec"
+    ],
+    "artifactNames": [
+      "libpotential_utf-66d841771004a862.rlib",
+      "libpotential_utf-66d841771004a862.rmeta"
+    ]
+  },
+  {
+    "package": "zerotrie@0.2.5",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "yoke",
+      "zerofrom"
+    ],
+    "artifactNames": [
+      "libzerotrie-aa195b1e758bcc11.rlib",
+      "libzerotrie-aa195b1e758bcc11.rmeta"
+    ]
+  },
+  {
+    "package": "zerovec@0.11.8",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "derive",
+      "yoke"
+    ],
+    "artifactNames": [
+      "libzerovec-7cec7f22b3fe90ad.rlib",
+      "libzerovec-7cec7f22b3fe90ad.rmeta"
+    ]
+  },
+  {
+    "package": "windows-numerics@0.2.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libwindows_numerics-51810b68fbec41e5.rlib",
+      "libwindows_numerics-51810b68fbec41e5.rmeta"
+    ]
+  },
+  {
+    "package": "sha2@0.10.9",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "default",
+      "std"
+    ],
+    "artifactNames": [
+      "libsha2-288c455a9cf910f2.rlib",
+      "libsha2-288c455a9cf910f2.rmeta"
+    ]
+  },
+  {
+    "package": "serde_with_macros@3.22.0",
+    "kind": [
+      "proc-macro"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "serde_with_macros-d44d412532c81c5d.dll",
+      "serde_with_macros-d44d412532c81c5d.dll.lib",
+      "serde_with_macros-d44d412532c81c5d.dll.exp",
+      "serde_with_macros-d44d412532c81c5d.pdb"
+    ]
+  },
+  {
+    "package": "windows-core@0.61.2",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "default",
+      "std"
+    ],
+    "artifactNames": [
+      "libwindows_core-63451124421721e5.rlib",
+      "libwindows_core-63451124421721e5.rmeta"
+    ]
+  },
+  {
+    "package": "tinystr@0.8.4",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "zerovec"
+    ],
+    "artifactNames": [
+      "libtinystr-a7b865631ff8d29d.rlib",
+      "libtinystr-a7b865631ff8d29d.rmeta"
+    ]
+  },
+  {
+    "package": "plist@1.10.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "default",
+      "serde"
+    ],
+    "artifactNames": [
+      "libplist-84ece4e4bb42c49a.rlib",
+      "libplist-84ece4e4bb42c49a.rmeta"
+    ]
+  },
+  {
+    "package": "potential_utf@0.1.6",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "zerovec"
+    ],
+    "artifactNames": [
+      "libpotential_utf-aa10fb2e5e26b6e2.rlib",
+      "libpotential_utf-aa10fb2e5e26b6e2.rmeta"
+    ]
+  },
+  {
+    "package": "tinystr@0.8.4",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "zerovec"
+    ],
+    "artifactNames": [
+      "libtinystr-e404b61cf0bba258.rlib",
+      "libtinystr-e404b61cf0bba258.rmeta"
+    ]
+  },
+  {
+    "package": "windows-collections@0.2.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libwindows_collections-e6e0a8db29030790.rlib",
+      "libwindows_collections-e6e0a8db29030790.rmeta"
+    ]
+  },
+  {
+    "package": "simd-adler32@0.3.10",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "const-generics",
+      "default",
+      "std"
+    ],
+    "artifactNames": [
+      "libsimd_adler32-3ad8ece96d78fe84.rlib",
+      "libsimd_adler32-3ad8ece96d78fe84.rmeta"
+    ]
+  },
+  {
+    "package": "raw-window-handle@0.6.2",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "alloc",
+      "std"
+    ],
+    "artifactNames": [
+      "libraw_window_handle-177e1ccf7f2682ca.rlib",
+      "libraw_window_handle-177e1ccf7f2682ca.rmeta"
+    ]
+  },
+  {
+    "package": "windows-future@0.2.1",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libwindows_future-68c3dc03dbde8a9a.rlib",
+      "libwindows_future-68c3dc03dbde8a9a.rmeta"
+    ]
+  },
+  {
+    "package": "pin-project-lite@0.2.17",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libpin_project_lite-8afbd8c868205a49.rlib",
+      "libpin_project_lite-8afbd8c868205a49.rmeta"
+    ]
+  },
+  {
+    "package": "icu_collections@2.3.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libicu_collections-3dab5d947a32eb12.rlib",
+      "libicu_collections-3dab5d947a32eb12.rmeta"
+    ]
+  },
+  {
+    "package": "parking_lot_core@0.9.12",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libparking_lot_core-b06aa0d339a92fdd.rlib",
+      "libparking_lot_core-b06aa0d339a92fdd.rmeta"
+    ]
+  },
+  {
+    "package": "futures-core@0.3.34",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "alloc",
+      "default",
+      "std"
+    ],
+    "artifactNames": [
+      "libfutures_core-1c94de461b70aa28.rlib",
+      "libfutures_core-1c94de461b70aa28.rmeta"
+    ]
+  },
+  {
+    "package": "selectors@0.36.1",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libselectors-7c7d3f095eccb584.rlib",
+      "libselectors-7c7d3f095eccb584.rmeta"
+    ]
+  },
+  {
+    "package": "html5ever@0.38.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libhtml5ever-0a966ffb77050a52.rlib",
+      "libhtml5ever-0a966ffb77050a52.rmeta"
+    ]
+  },
+  {
+    "package": "byteorder@1.5.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "default",
+      "std"
+    ],
+    "artifactNames": [
+      "libbyteorder-2647278098b6a74a.rlib",
+      "libbyteorder-2647278098b6a74a.rmeta"
+    ]
+  },
+  {
+    "package": "base64@0.22.1",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "alloc",
+      "default",
+      "std"
+    ],
+    "artifactNames": [
+      "libbase64-9f17adbf15b4fa1a.rlib",
+      "libbase64-9f17adbf15b4fa1a.rmeta"
+    ]
+  },
+  {
+    "package": "webview2-com-sys@0.38.2",
+    "kind": [
+      "custom-build"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "build-script-build.exe",
+      "build_script_build.pdb"
+    ]
+  },
+  {
+    "package": "adler2@2.0.1",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libadler2-d167447e57905983.rlib",
+      "libadler2-d167447e57905983.rmeta"
+    ]
+  },
+  {
+    "package": "icu_collections@2.3.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libicu_collections-c45ee65a8f21bf1d.rlib",
+      "libicu_collections-c45ee65a8f21bf1d.rmeta"
+    ]
+  },
+  {
+    "package": "unic-common@0.9.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "default"
+    ],
+    "artifactNames": [
+      "libunic_common-51095b307b873685.rlib",
+      "libunic_common-51095b307b873685.rmeta"
+    ]
+  },
+  {
+    "package": "unic-char-range@0.9.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "default"
+    ],
+    "artifactNames": [
+      "libunic_char_range-cb512fd345da45e0.rlib",
+      "libunic_char_range-cb512fd345da45e0.rmeta"
+    ]
+  },
+  {
+    "package": "alloc-no-stdlib@2.0.4",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "liballoc_no_stdlib-e38353d5b30cda5c.rlib",
+      "liballoc_no_stdlib-e38353d5b30cda5c.rmeta"
+    ]
+  },
+  {
+    "package": "cargo_metadata@0.19.2",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "default"
+    ],
+    "artifactNames": [
+      "libcargo_metadata-feb77a7133ea4693.rlib",
+      "libcargo_metadata-feb77a7133ea4693.rmeta"
+    ]
+  },
+  {
+    "package": "icu_provider@2.3.1",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "baked"
+    ],
+    "artifactNames": [
+      "libicu_provider-98ff169ee8c2a890.rlib",
+      "libicu_provider-98ff169ee8c2a890.rmeta"
+    ]
+  },
+  {
+    "package": "alloc-stdlib@0.2.4",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "liballoc_stdlib-96060590a7669391.rlib",
+      "liballoc_stdlib-96060590a7669391.rmeta"
+    ]
+  },
+  {
+    "package": "icu_locale_core@2.3.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "zerovec"
+    ],
+    "artifactNames": [
+      "libicu_locale_core-2ffcccde6c492412.rlib",
+      "libicu_locale_core-2ffcccde6c492412.rmeta"
+    ]
+  },
+  {
+    "package": "unic-char-property@0.9.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libunic_char_property-ebce5d43e0a8032c.rlib",
+      "libunic_char_property-ebce5d43e0a8032c.rmeta"
+    ]
+  },
+  {
+    "package": "unic-ucd-version@0.9.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libunic_ucd_version-7abb258bd8eb7cfb.rlib",
+      "libunic_ucd_version-7abb258bd8eb7cfb.rmeta"
+    ]
+  },
+  {
+    "package": "time@0.3.55",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "alloc",
+      "default",
+      "formatting",
+      "macros",
+      "parsing",
+      "std"
+    ],
+    "artifactNames": [
+      "libtime-8e5a346e1c96513c.rlib",
+      "libtime-8e5a346e1c96513c.rmeta"
+    ]
+  },
+  {
+    "package": "parking_lot@0.12.5",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "default"
+    ],
+    "artifactNames": [
+      "libparking_lot-20f22ad068e52955.rlib",
+      "libparking_lot-20f22ad068e52955.rmeta"
+    ]
+  },
+  {
+    "package": "tracing-core@0.1.36",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "once_cell",
+      "std"
+    ],
+    "artifactNames": [
+      "libtracing_core-7f98a1a2573d9243.rlib",
+      "libtracing_core-7f98a1a2573d9243.rmeta"
+    ]
+  },
+  {
+    "package": "icu_provider@2.3.1",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "baked"
+    ],
+    "artifactNames": [
+      "libicu_provider-0650b16cea1fff96.rlib",
+      "libicu_provider-0650b16cea1fff96.rmeta"
+    ]
+  },
+  {
+    "package": "typeid@1.0.3",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libtypeid-78b1a188d5b8705c.rlib",
+      "libtypeid-78b1a188d5b8705c.rmeta"
+    ]
+  },
+  {
+    "package": "icu_normalizer@2.3.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "compiled_data"
+    ],
+    "artifactNames": [
+      "libicu_normalizer-fb2f2df1b27ceea2.rlib",
+      "libicu_normalizer-fb2f2df1b27ceea2.rmeta"
+    ]
+  },
+  {
+    "package": "tracing@0.1.44",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "attributes",
+      "default",
+      "log",
+      "std",
+      "tracing-attributes"
+    ],
+    "artifactNames": [
+      "libtracing-bdf339d0a3880388.rlib",
+      "libtracing-bdf339d0a3880388.rmeta"
+    ]
+  },
+  {
+    "package": "libc@0.2.189",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "default",
+      "std"
+    ],
+    "artifactNames": [
+      "liblibc-d5a75b03ab757df7.rlib",
+      "liblibc-d5a75b03ab757df7.rmeta"
+    ]
+  },
+  {
+    "package": "block-buffer@0.10.4",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libblock_buffer-910bc36cb2bd56be.rlib",
+      "libblock_buffer-910bc36cb2bd56be.rmeta"
+    ]
+  },
+  {
+    "package": "crc32fast@1.5.1",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "default",
+      "std"
+    ],
+    "artifactNames": [
+      "libcrc32fast-c6022f6ef8122472.rlib",
+      "libcrc32fast-c6022f6ef8122472.rmeta"
+    ]
+  },
+  {
+    "package": "serde_json@1.0.151",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "alloc",
+      "default",
+      "raw_value",
+      "std"
+    ],
+    "artifactNames": [
+      "libserde_json-390f0185ca2b74ed.rlib",
+      "libserde_json-390f0185ca2b74ed.rmeta"
+    ]
+  },
+  {
+    "package": "dpi@0.1.2",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "default",
+      "serde",
+      "std"
+    ],
+    "artifactNames": [
+      "libdpi-ec168c8d854b511c.rlib",
+      "libdpi-ec168c8d854b511c.rmeta"
+    ]
+  },
+  {
+    "package": "miniz_oxide@0.8.9",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "default",
+      "simd",
+      "simd-adler32",
+      "with-alloc"
+    ],
+    "artifactNames": [
+      "libminiz_oxide-c86601467e26815b.rlib",
+      "libminiz_oxide-c86601467e26815b.rmeta"
+    ]
+  },
+  {
+    "package": "winapi-util@0.1.11",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libwinapi_util-107ba0fe5bf233c0.rlib",
+      "libwinapi_util-107ba0fe5bf233c0.rmeta"
+    ]
+  },
+  {
+    "package": "bitflags@2.13.1",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "serde",
+      "serde_core"
+    ],
+    "artifactNames": [
+      "libbitflags-8b90fccb6da154a4.rlib",
+      "libbitflags-8b90fccb6da154a4.rmeta"
+    ]
+  },
+  {
+    "package": "serde_with@3.22.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "alloc",
+      "default",
+      "macros",
+      "std"
+    ],
+    "artifactNames": [
+      "libserde_with-105002eff2710300.rlib",
+      "libserde_with-105002eff2710300.rmeta"
+    ]
+  },
+  {
+    "package": "dom_query@0.27.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libdom_query-412e2d7dc3b28591.rlib",
+      "libdom_query-412e2d7dc3b28591.rmeta"
+    ]
+  },
+  {
+    "package": "idna_adapter@1.2.2",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "compiled_data"
+    ],
+    "artifactNames": [
+      "libidna_adapter-d54b1c8070f9441a.rlib",
+      "libidna_adapter-d54b1c8070f9441a.rmeta"
+    ]
+  },
+  {
+    "package": "cookie@0.18.2",
+    "kind": [
+      "custom-build"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "build-script-build.exe",
+      "build_script_build.pdb"
+    ]
+  },
+  {
+    "package": "futures-core@0.3.34",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "alloc",
+      "default",
+      "std"
+    ],
+    "artifactNames": [
+      "libfutures_core-ca3fe46ee383acb6.rlib",
+      "libfutures_core-ca3fe46ee383acb6.rmeta"
+    ]
+  },
+  {
+    "package": "fnv@1.0.7",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "default",
+      "std"
+    ],
+    "artifactNames": [
+      "libfnv-996c98b2a33de6f1.rlib",
+      "libfnv-996c98b2a33de6f1.rmeta"
+    ]
+  },
+  {
+    "package": "idna_adapter@1.2.2",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "compiled_data"
+    ],
+    "artifactNames": [
+      "libidna_adapter-bdf2b5a577127b07.rlib",
+      "libidna_adapter-bdf2b5a577127b07.rmeta"
+    ]
+  },
+  {
+    "package": "subtle@2.6.1",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libsubtle-d572f6cf628c52d3.rlib",
+      "libsubtle-d572f6cf628c52d3.rmeta"
+    ]
+  },
+  {
+    "package": "futures-sink@0.3.34",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libfutures_sink-f95898596fd953e8.rlib",
+      "libfutures_sink-f95898596fd953e8.rmeta"
+    ]
+  },
+  {
+    "package": "icu_properties@2.3.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "compiled_data"
+    ],
+    "artifactNames": [
+      "libicu_properties-780eddc8f08d4a75.rlib",
+      "libicu_properties-780eddc8f08d4a75.rmeta"
+    ]
+  },
+  {
+    "package": "siphasher@1.0.3",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "default",
+      "std"
+    ],
+    "artifactNames": [
+      "libsiphasher-ea7c526efb327a53.rlib",
+      "libsiphasher-ea7c526efb327a53.rmeta"
+    ]
+  },
+  {
+    "package": "dunce@1.0.5",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libdunce-bd292b6858c7b8f3.rlib",
+      "libdunce-bd292b6858c7b8f3.rmeta"
+    ]
+  },
+  {
+    "package": "digest@0.10.7",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "alloc",
+      "block-buffer",
+      "core-api",
+      "default",
+      "mac",
+      "std",
+      "subtle"
+    ],
+    "artifactNames": [
+      "libdigest-0336dab18d6ce0b3.rlib",
+      "libdigest-0336dab18d6ce0b3.rmeta"
+    ]
+  },
+  {
+    "package": "socket2@0.6.5",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "all"
+    ],
+    "artifactNames": [
+      "libsocket2-549b20f065d23b08.rlib",
+      "libsocket2-549b20f065d23b08.rmeta"
+    ]
+  },
+  {
+    "package": "winnow@1.0.4",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libwinnow-0a1a7b39714588d1.rlib",
+      "libwinnow-0a1a7b39714588d1.rmeta"
+    ]
+  },
+  {
+    "package": "thiserror@1.0.69",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libthiserror-3fc1d235e12d3fe2.rlib",
+      "libthiserror-3fc1d235e12d3fe2.rmeta"
+    ]
+  },
+  {
+    "package": "idna@1.1.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "alloc",
+      "compiled_data",
+      "std"
+    ],
+    "artifactNames": [
+      "libidna-b910f395f3e19e7c.rlib",
+      "libidna-b910f395f3e19e7c.rmeta"
+    ]
+  },
+  {
+    "package": "phf_shared@0.13.1",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "std"
+    ],
+    "artifactNames": [
+      "libphf_shared-f8ccb3af147d73fe.rlib",
+      "libphf_shared-f8ccb3af147d73fe.rmeta"
+    ]
+  },
+  {
+    "package": "windows_x86_64_msvc@0.52.6",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libwindows_x86_64_msvc-a4a0427b2c26a118.rlib",
+      "libwindows_x86_64_msvc-a4a0427b2c26a118.rmeta"
+    ]
+  },
+  {
+    "package": "icu_normalizer@2.3.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "compiled_data"
+    ],
+    "artifactNames": [
+      "libicu_normalizer-1c0f540b53c3f1e6.rlib",
+      "libicu_normalizer-1c0f540b53c3f1e6.rmeta"
+    ]
+  },
+  {
+    "package": "same-file@1.0.6",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libsame_file-55b72774b3254d5e.rlib",
+      "libsame_file-55b72774b3254d5e.rmeta"
+    ]
+  },
+  {
+    "package": "url@2.5.8",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "default",
+      "serde",
+      "std"
+    ],
+    "artifactNames": [
+      "liburl-5bee0c240daee498.rlib",
+      "liburl-5bee0c240daee498.rmeta"
+    ]
+  },
+  {
+    "package": "erased-serde@0.4.10",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "alloc"
+    ],
+    "artifactNames": [
+      "liberased_serde-f38c4b17131c59b5.rlib",
+      "liberased_serde-f38c4b17131c59b5.rmeta"
+    ]
+  },
+  {
+    "package": "flate2@1.1.9",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "any_impl",
+      "default",
+      "miniz_oxide",
+      "rust_backend"
+    ],
+    "artifactNames": [
+      "libflate2-1e2ba2b4435c7f7f.rlib",
+      "libflate2-1e2ba2b4435c7f7f.rmeta"
+    ]
+  },
+  {
+    "package": "icu_properties@2.3.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "compiled_data"
+    ],
+    "artifactNames": [
+      "libicu_properties-504109a2f66ca9de.rlib",
+      "libicu_properties-504109a2f66ca9de.rmeta"
+    ]
+  },
+  {
+    "package": "cargo_toml@0.22.3",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libcargo_toml-47e2514f0961e780.rlib",
+      "libcargo_toml-47e2514f0961e780.rmeta"
+    ]
+  },
+  {
+    "package": "unic-ucd-ident@0.9.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "default",
+      "id",
+      "xid"
+    ],
+    "artifactNames": [
+      "libunic_ucd_ident-9863b2b88a48b54d.rlib",
+      "libunic_ucd_ident-9863b2b88a48b54d.rmeta"
+    ]
+  },
+  {
+    "package": "mio@1.2.2",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "net",
+      "os-ext",
+      "os-poll"
+    ],
+    "artifactNames": [
+      "libmio-4bf85c7d183c9505.rlib",
+      "libmio-4bf85c7d183c9505.rmeta"
+    ]
+  },
+  {
+    "package": "fdeflate@0.3.7",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libfdeflate-bafd96fa9a63c134.rlib",
+      "libfdeflate-bafd96fa9a63c134.rmeta"
+    ]
+  },
+  {
+    "package": "urlpattern@0.3.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "liburlpattern-02391e939fc135d9.rlib",
+      "liburlpattern-02391e939fc135d9.rmeta"
+    ]
+  },
+  {
+    "package": "toml_parser@1.1.3+spec-1.1.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "alloc",
+      "std"
+    ],
+    "artifactNames": [
+      "libtoml_parser-d2435b5e3ff2359d.rlib",
+      "libtoml_parser-d2435b5e3ff2359d.rmeta"
+    ]
+  },
+  {
+    "package": "webview2-com-macros@0.8.1",
+    "kind": [
+      "proc-macro"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "webview2_com_macros-301fbf78760b46b3.dll",
+      "webview2_com_macros-301fbf78760b46b3.dll.lib",
+      "webview2_com_macros-301fbf78760b46b3.dll.exp",
+      "webview2_com_macros-301fbf78760b46b3.pdb"
+    ]
+  },
+  {
+    "package": "icu_locale_core@2.3.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "zerovec"
+    ],
+    "artifactNames": [
+      "libicu_locale_core-0a668f90545de9ae.rlib",
+      "libicu_locale_core-0a668f90545de9ae.rmeta"
+    ]
+  },
+  {
+    "package": "cfb@0.7.3",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libcfb-9f9747765b764d2e.rlib",
+      "libcfb-9f9747765b764d2e.rmeta"
+    ]
+  },
+  {
+    "package": "serde_spanned@1.1.1",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "alloc",
+      "serde",
+      "std"
+    ],
+    "artifactNames": [
+      "libserde_spanned-e4d2e800284cc069.rlib",
+      "libserde_spanned-e4d2e800284cc069.rmeta"
+    ]
+  },
+  {
+    "package": "windows-version@0.1.7",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libwindows_version-f742393809581478.rlib",
+      "libwindows_version-f742393809581478.rmeta"
+    ]
+  },
+  {
+    "package": "toml_datetime@1.1.1+spec-1.1.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "alloc",
+      "serde",
+      "std"
+    ],
+    "artifactNames": [
+      "libtoml_datetime-2185147820106a17.rlib",
+      "libtoml_datetime-2185147820106a17.rmeta"
+    ]
+  },
+  {
+    "package": "bitflags@1.3.2",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "default"
+    ],
+    "artifactNames": [
+      "libbitflags-8728797971fa29a7.rlib",
+      "libbitflags-8728797971fa29a7.rmeta"
+    ]
+  },
+  {
+    "package": "idna@1.1.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "alloc",
+      "compiled_data",
+      "std"
+    ],
+    "artifactNames": [
+      "libidna-b8a4d78406119a7d.rlib",
+      "libidna-b8a4d78406119a7d.rmeta"
+    ]
+  },
+  {
+    "package": "schemars@0.8.22",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "default",
+      "derive",
+      "indexmap",
+      "preserve_order",
+      "schemars_derive",
+      "url",
+      "uuid1"
+    ],
+    "artifactNames": [
+      "libschemars-0cc2552b1417673b.rlib",
+      "libschemars-0cc2552b1417673b.rmeta"
+    ]
+  },
+  {
+    "package": "toml_writer@1.1.2+spec-1.1.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "alloc",
+      "std"
+    ],
+    "artifactNames": [
+      "libtoml_writer-21d70032950b70c2.rlib",
+      "libtoml_writer-21d70032950b70c2.rmeta"
+    ]
+  },
+  {
+    "package": "jsonptr@0.6.3",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "assign",
+      "default",
+      "delete",
+      "json",
+      "resolve",
+      "serde",
+      "std"
+    ],
+    "artifactNames": [
+      "libjsonptr-149ab4825735abe5.rlib",
+      "libjsonptr-149ab4825735abe5.rmeta"
+    ]
+  },
+  {
+    "package": "unicode-segmentation@1.13.3",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libunicode_segmentation-20cb85b39c3b66ea.rlib",
+      "libunicode_segmentation-20cb85b39c3b66ea.rmeta"
+    ]
+  },
+  {
+    "package": "num-traits@0.2.19",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "i128",
+      "std"
+    ],
+    "artifactNames": [
+      "libnum_traits-d9bd45e318a828d4.rlib",
+      "libnum_traits-d9bd45e318a828d4.rmeta"
+    ]
+  },
+  {
+    "package": "anyhow@1.0.104",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "default",
+      "std"
+    ],
+    "artifactNames": [
+      "libanyhow-14914e3802d77e96.rlib",
+      "libanyhow-14914e3802d77e96.rmeta"
+    ]
+  },
+  {
+    "package": "serde-untagged@0.1.9",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libserde_untagged-121b5a2c99cd0a44.rlib",
+      "libserde_untagged-121b5a2c99cd0a44.rmeta"
+    ]
+  },
+  {
+    "package": "png@0.17.16",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libpng-776713f8796b3e23.rlib",
+      "libpng-776713f8796b3e23.rmeta"
+    ]
+  },
+  {
+    "package": "url@2.5.8",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "default",
+      "serde",
+      "std"
+    ],
+    "artifactNames": [
+      "liburl-3ea921638ad06bbe.rlib",
+      "liburl-3ea921638ad06bbe.rmeta"
+    ]
+  },
+  {
+    "package": "windows-targets@0.52.6",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libwindows_targets-6f7ce55fc1841be5.rlib",
+      "libwindows_targets-6f7ce55fc1841be5.rmeta"
+    ]
+  },
+  {
+    "package": "walkdir@2.5.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libwalkdir-8529d0b93128cda2.rlib",
+      "libwalkdir-8529d0b93128cda2.rmeta"
+    ]
+  },
+  {
+    "package": "http@1.5.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "default",
+      "std"
+    ],
+    "artifactNames": [
+      "libhttp-de408eeecc5a6bd8.rlib",
+      "libhttp-de408eeecc5a6bd8.rmeta"
+    ]
+  },
+  {
+    "package": "phf@0.13.1",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "default",
+      "macros",
+      "phf_macros",
+      "std"
+    ],
+    "artifactNames": [
+      "libphf-543ac815f80149a5.rlib",
+      "libphf-543ac815f80149a5.rmeta"
+    ]
+  },
+  {
+    "package": "infer@0.19.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "alloc",
+      "cfb",
+      "default",
+      "std"
+    ],
+    "artifactNames": [
+      "libinfer-8763483b69eb689c.rlib",
+      "libinfer-8763483b69eb689c.rmeta"
+    ]
+  },
+  {
+    "package": "crossbeam-channel@0.5.16",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "default",
+      "std"
+    ],
+    "artifactNames": [
+      "libcrossbeam_channel-c7e17a1c0531ad02.rlib",
+      "libcrossbeam_channel-c7e17a1c0531ad02.rmeta"
+    ]
+  },
+  {
+    "package": "plist@1.10.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "default",
+      "serde"
+    ],
+    "artifactNames": [
+      "libplist-dd3bc4d2af229aa6.rlib",
+      "libplist-dd3bc4d2af229aa6.rmeta"
+    ]
+  },
+  {
+    "package": "json-patch@3.0.1",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "default",
+      "diff"
+    ],
+    "artifactNames": [
+      "libjson_patch-c40a4d8f7d870b6c.rlib",
+      "libjson_patch-c40a4d8f7d870b6c.rmeta"
+    ]
+  },
+  {
+    "package": "socket2@0.6.5",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "all"
+    ],
+    "artifactNames": [
+      "libsocket2-5d9c7339ecc1261a.rlib",
+      "libsocket2-5d9c7339ecc1261a.rmeta"
+    ]
+  },
+  {
+    "package": "quick-xml@0.41.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "default"
+    ],
+    "artifactNames": [
+      "libquick_xml-125ddd6c30b36a42.rlib",
+      "libquick_xml-125ddd6c30b36a42.rmeta"
+    ]
+  },
+  {
+    "package": "ctor@0.8.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "proc_macro",
+      "std"
+    ],
+    "artifactNames": [
+      "libctor-f40b5c842247bd06.rlib",
+      "libctor-f40b5c842247bd06.rmeta"
+    ]
+  },
+  {
+    "package": "mio@1.2.2",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "net",
+      "os-ext",
+      "os-poll"
+    ],
+    "artifactNames": [
+      "libmio-06a5af4aaf580bf9.rlib",
+      "libmio-06a5af4aaf580bf9.rmeta"
+    ]
+  },
+  {
+    "package": "slab@0.4.12",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "std"
+    ],
+    "artifactNames": [
+      "libslab-db3eb500e6e69041.rlib",
+      "libslab-db3eb500e6e69041.rmeta"
+    ]
+  },
+  {
+    "package": "foldhash@0.1.5",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libfoldhash-3ced9c68a8088f95.rlib",
+      "libfoldhash-3ced9c68a8088f95.rmeta"
+    ]
+  },
+  {
+    "package": "getrandom@0.3.4",
+    "kind": [
+      "custom-build"
+    ],
+    "optLevel": "0",
+    "features": [
+      "std",
+      "wasm_js"
+    ],
+    "artifactNames": [
+      "build-script-build.exe",
+      "build_script_build.pdb"
+    ]
+  },
+  {
+    "package": "wry@0.55.1",
+    "kind": [
+      "custom-build"
+    ],
+    "optLevel": "0",
+    "features": [
+      "gdkx11",
+      "javascriptcore-rs",
+      "linux-body",
+      "os-webview",
+      "protocol",
+      "soup3",
+      "webkit2gtk",
+      "webkit2gtk-sys",
+      "x11",
+      "x11-dl"
+    ],
+    "artifactNames": [
+      "build-script-build.exe",
+      "build_script_build.pdb"
+    ]
+  },
+  {
+    "package": "futures-task@0.3.34",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "alloc",
+      "std"
+    ],
+    "artifactNames": [
+      "libfutures_task-7858c43bf94db455.rlib",
+      "libfutures_task-7858c43bf94db455.rmeta"
+    ]
+  },
+  {
+    "package": "allocator-api2@0.2.21",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "alloc"
+    ],
+    "artifactNames": [
+      "liballocator_api2-012634a15153687e.rlib",
+      "liballocator_api2-012634a15153687e.rmeta"
+    ]
+  },
+  {
+    "package": "regex@1.13.1",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "default",
+      "perf",
+      "perf-backtrack",
+      "perf-cache",
+      "perf-dfa",
+      "perf-inline",
+      "perf-literal",
+      "perf-onepass",
+      "std",
+      "unicode",
+      "unicode-age",
+      "unicode-bool",
+      "unicode-case",
+      "unicode-gencat",
+      "unicode-perl",
+      "unicode-script",
+      "unicode-segment"
+    ],
+    "artifactNames": [
+      "libregex-5b9465ae2558bf4b.rlib",
+      "libregex-5b9465ae2558bf4b.rmeta"
+    ]
+  },
+  {
+    "package": "semver@1.0.28",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "default",
+      "std"
+    ],
+    "artifactNames": [
+      "libsemver-45654c6d3e589fc2.rlib",
+      "libsemver-45654c6d3e589fc2.rmeta"
+    ]
+  },
+  {
+    "package": "rust_decimal@1.42.1",
+    "kind": [
+      "custom-build"
+    ],
+    "optLevel": "0",
+    "features": [
+      "std"
+    ],
+    "artifactNames": [
+      "build-script-build.exe",
+      "build_script_build.pdb"
+    ]
+  },
+  {
+    "package": "tauri-runtime@2.11.3",
+    "kind": [
+      "custom-build"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "build-script-build.exe",
+      "build_script_build.pdb"
+    ]
+  },
+  {
+    "package": "serde_with@3.22.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "alloc",
+      "default",
+      "macros",
+      "std"
+    ],
+    "artifactNames": [
+      "libserde_with-46507ebbfce41dcb.rlib",
+      "libserde_with-46507ebbfce41dcb.rmeta"
+    ]
+  },
+  {
+    "package": "once_cell@1.21.4",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "alloc",
+      "default",
+      "race",
+      "std"
+    ],
+    "artifactNames": [
+      "libonce_cell-10d40f08671dc5c1.rlib",
+      "libonce_cell-10d40f08671dc5c1.rmeta"
+    ]
+  },
+  {
+    "package": "cpufeatures@0.2.17",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libcpufeatures-ff21bec7145e303c.rlib",
+      "libcpufeatures-ff21bec7145e303c.rmeta"
+    ]
+  },
+  {
+    "package": "futures-sink@0.3.34",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libfutures_sink-1d64df4e6e0fa2ab.rlib",
+      "libfutures_sink-1d64df4e6e0fa2ab.rmeta"
+    ]
+  },
+  {
+    "package": "futures-io@0.3.34",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "default",
+      "std"
+    ],
+    "artifactNames": [
+      "libfutures_io-0818475754f98fe7.rlib",
+      "libfutures_io-0818475754f98fe7.rmeta"
+    ]
+  },
+  {
+    "package": "aho-corasick@1.1.5",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "perf-literal",
+      "std"
+    ],
+    "artifactNames": [
+      "libaho_corasick-d8669f7fb3baf27e.rlib",
+      "libaho_corasick-d8669f7fb3baf27e.rmeta"
+    ]
+  },
+  {
+    "package": "tracing-core@0.1.36",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "once_cell",
+      "std"
+    ],
+    "artifactNames": [
+      "libtracing_core-3c84160b171ce4f3.rlib",
+      "libtracing_core-3c84160b171ce4f3.rmeta"
+    ]
+  },
+  {
+    "package": "hashbrown@0.15.5",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "allocator-api2",
+      "default",
+      "default-hasher",
+      "equivalent",
+      "inline-more",
+      "raw-entry"
+    ],
+    "artifactNames": [
+      "libhashbrown-46f7cc4991f0a94a.rlib",
+      "libhashbrown-46f7cc4991f0a94a.rmeta"
+    ]
+  },
+  {
+    "package": "cookie@0.18.2",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libcookie-98e5c8b96fe526be.rlib",
+      "libcookie-98e5c8b96fe526be.rmeta"
+    ]
+  },
+  {
+    "package": "crossbeam-utils@0.8.22",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "std"
+    ],
+    "artifactNames": [
+      "libcrossbeam_utils-9299efb720a66757.rlib",
+      "libcrossbeam_utils-9299efb720a66757.rmeta"
+    ]
+  },
+  {
+    "package": "glob@0.3.4",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libglob-0d06cfb22d9956cf.rlib",
+      "libglob-0d06cfb22d9956cf.rmeta"
+    ]
+  },
+  {
+    "package": "ico@0.5.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libico-941e3043404a4471.rlib",
+      "libico-941e3043404a4471.rmeta"
+    ]
+  },
+  {
+    "package": "crc-catalog@2.5.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libcrc_catalog-4871a4200112684c.rlib",
+      "libcrc_catalog-4871a4200112684c.rmeta"
+    ]
+  },
+  {
+    "package": "libsqlite3-sys@0.30.1",
+    "kind": [
+      "custom-build"
+    ],
+    "optLevel": "0",
+    "features": [
+      "bundled",
+      "bundled_bindings",
+      "cc",
+      "pkg-config",
+      "unlock_notify",
+      "vcpkg"
+    ],
+    "artifactNames": [
+      "build-script-build.exe",
+      "build_script_build.pdb"
+    ]
+  },
+  {
+    "package": "crc-catalog@2.5.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libcrc_catalog-8d60c60c19787dfa.rlib",
+      "libcrc_catalog-8d60c60c19787dfa.rmeta"
+    ]
+  },
+  {
+    "package": "option-ext@0.2.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "liboption_ext-804e2a8540f3c82f.rlib",
+      "liboption_ext-804e2a8540f3c82f.rmeta"
+    ]
+  },
+  {
+    "package": "parking@2.2.1",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libparking-5c6ee29014ab8e25.rlib",
+      "libparking-5c6ee29014ab8e25.rmeta"
+    ]
+  },
+  {
+    "package": "arrayvec@0.7.8",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "std"
+    ],
+    "artifactNames": [
+      "libarrayvec-69b00bc37860499a.rlib",
+      "libarrayvec-69b00bc37860499a.rmeta"
+    ]
+  },
+  {
+    "package": "tauri-runtime-wry@2.11.4",
+    "kind": [
+      "custom-build"
+    ],
+    "optLevel": "0",
+    "features": [
+      "common-controls-v6",
+      "dbus",
+      "x11"
+    ],
+    "artifactNames": [
+      "build-script-build.exe",
+      "build_script_build.pdb"
+    ]
+  },
+  {
+    "package": "event-listener@5.4.2",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "default",
+      "parking",
+      "std"
+    ],
+    "artifactNames": [
+      "libevent_listener-eab995408de45d84.rlib",
+      "libevent_listener-eab995408de45d84.rmeta"
+    ]
+  },
+  {
+    "package": "dirs-sys@0.5.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libdirs_sys-4488838dcbba9c70.rlib",
+      "libdirs_sys-4488838dcbba9c70.rmeta"
+    ]
+  },
+  {
+    "package": "crc@3.4.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libcrc-77023c67734de192.rlib",
+      "libcrc-77023c67734de192.rmeta"
+    ]
+  },
+  {
+    "package": "brotli@8.0.4",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "alloc-stdlib",
+      "std"
+    ],
+    "artifactNames": [
+      "libbrotli-bcc56f5de942b87d.rlib",
+      "libbrotli-bcc56f5de942b87d.rmeta"
+    ]
+  },
+  {
+    "package": "brotli-decompressor@5.0.3",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "alloc-stdlib",
+      "std"
+    ],
+    "artifactNames": [
+      "libbrotli_decompressor-23f39edcb4434b4c.rlib",
+      "libbrotli_decompressor-23f39edcb4434b4c.rmeta"
+    ]
+  },
+  {
+    "package": "rust_decimal@1.42.1",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "std"
+    ],
+    "artifactNames": [
+      "librust_decimal-b0c67f6a0fe0e91b.rlib",
+      "librust_decimal-b0c67f6a0fe0e91b.rmeta"
+    ]
+  },
+  {
+    "package": "crc@3.4.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libcrc-34bf688fab4ebda7.rlib",
+      "libcrc-34bf688fab4ebda7.rmeta"
+    ]
+  },
+  {
+    "package": "crossbeam-queue@0.3.13",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "alloc",
+      "default",
+      "std"
+    ],
+    "artifactNames": [
+      "libcrossbeam_queue-4abe41d522293e2c.rlib",
+      "libcrossbeam_queue-4abe41d522293e2c.rmeta"
+    ]
+  },
+  {
+    "package": "hashlink@0.10.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libhashlink-a0e53547dda0d7aa.rlib",
+      "libhashlink-a0e53547dda0d7aa.rmeta"
+    ]
+  },
+  {
+    "package": "futures-util@0.3.34",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "alloc",
+      "futures-io",
+      "futures-sink",
+      "io",
+      "memchr",
+      "sink",
+      "slab",
+      "std"
+    ],
+    "artifactNames": [
+      "libfutures_util-70e57fddf65dff3a.rlib",
+      "libfutures_util-70e57fddf65dff3a.rmeta"
+    ]
+  },
+  {
+    "package": "tracing@0.1.44",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "attributes",
+      "default",
+      "log",
+      "std",
+      "tracing-attributes"
+    ],
+    "artifactNames": [
+      "libtracing-f3b937bfc178cdc0.rlib",
+      "libtracing-f3b937bfc178cdc0.rmeta"
+    ]
+  },
+  {
+    "package": "getrandom@0.3.4",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "std",
+      "wasm_js"
+    ],
+    "artifactNames": [
+      "libgetrandom-a64d3461be2b0fb2.rlib",
+      "libgetrandom-a64d3461be2b0fb2.rmeta"
+    ]
+  },
+  {
+    "package": "either@1.18.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "default",
+      "serde",
+      "std"
+    ],
+    "artifactNames": [
+      "libeither-b463d68bced540eb.rlib",
+      "libeither-b463d68bced540eb.rmeta"
+    ]
+  },
+  {
+    "package": "num-traits@0.2.19",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "i128",
+      "std"
+    ],
+    "artifactNames": [
+      "libnum_traits-e60ca475bdffbe1d.rlib",
+      "libnum_traits-e60ca475bdffbe1d.rmeta"
+    ]
+  },
+  {
+    "package": "futures-intrusive@0.5.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "alloc",
+      "default",
+      "parking_lot",
+      "std"
+    ],
+    "artifactNames": [
+      "libfutures_intrusive-21ab8704f5895120.rlib",
+      "libfutures_intrusive-21ab8704f5895120.rmeta"
+    ]
+  },
+  {
+    "package": "toml@1.1.4+spec-1.1.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "default",
+      "display",
+      "parse",
+      "serde",
+      "std"
+    ],
+    "artifactNames": [
+      "libtoml-c44d3555019fe076.rlib",
+      "libtoml-c44d3555019fe076.rmeta"
+    ]
+  },
+  {
+    "package": "spin@0.9.9",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "barrier",
+      "default",
+      "lazy",
+      "lock_api",
+      "lock_api_crate",
+      "mutex",
+      "once",
+      "rwlock",
+      "spin_mutex"
+    ],
+    "artifactNames": [
+      "libspin-cf531394c7b5819d.rlib",
+      "libspin-cf531394c7b5819d.rmeta"
+    ]
+  },
+  {
+    "package": "zstd-sys@2.0.16+zstd.1.5.7",
+    "kind": [
+      "custom-build"
+    ],
+    "optLevel": "0",
+    "features": [
+      "std"
+    ],
+    "artifactNames": [
+      "build-script-build.exe",
+      "build_script_build.pdb"
+    ]
+  },
+  {
+    "package": "libsqlite3-sys@0.30.1",
+    "kind": [
+      "custom-build"
+    ],
+    "optLevel": "0",
+    "features": [
+      "bundled",
+      "bundled_bindings",
+      "cc",
+      "default",
+      "min_sqlite_version_3_14_0",
+      "pkg-config",
+      "unlock_notify",
+      "vcpkg"
+    ],
+    "artifactNames": [
+      "build-script-build.exe",
+      "build_script_build.pdb"
+    ]
+  },
+  {
+    "package": "urlpattern@0.3.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "liburlpattern-57b25fab5fc0041a.rlib",
+      "liburlpattern-57b25fab5fc0041a.rmeta"
+    ]
+  },
+  {
+    "package": "regex-syntax@0.8.11",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "default",
+      "std",
+      "unicode",
+      "unicode-age",
+      "unicode-bool",
+      "unicode-case",
+      "unicode-gencat",
+      "unicode-perl",
+      "unicode-script",
+      "unicode-segment"
+    ],
+    "artifactNames": [
+      "libregex_syntax-c2e0e2d71337f862.rlib",
+      "libregex_syntax-c2e0e2d71337f862.rmeta"
+    ]
+  },
+  {
+    "package": "serialize-to-javascript-impl@0.1.2",
+    "kind": [
+      "proc-macro"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "serialize_to_javascript_impl-aebf4a7b214fa9f6.dll",
+      "serialize_to_javascript_impl-aebf4a7b214fa9f6.dll.lib",
+      "serialize_to_javascript_impl-aebf4a7b214fa9f6.dll.exp",
+      "serialize_to_javascript_impl-aebf4a7b214fa9f6.pdb"
+    ]
+  },
+  {
+    "package": "ryu@1.0.23",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libryu-c588d3aa0168dbd0.rlib",
+      "libryu-c588d3aa0168dbd0.rmeta"
+    ]
+  },
+  {
+    "package": "tauri-plugin@2.6.3",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "build"
+    ],
+    "artifactNames": [
+      "libtauri_plugin-48ee78bbbbf719d3.rlib",
+      "libtauri_plugin-48ee78bbbbf719d3.rmeta"
+    ]
+  },
+  {
+    "package": "foldhash@0.1.5",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libfoldhash-b13afb12831cdb48.rlib",
+      "libfoldhash-b13afb12831cdb48.rmeta"
+    ]
+  },
+  {
+    "package": "futures-task@0.3.34",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "alloc",
+      "std"
+    ],
+    "artifactNames": [
+      "libfutures_task-d562e1d7989e44cf.rlib",
+      "libfutures_task-d562e1d7989e44cf.rmeta"
+    ]
+  },
+  {
+    "package": "allocator-api2@0.2.21",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "alloc"
+    ],
+    "artifactNames": [
+      "liballocator_api2-42f92e41e0c728f2.rlib",
+      "liballocator_api2-42f92e41e0c728f2.rmeta"
+    ]
+  },
+  {
+    "package": "tokio-stream@0.1.19",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "default",
+      "fs",
+      "time"
+    ],
+    "artifactNames": [
+      "libtokio_stream-03fc025066faa2c2.rlib",
+      "libtokio_stream-03fc025066faa2c2.rmeta"
+    ]
+  },
+  {
+    "package": "futures-io@0.3.34",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "default",
+      "std"
+    ],
+    "artifactNames": [
+      "libfutures_io-7487723dec965f0a.rlib",
+      "libfutures_io-7487723dec965f0a.rmeta"
+    ]
+  },
+  {
+    "package": "windows-sys@0.59.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "Win32",
+      "Win32_Foundation",
+      "Win32_Graphics",
+      "Win32_Graphics_Dwm",
+      "Win32_Graphics_Gdi",
+      "Win32_Security",
+      "Win32_Storage",
+      "Win32_Storage_FileSystem",
+      "Win32_System",
+      "Win32_System_Diagnostics",
+      "Win32_System_Diagnostics_Debug",
+      "Win32_System_LibraryLoader",
+      "Win32_System_Registry",
+      "Win32_System_SystemInformation",
+      "Win32_System_Time",
+      "Win32_UI",
+      "Win32_UI_Shell",
+      "Win32_UI_WindowsAndMessaging",
+      "default"
+    ],
+    "artifactNames": [
+      "libwindows_sys-751b0416d5923edb.rlib",
+      "libwindows_sys-751b0416d5923edb.rmeta"
+    ]
+  },
+  {
+    "package": "windows_x86_64_msvc@0.53.1",
+    "kind": [
+      "custom-build"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "build-script-build.exe",
+      "build_script_build.pdb"
+    ]
+  },
+  {
+    "package": "zerocopy@0.8.56",
+    "kind": [
+      "custom-build"
+    ],
+    "optLevel": "0",
+    "features": [
+      "simd"
+    ],
+    "artifactNames": [
+      "build-script-build.exe",
+      "build_script_build.pdb"
+    ]
+  },
+  {
+    "package": "slab@0.4.12",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "std"
+    ],
+    "artifactNames": [
+      "libslab-eaecf6e86616cdfa.rlib",
+      "libslab-eaecf6e86616cdfa.rmeta"
+    ]
+  },
+  {
+    "package": "window-vibrancy@0.6.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libwindow_vibrancy-b38d47f61d411def.rlib",
+      "libwindow_vibrancy-b38d47f61d411def.rmeta"
+    ]
+  },
+  {
+    "package": "rust_decimal@1.42.1",
+    "kind": [
+      "custom-build"
+    ],
+    "optLevel": "0",
+    "features": [
+      "default",
+      "serde",
+      "std"
+    ],
+    "artifactNames": [
+      "build-script-build.exe",
+      "build_script_build.pdb"
+    ]
+  },
+  {
+    "package": "serialize-to-javascript@0.1.2",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libserialize_to_javascript-3500951d18a85913.rlib",
+      "libserialize_to_javascript-3500951d18a85913.rmeta"
+    ]
+  },
+  {
+    "package": "tauri-build@2.6.3",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "config-json",
+      "default"
+    ],
+    "artifactNames": [
+      "libtauri_build-ee029e92952ed84e.rlib",
+      "libtauri_build-ee029e92952ed84e.rmeta"
+    ]
+  },
+  {
+    "package": "softbuffer@0.4.8",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libsoftbuffer-d3b7fc2afb438a7d.rlib",
+      "libsoftbuffer-d3b7fc2afb438a7d.rmeta"
+    ]
+  },
+  {
+    "package": "tokio@1.53.1",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "bytes",
+      "default",
+      "fs",
+      "io-util",
+      "libc",
+      "mio",
+      "net",
+      "rt",
+      "socket2",
+      "sync",
+      "time",
+      "windows-sys"
+    ],
+    "artifactNames": [
+      "libtokio-b3eafc0ecfa01940.rlib",
+      "libtokio-b3eafc0ecfa01940.rmeta"
+    ]
+  },
+  {
+    "package": "serde_urlencoded@0.7.1",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libserde_urlencoded-17ebd771a56c24be.rlib",
+      "libserde_urlencoded-17ebd771a56c24be.rmeta"
+    ]
+  },
+  {
+    "package": "flume@0.11.1",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "async",
+      "futures-core",
+      "futures-sink"
+    ],
+    "artifactNames": [
+      "libflume-0b7d05a2b193a524.rlib",
+      "libflume-0b7d05a2b193a524.rmeta"
+    ]
+  },
+  {
+    "package": "libsqlite3-sys@0.30.1",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "bundled",
+      "bundled_bindings",
+      "cc",
+      "pkg-config",
+      "unlock_notify",
+      "vcpkg"
+    ],
+    "artifactNames": [
+      "liblibsqlite3_sys-c0a7455f26e410a0.rlib",
+      "liblibsqlite3_sys-c0a7455f26e410a0.rmeta"
+    ]
+  },
+  {
+    "package": "futures-executor@0.3.34",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "default",
+      "std"
+    ],
+    "artifactNames": [
+      "libfutures_executor-cbd4a007b57d5376.rlib",
+      "libfutures_executor-cbd4a007b57d5376.rmeta"
+    ]
+  },
+  {
+    "package": "dirs@6.0.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libdirs-cbae9239bc526b88.rlib",
+      "libdirs-cbae9239bc526b88.rmeta"
+    ]
+  },
+  {
+    "package": "keyboard-types@0.7.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "default",
+      "serde",
+      "unicode-segmentation",
+      "webdriver"
+    ],
+    "artifactNames": [
+      "libkeyboard_types-d59cbf76f80595b7.rlib",
+      "libkeyboard_types-d59cbf76f80595b7.rmeta"
+    ]
+  },
+  {
+    "package": "atoi@2.0.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "default",
+      "std"
+    ],
+    "artifactNames": [
+      "libatoi-f6a7da75ed6d7e96.rlib",
+      "libatoi-f6a7da75ed6d7e96.rmeta"
+    ]
+  },
+  {
+    "package": "hashbrown@0.15.5",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "allocator-api2",
+      "default",
+      "default-hasher",
+      "equivalent",
+      "inline-more",
+      "raw-entry"
+    ],
+    "artifactNames": [
+      "libhashbrown-9a6e7a080c224067.rlib",
+      "libhashbrown-9a6e7a080c224067.rmeta"
+    ]
+  },
+  {
+    "package": "futures-channel@0.3.34",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "alloc",
+      "futures-sink",
+      "sink",
+      "std"
+    ],
+    "artifactNames": [
+      "libfutures_channel-94111f999a7307a5.rlib",
+      "libfutures_channel-94111f999a7307a5.rmeta"
+    ]
+  },
+  {
+    "package": "tauri-codegen@2.6.3",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "brotli",
+      "compression"
+    ],
+    "artifactNames": [
+      "libtauri_codegen-c09cb94625a126aa.rlib",
+      "libtauri_codegen-c09cb94625a126aa.rmeta"
+    ]
+  },
+  {
+    "package": "parking@2.2.1",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libparking-20d57b19f8f42059.rlib",
+      "libparking-20d57b19f8f42059.rmeta"
+    ]
+  },
+  {
+    "package": "ahash@0.8.12",
+    "kind": [
+      "custom-build"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "build-script-build.exe",
+      "build_script_build.pdb"
+    ]
+  },
+  {
+    "package": "arrayvec@0.7.8",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "std"
+    ],
+    "artifactNames": [
+      "libarrayvec-8ab4699797250223.rlib",
+      "libarrayvec-8ab4699797250223.rmeta"
+    ]
+  },
+  {
+    "package": "serde_repr@0.1.21",
+    "kind": [
+      "proc-macro"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "serde_repr-b0aee2d69d6543c3.dll",
+      "serde_repr-b0aee2d69d6543c3.dll.lib",
+      "serde_repr-b0aee2d69d6543c3.dll.exp",
+      "serde_repr-b0aee2d69d6543c3.pdb"
+    ]
+  },
+  {
+    "package": "event-listener@5.4.2",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "default",
+      "parking",
+      "std"
+    ],
+    "artifactNames": [
+      "libevent_listener-b75a28e107283636.rlib",
+      "libevent_listener-b75a28e107283636.rmeta"
+    ]
+  },
+  {
+    "package": "hashlink@0.10.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libhashlink-2b90e5de0ab9a7ed.rlib",
+      "libhashlink-2b90e5de0ab9a7ed.rmeta"
+    ]
+  },
+  {
+    "package": "windows_x86_64_msvc@0.53.1",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libwindows_x86_64_msvc-c59fc822200f838d.rlib",
+      "libwindows_x86_64_msvc-c59fc822200f838d.rmeta"
+    ]
+  },
+  {
+    "package": "mime@0.3.17",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libmime-042b77ee9883be7f.rlib",
+      "libmime-042b77ee9883be7f.rmeta"
+    ]
+  },
+  {
+    "package": "heck@0.5.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libheck-de0e50a157ad27c7.rlib",
+      "libheck-de0e50a157ad27c7.rmeta"
+    ]
+  },
+  {
+    "package": "tokio-stream@0.1.19",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "default",
+      "fs",
+      "time"
+    ],
+    "artifactNames": [
+      "libtokio_stream-aae7f48b975a4dc3.rlib",
+      "libtokio_stream-aae7f48b975a4dc3.rmeta"
+    ]
+  },
+  {
+    "package": "either@1.18.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "default",
+      "serde",
+      "std"
+    ],
+    "artifactNames": [
+      "libeither-600275c8077c7005.rlib",
+      "libeither-600275c8077c7005.rmeta"
+    ]
+  },
+  {
+    "package": "futures-intrusive@0.5.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "alloc",
+      "default",
+      "parking_lot",
+      "std"
+    ],
+    "artifactNames": [
+      "libfutures_intrusive-406ba8a0633d36b9.rlib",
+      "libfutures_intrusive-406ba8a0633d36b9.rmeta"
+    ]
+  },
+  {
+    "package": "crossbeam-queue@0.3.13",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "alloc",
+      "default",
+      "std"
+    ],
+    "artifactNames": [
+      "libcrossbeam_queue-63141a6f3c97567b.rlib",
+      "libcrossbeam_queue-63141a6f3c97567b.rmeta"
+    ]
+  },
+  {
+    "package": "spin@0.9.9",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "barrier",
+      "default",
+      "lazy",
+      "lock_api",
+      "lock_api_crate",
+      "mutex",
+      "once",
+      "rwlock",
+      "spin_mutex"
+    ],
+    "artifactNames": [
+      "libspin-6d607c93aa59345e.rlib",
+      "libspin-6d607c93aa59345e.rmeta"
+    ]
+  },
+  {
+    "package": "futures-util@0.3.34",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "alloc",
+      "futures-io",
+      "futures-sink",
+      "io",
+      "memchr",
+      "sink",
+      "slab",
+      "std"
+    ],
+    "artifactNames": [
+      "libfutures_util-fff9484c6ba8e862.rlib",
+      "libfutures_util-fff9484c6ba8e862.rmeta"
+    ]
+  },
+  {
+    "package": "lzma-sys@0.1.20",
+    "kind": [
+      "custom-build"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "build-script-build.exe",
+      "build_script_build.pdb"
+    ]
+  },
+  {
+    "package": "dotenvy@0.15.7",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "libdotenvy-09dc55cca1e6c73f.rlib",
+      "libdotenvy-09dc55cca1e6c73f.rmeta"
+    ]
+  },
+  {
+    "package": "sqlx-core@0.8.6",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "_rt-tokio",
+      "any",
+      "crc",
+      "default",
+      "json",
+      "migrate",
+      "offline",
+      "rust_decimal",
+      "serde",
+      "serde_json",
+      "sha2",
+      "time",
+      "tokio",
+      "tokio-stream",
+      "uuid"
+    ],
+    "artifactNames": [
+      "libsqlx_core-34f3667840bde36a.rlib",
+      "libsqlx_core-34f3667840bde36a.rmeta"
+    ]
+  },
+  {
+    "package": "bzip2-sys@0.1.13+1.0.8",
+    "kind": [
+      "custom-build"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "build-script-build.exe",
+      "build_script_build.pdb"
+    ]
+  },
+  {
+    "package": "rust_decimal@1.42.1",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "default",
+      "serde",
+      "std"
+    ],
+    "artifactNames": [
+      "librust_decimal-b05a896db66d9dbe.rlib",
+      "librust_decimal-b05a896db66d9dbe.rmeta"
+    ]
+  },
+  {
+    "package": "sha2@0.10.9",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libsha2-ec9a697626267bf0.rlib",
+      "libsha2-ec9a697626267bf0.rmeta"
+    ]
+  },
+  {
+    "package": "hex@0.4.3",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "alloc",
+      "default",
+      "std"
+    ],
+    "artifactNames": [
+      "libhex-177509c14cbf4aa0.rlib",
+      "libhex-177509c14cbf4aa0.rmeta"
+    ]
+  },
+  {
+    "package": "ryu@1.0.23",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libryu-1e00b8d245a12d6f.rlib",
+      "libryu-1e00b8d245a12d6f.rmeta"
+    ]
+  },
+  {
+    "package": "zstd-safe@7.2.4",
+    "kind": [
+      "custom-build"
+    ],
+    "optLevel": "0",
+    "features": [
+      "std"
+    ],
+    "artifactNames": [
+      "build-script-build.exe",
+      "build_script_build.pdb"
+    ]
+  },
+  {
+    "package": "serde_urlencoded@0.7.1",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libserde_urlencoded-98d473544cd5f309.rlib",
+      "libserde_urlencoded-98d473544cd5f309.rmeta"
+    ]
+  },
+  {
+    "package": "crc32fast@1.5.1",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "default",
+      "std"
+    ],
+    "artifactNames": [
+      "libcrc32fast-3b2c8af90011bc4d.rlib",
+      "libcrc32fast-3b2c8af90011bc4d.rmeta"
+    ]
+  },
+  {
+    "package": "flume@0.11.1",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "async",
+      "futures-core",
+      "futures-sink"
+    ],
+    "artifactNames": [
+      "libflume-c254f1ed49008ed4.rlib",
+      "libflume-c254f1ed49008ed4.rmeta"
+    ]
+  },
+  {
+    "package": "simd-adler32@0.3.10",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "std"
+    ],
+    "artifactNames": [
+      "libsimd_adler32-433aafe2d87e6b71.rlib",
+      "libsimd_adler32-433aafe2d87e6b71.rmeta"
+    ]
+  },
+  {
+    "package": "tokio@1.53.1",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "bytes",
+      "default",
+      "fs",
+      "io-util",
+      "libc",
+      "mio",
+      "net",
+      "rt",
+      "rt-multi-thread",
+      "socket2",
+      "sync",
+      "time",
+      "windows-sys"
+    ],
+    "artifactNames": [
+      "libtokio-2479cc9b26674da1.rlib",
+      "libtokio-2479cc9b26674da1.rmeta"
+    ]
+  },
+  {
+    "package": "windows-targets@0.53.5",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libwindows_targets-72d7921e678d0900.rlib",
+      "libwindows_targets-72d7921e678d0900.rmeta"
+    ]
+  },
+  {
+    "package": "atoi@2.0.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "default",
+      "std"
+    ],
+    "artifactNames": [
+      "libatoi-a402800860de701f.rlib",
+      "libatoi-a402800860de701f.rmeta"
+    ]
+  },
+  {
+    "package": "futures-executor@0.3.34",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "default",
+      "std"
+    ],
+    "artifactNames": [
+      "libfutures_executor-413e226dea6d7aca.rlib",
+      "libfutures_executor-413e226dea6d7aca.rmeta"
+    ]
+  },
+  {
+    "package": "inout@0.1.4",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libinout-c9f23ff8760d8ae9.rlib",
+      "libinout-c9f23ff8760d8ae9.rmeta"
+    ]
+  },
+  {
+    "package": "futures-channel@0.3.34",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "alloc",
+      "futures-sink",
+      "sink",
+      "std"
+    ],
+    "artifactNames": [
+      "libfutures_channel-487a6ca70539a302.rlib",
+      "libfutures_channel-487a6ca70539a302.rmeta"
+    ]
+  },
+  {
+    "package": "adler2@2.0.1",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libadler2-5a03b677abb6615b.rlib",
+      "libadler2-5a03b677abb6615b.rmeta"
+    ]
+  },
+  {
+    "package": "rfd@0.16.0",
+    "kind": [
+      "custom-build"
+    ],
+    "optLevel": "0",
+    "features": [
+      "common-controls-v6",
+      "glib-sys",
+      "gobject-sys",
+      "gtk-sys",
+      "gtk3"
+    ],
+    "artifactNames": [
+      "build-script-build.exe",
+      "build_script_build.pdb"
+    ]
+  },
+  {
+    "package": "cipher@0.4.4",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libcipher-87d0d77b65b90073.rlib",
+      "libcipher-87d0d77b65b90073.rmeta"
+    ]
+  },
+  {
+    "package": "hmac@0.12.1",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "reset"
+    ],
+    "artifactNames": [
+      "libhmac-372e52a9c687c814.rlib",
+      "libhmac-372e52a9c687c814.rmeta"
+    ]
+  },
+  {
+    "package": "zerocopy@0.8.56",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "simd"
+    ],
+    "artifactNames": [
+      "libzerocopy-b46700eebea449e3.rlib",
+      "libzerocopy-b46700eebea449e3.rmeta"
+    ]
+  },
+  {
+    "package": "muda@0.19.3",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "common-controls-v6",
+      "gtk",
+      "serde"
+    ],
+    "artifactNames": [
+      "libmuda-ace0a34c4593286d.rlib",
+      "libmuda-ace0a34c4593286d.rmeta"
+    ]
+  },
+  {
+    "package": "ahash@0.8.12",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libahash-6d421875a3fabf31.rlib",
+      "libahash-6d421875a3fabf31.rmeta"
+    ]
+  },
+  {
+    "package": "zeroize_derive@1.5.0",
+    "kind": [
+      "proc-macro"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "zeroize_derive-9f0035325fe53c30.dll",
+      "zeroize_derive-9f0035325fe53c30.dll.lib",
+      "zeroize_derive-9f0035325fe53c30.dll.exp",
+      "zeroize_derive-9f0035325fe53c30.pdb"
+    ]
+  },
+  {
+    "package": "zip@2.4.2",
+    "kind": [
+      "custom-build"
+    ],
+    "optLevel": "0",
+    "features": [
+      "_deflate-any",
+      "aes",
+      "aes-crypto",
+      "bzip2",
+      "constant_time_eq",
+      "default",
+      "deflate",
+      "deflate-flate2",
+      "deflate-zopfli",
+      "deflate64",
+      "flate2",
+      "getrandom",
+      "hmac",
+      "lzma",
+      "lzma-rs",
+      "pbkdf2",
+      "sha1",
+      "time",
+      "xz",
+      "zeroize",
+      "zopfli",
+      "zstd"
+    ],
+    "artifactNames": [
+      "build-script-build.exe",
+      "build_script_build.pdb"
+    ]
+  },
+  {
+    "package": "bumpalo@3.20.3",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "default"
+    ],
+    "artifactNames": [
+      "libbumpalo-ad100d549fbae1f9.rlib",
+      "libbumpalo-ad100d549fbae1f9.rmeta"
+    ]
+  },
+  {
+    "package": "zeroize@1.9.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "alloc",
+      "default",
+      "zeroize_derive"
+    ],
+    "artifactNames": [
+      "libzeroize-92e15c0715737784.rlib",
+      "libzeroize-92e15c0715737784.rmeta"
+    ]
+  },
+  {
+    "package": "miniz_oxide@0.8.9",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "simd",
+      "simd-adler32",
+      "with-alloc"
+    ],
+    "artifactNames": [
+      "libminiz_oxide-0bb237c60dc3398f.rlib",
+      "libminiz_oxide-0bb237c60dc3398f.rmeta"
+    ]
+  },
+  {
+    "package": "hashbrown@0.14.5",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "ahash",
+      "inline-more"
+    ],
+    "artifactNames": [
+      "libhashbrown-c433f056739749d3.rlib",
+      "libhashbrown-c433f056739749d3.rmeta"
+    ]
+  },
+  {
+    "package": "windows-sys@0.60.2",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "Win32",
+      "Win32_Foundation",
+      "Win32_System",
+      "Win32_System_Com",
+      "Win32_UI",
+      "Win32_UI_Controls",
+      "Win32_UI_Shell",
+      "Win32_UI_Shell_Common",
+      "Win32_UI_WindowsAndMessaging",
+      "default"
+    ],
+    "artifactNames": [
+      "libwindows_sys-a3b1e3fbcf8d3e96.rlib",
+      "libwindows_sys-a3b1e3fbcf8d3e96.rmeta"
+    ]
+  },
+  {
+    "package": "pbkdf2@0.12.2",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "default",
+      "hmac"
+    ],
+    "artifactNames": [
+      "libpbkdf2-94de36b721cd3339.rlib",
+      "libpbkdf2-94de36b721cd3339.rmeta"
+    ]
+  },
+  {
+    "package": "regex-automata@0.4.18",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "alloc",
+      "dfa-onepass",
+      "hybrid",
+      "meta",
+      "nfa-backtrack",
+      "nfa-pikevm",
+      "nfa-thompson",
+      "perf-inline",
+      "perf-literal",
+      "perf-literal-multisubstring",
+      "perf-literal-substring",
+      "std",
+      "syntax",
+      "unicode",
+      "unicode-age",
+      "unicode-bool",
+      "unicode-case",
+      "unicode-gencat",
+      "unicode-perl",
+      "unicode-script",
+      "unicode-segment",
+      "unicode-word-boundary"
+    ],
+    "artifactNames": [
+      "libregex_automata-4d92881906a2d8a1.rlib",
+      "libregex_automata-4d92881906a2d8a1.rmeta"
+    ]
+  },
+  {
+    "package": "sqlx-macros-core@0.8.6",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "_rt-tokio",
+      "_sqlite",
+      "default",
+      "derive",
+      "json",
+      "macros",
+      "migrate",
+      "rust_decimal",
+      "sqlite",
+      "sqlx-sqlite",
+      "time",
+      "tokio",
+      "uuid"
+    ],
+    "artifactNames": [
+      "libsqlx_macros_core-c64ec5b9b9e90f70.rlib",
+      "libsqlx_macros_core-c64ec5b9b9e90f70.rmeta"
+    ]
+  },
+  {
+    "package": "flate2@1.1.9",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "any_impl",
+      "miniz_oxide",
+      "rust_backend"
+    ],
+    "artifactNames": [
+      "libflate2-2a0a772320225851.rlib",
+      "libflate2-2a0a772320225851.rmeta"
+    ]
+  },
+  {
+    "package": "hashlink@0.9.1",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libhashlink-61867633582468e5.rlib",
+      "libhashlink-61867633582468e5.rmeta"
+    ]
+  },
+  {
+    "package": "sqlx-sqlite@0.8.6",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "bundled",
+      "json",
+      "migrate",
+      "offline",
+      "serde",
+      "time",
+      "uuid"
+    ],
+    "artifactNames": [
+      "libsqlx_sqlite-8a1c835e2c2adf61.rlib",
+      "libsqlx_sqlite-8a1c835e2c2adf61.rmeta"
+    ]
+  },
+  {
+    "package": "tauri-utils@2.9.3",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "0",
+    "features": [
+      "brotli",
+      "build-2",
+      "cargo_metadata",
+      "compression",
+      "html-manipulation-2",
+      "proc-macro2",
+      "quote",
+      "resources",
+      "schema",
+      "schemars",
+      "swift-rs",
+      "walkdir"
+    ],
+    "artifactNames": [
+      "libtauri_utils-05fe5ef4629ca789.rlib",
+      "libtauri_utils-05fe5ef4629ca789.rmeta"
+    ]
+  },
+  {
+    "package": "constant_time_eq@0.3.1",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libconstant_time_eq-f75a03526ecac219.rlib",
+      "libconstant_time_eq-f75a03526ecac219.rmeta"
+    ]
+  },
+  {
+    "package": "sha1@0.10.7",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "default",
+      "std"
+    ],
+    "artifactNames": [
+      "libsha1-396b36b7698c7624.rlib",
+      "libsha1-396b36b7698c7624.rmeta"
+    ]
+  },
+  {
+    "package": "open@5.4.2",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "shellexecute-on-windows"
+    ],
+    "artifactNames": [
+      "libopen-c129c04672a92ff4.rlib",
+      "libopen-c129c04672a92ff4.rmeta"
+    ]
+  },
+  {
+    "package": "lzma-rs@0.3.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "stream"
+    ],
+    "artifactNames": [
+      "liblzma_rs-450ff6564cc015ee.rlib",
+      "liblzma_rs-450ff6564cc015ee.rmeta"
+    ]
+  },
+  {
+    "package": "aes@0.8.4",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libaes-88888c0ce33f2a38.rlib",
+      "libaes-88888c0ce33f2a38.rmeta"
+    ]
+  },
+  {
+    "package": "zopfli@0.8.3",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "default",
+      "gzip",
+      "std",
+      "zlib"
+    ],
+    "artifactNames": [
+      "libzopfli-e6cd5b3b4578163e.rlib",
+      "libzopfli-e6cd5b3b4578163e.rmeta"
+    ]
+  },
+  {
+    "package": "tauri-plugin-fs@2.5.1",
+    "kind": [
+      "custom-build"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "build-script-build.exe",
+      "build_script_build.pdb"
+    ]
+  },
+  {
+    "package": "tauri-plugin-opener@2.5.4",
+    "kind": [
+      "custom-build"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "build-script-build.exe",
+      "build_script_build.pdb"
+    ]
+  },
+  {
+    "package": "sqlx-macros@0.8.6",
+    "kind": [
+      "proc-macro"
+    ],
+    "optLevel": "0",
+    "features": [
+      "_rt-tokio",
+      "default",
+      "derive",
+      "json",
+      "macros",
+      "migrate",
+      "rust_decimal",
+      "sqlite",
+      "time",
+      "uuid"
+    ],
+    "artifactNames": [
+      "sqlx_macros-e52afffbec5b8fcf.dll",
+      "sqlx_macros-e52afffbec5b8fcf.dll.lib",
+      "sqlx_macros-e52afffbec5b8fcf.dll.exp",
+      "sqlx_macros-e52afffbec5b8fcf.pdb"
+    ]
+  },
+  {
+    "package": "tauri-plugin-sql@2.4.0",
+    "kind": [
+      "custom-build"
+    ],
+    "optLevel": "0",
+    "features": [
+      "sqlite"
+    ],
+    "artifactNames": [
+      "build-script-build.exe",
+      "build_script_build.pdb"
+    ]
+  },
+  {
+    "package": "rfd@0.16.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "common-controls-v6",
+      "glib-sys",
+      "gobject-sys",
+      "gtk-sys",
+      "gtk3"
+    ],
+    "artifactNames": [
+      "librfd-98f723bb862d3424.rlib",
+      "librfd-98f723bb862d3424.rmeta"
+    ]
+  },
+  {
+    "package": "tauri@2.11.5",
+    "kind": [
+      "custom-build"
+    ],
+    "optLevel": "0",
+    "features": [
+      "common-controls-v6",
+      "compression",
+      "custom-protocol",
+      "dbus",
+      "default",
+      "dynamic-acl",
+      "tauri-runtime-wry",
+      "webkit2gtk",
+      "webview2-com",
+      "wry",
+      "x11"
+    ],
+    "artifactNames": [
+      "build-script-build.exe",
+      "build_script_build.pdb"
+    ]
+  },
+  {
+    "package": "tauri-plugin-dialog@2.7.2",
+    "kind": [
+      "custom-build"
+    ],
+    "optLevel": "0",
+    "features": [
+      "default",
+      "gtk3"
+    ],
+    "artifactNames": [
+      "build-script-build.exe",
+      "build_script_build.pdb"
+    ]
+  },
+  {
+    "package": "fallible-streaming-iterator@0.1.9",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libfallible_streaming_iterator-10c905401aa11423.rlib",
+      "libfallible_streaming_iterator-10c905401aa11423.rmeta"
+    ]
+  },
+  {
+    "package": "fallible-iterator@0.3.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "alloc",
+      "default"
+    ],
+    "artifactNames": [
+      "libfallible_iterator-be1beba4458f749a.rlib",
+      "libfallible_iterator-be1beba4458f749a.rmeta"
+    ]
+  },
+  {
+    "package": "bzip2-sys@0.1.13+1.0.8",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libbzip2_sys-1faee7a425cd77ad.rlib",
+      "libbzip2_sys-1faee7a425cd77ad.rmeta"
+    ]
+  },
+  {
+    "package": "bzip2@0.5.2",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "default"
+    ],
+    "artifactNames": [
+      "libbzip2-8c9be84838602753.rlib",
+      "libbzip2-8c9be84838602753.rmeta"
+    ]
+  },
+  {
+    "package": "tauri-macros@2.6.3",
+    "kind": [
+      "proc-macro"
+    ],
+    "optLevel": "0",
+    "features": [
+      "compression",
+      "custom-protocol"
+    ],
+    "artifactNames": [
+      "tauri_macros-5549a48e7bbc0666.dll",
+      "tauri_macros-5549a48e7bbc0666.dll.lib",
+      "tauri_macros-5549a48e7bbc0666.dll.exp",
+      "tauri_macros-5549a48e7bbc0666.pdb"
+    ]
+  },
+  {
+    "package": "deflate64@0.1.12",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "default"
+    ],
+    "artifactNames": [
+      "libdeflate64-558c84f64b925c7f.rlib",
+      "libdeflate64-558c84f64b925c7f.rmeta"
+    ]
+  },
+  {
+    "package": "hisfuture@0.1.0",
+    "kind": [
+      "custom-build"
+    ],
+    "optLevel": "0",
+    "features": [],
+    "artifactNames": [
+      "build-script-build.exe",
+      "build_script_build.pdb"
+    ]
+  },
+  {
+    "package": "winreg@0.55.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libwinreg-5202edb0207eaf9b.rlib",
+      "libwinreg-5202edb0207eaf9b.rmeta"
+    ]
+  },
+  {
+    "package": "sqlx-core@0.8.6",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "_rt-tokio",
+      "any",
+      "crc",
+      "default",
+      "json",
+      "migrate",
+      "offline",
+      "rust_decimal",
+      "serde",
+      "serde_json",
+      "sha2",
+      "time",
+      "tokio",
+      "tokio-stream",
+      "uuid"
+    ],
+    "artifactNames": [
+      "libsqlx_core-41732c6c6deaf5ea.rlib",
+      "libsqlx_core-41732c6c6deaf5ea.rmeta"
+    ]
+  },
+  {
+    "package": "zstd-sys@2.0.16+zstd.1.5.7",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "std"
+    ],
+    "artifactNames": [
+      "libzstd_sys-45f126b47b6b8030.rlib",
+      "libzstd_sys-45f126b47b6b8030.rmeta"
+    ]
+  },
+  {
+    "package": "zstd-safe@7.2.4",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "std"
+    ],
+    "artifactNames": [
+      "libzstd_safe-3efe191c13a3560e.rlib",
+      "libzstd_safe-3efe191c13a3560e.rmeta"
+    ]
+  },
+  {
+    "package": "zstd@0.13.3",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libzstd-6c75f0fda63b2f09.rlib",
+      "libzstd-6c75f0fda63b2f09.rmeta"
+    ]
+  },
+  {
+    "package": "lzma-sys@0.1.20",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "liblzma_sys-f9719170d1feca68.rlib",
+      "liblzma_sys-f9719170d1feca68.rmeta"
+    ]
+  },
+  {
+    "package": "xz2@0.1.7",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libxz2-cb6d09c793ce239e.rlib",
+      "libxz2-cb6d09c793ce239e.rmeta"
+    ]
+  },
+  {
+    "package": "libsqlite3-sys@0.30.1",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "bundled",
+      "bundled_bindings",
+      "cc",
+      "default",
+      "min_sqlite_version_3_14_0",
+      "pkg-config",
+      "unlock_notify",
+      "vcpkg"
+    ],
+    "artifactNames": [
+      "liblibsqlite3_sys-dcaf5304d3e5a3cc.rlib",
+      "liblibsqlite3_sys-dcaf5304d3e5a3cc.rmeta"
+    ]
+  },
+  {
+    "package": "zip@2.4.2",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "_deflate-any",
+      "aes",
+      "aes-crypto",
+      "bzip2",
+      "constant_time_eq",
+      "default",
+      "deflate",
+      "deflate-flate2",
+      "deflate-zopfli",
+      "deflate64",
+      "flate2",
+      "getrandom",
+      "hmac",
+      "lzma",
+      "lzma-rs",
+      "pbkdf2",
+      "sha1",
+      "time",
+      "xz",
+      "zeroize",
+      "zopfli",
+      "zstd"
+    ],
+    "artifactNames": [
+      "libzip-10d050c8645744c9.rlib",
+      "libzip-10d050c8645744c9.rmeta"
+    ]
+  },
+  {
+    "package": "rusqlite@0.32.1",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "bundled",
+      "modern_sqlite"
+    ],
+    "artifactNames": [
+      "librusqlite-b38ae91e0e8c3f46.rlib",
+      "librusqlite-b38ae91e0e8c3f46.rmeta"
+    ]
+  },
+  {
+    "package": "sqlx@0.8.6",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "_rt-tokio",
+      "_sqlite",
+      "any",
+      "default",
+      "derive",
+      "json",
+      "macros",
+      "migrate",
+      "runtime-tokio",
+      "rust_decimal",
+      "sqlite",
+      "sqlx-macros",
+      "sqlx-sqlite",
+      "time",
+      "uuid"
+    ],
+    "artifactNames": [
+      "libsqlx-f54f5f9a5e401cda.rlib",
+      "libsqlx-f54f5f9a5e401cda.rmeta"
+    ]
+  },
+  {
+    "package": "sqlx-sqlite@0.8.6",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "any",
+      "bundled",
+      "json",
+      "migrate",
+      "serde",
+      "time",
+      "uuid"
+    ],
+    "artifactNames": [
+      "libsqlx_sqlite-2ba7ba6931bd508a.rlib",
+      "libsqlx_sqlite-2ba7ba6931bd508a.rmeta"
+    ]
+  },
+  {
+    "package": "tauri-utils@2.9.3",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "brotli",
+      "compression",
+      "resources",
+      "walkdir"
+    ],
+    "artifactNames": [
+      "libtauri_utils-b6c0ef607c359558.rlib",
+      "libtauri_utils-b6c0ef607c359558.rmeta"
+    ]
+  },
+  {
+    "package": "tao@0.35.3",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "dbus",
+      "rwh_06",
+      "x11"
+    ],
+    "artifactNames": [
+      "libtao-072e627b1c60d2ff.rlib",
+      "libtao-072e627b1c60d2ff.rmeta"
+    ]
+  },
+  {
+    "package": "windows@0.61.3",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "Win32",
+      "Win32_Devices",
+      "Win32_Devices_HumanInterfaceDevice",
+      "Win32_Foundation",
+      "Win32_Globalization",
+      "Win32_Graphics",
+      "Win32_Graphics_Dwm",
+      "Win32_Graphics_Gdi",
+      "Win32_Storage",
+      "Win32_Storage_FileSystem",
+      "Win32_System",
+      "Win32_System_Com",
+      "Win32_System_Com_StructuredStorage",
+      "Win32_System_DataExchange",
+      "Win32_System_Diagnostics",
+      "Win32_System_Diagnostics_Debug",
+      "Win32_System_LibraryLoader",
+      "Win32_System_Memory",
+      "Win32_System_Ole",
+      "Win32_System_Registry",
+      "Win32_System_SystemInformation",
+      "Win32_System_SystemServices",
+      "Win32_System_Threading",
+      "Win32_System_Variant",
+      "Win32_System_WinRT",
+      "Win32_System_WindowsProgramming",
+      "Win32_UI",
+      "Win32_UI_Accessibility",
+      "Win32_UI_Controls",
+      "Win32_UI_HiDpi",
+      "Win32_UI_Input",
+      "Win32_UI_Input_Ime",
+      "Win32_UI_Input_KeyboardAndMouse",
+      "Win32_UI_Input_Pointer",
+      "Win32_UI_Input_Touch",
+      "Win32_UI_Shell",
+      "Win32_UI_Shell_Common",
+      "Win32_UI_TextServices",
+      "Win32_UI_WindowsAndMessaging",
+      "default",
+      "std"
+    ],
+    "artifactNames": [
+      "libwindows-db537928461db713.rlib",
+      "libwindows-db537928461db713.rmeta"
+    ]
+  },
+  {
+    "package": "webview2-com-sys@0.38.2",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libwebview2_com_sys-dc822e16619797b8.rlib",
+      "libwebview2_com_sys-dc822e16619797b8.rmeta"
+    ]
+  },
+  {
+    "package": "tauri-runtime@2.11.3",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libtauri_runtime-d331b23b6fcc74b0.rlib",
+      "libtauri_runtime-d331b23b6fcc74b0.rmeta"
+    ]
+  },
+  {
+    "package": "wry@0.55.1",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "gdkx11",
+      "javascriptcore-rs",
+      "linux-body",
+      "os-webview",
+      "protocol",
+      "soup3",
+      "webkit2gtk",
+      "webkit2gtk-sys",
+      "x11",
+      "x11-dl"
+    ],
+    "artifactNames": [
+      "libwry-38916c5bc6b30d32.rlib",
+      "libwry-38916c5bc6b30d32.rmeta"
+    ]
+  },
+  {
+    "package": "tauri-runtime-wry@2.11.4",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "common-controls-v6",
+      "dbus",
+      "x11"
+    ],
+    "artifactNames": [
+      "libtauri_runtime_wry-94a7e4877edecb81.rlib",
+      "libtauri_runtime_wry-94a7e4877edecb81.rmeta"
+    ]
+  },
+  {
+    "package": "webview2-com@0.38.2",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libwebview2_com-4dd467d7ef81c60a.rlib",
+      "libwebview2_com-4dd467d7ef81c60a.rmeta"
+    ]
+  },
+  {
+    "package": "tauri-plugin-opener@2.5.4",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libtauri_plugin_opener-74f9237ec5fb6621.rlib",
+      "libtauri_plugin_opener-74f9237ec5fb6621.rmeta"
+    ]
+  },
+  {
+    "package": "tauri-plugin-sql@2.4.0",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "sqlite"
+    ],
+    "artifactNames": [
+      "libtauri_plugin_sql-284e4372cfddc76c.rlib",
+      "libtauri_plugin_sql-284e4372cfddc76c.rmeta"
+    ]
+  },
+  {
+    "package": "tauri-plugin-fs@2.5.1",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "libtauri_plugin_fs-97f07bff37b20d70.rlib",
+      "libtauri_plugin_fs-97f07bff37b20d70.rmeta"
+    ]
+  },
+  {
+    "package": "tauri@2.11.5",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "common-controls-v6",
+      "compression",
+      "custom-protocol",
+      "dbus",
+      "default",
+      "dynamic-acl",
+      "tauri-runtime-wry",
+      "webkit2gtk",
+      "webview2-com",
+      "wry",
+      "x11"
+    ],
+    "artifactNames": [
+      "libtauri-10d941e916163a4d.rlib",
+      "libtauri-10d941e916163a4d.rmeta"
+    ]
+  },
+  {
+    "package": "tauri-plugin-dialog@2.7.2",
+    "kind": [
+      "lib"
+    ],
+    "optLevel": "3",
+    "features": [
+      "default",
+      "gtk3"
+    ],
+    "artifactNames": [
+      "libtauri_plugin_dialog-601f1bf99b2f226e.rlib",
+      "libtauri_plugin_dialog-601f1bf99b2f226e.rmeta"
+    ]
+  },
+  {
+    "package": "hisfuture@0.1.0",
+    "kind": [
+      "staticlib",
+      "cdylib",
+      "rlib"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "hisfuture_lib.lib",
+      "hisfuture_lib.dll",
+      "hisfuture_lib.dll.lib",
+      "hisfuture_lib.dll.exp",
+      "hisfuture_lib.pdb",
+      "libhisfuture_lib.rlib"
+    ]
+  },
+  {
+    "package": "hisfuture@0.1.0",
+    "kind": [
+      "bin"
+    ],
+    "optLevel": "3",
+    "features": [],
+    "artifactNames": [
+      "hisfuture.exe",
+      "hisfuture.pdb"
+    ]
+  }
+]

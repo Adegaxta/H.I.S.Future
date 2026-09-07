@@ -16,7 +16,7 @@ import { useEditorBlockSelection } from "./useEditorBlockSelection";
 import { useEditorMentions } from "./useEditorMentions";
 import { useEditorPickers } from "./useEditorPickers";
 import { useRichTextEditor } from "./useRichTextEditor";
-import draftAsset from "../assets/icons/draft.svg";
+import draftAsset from "../assets/third-party/google-material/icons/draft.svg";
 
 interface EditorControllerOptions {
   node: NodeItem;

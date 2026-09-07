@@ -1,0 +1,71 @@
+{
+  "files": [
+    {
+      "path": "dist/assets/HISFuture-B5EIK-Sx.svg",
+      "size": 4612,
+      "sha256": "f8c2fa7d6addbe9c92902ed381ee5f9e0f83f65a62ba4c5681b8398186554996"
+    },
+    {
+      "path": "dist/assets/HISFuture-tvp2OiZL.ico",
+      "size": 458870,
+      "sha256": "84c627ffc1a2dade67f68bd7ef33dfe23851c3449eba5d2d515585333ce99b2c"
+    },
+    {
+      "path": "dist/assets/index-DmemmE0R.css",
+      "size": 113155,
+      "sha256": "aaa0552185054d269aa04ca6e2932fbabcc50786562cc5d8533732ca7a6fd896"
+    },
+    {
+      "path": "dist/assets/index-ttX5-MfE.js",
+      "size": 1030299,
+      "sha256": "ebaeb50f84d134a089128f3a4a5f9b95127864f5187cc4f6dd0f81564710957f"
+    },
+    {
+      "path": "dist/assets/pdf.worker.min-Dswkl-cV.mjs",
+      "size": 1265413,
+      "sha256": "8ab0e5e30031b4a06ecfddd5ae9562f0227f830ee7ec9ed1a968b134243d2386"
+    },
+    {
+      "path": "dist/index.html",
+      "size": 425,
+      "sha256": "0b28f0de072963cca6ebbf499304a3972482f73ca3b65052a87ba44fd6288632"
+    },
+    {
+      "path": "src-tauri/target/release/hisfuture.exe",
+      "size": 16105984,
+      "sha256": "c8bc4b7251c75663e6b10669760c2a6f296fe32626f7610386eb2a2aad66ef7b"
+    }
+  ],
+  "peImports": [
+    "advapi32.dll",
+    "ntdll.dll",
+    "kernel32.dll",
+    "user32.dll",
+    "dwmapi.dll",
+    "shell32.dll",
+    "gdi32.dll",
+    "ole32.dll",
+    "comctl32.dll",
+    "api-ms-win-core-synch-l1-2-0.dll",
+    "shlwapi.dll",
+    "oleaut32.dll",
+    "bcryptprimitives.dll",
+    "api-ms-win-crt-math-l1-1-0.dll",
+    "api-ms-win-crt-string-l1-1-0.dll",
+    "api-ms-win-crt-convert-l1-1-0.dll",
+    "api-ms-win-crt-heap-l1-1-0.dll",
+    "api-ms-win-crt-runtime-l1-1-0.dll",
+    "api-ms-win-crt-utility-l1-1-0.dll",
+    "api-ms-win-crt-time-l1-1-0.dll",
+    "api-ms-win-crt-stdio-l1-1-0.dll",
+    "api-ms-win-crt-locale-l1-1-0.dll"
+  ],
+  "previewMarkers": {
+    "__canvas_preview__": false,
+    "picsum.photos": false,
+    "data-lui": false,
+    "hypercanvas": false,
+    "HyperIDE": false,
+    "test-preview": false
+  }
+}

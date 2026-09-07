@@ -15,7 +15,7 @@ import {
   type BlockTextDevNodeKind,
   type BlockTextDevNodeTree,
 } from "../defs/devNodes";
-import draftAsset from "../assets/icons/draft.svg";
+import draftAsset from "../assets/third-party/google-material/icons/draft.svg";
 
 function hasAlignableImage(block: Element | null): boolean {
   if (!block) return false;

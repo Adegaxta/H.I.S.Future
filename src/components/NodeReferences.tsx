@@ -7,10 +7,10 @@ import { getNodalMeta, type RelationRole } from "../utils/nodalMeta";
 import { normalizeSearchText } from "../defs/editor";
 import { NodeIcon, SidebarIcon } from "./SidebarIcon";
 
-const assets = import.meta.glob<string>("../assets/icons/*.svg", { eager: true, query: "?url", import: "default" });
+const assets = import.meta.glob<string>("../assets/third-party/google-material/icons/*.svg", { eager: true, query: "?url", import: "default" });
 export type NodalIconName = "syllable" | "classroom" | "classes_video" | "content" | "Evaluation" | "add_video" | "add_link" | "material" | "task" | "state" | "undated" | "download" | "delete" | "extension" | "storage" | "audio_capture" | "link_1" | "link_2";
 export function NodalIcon({ name }: { name: NodalIconName }) {
-  return <span aria-hidden="true" className="sidebar-icon nodal-icon" style={{ "--icon-url": `url("${assets[`../assets/icons/${name}.svg`]}")` } as CSSProperties} />;
+  return <span aria-hidden="true" className="sidebar-icon nodal-icon" style={{ "--icon-url": `url("${assets[`../assets/third-party/google-material/icons/${name}.svg`]}")` } as CSSProperties} />;
 }
 export interface NodalViewProps {
   node: NodeItem;

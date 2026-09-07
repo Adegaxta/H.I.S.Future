@@ -3,7 +3,7 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 
 // @hyperide-managed
-if (new URLSearchParams(location.search).get("component") && location.pathname.includes("test-preview")) {
+if (import.meta.env.DEV && new URLSearchParams(location.search).get("component") && location.pathname.includes("test-preview")) {
   import("./__canvas_preview__").then(m => {
     const CanvasPreviewComp = m.default;
 

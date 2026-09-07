@@ -38,9 +38,9 @@ import {
   isImportableDragItem,
 } from "../project/fileNodeImporter";
 import { useLocale } from "../i18n/LocaleContext";
-import windowCloseAsset from "../assets/ui/window_close.svg";
-import windowMaximizeAsset from "../assets/ui/window_maximize.svg";
-import windowMinimizeAsset from "../assets/ui/window_minimize.svg";
+import windowCloseAsset from "../assets/original/ui/window_close.svg";
+import windowMaximizeAsset from "../assets/original/ui/window_maximize.svg";
+import windowMinimizeAsset from "../assets/original/ui/window_minimize.svg";
 
 interface AppWorkspaceProps {
   projectKey: string;
@@ -885,7 +885,7 @@ export default function AppWorkspace({
                       disabled={workspace.selectedDeletedIds.length === 0}
                       onClick={workspace.restoreDeletedNodes}
                     >
-                      <img src="/coso/restore.svg" alt="" />
+                      <span className="trash-view__action-icon" aria-hidden="true">↶</span>
                     </button>
                     <button
                       type="button"
@@ -893,7 +893,7 @@ export default function AppWorkspace({
                       disabled={workspace.selectedDeletedIds.length === 0}
                       onClick={workspace.permanentlyDeleteNodes}
                     >
-                      <img src="/coso/delete.svg" alt="" />
+                      <span className="trash-view__action-icon" aria-hidden="true">×</span>
                     </button>
                   </div>
                 </div>

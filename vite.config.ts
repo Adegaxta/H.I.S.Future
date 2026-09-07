@@ -6,8 +6,8 @@ import react from "@vitejs/plugin-react";
 const host = process.env.TAURI_DEV_HOST;
 
 // https://vite.dev/config/
-export default defineConfig(async () => ({
-  plugins: [react({ babel: { plugins: [liveUiEditorBabelPlugin] } })],
+export default defineConfig(async ({ command }) => ({
+  plugins: [react({ babel: { plugins: command === "serve" ? [liveUiEditorBabelPlugin] : [] } })],
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //
