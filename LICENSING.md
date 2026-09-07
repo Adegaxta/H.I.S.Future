@@ -17,7 +17,7 @@ El modelo puede describirse como **source-available** cuando se facilite el cód
 
 ## Identificación y avisos
 
-**Titular/licenciante del código original: Matias Escobedo, persona natural**, según confirmación humana. H.I.S. Future / HIS es el nombre del proyecto/producto, no una persona jurídica independiente. La confirmación no sustituye la revisión de derechos de terceros.
+**Titular/licenciante del código y de los assets visuales originales identificados: Matias Escobedo, persona natural**, según confirmación humana. Esto incluye `HISFUTURE_ICON.png`, `HIS_FILE_ICON.png` y sus derivados técnicos dentro del proyecto. H.I.S. Future / HIS es el nombre del proyecto/producto, no una persona jurídica independiente. La confirmación no sustituye la revisión de derechos de terceros ni atribuye como propios otros assets.
 
 [NOTICE](NOTICE) contiene el aviso propio separado de los estándares: **Required Notice: Copyright Matias Escobedo**. Se conserva esa línea al redistribuir conforme a Notices; no se añade una fecha histórica ni dirección web no confirmadas. Los ejemplos Yoyodyne permanecen intactos en las licencias oficiales.
 

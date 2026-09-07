@@ -4,7 +4,7 @@ use project::{NodeRecord, ProjectInfo, ProjectState};
 use std::sync::Mutex;
 
 #[cfg(windows)]
-const PROJECT_FILE_ICON: &[u8] = include_bytes!("../icons/HISProject.ico");
+const PROJECT_FILE_ICON: &[u8] = include_bytes!("../icons/his-file.ico");
 
 #[cfg(windows)]
 fn register_his_file_association(app: &tauri::AppHandle) -> Result<(), String> {
@@ -19,7 +19,7 @@ fn register_his_file_association(app: &tauri::AppHandle) -> Result<(), String> {
         .path()
         .app_data_dir()
         .map_err(|error| format!("No se pudo localizar los datos de la aplicación: {error}"))?
-        .join("HISProject.ico");
+        .join("his-file.ico");
     if let Some(parent) = icon_path.parent() {
         fs::create_dir_all(parent)
             .map_err(|error| format!("No se pudo preparar el icono de .his: {error}"))?;

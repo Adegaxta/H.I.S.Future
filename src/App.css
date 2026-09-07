@@ -243,8 +243,8 @@ body,
   width: 100%;
 }
 
-/* Circulo de color de cada proyecto reciente. */
-.home-recent-card__circle {
+/* Icono del formato .his para cada proyecto reciente. */
+.home-recent-card__icon {
   width: 24px;
   height: 24px;
   flex-shrink: 0;
@@ -733,8 +733,8 @@ body,
   min-height: 36px;
 }
 
-/* Tamano final del circulo de cada fila reciente. */
-.home-recent-card__circle {
+/* Tamano final del icono de cada fila reciente. */
+.home-recent-card__icon {
   width: 25px;
   height: 25px;
 }

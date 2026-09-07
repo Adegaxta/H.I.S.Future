@@ -9,8 +9,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use zip::write::SimpleFileOptions;
 use zip::{CompressionMethod, ZipArchive, ZipWriter};
 
-const PROJECT_ICON: &[u8] = include_bytes!("../icons/HISProject.ico");
-const PROJECT_ICON_NAME: &str = "HISProject.ico";
+const PROJECT_ICON: &[u8] = include_bytes!("../icons/his-file.ico");
+const PROJECT_ICON_NAME: &str = "his-file.ico";
 
 pub const MANIFEST_FILE: &str = "hisfuture.project.json";
 pub const DATABASE_FILE: &str = "lore.sqlite";
@@ -1306,7 +1306,13 @@ mod tests {
         let mut archive = ZipArchive::new(file).expect("zip archive");
         assert!(archive.by_name(MANIFEST_FILE).is_ok());
         assert!(archive.by_name(DATABASE_FILE).is_ok());
-        assert!(archive.by_name(PROJECT_ICON_NAME).is_ok());
+        let mut archived_icon = Vec::new();
+        archive
+            .by_name("his-file.ico")
+            .expect("project file icon")
+            .read_to_end(&mut archived_icon)
+            .expect("read project file icon");
+        assert_eq!(archived_icon, PROJECT_ICON);
 
         let state = Mutex::new(Some(project));
         let expected = vec![NodeRecord {

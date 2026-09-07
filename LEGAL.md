@@ -8,6 +8,8 @@ HIS se ofrece bajo **PolyForm Noncommercial License 1.0.0 O PolyForm Small Busin
 
 **Titular/licenciante del código original: Matias Escobedo, persona natural**, según confirmación humana expresa. H.I.S. Future / HIS es el nombre del proyecto/producto y no una persona jurídica independiente. Esta identificación no atribuye a Matias Escobedo derechos sobre componentes de terceros.
 
+Los diseños identificados por los masters `HISFUTURE_ICON.png` (aplicación) y `HIS_FILE_ICON.png` (archivo/proyecto `.his`), así como el set técnico derivado de ellos para la aplicación y Windows, son assets visuales originales creados por Matias Escobedo según confirmación humana expresa. Se incluyen entre los materiales originales de HIS sujetos al mismo modelo de licencias alternativas; esta declaración no se extiende a ningún asset de terceros.
+
 El aviso de copyright y aviso requerido se conserva en [NOTICE](NOTICE):
 
 > Required Notice: Copyright Matias Escobedo

@@ -1,13 +1,13 @@
 import { FormEvent, useState } from "react";
 import type { ProjectInfo } from "../project/types";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import hisFutureIconAsset from "../assets/original/icons/HISFuture.ico";
+import hisFutureIconAsset from "../assets/original/HISFuture_ICONS/HISFUTURE_ICON.png";
+import hisFileIconAsset from "../assets/original/HISFuture_ICONS/HIS_FILE_ICON.png";
 import hisPanelAsset from "../assets/original/ui/HIS_panel_1.svg";
 import converterAsset from "../assets/original/ui/hisconverter_button.svg";
 import createProjectAsset from "../assets/original/ui/create_project.svg";
 import importProjectAsset from "../assets/original/ui/import_project.svg";
 import panelBackgroundAsset from "../assets/original/ui/project_panel_background_alter_1.svg";
-import previewCircleAsset from "../assets/original/ui/project_preview_circle.svg";
 import threeLinesAsset from "../assets/original/ui/asset_3_line.svg";
 import boxAsset from "../assets/original/ui/Box.svg";
 import alterBoxAsset from "../assets/original/ui/alter_box_1.svg";
@@ -149,7 +149,7 @@ export default function HomeScreen({
                   <div className="home-recent-list">
                     {recentProjects.map((recent) => (
                       <div key={recent.folderPath} className="home-recent-card">
-                        <img className="home-recent-card__circle" src={previewCircleAsset} alt="" />
+                        <img className="home-recent-card__icon" src={hisFileIconAsset} alt="" />
                         <button
                           type="button"
                           className="home-recent-card__name"
