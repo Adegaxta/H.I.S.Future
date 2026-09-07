@@ -5,6 +5,7 @@ import { normalizeSearchText, SLASH_REGISTRY } from "../defs/editor";
 export function useEditorPickers(nodes: NodeItem[]) {
   const [callPicker, setCallPicker] = useState<PickerState | null>(null);
   const [callPickerIndex, setCallPickerIndex] = useState(0);
+  const [imageMentionChoice, setImageMentionChoice] = useState<string | null>(null);
   const [slashPicker, setSlashPicker] = useState<PickerState | null>(null);
   const [slashPickerIndex, setSlashPickerIndex] = useState(0);
   const [pickerPosition, setPickerPosition] = useState<{
@@ -32,6 +33,8 @@ export function useEditorPickers(nodes: NodeItem[]) {
     setCallPicker,
     callPickerIndex,
     setCallPickerIndex,
+    imageMentionChoice,
+    setImageMentionChoice,
     slashPicker,
     setSlashPicker,
     slashPickerIndex,

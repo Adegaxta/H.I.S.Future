@@ -10,6 +10,7 @@ export const SLASH_COMMANDS = [
   { id: "h2", label: "Título 2", tag: "H2", icon: "H2", category: "Texto" },
   { id: "h3", label: "Título 3", tag: "H3", icon: "H3", category: "Texto" },
   { id: "h4", label: "Título 4", tag: "H4", icon: "H4", category: "Texto" },
+  { id: "ul", label: "Lista con viñetas", tag: "UL", icon: "•", category: "Texto" },
   { id: "color", label: "Color", tag: "COLOR", icon: "◉", category: "Texto" },
   { id: "divider", label: "Divisor", tag: "DIVISOR", icon: "—", category: "Etc" },
   { id: "index", label: "Índice", tag: "INDICE", icon: "≡", category: "Etc", aliases: ["indice"] },

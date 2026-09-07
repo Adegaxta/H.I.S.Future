@@ -16,6 +16,7 @@ import {
   type BlockTextDevNodeTree,
 } from "../defs/devNodes";
 import draftAsset from "../assets/third-party/google-material/icons/draft.svg";
+import { useDismissibleLayer } from "../hooks/useDismissibleLayer";
 
 function hasAlignableImage(block: Element | null): boolean {
   if (!block) return false;
@@ -64,7 +65,6 @@ export default function RichTextEditor({
   readOnly = false,
   style,
 }: RichTextEditorProps) {
-  const [imageMentionChoice, setImageMentionChoice] = useState<string | null>(null);
   const [imageContextMenu, setImageContextMenu] = useState<{
     id: string;
     mode: "inserted" | "full";
@@ -124,7 +124,7 @@ export default function RichTextEditor({
     const menuOpen = Boolean(blockTextDevTree.root) ||
       Boolean(blockColorMenu) ||
       Boolean(imageContextMenu) ||
-      Boolean(imageMentionChoice) ||
+      Boolean(controller.imageMentionChoice) ||
       Boolean((controller.slashPicker || controller.callPicker) && controller.pickerPosition);
     if (!menuOpen) return;
 
@@ -150,7 +150,7 @@ export default function RichTextEditor({
       window.removeEventListener("touchmove", preventOutsideScroll);
       document.removeEventListener("keydown", preventScrollKeys);
     };
-  }, [blockColorMenu, blockTextDevTree.root, controller.callPicker, controller.pickerPosition, controller.slashPicker, imageContextMenu, imageMentionChoice]);
+  }, [blockColorMenu, blockTextDevTree.root, controller.callPicker, controller.imageMentionChoice, controller.pickerPosition, controller.slashPicker, imageContextMenu]);
 
   useEffect(() => {
     if (!controller.pickerPosition && !blockColorMenu && !blockTextDevTree.root) return;
@@ -164,32 +164,14 @@ export default function RichTextEditor({
     // asi que usarlo como condicion de "sigue visible" lo dejaba atascado para siempre.
     const hasVisiblePopover = Boolean(blockColorMenu) ||
       Boolean(imageContextMenu) ||
-      Boolean(imageMentionChoice) ||
+      Boolean(controller.imageMentionChoice) ||
       Boolean(controller.pickerPosition && (controller.slashPicker || controller.callPicker));
     if (hasVisiblePopover) return;
     setBlockTextDevTree((current) => {
       if (!current.root && current.children.length === 0) return current;
       return BLOCK_TEXT_DEV_REGISTRY.closeTree();
     });
-  }, [blockColorMenu, controller.callPicker, controller.pickerPosition, controller.slashPicker, imageContextMenu, imageMentionChoice]);
-  useEffect(() => {
-    if (!imageContextMenu) return;
-    const closeOnOutsidePointer = (event: PointerEvent) => {
-      const target = event.target as Node;
-      if (!(target instanceof Element) || !target.closest('[data-image-context-menu="true"]')) {
-        setImageContextMenu(null);
-      }
-    };
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setImageContextMenu(null);
-    };
-    document.addEventListener("pointerdown", closeOnOutsidePointer);
-    document.addEventListener("keydown", closeOnEscape);
-    return () => {
-      document.removeEventListener("pointerdown", closeOnOutsidePointer);
-      document.removeEventListener("keydown", closeOnEscape);
-    };
-  }, [imageContextMenu]);
+  }, [blockColorMenu, controller.callPicker, controller.imageMentionChoice, controller.pickerPosition, controller.slashPicker, imageContextMenu]);
   useEffect(() => {
     const frame = requestAnimationFrame(() => controller.updatePlaceholder());
     return () => cancelAnimationFrame(frame);
@@ -788,7 +770,7 @@ export default function RichTextEditor({
         )}
       {controller.pickerPosition &&
         controller.callPicker &&
-        !imageMentionChoice &&
+        !controller.imageMentionChoice &&
         controller.callCandidates.length > 0 && (
           <PickerMenu
             title="ENLAZAR A NODO"
@@ -800,7 +782,7 @@ export default function RichTextEditor({
             activeIndex={controller.callPickerIndex}
             onSelect={(id) => {
               const target = nodes.find((item) => item.id === id);
-              if (target?.type === "imagen") setImageMentionChoice(id);
+              if (target?.type === "imagen") controller.setImageMentionChoice(id);
               else controller.executePickerAction("mention", id);
             }}
             colorFor={(id) =>
@@ -813,14 +795,13 @@ export default function RichTextEditor({
             }
           />
         )}
-      {imageMentionChoice && controller.pickerPosition && (
+      {controller.imageMentionChoice && controller.pickerPosition && (
         <ImageMentionModeMenu
           position={controller.pickerPosition}
           onSelect={(mode) => {
-            controller.executePickerAction("mention", imageMentionChoice, mode);
-            setImageMentionChoice(null);
+            controller.executePickerAction("mention", controller.imageMentionChoice!, mode);
           }}
-          onCancel={() => setImageMentionChoice(null)}
+          onCancel={controller.dismissEditorMenus}
         />
       )}
       {imageContextMenu && (
@@ -1469,8 +1450,11 @@ function ImageMentionModeMenu({
   onSelect: (mode: "inserted" | "full") => void;
   onCancel: () => void;
 }) {
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  useDismissibleLayer(menuRef, onCancel);
   return (
     <div
+      ref={menuRef}
       data-picker="true"
       style={{
         position: "fixed",
@@ -1516,8 +1500,11 @@ function ImageMentionContextMenu({
   onDelete: () => void;
   onClose: () => void;
 }) {
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  useDismissibleLayer(menuRef, onClose);
   return (
     <div
+      ref={menuRef}
       data-picker="true"
       data-image-context-menu="true"
       onContextMenu={(event) => event.preventDefault()}

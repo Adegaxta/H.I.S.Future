@@ -103,6 +103,7 @@ export function reorderMultipleNodes(
   });
   const target = targetId === null ? null : byId.get(targetId);
   if (!roots.length || roots.includes(targetId ?? "")) return nodes;
+  if (targetId !== null && !target) return nodes;
   if (targetId && roots.some((id) => wouldCreateCycle(nodes, id, targetId))) return nodes;
 
   const newParentId = position === "inside" ? targetId : (target?.parentId ?? null);

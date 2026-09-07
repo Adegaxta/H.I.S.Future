@@ -17,6 +17,7 @@ import { useEditorMentions } from "./useEditorMentions";
 import { useEditorPickers } from "./useEditorPickers";
 import { useRichTextEditor } from "./useRichTextEditor";
 import draftAsset from "../assets/third-party/google-material/icons/draft.svg";
+import { createEmptyEditorPickerSession, getEditorPickerTrigger, isSameMentionTriggerRange, type MentionTriggerRange } from "../utils/editorPickerSession";
 
 interface EditorControllerOptions {
   node: NodeItem;
@@ -83,6 +84,7 @@ export function useEditorController({
     height: number;
   } | null>(null);
   const pickers = useEditorPickers(nodes);
+  const mentionTriggerRangeRef = useRef<MentionTriggerRange | null>(null);
   const controls = useBlockControls();
   const { syncContent, scheduleContentSync } = useRichTextEditor({
     node,
@@ -371,10 +373,18 @@ export function useEditorController({
     });
     return changed;
   };
+  const resetEditorPickers = () => {
+    const empty = createEmptyEditorPickerSession();
+    pickers.setSlashPicker(empty.slashPicker);
+    pickers.setCallPicker(empty.callPicker);
+    pickers.setSlashPickerIndex(empty.slashPickerIndex);
+    pickers.setCallPickerIndex(empty.callPickerIndex);
+    pickers.setImageMentionChoice(empty.imageMentionChoice);
+    pickers.setPickerPosition(empty.pickerPosition);
+    mentionTriggerRangeRef.current = empty.mentionTriggerRange;
+  };
   const dismissEditorMenus = () => {
-    pickers.setSlashPicker(null);
-    pickers.setCallPicker(null);
-    pickers.setPickerPosition(null);
+    resetEditorPickers();
     clearLineSelection();
     setSelectedLineBlocks([]);
     setLineActionBlock(null);
@@ -1118,10 +1128,15 @@ export function useEditorController({
         !target ||
         textNode.nodeType !== Node.TEXT_NODE ||
         !pickers.callPicker
-      )
+      ) {
+        resetEditorPickers();
         return;
+      }
       const length = pickers.callPicker.query.length + 1;
-      if (selection.focusOffset < length) return;
+      if (selection.focusOffset < length) {
+        resetEditorPickers();
+        return;
+      }
       range.setStart(textNode, selection.focusOffset - length);
       range.setEnd(textNode, selection.focusOffset);
       range.deleteContents();
@@ -1195,6 +1210,22 @@ export function useEditorController({
         rememberGeneratedLine(divider);
       });
       if (blocks.length) focusFreshParagraphAfter(blocks[0].nextSibling || blocks[0]);
+    } else if (value === "UL") {
+      const blocks = actionBlocks.length
+        ? actionBlocks
+        : [getEditorBlock(selection.focusNode)].filter(Boolean) as HTMLElement[];
+      if (blocks.length) captureStructuralUndo();
+      if (!blocks.length) {
+        document.execCommand("insertUnorderedList", false);
+      } else {
+        blocks.forEach((block) => {
+          const blockRange = document.createRange();
+          blockRange.selectNodeContents(block);
+          selection.removeAllRanges();
+          selection.addRange(blockRange);
+          document.execCommand("insertUnorderedList", false);
+        });
+      }
     } else if (value === "INDICE") {
       const blocks = validActionBlocks.length ? validActionBlocks : [currentBlock].filter(Boolean) as HTMLElement[];
       if (!blocks.length) return;
@@ -1456,6 +1487,7 @@ export function useEditorController({
       const focus = selection?.focusNode || null;
       const block = getEditorBlock(focus);
       const globeContent = focus?.parentElement?.closest("[data-globe-content]") as HTMLElement | null;
+      if (block?.matches("li")) return;
       if (block) {
         event.preventDefault();
         if (globeContent && block.closest("[data-globe-content]") === globeContent) {
@@ -1472,7 +1504,7 @@ export function useEditorController({
       !selection?.rangeCount ||
       selection.focusNode?.nodeType !== Node.TEXT_NODE
     ) {
-      pickers.setPickerPosition(null);
+      resetEditorPickers();
       return;
     }
     const rect = selection.getRangeAt(0).getBoundingClientRect();
@@ -1490,28 +1522,39 @@ export function useEditorController({
       selection.anchorNode?.parentElement?.closest("[data-page-index]")
     );
     if (inPageIndexContext) {
-      pickers.setSlashPicker(null);
-      pickers.setCallPicker(null);
-      pickers.setPickerPosition(null);
+      resetEditorPickers();
       return;
     }
-    const slash = text.match(/(?:^|\n|\s)\/([a-zA-Z0-9]*)$/);
-    if (slash) {
-      pickers.setSlashPicker({ query: slash[1], hasTrigger: true });
+    const trigger = getEditorPickerTrigger(text);
+    if (trigger?.type === "slash") {
+      mentionTriggerRangeRef.current = null;
+      pickers.setImageMentionChoice(null);
+      pickers.setSlashPicker({ query: trigger.query, hasTrigger: true });
       pickers.setSlashPickerIndex(0);
       pickers.setCallPicker(null);
-      return;
-    }
-    pickers.setSlashPicker(null);
-    const mention = text.match(/(?:^|\s)@([^\s@]*)$/);
-    if (mention) {
-      pickers.setCallPicker({ query: mention[1] });
       pickers.setCallPickerIndex(0);
       return;
     }
-    pickers.setCallPicker(null);
-    pickers.setPickerPosition(null);
+    pickers.setSlashPicker(null);
+    pickers.setSlashPickerIndex(0);
+    if (trigger?.type === "mention") {
+      const triggerOffset = selection.focusOffset - trigger.query.length - 1;
+      if (!isSameMentionTriggerRange(mentionTriggerRangeRef.current, selection.focusNode, triggerOffset)) {
+        pickers.setImageMentionChoice(null);
+        pickers.setCallPickerIndex(0);
+      }
+      mentionTriggerRangeRef.current = { container: selection.focusNode, triggerOffset };
+      pickers.setCallPicker({ query: trigger.query });
+      return;
+    }
+    resetEditorPickers();
   };
+  useEffect(() => {
+    if (!pickers.callPicker && !pickers.imageMentionChoice && !pickers.slashPicker) return;
+    const handleSelectionChange = () => updatePickers();
+    document.addEventListener("selectionchange", handleSelectionChange);
+    return () => document.removeEventListener("selectionchange", handleSelectionChange);
+  }, [pickers.callPicker, pickers.imageMentionChoice, pickers.slashPicker]);
   const onPaste = (event: ClipboardEvent<HTMLDivElement>) => {
     event.preventDefault();
     clearLineSelection();

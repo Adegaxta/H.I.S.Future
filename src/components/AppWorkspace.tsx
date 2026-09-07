@@ -41,6 +41,7 @@ import { useLocale } from "../i18n/LocaleContext";
 import windowCloseAsset from "../assets/original/ui/window_close.svg";
 import windowMaximizeAsset from "../assets/original/ui/window_maximize.svg";
 import windowMinimizeAsset from "../assets/original/ui/window_minimize.svg";
+import { getUniqueNodeName } from "../utils/nodeNames";
 
 interface AppWorkspaceProps {
   projectKey: string;
@@ -89,7 +90,6 @@ export default function AppWorkspace({
     onExitProject,
   }: AppWorkspaceProps) {
   const { locale, setLocale, t } = useLocale();
-  const imageStorageKey = `hisfuture.project.image.${projectKey}`;
   const coverNodeStorageKey = `hisfuture.project.cover-node.${projectKey}`;
   const colorStorageKey = `hisfuture.project.color.${projectKey}`;
   const timeFormatStorageKey = "hisfuture.settings.time-format";
@@ -131,9 +131,7 @@ export default function AppWorkspace({
     null,
   );
   const [fileImportError, setFileImportError] = useState<string | null>(null);
-  const [projectImage, setProjectImage] = useState<string | null>(() =>
-    localStorage.getItem(imageStorageKey),
-  );
+  const [projectImage, setProjectImage] = useState<string | null>(null);
   const [avatarColor] = useState(
     () =>
       localStorage.getItem(colorStorageKey) ||
@@ -141,9 +139,8 @@ export default function AppWorkspace({
   );
 
   useEffect(() => {
-    if (projectImage) safeLocalStorageSet(imageStorageKey, projectImage);
     safeLocalStorageSet(colorStorageKey, avatarColor);
-  }, [avatarColor, colorStorageKey, imageStorageKey, projectImage]);
+  }, [avatarColor, colorStorageKey]);
   useEffect(() => {
     localStorage.setItem(timeFormatStorageKey, timeFormat);
   }, [timeFormat]);
@@ -368,21 +365,25 @@ export default function AppWorkspace({
     return () => { disposed = true; unlisten?.(); };
   }, []);
   const projectInitial = projectName.trim().charAt(0).toUpperCase() || "P";
-  const findCoverNode = () => {
+  const findCoverNode = useCallback(() => {
     const storedId = localStorage.getItem(coverNodeStorageKey);
     return (
       workspace.nodes.find((node) => node.id === storedId) ||
       workspace.nodes.find(
-        (node) =>
-          node.type === "imagen" &&
-          projectImage !== null &&
-          getImageResourceInfo(node.content, node.name)?.src === projectImage,
-      ) ||
-      workspace.nodes.find(
         (node) => node.type === "imagen" && node.name === "Imagen de portada",
       )
     );
-  };
+  }, [coverNodeStorageKey, workspace.nodes]);
+  useEffect(() => {
+    if (!workspace.hydrated) return;
+    const coverNode = findCoverNode();
+    const source = coverNode
+      ? getImageResourceInfo(coverNode.content, coverNode.name)?.src ?? null
+      : null;
+    setProjectImage((current) => current === source ? current : source);
+    if (coverNode) safeLocalStorageSet(coverNodeStorageKey, coverNode.id);
+    else localStorage.removeItem(coverNodeStorageKey);
+  }, [coverNodeStorageKey, findCoverNode, workspace.hydrated]);
   const resolveDropParentId = useCallback((clientX: number, clientY: number) => {
     const target = document.elementFromPoint(clientX, clientY)?.closest<HTMLElement>("[data-node-id]");
     const targetId = target?.dataset.nodeId;
@@ -419,7 +420,6 @@ export default function AppWorkspace({
     reader.onload = async () => {
       if (typeof reader.result !== "string") return;
       setProjectImage(reader.result);
-      safeLocalStorageSet(imageStorageKey, reader.result);
       const coverNode = findCoverNode();
       if (coverNode) {
         const resource = getImageResourceInfo(coverNode.content, coverNode.name);
@@ -794,7 +794,21 @@ export default function AppWorkspace({
                   {sidebarPanel === "lore" ? (
                     <SidebarTree {...workspace} selectedLoreIds={selectedLoreIds} setSelectedLoreIds={setSelectedLoreIds} query={sidebarQuery} onFileDrop={(file, parentId) => void createNodeFromFile(file, parentId)} selectedId={workspace.selectedId} contextMenuNodeId={contextMenu?.context === "lore" ? contextMenu.nodeId : null} setSelectedId={(id) => { setSelectedTrashNodeId(null); workspace.setSelectedId(id); }} setContextMenu={(menu) => setContextMenu({ ...menu, context: "lore" })} />
                   ) : (
-                    <NodePanels onContextMenu={setContextMenu} panel={sidebarPanel} query={sidebarQuery} nodes={workspace.nodes} recentNodes={workspace.recentNodes} recentActivity={workspace.recentActivity} selectedId={workspace.selectedId} onSelect={(id) => { setSelectedTrashNodeId(null); setSelectedLoreIds([id]); workspace.setSelectedId(id); }} />
+                    <NodePanels
+                      projectKey={projectKey}
+                      onContextMenu={setContextMenu}
+                      panel={sidebarPanel}
+                      query={sidebarQuery}
+                      nodes={workspace.nodes}
+                      recentNodes={workspace.recentNodes}
+                      recentActivity={workspace.recentActivity}
+                      selectedId={workspace.selectedId}
+                      onSelect={(id) => { setSelectedTrashNodeId(null); setSelectedLoreIds([id]); workspace.setSelectedId(id); }}
+                      onCreateType={(type) => {
+                        const name = getUniqueNodeName(getNodeDisplayLabel(type, t), workspace.nodes);
+                        workspace.createNode(name, type, null);
+                      }}
+                    />
                   )}
                 </>
               )}
@@ -1141,7 +1155,6 @@ export default function AppWorkspace({
                     const resource = imageNode ? getImageResourceInfo(imageNode.content, imageNode.name) : null;
                     if (!resource) return;
                     setProjectImage(resource.src);
-                    safeLocalStorageSet(imageStorageKey, resource.src);
                     safeLocalStorageSet(coverNodeStorageKey, nodeId);
                   }}
                 />

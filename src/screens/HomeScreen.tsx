@@ -16,6 +16,8 @@ import settingsAsset from "../assets/original/ui/settings_button_1.svg";
 import windowCloseAsset from "../assets/original/ui/window_close.svg";
 import windowMaximizeAsset from "../assets/original/ui/window_maximize.svg";
 import windowMinimizeAsset from "../assets/original/ui/window_minimize.svg";
+import UpdatePrompt from "../update/UpdatePrompt";
+import { APP_WINDOW_TITLE } from "../utils/appEnvironment";
 
 interface HomeScreenProps {
   busy: boolean;
@@ -74,7 +76,7 @@ export default function HomeScreen({
       >
         <div className="home-titlebar__identity" data-tauri-drag-region>
           <img src={hisFutureIconAsset} alt="" />
-          <h1 className="home-screen__brand">H.I.S. Future</h1>
+          <h1 className="home-screen__brand">{APP_WINDOW_TITLE}</h1>
         </div>
         <div className="home-titlebar__controls" data-tauri-drag-region="false">
           <button type="button" title="Minimizar" onClick={() => void getCurrentWindow().minimize()}>
@@ -182,6 +184,8 @@ export default function HomeScreen({
       <button type="button" className="home-settings" title="Settings" aria-label="Settings">
         <img src={settingsAsset} alt="" />
       </button>
+
+      <UpdatePrompt />
 
       {naming && (
         <div className="home-modal" role="dialog" aria-modal="true">

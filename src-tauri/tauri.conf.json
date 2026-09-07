@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "hisfuture",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "identifier": "com.terce.hisfuture",
   "build": {  
     "beforeDevCommand": "npm run dev",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "hisfuture",
+        "title": "H.I.S.",
         "width": 1100,
         "height": 720,
         "minWidth": 960,
@@ -27,7 +27,8 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": ["nsis"],
+    "createUpdaterArtifacts": true,
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -43,5 +44,16 @@
         "role": "Editor"
       }
     ]
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDkyNjQ0MkMxNUI4MkNBQUEKUldTcXlvSmJ3VUpra3NDV3lnR2xCbHluL0l5R0xxc0lPUFRKMlp4NlRmRGdLTDFBTGFVallWSjYK",
+      "endpoints": [
+        "https://github.com/Adegaxta/H.I.S.Future/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
   }
 }

@@ -267,8 +267,6 @@ export default function SidebarTree(props: SidebarTreeProps) {
                   props.dropTargetRef.current.id,
                 props.dropTargetRef.current?.position ?? "inside",
               );
-              } else if (pointTarget?.closest("[data-root-drop]")) {
-                props.handleDrop(null);
               } else {
                 props.resetDrag();
               }
@@ -378,7 +376,6 @@ export default function SidebarTree(props: SidebarTreeProps) {
 
   return (
     <div
-      data-root-drop="true"
       ref={searchRef}
       onDragEnter={(event) => {
         const hasImportableItem = Array.from(event.dataTransfer.items).some((item) =>
@@ -435,7 +432,7 @@ export default function SidebarTree(props: SidebarTreeProps) {
         ) || event.dataTransfer.getData("text/plain") || props.draggedId.current;
         if (nodeId) {
           props.draggedId.current = nodeId;
-          props.handleDrop(null);
+          props.resetDrag();
         }
       }}
       onContextMenu={(event) => {

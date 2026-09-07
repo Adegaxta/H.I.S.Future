@@ -19,6 +19,8 @@ export function useRichTextEditor({
   const internalRef = useRef<HTMLDivElement | null>(null);
   const editorRef = externalRef ?? internalRef;
   const timerRef = useRef<number | null>(null);
+  const nodeRef = useRef(node);
+  nodeRef.current = node;
 
   const cancelScheduled = () => {
     if (timerRef.current !== null) {
@@ -34,7 +36,7 @@ export function useRichTextEditor({
     const content = node.content.trim() ? node.content : "<p><br></p>";
     editorRef.current.innerHTML = content;
     const hasRootTextLine = Array.from(editorRef.current.children).some((child) =>
-      ["P", "H1", "H2", "H3", "H4", "BLOCKQUOTE", "LI"].includes(child.tagName),
+      ["P", "H1", "H2", "H3", "H4", "BLOCKQUOTE", "LI", "UL", "OL"].includes(child.tagName),
     );
     if (!hasRootTextLine) {
       const line = document.createElement("p");
@@ -54,9 +56,10 @@ export function useRichTextEditor({
   // (blur, pegar, negrita/cursiva, mover líneas, imágenes, etc).
   const syncContent = () => {
     cancelScheduled();
-    if (editorRef.current && node) {
-      const content = readEditorContent(editorRef.current, node);
-      onContentChange(node.id, content);
+    const currentNode = nodeRef.current;
+    if (editorRef.current && currentNode) {
+      const content = readEditorContent(editorRef.current, currentNode);
+      onContentChange(currentNode.id, content);
     }
   };
 

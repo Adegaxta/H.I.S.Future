@@ -197,6 +197,8 @@ pub fn run() {
                     }
                 }
                 register_his_file_association(app.handle())?;
+                app.handle()
+                    .plugin(tauri_plugin_updater::Builder::new().build())?;
             }
             Ok(())
         })

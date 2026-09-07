@@ -1,5 +1,6 @@
 import { useLocale } from "../i18n/LocaleContext";
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
+import { useDismissibleLayer } from "../hooks/useDismissibleLayer";
 
 export interface HisContextMenuItem {
   id: string;
@@ -24,20 +25,7 @@ export default function HisContextMenu({ x, y, items, onClose }: HisContextMenuP
   const { t } = useLocale();
   const menuRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => {
-    const closeOutside = (event: PointerEvent) => {
-      if (!menuRef.current?.contains(event.target as Node)) onClose();
-    };
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    document.addEventListener("pointerdown", closeOutside);
-    document.addEventListener("keydown", closeOnEscape);
-    return () => {
-      document.removeEventListener("pointerdown", closeOutside);
-      document.removeEventListener("keydown", closeOnEscape);
-    };
-  }, [onClose]);
+  useDismissibleLayer(menuRef, onClose);
 
   return (
     <div ref={menuRef} className="his-context-menu" role="menu" style={{ top: y, left: x }} onContextMenu={(event) => event.preventDefault()}>

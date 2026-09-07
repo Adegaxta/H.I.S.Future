@@ -1,12 +1,12 @@
 {
   "name": "hisfuture",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.2",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "test:nodal": "node tests/nodal.test.mjs && node tests/import-invariants.test.mjs && node tests/ux-context.test.mjs",
+    "test:nodal": "node tests/nodal.test.mjs && node tests/import-invariants.test.mjs && node tests/ux-context.test.mjs && node tests/qol-0.1.2.test.mjs",
     "preview": "vite preview",
     "tauri": "tauri"
   },

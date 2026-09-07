@@ -1,12 +1,18 @@
-import { useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import type { ContextMenuState, NodeItem, RenderNodeType } from "../types/nodes";
 import { NODE_REGISTRY, getNodeDefinition, getNodeDisplayLabel } from "../defs/nodeTypes";
 import { getEffectiveNodeType, opensNodeViewOnClick } from "../utils/nodeTree";
 import { useLocale } from "../i18n/LocaleContext";
 import { NodeIcon, SidebarIcon } from "./SidebarIcon";
 import { useSearchReveal } from "../hooks/useSearchReveal";
+import {
+  nodeTypePanelStorageKey,
+  parseCollapsedNodeTypes,
+  serializeCollapsedNodeTypes,
+} from "../utils/nodeTypePanelState";
 
 interface NodePanelsProps {
+  projectKey: string;
   panel: "recent" | "types";
   nodes: NodeItem[];
   recentNodes: NodeItem[];
@@ -15,13 +21,28 @@ interface NodePanelsProps {
   query: string;
   onSelect: (id: string) => void;
   onContextMenu: (menu: ContextMenuState) => void;
+  onCreateType: (type: import("../types/nodes").BaseNodeType) => void;
 }
 
 const startOfDay = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
 
-export default function NodePanels({ panel, nodes, recentNodes, recentActivity, selectedId, query, onSelect, onContextMenu }: NodePanelsProps) {
+export default function NodePanels({ projectKey, panel, nodes, recentNodes, recentActivity, selectedId, query, onSelect, onContextMenu, onCreateType }: NodePanelsProps) {
   const { locale, t } = useLocale();
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const collapsedStorageKey = nodeTypePanelStorageKey(projectKey);
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>(() => {
+    try {
+      return parseCollapsedNodeTypes(localStorage.getItem(collapsedStorageKey));
+    } catch {
+      return {};
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem(collapsedStorageKey, serializeCollapsedNodeTypes(collapsed));
+    } catch (error) {
+      console.warn("No se pudo guardar el estado de Tipos de Nodo.", error);
+    }
+  }, [collapsed, collapsedStorageKey]);
   const normalizedQuery = query.trim().toLocaleLowerCase(locale);
   const matches = (node: NodeItem) => node.name.toLocaleLowerCase(locale).includes(normalizedQuery);
   const searchRef = useSearchReveal(normalizedQuery, `${panel}:${(panel === "recent" ? recentNodes : nodes).filter(matches).map((node) => node.id).join(",")}`);
@@ -57,12 +78,25 @@ export default function NodePanels({ panel, nodes, recentNodes, recentActivity, 
         const isCollapsed = collapsed[definition.type] && !(normalizedQuery && hasMatch);
         return (
           <section className="type-group" key={definition.type} style={{ "--node-color": definition.color } as CSSProperties}>
-            <button className={`type-group__heading ${normalizedQuery && !hasMatch ? "is-search-dimmed" : ""}`} type="button" onClick={() => setCollapsed((current) => ({ ...current, [definition.type]: !current[definition.type] }))}>
-              <NodeIcon type={definition.type as RenderNodeType} />
-              <span>{getNodeDisplayLabel(definition.type, t)}</span>
-              <span className="type-group__count">{items.length}</span>
-              <SidebarIcon name={isCollapsed ? "arrow-close" : "arrow-open"} className="type-group__chevron" />
-            </button>
+            <div className={`type-group__heading ${normalizedQuery && !hasMatch ? "is-search-dimmed" : ""}`}>
+              <button className="type-group__toggle" type="button" onClick={() => setCollapsed((current) => ({ ...current, [definition.type]: !current[definition.type] }))}>
+                <NodeIcon type={definition.type as RenderNodeType} />
+                <span>{getNodeDisplayLabel(definition.type, t)}</span>
+                <span className="type-group__count">{items.length}</span>
+              </button>
+              <button
+                className="type-group__add"
+                type="button"
+                title={`Crear ${getNodeDisplayLabel(definition.type, t)}`}
+                aria-label={`Crear ${getNodeDisplayLabel(definition.type, t)}`}
+                onClick={() => onCreateType(definition.type)}
+              >
+                +
+              </button>
+              <button className="type-group__chevron-button" type="button" aria-label={isCollapsed ? "Abrir" : "Cerrar"} onClick={() => setCollapsed((current) => ({ ...current, [definition.type]: !current[definition.type] }))}>
+                <SidebarIcon name={isCollapsed ? "arrow-close" : "arrow-open"} className="type-group__chevron" />
+              </button>
+            </div>
             {!isCollapsed && items.map((node) => <NodeRow key={node.id} node={node} nodes={nodes} selected={node.id === selectedId} onSelect={onSelect} context={panel} onContextMenu={onContextMenu} compact searchMatch={normalizedQuery ? matches(node) : undefined} />)}
           </section>
         );

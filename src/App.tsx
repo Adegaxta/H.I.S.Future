@@ -5,9 +5,17 @@ import { useProjectSession } from "./project/useProjectSession";
 import { useEffect } from "react";
 import { clearPresence, updatePresence } from "./utils/discordPresence";
 import { ProjectLocaleProvider } from "./i18n/LocaleContext";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { APP_WINDOW_TITLE } from "./utils/appEnvironment";
+import { isDesktopRuntime } from "./project/runtime";
 
 export default function App() {
   const session = useProjectSession();
+
+  useEffect(() => {
+    document.title = APP_WINDOW_TITLE;
+    if (isDesktopRuntime()) void getCurrentWindow().setTitle(APP_WINDOW_TITLE);
+  }, []);
 
   useEffect(() => {
     if (!session.project) {
