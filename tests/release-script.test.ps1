@@ -87,6 +87,11 @@ try {
     -LocalTagExists $true
   $existingTagCalls = @($script:capturedGitCalls | ForEach-Object { @($_)[0] })
   Assert-Equal ($existingTagCalls -join '|') 'ls-remote|push' 'Recovery with an unpublished local tag must reuse it without another tag or commit.'
+  $existingTagPushCall = @($script:capturedGitCalls[1])
+  Assert-Equal `
+    ($existingTagPushCall -join '|') `
+    'push|--atomic|origin|HEAD:refs/heads/main|refs/tags/v0.1.3:refs/tags/v0.1.3' `
+    'Recovery must build the local-to-remote tag refspec without PowerShell treating the colon as variable-scope syntax.'
 } finally {
   Remove-Item Function:\git
 }

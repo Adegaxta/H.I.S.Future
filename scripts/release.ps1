@@ -115,7 +115,7 @@ function Invoke-ReleaseFinalization {
     throw "Remote tag $Tag appeared during preparation. Nothing was pushed; inspect GitHub Actions and do not move either tag."
   }
 
-  Invoke-Checked git push --atomic origin "HEAD:refs/heads/$Branch" "refs/tags/$Tag:refs/tags/$Tag"
+  Invoke-Checked git push --atomic origin "HEAD:refs/heads/$Branch" "refs/tags/${Tag}:refs/tags/${Tag}"
 }
 
 function Write-Utf8NoBom {
