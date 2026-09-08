@@ -34,15 +34,7 @@ const TEMPO_SUBTYPE_LABELS = {
   monthly: "tempo.monthly",
   annual: "tempo.annual",
 } as const;
-const WEEKDAYS: { day: IsoWeekday; label: string; name: string }[] = [
-  { day: 1, label: "L", name: "Lunes" },
-  { day: 2, label: "M", name: "Martes" },
-  { day: 3, label: "X", name: "Miércoles" },
-  { day: 4, label: "J", name: "Jueves" },
-  { day: 5, label: "V", name: "Viernes" },
-  { day: 6, label: "S", name: "Sábado" },
-  { day: 7, label: "D", name: "Domingo" },
-];
+const WEEKDAYS: IsoWeekday[] = [1, 2, 3, 4, 5, 6, 7];
 
 export default function TempoInspector({
   tempo,
@@ -65,9 +57,9 @@ export default function TempoInspector({
   const meta = getTempoMeta(tempo.content);
   const parts = dateFromIso(meta.date);
   const formattedTime = formatTempoTime(meta, timeFormat);
-  const localizedWeekdays = WEEKDAYS.map((weekday, index) => {
+  const localizedWeekdays = WEEKDAYS.map((day, index) => {
     const name = new Intl.DateTimeFormat(locale, { weekday: "long" }).format(new Date(2026, 7, 3 + index));
-    return { ...weekday, label: name.charAt(0).toUpperCase(), name };
+    return { day, label: name.charAt(0).toUpperCase(), name };
   });
 
   useEffect(() => setTitle(tempo.name), [tempo.id, tempo.name]);
@@ -100,7 +92,7 @@ export default function TempoInspector({
     updateMeta({ ...meta, date: value, endDate: meta.endDate && meta.endDate < value ? value : meta.endDate });
   };
   const toggleWeekday = (day: IsoWeekday) => {
-    const current = meta.activeWeekdays ?? WEEKDAYS.map((weekday) => weekday.day);
+    const current = meta.activeWeekdays ?? WEEKDAYS;
     const next = current.includes(day) ? current.filter((value) => value !== day) : [...current, day].sort((a, b) => a - b);
     updateMeta({ ...meta, activeWeekdays: next.length === WEEKDAYS.length ? null : next });
   };
@@ -139,12 +131,12 @@ export default function TempoInspector({
           <span>{t("tempo.weekdays")}</span>
           <div role="group" aria-label={t("tempo.weekdays")}>{localizedWeekdays.map(({ day, label, name }) => {
             const active = meta.activeWeekdays === null || meta.activeWeekdays.includes(day);
-            return <button type="button" key={day} className={active ? "is-active" : ""} aria-pressed={active} aria-label={`${name}: ${active ? "activo" : "inactivo"}`} title={name} onClick={() => toggleWeekday(day)}>{active ? label : "·"}</button>;
+            return <button type="button" key={day} className={active ? "is-active" : ""} aria-pressed={active} aria-label={t("tempo.weekdayState", { name, state: t(active ? "tempo.active" : "tempo.inactive") })} title={name} onClick={() => toggleWeekday(day)}>{active ? label : "·"}</button>;
           })}</div>
         </div>
         <label className="tempo-inspector__color"><span>{t("tempo.color")}</span><span className="tempo-inspector__color-swatch" style={{ backgroundColor: meta.color }}><input type="color" value={meta.color} aria-label={t("tempo.color")} onChange={(event) => updateMeta({ ...meta, color: event.target.value })} /></span></label>
       </div>
-      <div className={`tempo-inspector__content${editorExpanded ? " is-expanded" : ""}`} role={editorExpanded ? "dialog" : undefined} aria-modal={editorExpanded ? "true" : undefined} aria-label={editorExpanded ? "Editor ampliado del Nodo Tempo" : undefined}>
+      <div className={`tempo-inspector__content${editorExpanded ? " is-expanded" : ""}`} role={editorExpanded ? "dialog" : undefined} aria-modal={editorExpanded ? "true" : undefined} aria-label={editorExpanded ? t("tempo.expandedEditor") : undefined}>
         <div className="tempo-inspector__content-header">
           <div className="tempo-inspector__content-label">{t("tempo.content")}</div>
           <button type="button" className="tempo-inspector__expand" aria-label={editorExpanded ? t("nodal.close") : t("tempo.expand")} title={editorExpanded ? t("nodal.close") : t("tempo.expand")} onClick={() => setEditorExpanded((current) => !current)}>{editorExpanded ? "×" : "↗"}</button>
@@ -180,7 +172,7 @@ export default function TempoInspector({
           />
         </div>
       </div>
-      {editorExpanded && <button type="button" className="tempo-inspector__editor-backdrop" aria-label="Cerrar editor ampliado" onClick={() => setEditorExpanded(false)} />}
+      {editorExpanded && <button type="button" className="tempo-inspector__editor-backdrop" aria-label={t("tempo.closeExpandedEditor")} onClick={() => setEditorExpanded(false)} />}
     </section>
   );
 }

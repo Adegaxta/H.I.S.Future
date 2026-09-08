@@ -4,7 +4,7 @@ import HomeScreen from "./screens/HomeScreen";
 import { useProjectSession } from "./project/useProjectSession";
 import { useEffect } from "react";
 import { clearPresence, updatePresence } from "./utils/discordPresence";
-import { ProjectLocaleProvider } from "./i18n/LocaleContext";
+import { LocaleProvider } from "./i18n/LocaleContext";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { APP_WINDOW_TITLE } from "./utils/appEnvironment";
 import { isDesktopRuntime } from "./project/runtime";
@@ -30,8 +30,9 @@ export default function App() {
     };
   }, [session.project]);
 
-  if (!session.project) {
-    return (
+  return (
+    <LocaleProvider key={session.project?.folderPath ?? "home"} projectKey={session.project?.folderPath}>
+      {!session.project ? (
       <HomeScreen
         busy={session.busy}
         error={session.error}
@@ -42,16 +43,13 @@ export default function App() {
         onOpenRecent={session.openRecent}
         onRemoveRecent={session.removeRecent}
       />
-    );
-  }
-
-  return (
-    <ProjectLocaleProvider key={session.project.folderPath} projectKey={session.project.folderPath}>
+      ) : (
       <AppWorkspace
         projectKey={session.project.folderPath}
         projectName={session.project.name}
         onExitProject={session.close}
       />
-    </ProjectLocaleProvider>
+      )}
+    </LocaleProvider>
   );
 }

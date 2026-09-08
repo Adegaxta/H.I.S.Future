@@ -8,6 +8,7 @@ import {
 } from "../project/fileManager";
 import type { ProjectInfo } from "../project/types";
 import { asErrorMessage } from "../project/runtime";
+import type { Translate } from "../i18n/core";
 
 export function useProjectSession() {
   const [project, setProject] = useState<ProjectInfo | null>(null);
@@ -53,13 +54,13 @@ export function useProjectSession() {
         return nextList;
       });
     },
-    createNew: (name: string) => run(() => createProject(name)),
-    openExisting: () => run(loadProject),
-    convertExisting: async () => {
+    createNew: (name: string, t: Translate) => run(() => createProject(name, t)),
+    openExisting: (t: Translate) => run(() => loadProject(t)),
+    convertExisting: async (t: Translate) => {
       setBusy(true);
       setError(null);
       try {
-        return await convertProjectFolder();
+        return await convertProjectFolder(t);
       } catch (caught) {
         setError(asErrorMessage(caught));
         return null;

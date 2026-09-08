@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { PALETTE } from "../defs/palette";
 import type { NodeItem } from "../types/nodes";
 import type { IsoWeekday, TempoMeta } from "../utils/temporalMeta";
+import { useLocale } from "../i18n/LocaleContext";
 
 interface WeeklyTempoEntry { node: NodeItem; meta: TempoMeta; }
 interface WeeklyDragPreview { id: string; startIndex: number; endIndex: number; duration: number; }
@@ -33,6 +34,7 @@ const isoWeekday = (date: Date): IsoWeekday => (date.getDay() === 0 ? 7 : date.g
 const stackedName = (name: string) => Array.from(name).map((character, index) => <i aria-hidden="true" key={`${character}-${index}`}>{character === " " ? "\u00a0" : character}</i>);
 
 export default function WeeklyTempoView({ weekDates, tempos, selectedTempoId, selectedTempoIds, onSelectTempo, onCreateTempo, onMoveTempo, onReorderTempos, onContextMenu, onBack }: WeeklyTempoViewProps) {
+  const { locale, t } = useLocale();
   const surfaceRef = useRef<HTMLDivElement | null>(null);
   const dragSessionRef = useRef<DragSession | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -169,17 +171,17 @@ export default function WeeklyTempoView({ weekDates, tempos, selectedTempoId, se
 
   return <section className="weekly-tempo-view" style={{ "--weekly-tempo-accent": PALETTE.pagina } as React.CSSProperties}>
     <header className="weekly-tempo-view__header">
-      <div><button type="button" className="weekly-tempo-view__back" onClick={onBack} aria-label="Volver a Vista Semana">Volver</button><h2>Tempos de la semana</h2></div>
-      <button type="button" className="weekly-tempo-view__create" onClick={() => onCreateTempo(weekStart)} aria-label="Crear Nodo Tempo Semanal" title="Crear Nodo Tempo Semanal">+</button>
+      <div><button type="button" className="weekly-tempo-view__back" onClick={onBack} aria-label={t("calendar.weekly.backLabel")}>{t("calendar.weekly.back")}</button><h2>{t("calendar.weekly.title")}</h2></div>
+      <button type="button" className="weekly-tempo-view__create" onClick={() => onCreateTempo(weekStart)} aria-label={t("calendar.weekly.create")} title={t("calendar.weekly.create")}>+</button>
     </header>
-    <div className="weekly-tempo-view__list" aria-label="Tempos de la semana">
+    <div className="weekly-tempo-view__list" aria-label={t("calendar.weekly.list")}>
       {displayedTempos.map((entry) => <button type="button" key={entry.node.id} className={`weekly-tempo-chip${selectedTempoIds.includes(entry.node.id) ? " is-selected" : ""}${selectedTempoId === entry.node.id ? " is-primary" : ""}`} draggable
         onDragStart={(event) => beginDrag(event, entry.node.id, "collection")} onDragEnd={clearDrag}
         onClick={(event) => onSelectTempo(entry.node.id, event.ctrlKey || event.metaKey)}
         onContextMenu={(event) => onContextMenu(event, entry.node.id)}>
         <i style={{ backgroundColor: entry.meta.color }} aria-hidden="true" />{entry.node.name}
       </button>)}
-      {tempos.length === 0 && <span className="weekly-tempo-view__empty">Arrastra o crea un Tempo Semanal.</span>}
+      {tempos.length === 0 && <span className="weekly-tempo-view__empty">{t("calendar.weekly.empty")}</span>}
     </div>
     <div className="weekly-tempo-surface-scroll" onWheel={(event) => {
       const viewport = event.currentTarget;
@@ -189,7 +191,7 @@ export default function WeeklyTempoView({ weekDates, tempos, selectedTempoId, se
     }}>
       <div className="weekly-tempo-surface" ref={surfaceRef} onDragOver={updateDragPreview} onDrop={finishDrop} style={{ gridTemplateColumns: surfaceColumns, width: `max(100%, ${surfaceWidth}px)` }}>
         {weekDates.map((date, weekDayIndex) => <div className="weekly-tempo-day" key={iso(date)}>
-          <span className="weekly-tempo-day__label" style={{ gridRow: weekDayIndex + 1 }}>{date.toLocaleDateString("es-ES", { weekday: "short" }).replace(".", "")} {date.getDate()}</span>
+          <span className="weekly-tempo-day__label" style={{ gridRow: weekDayIndex + 1 }}>{date.toLocaleDateString(locale, { weekday: "short" }).replace(".", "")} {date.getDate()}</span>
           <span className="weekly-tempo-day__track" data-week-day-index={weekDayIndex} style={{ gridRow: weekDayIndex + 1 }} aria-hidden="true" />
         </div>)}
         {dragIntent === "reorder" && draggingId && <div className="weekly-tempo-reorder-preview" aria-hidden="true" style={{ gridColumn: displayedTempos.findIndex((entry) => entry.node.id === draggingId) + 2, gridRow: "1 / -1" }} />}
@@ -216,8 +218,8 @@ export default function WeeklyTempoView({ weekDates, tempos, selectedTempoId, se
               return <i key={index} className={`${active ? "is-active" : "is-filtered"}${!active && previousActive ? " starts-filtered-run" : ""}${!active && nextActive ? " ends-filtered-run" : ""}`} />;
             })}</div>}
             <span className="weekly-tempo-bar__name" aria-label={entry.node.name}>{stackedName(entry.node.name)}</span>
-            <button type="button" className="weekly-tempo-bar__handle weekly-tempo-bar__handle--start" aria-label="Redimensionar inicio" onPointerDown={(event) => { event.preventDefault(); event.stopPropagation(); setResize({ id: entry.node.id, edge: "start" }); }} />
-            <button type="button" className="weekly-tempo-bar__handle weekly-tempo-bar__handle--end" aria-label="Redimensionar final" onPointerDown={(event) => { event.preventDefault(); event.stopPropagation(); setResize({ id: entry.node.id, edge: "end" }); }} />
+            <button type="button" className="weekly-tempo-bar__handle weekly-tempo-bar__handle--start" aria-label={t("calendar.weekly.resizeStart")} onPointerDown={(event) => { event.preventDefault(); event.stopPropagation(); setResize({ id: entry.node.id, edge: "start" }); }} />
+            <button type="button" className="weekly-tempo-bar__handle weekly-tempo-bar__handle--end" aria-label={t("calendar.weekly.resizeEnd")} onPointerDown={(event) => { event.preventDefault(); event.stopPropagation(); setResize({ id: entry.node.id, edge: "end" }); }} />
           </div>;
         })}
         {dragPreview && (() => {

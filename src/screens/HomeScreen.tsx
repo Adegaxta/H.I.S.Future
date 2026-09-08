@@ -18,13 +18,15 @@ import windowMaximizeAsset from "../assets/original/ui/window_maximize.svg";
 import windowMinimizeAsset from "../assets/original/ui/window_minimize.svg";
 import UpdatePrompt from "../update/UpdatePrompt";
 import { APP_WINDOW_TITLE } from "../utils/appEnvironment";
+import { useLocale } from "../i18n/LocaleContext";
+import type { Translate } from "../i18n/core";
 
 interface HomeScreenProps {
   busy: boolean;
   error: string | null;
-  onCreateProject: (name: string) => Promise<void> | void;
-  onLoadProject: () => Promise<void> | void;
-  onConvertProject: () => Promise<string | null>;
+  onCreateProject: (name: string, t: Translate) => Promise<void> | void;
+  onLoadProject: (t: Translate) => Promise<void> | void;
+  onConvertProject: (t: Translate) => Promise<string | null>;
   recentProjects: ProjectInfo[];
   onOpenRecent: (path: string) => Promise<void> | void;
   onRemoveRecent: (path: string) => void;
@@ -40,6 +42,7 @@ export default function HomeScreen({
   onOpenRecent,
   onRemoveRecent,
 }: HomeScreenProps) {
+  const { t } = useLocale();
   const [naming, setNaming] = useState(false);
   const [name, setName] = useState("");
   const [conversionMessage, setConversionMessage] = useState<string | null>(null);
@@ -55,7 +58,7 @@ export default function HomeScreen({
   const submitName = (event: FormEvent) => {
     event.preventDefault();
     if (!name.trim() || busy) return;
-    void onCreateProject(name.trim());
+    void onCreateProject(name.trim(), t);
     setNaming(false);
     setName("");
   };
@@ -79,13 +82,13 @@ export default function HomeScreen({
           <h1 className="home-screen__brand">{APP_WINDOW_TITLE}</h1>
         </div>
         <div className="home-titlebar__controls" data-tauri-drag-region="false">
-          <button type="button" title="Minimizar" onClick={() => void getCurrentWindow().minimize()}>
+          <button type="button" title={t("common.window.minimize")} onClick={() => void getCurrentWindow().minimize()}>
             <img src={windowMinimizeAsset} alt="" />
           </button>
-          <button type="button" title="Maximizar" onClick={() => void getCurrentWindow().toggleMaximize()}>
+          <button type="button" title={t("common.window.maximize")} onClick={() => void getCurrentWindow().toggleMaximize()}>
             <img src={windowMaximizeAsset} alt="" />
           </button>
-          <button type="button" title="Cerrar" onClick={() => void getCurrentWindow().close()}>
+          <button type="button" title={t("common.window.close")} onClick={() => void getCurrentWindow().close()}>
             <img src={windowCloseAsset} alt="" />
           </button>
         </div>
@@ -107,34 +110,34 @@ export default function HomeScreen({
                 >
                   <span className="home-action__asset"><img src={createProjectAsset} alt="" /></span>
                 </button>
-                <span>Crea una carpeta nueva con su base SQLite.</span>
+                <span>{t("home.create.description")}</span>
               </div>
               <div className="home-action">
                 <button
                   type="button"
                   className="home-action__button"
                   disabled={busy}
-                  onClick={() => void onLoadProject()}
+                  onClick={() => void onLoadProject(t)}
                 >
                   <span className="home-action__asset"><img src={importProjectAsset} alt="" /></span>
                 </button>
-                <span>Abre un proyecto que ya tengas en el disco.</span>
+                <span>{t("home.open.description")}</span>
               </div>
               <div className="home-action home-action--dev">
                 <button
                   type="button"
                   className="home-action__button"
-                  title="Conversor DEV de archivos .his"
+                  title={t("home.convert.title")}
                   disabled={busy}
                   onClick={async () => {
                     setConversionMessage(null);
-                    const output = await onConvertProject();
-                    if (output) setConversionMessage(`Conversión completada: ${output}`);
+                    const output = await onConvertProject(t);
+                    if (output) setConversionMessage(t("home.convert.complete", { path: output }));
                   }}
                 >
                   <span className="home-action__asset"><img src={converterAsset} alt="" /></span>
                 </button>
-                <span>Convierte archivos con arquitectura his a .his <b>DEV</b></span>
+                <span>{t("home.convert.description")} <b>DEV</b></span>
               </div>
             </div>
           </section>
@@ -164,8 +167,8 @@ export default function HomeScreen({
                         <button
                           type="button"
                           className="home-recent-card__delete"
-                          title={`Eliminar ${recent.name} de recientes`}
-                          aria-label={`Eliminar ${recent.name} de recientes`}
+                          title={t("home.recent.removeAction", { name: recent.name })}
+                          aria-label={t("home.recent.removeAction", { name: recent.name })}
                           onClick={() => setPendingRemoval(recent)}
                         >
                           <img src={deleteAsset} alt="" />
@@ -181,7 +184,7 @@ export default function HomeScreen({
         {error && <div className="home-screen__error">{error}</div>}
         {conversionMessage && <div className="home-screen__status">{conversionMessage}</div>}
       </main>
-      <button type="button" className="home-settings" title="Settings" aria-label="Settings">
+      <button type="button" className="home-settings" title={t("home.settings")} aria-label={t("home.settings")}>
         <img src={settingsAsset} alt="" />
       </button>
 
@@ -190,7 +193,7 @@ export default function HomeScreen({
       {naming && (
         <div className="home-modal" role="dialog" aria-modal="true">
           <form className="home-modal__card" onSubmit={submitName}>
-            <div className="home-modal__label">NOMBRE DEL PROYECTO</div>
+            <div className="home-modal__label">{t("home.projectName.title")}</div>
             <input
               autoFocus
               value={name}
@@ -198,12 +201,11 @@ export default function HomeScreen({
               onKeyDown={(event) => {
                 if (event.key === "Escape") setNaming(false);
               }}
-              placeholder="Ej. Crónicas del Norte"
+              placeholder={t("home.projectName.placeholder")}
               className="home-modal__input"
             />
             <p className="home-modal__hint">
-              Después elegirás la carpeta padre. HIS Future creará dentro una
-              carpeta con el manifiesto y lore.sqlite.
+              {t("home.projectName.hint")}
             </p>
             <div className="home-modal__actions">
               <button
@@ -211,14 +213,14 @@ export default function HomeScreen({
                 className="home-screen__button"
                 onClick={() => setNaming(false)}
               >
-                Cancelar
+                {t("common.actions.cancel")}
               </button>
               <button
                 type="submit"
                 className="home-screen__button home-screen__button--primary"
                 disabled={!name.trim() || busy}
               >
-                Elegir ubicación
+                {t("home.projectName.chooseLocation")}
               </button>
             </div>
           </form>
@@ -227,13 +229,13 @@ export default function HomeScreen({
       {pendingRemoval && (
         <div className="home-modal" role="dialog" aria-modal="true" aria-labelledby="remove-recent-title">
           <div className="home-modal__card home-modal__card--confirm">
-            <div className="home-modal__label" id="remove-recent-title">ELIMINAR DE RECIENTES</div>
+            <div className="home-modal__label" id="remove-recent-title">{t("home.recent.removeTitle")}</div>
             <p className="home-modal__hint">
-              ¿Quieres quitar «{pendingRemoval.name}» de la lista de proyectos recientes? El archivo del proyecto no se eliminará.
+              {t("home.recent.removeConfirm", { name: pendingRemoval.name })}
             </p>
             <div className="home-modal__actions">
               <button type="button" className="home-screen__button" onClick={() => setPendingRemoval(null)}>
-                Cancelar
+                {t("common.actions.cancel")}
               </button>
               <button
                 type="button"
@@ -243,7 +245,7 @@ export default function HomeScreen({
                   setPendingRemoval(null);
                 }}
               >
-                Eliminar
+                {t("common.actions.delete")}
               </button>
             </div>
           </div>

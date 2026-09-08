@@ -256,18 +256,18 @@ export default function GraphView({
   return (
     <section
       className={`graph-view${draggingId ? " graph-view--node-active" : ""}`}
-      aria-label="Grafo de nodos"
+      aria-label={t("graph.label")}
     >
       <div className="graph-view__toolbar">
         <div>
-          <div className="graph-view__eyebrow">MAPA DE RELACIONES</div>
-          <h1>Grafo</h1>
+          <div className="graph-view__eyebrow">{t("graph.eyebrow")}</div>
+          <h1>{t("graph.title")}</h1>
         </div>
         <div className="graph-view__menu-wrap">
           <button
             type="button"
             className="graph-view__menu-button"
-            aria-label="Abrir opciones del grafo"
+            aria-label={t("graph.options")}
             aria-expanded={menuOpen}
             onClick={() => setMenuOpen((current) => !current)}
           >
@@ -275,21 +275,21 @@ export default function GraphView({
           </button>
           {menuOpen && (
             <div className="graph-view__menu" role="menu">
-              <div className="graph-view__menu-title">DISEÑO</div>
+              <div className="graph-view__menu-title">{t("graph.layout")}</div>
               <label className="graph-view__toggle" role="menuitem">
                 <input
                   type="checkbox"
                   checked={showConcepts}
                   onChange={(event) => setShowConcepts(event.target.checked)}
                 />
-                <span>Concepto</span>
+                <span>{t("graph.concepts")}</span>
               </label>
             </div>
           )}
         </div>
       </div>
       {nodes.length === 0 ? (
-        <div className="graph-view__empty">Crea nodos para construir el grafo.</div>
+        <div className="graph-view__empty">{t("graph.empty")}</div>
       ) : (
         <div
           ref={canvasRef}

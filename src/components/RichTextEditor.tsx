@@ -4,6 +4,7 @@ import type { NodeItem } from "../types/nodes";
 import { getNodeDefinition } from "../defs/nodeTypes";
 import { getImageResourceInfo } from "../utils/imageResource";
 import { getEffectiveNodeType } from "../utils/nodeTree";
+import { useLocale } from "../i18n/LocaleContext";
 import { useEditorController } from "../hooks/useEditorController";
 import {
   EDITOR_BACKGROUND_COLORS,
@@ -65,6 +66,7 @@ export default function RichTextEditor({
   readOnly = false,
   style,
 }: RichTextEditorProps) {
+  const { t } = useLocale();
   const [imageContextMenu, setImageContextMenu] = useState<{
     id: string;
     mode: "inserted" | "full";
@@ -406,7 +408,7 @@ export default function RichTextEditor({
               key={`${block.tagName}-${index}`}
               type="button"
               data-line-control="true"
-              title="Mover línea"
+              title={t("editor.line.move")}
               onWheel={(event) => {
                 event.preventDefault();
                 event.stopPropagation();
@@ -440,7 +442,7 @@ export default function RichTextEditor({
         <button
           type="button"
           data-line-control="true"
-          title="Opciones de línea"
+          title={t("editor.line.options")}
           onWheel={(event) => {
             event.preventDefault();
             event.stopPropagation();
@@ -528,8 +530,8 @@ export default function RichTextEditor({
           data-line-control="true"
           title={
             controller.lineControl.before
-              ? "Insertar línea arriba"
-              : "Insertar línea abajo"
+              ? t("editor.line.insertAbove")
+              : t("editor.line.insertBelow")
           }
           onMouseDown={(event) => event.preventDefault()}
           onClick={() =>
@@ -713,7 +715,7 @@ export default function RichTextEditor({
       />
       {((blockTextDevTree.root && controller.slashPicker && controller.slashCandidates.length > 0) || (controller.pickerPosition && controller.slashPicker && controller.slashCandidates.length > 0)) && (
             <PickerMenu
-              title={hasAlignableImage(controller.lineActionBlock) || controller.selectedLineBlocks.some((block) => hasAlignableImage(block)) ? "OPCIONES DE IMAGEN" : "COMANDOS BÁSICOS"}
+              title={t(hasAlignableImage(controller.lineActionBlock) || controller.selectedLineBlocks.some((block) => hasAlignableImage(block)) ? "editor.commands.imageOptions" : "editor.commands.basic")}
               position={blockTextDevTree.root?.position ?? controller.pickerPosition ?? { top: 120, left: 120 }}
               items={hasAlignableImage(controller.lineActionBlock) || controller.selectedLineBlocks.some((block) => hasAlignableImage(block)) ? [] : controller.slashCandidates.map((item) => ({
                 id: item.id,
@@ -773,7 +775,7 @@ export default function RichTextEditor({
         !controller.imageMentionChoice &&
         controller.callCandidates.length > 0 && (
           <PickerMenu
-            title="ENLAZAR A NODO"
+            title={t("editor.commands.linkNode")}
             position={controller.pickerPosition}
             items={controller.callCandidates.map((item) => ({
               id: item.id,
@@ -861,33 +863,33 @@ export default function RichTextEditor({
 }
 
 const TEXT_COLOR_SWATCHES = [
-  { name: "Predeterminado", value: "" },
-  { name: "Gris", value: EDITOR_TEXT_COLORS.grey },
-  { name: "Marrón", value: EDITOR_TEXT_COLORS.brown },
-  { name: "Naranja", value: EDITOR_TEXT_COLORS.orange },
-  { name: "Amarillo", value: EDITOR_TEXT_COLORS.yellow },
-  { name: "Ámbar", value: EDITOR_TEXT_COLORS.amber },
-  { name: "Verde azulado", value: EDITOR_TEXT_COLORS.teal },
-  { name: "Verde", value: EDITOR_TEXT_COLORS.green },
-  { name: "Azul", value: EDITOR_TEXT_COLORS.blue },
-  { name: "Celeste", value: EDITOR_TEXT_COLORS.ice },
-  { name: "Morado", value: EDITOR_TEXT_COLORS.purple },
-  { name: "Rosa", value: EDITOR_TEXT_COLORS.pink },
-  { name: "Rojo", value: EDITOR_TEXT_COLORS.red },
+  { nameKey: "editor.colors.default", value: "" },
+  { nameKey: "editor.colors.grey", value: EDITOR_TEXT_COLORS.grey },
+  { nameKey: "editor.colors.brown", value: EDITOR_TEXT_COLORS.brown },
+  { nameKey: "editor.colors.orange", value: EDITOR_TEXT_COLORS.orange },
+  { nameKey: "editor.colors.yellow", value: EDITOR_TEXT_COLORS.yellow },
+  { nameKey: "editor.colors.amber", value: EDITOR_TEXT_COLORS.amber },
+  { nameKey: "editor.colors.teal", value: EDITOR_TEXT_COLORS.teal },
+  { nameKey: "editor.colors.green", value: EDITOR_TEXT_COLORS.green },
+  { nameKey: "editor.colors.blue", value: EDITOR_TEXT_COLORS.blue },
+  { nameKey: "editor.colors.ice", value: EDITOR_TEXT_COLORS.ice },
+  { nameKey: "editor.colors.purple", value: EDITOR_TEXT_COLORS.purple },
+  { nameKey: "editor.colors.pink", value: EDITOR_TEXT_COLORS.pink },
+  { nameKey: "editor.colors.red", value: EDITOR_TEXT_COLORS.red },
 ] as const;
 
 const BLOCK_BACKGROUND_SWATCHES = [
-  { name: "Predeterminado", value: "" },
-  { name: "Fondo gris", value: EDITOR_BACKGROUND_COLORS.gray },
-  { name: "Fondo marrón", value: EDITOR_BACKGROUND_COLORS.brown },
-  { name: "Fondo naranja", value: EDITOR_BACKGROUND_COLORS.orange },
-  { name: "Fondo amarillo", value: EDITOR_BACKGROUND_COLORS.yellow },
-  { name: "Fondo verde", value: EDITOR_BACKGROUND_COLORS.green },
-  { name: "Fondo azul", value: EDITOR_BACKGROUND_COLORS.blue },
-  { name: "Fondo celeste", value: EDITOR_BACKGROUND_COLORS.ice },
-  { name: "Fondo morado", value: EDITOR_BACKGROUND_COLORS.purple },
-  { name: "Fondo rosa", value: EDITOR_BACKGROUND_COLORS.pink },
-  { name: "Fondo rojo", value: EDITOR_BACKGROUND_COLORS.red },
+  { nameKey: "editor.colors.default", value: "" },
+  { nameKey: "editor.background.grey", value: EDITOR_BACKGROUND_COLORS.gray },
+  { nameKey: "editor.background.brown", value: EDITOR_BACKGROUND_COLORS.brown },
+  { nameKey: "editor.background.orange", value: EDITOR_BACKGROUND_COLORS.orange },
+  { nameKey: "editor.background.yellow", value: EDITOR_BACKGROUND_COLORS.yellow },
+  { nameKey: "editor.background.green", value: EDITOR_BACKGROUND_COLORS.green },
+  { nameKey: "editor.background.blue", value: EDITOR_BACKGROUND_COLORS.blue },
+  { nameKey: "editor.background.ice", value: EDITOR_BACKGROUND_COLORS.ice },
+  { nameKey: "editor.background.purple", value: EDITOR_BACKGROUND_COLORS.purple },
+  { nameKey: "editor.background.pink", value: EDITOR_BACKGROUND_COLORS.pink },
+  { nameKey: "editor.background.red", value: EDITOR_BACKGROUND_COLORS.red },
 ] as const;
 
 function normalizeHexColor(value: string): string {
@@ -914,6 +916,7 @@ function ColorPickerMenu({
   onApplyText: (color: string) => void;
   onApplyBackground: (color: string) => void;
 }) {
+  const { t } = useLocale();
   const [customTextColor, setCustomTextColor] = useState("#FFFFFF");
   const [customBackgroundColor, setCustomBackgroundColor] = useState("#FFFFFF");
   const [recentColors, setRecentColors] = useState<string[]>(() => {
@@ -991,16 +994,16 @@ function ColorPickerMenu({
       }}
     >
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "2px 4px 6px" }}>
-        <div style={{ fontSize: "10px", color: "#5A5F66", letterSpacing: "0.1em" }}>COLORES</div>
+        <div style={{ fontSize: "10px", color: "#5A5F66", letterSpacing: "0.1em" }}>{t("editor.colors.title")}</div>
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <span title="Color actual del texto" style={{ display: "inline-block", width: "12px", height: "12px", borderRadius: "50%", border: "1px solid rgba(255,255,255,0.25)", background: currentTextColor }} />
-          <span title="Fondo actual del texto" style={{ display: "inline-block", width: "12px", height: "12px", borderRadius: "50%", border: currentBackgroundColor === "transparent" ? "1px dashed rgba(255,255,255,0.25)" : "1px solid rgba(255,255,255,0.25)", background: currentBackgroundColor === "transparent" ? "transparent" : currentBackgroundColor }} />
-          <button type="button" onMouseDown={(event) => { event.preventDefault(); onClose(); }} style={{ border: "none", background: "transparent", color: "#9AA0A6", cursor: "pointer", fontSize: "11px" }}>Cerrar</button>
+          <span title={t("editor.colors.currentText")} style={{ display: "inline-block", width: "12px", height: "12px", borderRadius: "50%", border: "1px solid rgba(255,255,255,0.25)", background: currentTextColor }} />
+          <span title={t("editor.colors.currentBackground")} style={{ display: "inline-block", width: "12px", height: "12px", borderRadius: "50%", border: currentBackgroundColor === "transparent" ? "1px dashed rgba(255,255,255,0.25)" : "1px solid rgba(255,255,255,0.25)", background: currentBackgroundColor === "transparent" ? "transparent" : currentBackgroundColor }} />
+          <button type="button" onMouseDown={(event) => { event.preventDefault(); onClose(); }} style={{ border: "none", background: "transparent", color: "#9AA0A6", cursor: "pointer", fontSize: "11px" }}>{t("common.actions.close")}</button>
         </div>
       </div>
       {recentColors.length > 0 && (
         <div style={{ padding: "0 0 8px" }}>
-          <div style={{ fontSize: "9px", color: "#5A5F66", letterSpacing: "0.1em", padding: "0 4px 4px" }}>USADO RECIENTEMENTE</div>
+          <div style={{ fontSize: "9px", color: "#5A5F66", letterSpacing: "0.1em", padding: "0 4px 4px" }}>{t("editor.colors.recent")}</div>
           <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
             {recentColors.map((color) => (
               <button
@@ -1015,13 +1018,13 @@ function ColorPickerMenu({
         </div>
       )}
       <div style={{ padding: "0 0 8px" }}>
-        <div style={{ fontSize: "9px", color: "#5A5F66", letterSpacing: "0.1em", padding: "0 4px 4px" }}>COLORES DE TEXTO</div>
+        <div style={{ fontSize: "9px", color: "#5A5F66", letterSpacing: "0.1em", padding: "0 4px 4px" }}>{t("editor.colors.text")}</div>
         <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
           {TEXT_COLOR_SWATCHES.map((swatch) => (
             <button
-              key={swatch.name}
+              key={swatch.nameKey}
               type="button"
-              title={swatch.name}
+              title={t(swatch.nameKey)}
               onMouseDown={(event) => { event.preventDefault(); applyTextColor(swatch.value); }}
               style={{
                 display: "flex",
@@ -1062,26 +1065,26 @@ function ColorPickerMenu({
                   transition: "box-shadow 0.12s ease, transform 0.12s ease",
                 }}
               />
-              <span style={{ fontSize: "11px", flex: 1 }}>{swatch.name}</span>
+              <span style={{ fontSize: "11px", flex: 1 }}>{t(swatch.nameKey)}</span>
             </button>
           ))}
         </div>
       </div>
       <div style={{ borderTop: "1px solid #2A2E33", paddingTop: "8px" }}>
-        <div style={{ fontSize: "9px", color: "#5A5F66", letterSpacing: "0.1em", padding: "0 4px 4px" }}>PERSONALIZADO</div>
+        <div style={{ fontSize: "9px", color: "#5A5F66", letterSpacing: "0.1em", padding: "0 4px 4px" }}>{t("editor.colors.custom")}</div>
         <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
           <input type="text" value={customTextColor} onChange={(event) => setCustomTextColor(event.target.value)} placeholder="#AABBCC" style={{ flex: 1, minWidth: 0, padding: "6px 8px", border: "1px solid #3A3F45", borderRadius: "4px", background: "#121417", color: "#E8E9EA", fontSize: "11px" }} />
           <button type="button" onMouseDown={(event) => { event.preventDefault(); applyTextColor(customTextColor); }} style={{ padding: "6px 8px", border: "1px solid #3A3F45", borderRadius: "4px", background: "#20262B", color: "#E8E9EA", cursor: "pointer", fontSize: "11px" }}>OK</button>
         </div>
       </div>
       <div style={{ borderTop: "1px solid #2A2E33", paddingTop: "8px", marginTop: "8px" }}>
-        <div style={{ fontSize: "9px", color: "#5A5F66", letterSpacing: "0.1em", padding: "0 4px 4px" }}>FONDO DE TEXTO</div>
+        <div style={{ fontSize: "9px", color: "#5A5F66", letterSpacing: "0.1em", padding: "0 4px 4px" }}>{t("editor.colors.background")}</div>
         <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
           {BLOCK_BACKGROUND_SWATCHES.map((swatch) => (
             <button
-              key={swatch.name}
+              key={swatch.nameKey}
               type="button"
-              title={swatch.name}
+              title={t(swatch.nameKey)}
               onMouseDown={(event) => { event.preventDefault(); onApplyBackground(swatch.value); }}
               style={{
                 display: "flex",
@@ -1122,7 +1125,7 @@ function ColorPickerMenu({
                   transition: "box-shadow 0.12s ease, transform 0.12s ease",
                 }}
               />
-              <span style={{ fontSize: "11px", flex: 1 }}>{swatch.name}</span>
+              <span style={{ fontSize: "11px", flex: 1 }}>{t(swatch.nameKey)}</span>
             </button>
           ))}
         </div>
@@ -1140,6 +1143,7 @@ function SelectionToolbar({
 }: {
   controller: ReturnType<typeof useEditorController>;
 }) {
+  const { t } = useLocale();
   const [colorMenuOpen, setColorMenuOpen] = useState(false);
   const [customTextColor, setCustomTextColor] = useState("#FFFFFF");
   const [customBackgroundColor, setCustomBackgroundColor] = useState("#FFFFFF");
@@ -1192,10 +1196,10 @@ function SelectionToolbar({
   };
 
   const formats = [
-    { command: "bold" as const, label: "B", title: "Negrita" },
-    { command: "italic" as const, label: "I", title: "Cursiva" },
-    { command: "underline" as const, label: "U", title: "Subrayado" },
-    { command: "strikeThrough" as const, label: "S", title: "Tachado" },
+    { command: "bold" as const, label: "B", title: t("editor.format.bold") },
+    { command: "italic" as const, label: "I", title: t("editor.format.italic") },
+    { command: "underline" as const, label: "U", title: t("editor.format.underline") },
+    { command: "strikeThrough" as const, label: "S", title: t("editor.format.strike") },
   ];
 
   return (
@@ -1247,7 +1251,7 @@ function SelectionToolbar({
       ))}
       <button
         type="button"
-        title="Color"
+        title={t("editor.commands.color")}
         onMouseDown={(event) => {
           event.preventDefault();
           setColorMenuOpen((value) => !value);
@@ -1295,7 +1299,7 @@ function SelectionToolbar({
             zIndex: 35,
           }}
         >
-          <div style={{ padding: "4px 8px 6px", fontSize: "10px", color: "#5A5F66", letterSpacing: "0.12em" }}>MUESTRAS</div>
+          <div style={{ padding: "4px 8px 6px", fontSize: "10px", color: "#5A5F66", letterSpacing: "0.12em" }}>{t("editor.colors.swatches")}</div>
           {recentColors.length > 0 && (
             <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", padding: "0 4px 8px" }}>
               {recentColors.map((color) => (
@@ -1317,7 +1321,7 @@ function SelectionToolbar({
               <button
                 key={swatch.value}
                 type="button"
-                title={swatch.name}
+                title={t(swatch.nameKey)}
                 onMouseDown={(event) => {
                   event.preventDefault();
                   onApplyTextColor(swatch.value);
@@ -1335,7 +1339,7 @@ function SelectionToolbar({
             ))}
           </div>
           <div style={{ borderTop: "1px solid #2A2E33", margin: "8px 0 6px", paddingTop: "8px" }}>
-            <div style={{ padding: "0 8px 4px", fontSize: "10px", color: "#5A5F66", letterSpacing: "0.12em" }}>PERSONALIZADO</div>
+            <div style={{ padding: "0 8px 4px", fontSize: "10px", color: "#5A5F66", letterSpacing: "0.12em" }}>{t("editor.colors.custom")}</div>
             <div style={{ display: "flex", alignItems: "center", gap: "6px", padding: "0 4px" }}>
               <input
                 type="text"
@@ -1374,11 +1378,11 @@ function SelectionToolbar({
             </div>
           </div>
           <div style={{ borderTop: "1px solid #2A2E33", margin: "8px 0 6px", paddingTop: "8px" }}>
-            <div style={{ padding: "0 8px 4px", fontSize: "10px", color: "#5A5F66", letterSpacing: "0.12em" }}>COLOR DE FONDO</div>
+            <div style={{ padding: "0 8px 4px", fontSize: "10px", color: "#5A5F66", letterSpacing: "0.12em" }}>{t("editor.colors.background")}</div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: "6px", padding: "0 4px" }}>
               {BLOCK_BACKGROUND_SWATCHES.map((swatch) => (
                 <button
-                  key={swatch.name}
+                  key={swatch.nameKey}
                   type="button"
                   onMouseDown={(event) => {
                     event.preventDefault();
@@ -1393,7 +1397,7 @@ function SelectionToolbar({
                     cursor: "pointer",
                     justifySelf: "center",
                   }}
-                  title={swatch.name}
+                  title={t(swatch.nameKey)}
                 />
               ))}
             </div>
@@ -1450,6 +1454,7 @@ function ImageMentionModeMenu({
   onSelect: (mode: "inserted" | "full") => void;
   onCancel: () => void;
 }) {
+  const { t } = useLocale();
   const menuRef = useRef<HTMLDivElement | null>(null);
   useDismissibleLayer(menuRef, onCancel);
   return (
@@ -1470,18 +1475,18 @@ function ImageMentionModeMenu({
       }}
     >
       <div style={{ padding: "4px 8px 8px", fontSize: "10px", color: "#5A5F66", letterSpacing: "0.1em" }}>
-        TIPO DE NODO IMAGEN
+        {t("editor.image.type")}
       </div>
       <button type="button" onMouseDown={(event) => { event.preventDefault(); onSelect("inserted"); }} style={mentionModeButtonStyle}>
-        <strong>Insertado</strong>
-        <small>Miniatura dentro de la línea</small>
+        <strong>{t("editor.image.inserted")}</strong>
+        <small>{t("editor.image.insertedHint")}</small>
       </button>
       <button type="button" onMouseDown={(event) => { event.preventDefault(); onSelect("full"); }} style={mentionModeButtonStyle}>
-        <strong>Completo</strong>
-        <small>Imagen real ajustada al editor</small>
+        <strong>{t("editor.image.full")}</strong>
+        <small>{t("editor.image.fullHint")}</small>
       </button>
       <button type="button" onMouseDown={(event) => { event.preventDefault(); onCancel(); }} style={{ ...mentionModeButtonStyle, color: "#7A7F87" }}>
-        Cancelar
+        {t("common.actions.cancel")}
       </button>
     </div>
   );
@@ -1500,6 +1505,7 @@ function ImageMentionContextMenu({
   onDelete: () => void;
   onClose: () => void;
 }) {
+  const { t } = useLocale();
   const menuRef = useRef<HTMLDivElement | null>(null);
   useDismissibleLayer(menuRef, onClose);
   return (
@@ -1522,36 +1528,36 @@ function ImageMentionContextMenu({
       }}
     >
       <button type="button" onMouseDown={(event) => { event.preventDefault(); onView(); }} style={mentionContextButtonStyle}>
-        Vista
+        {t("editor.image.view")}
       </button>
       <div style={{ borderTop: "1px solid #2A2E33", margin: "4px 0" }} />
       <div style={{ padding: "5px 8px 3px", fontSize: "9px", color: "#5A5F66", letterSpacing: "0.1em" }}>
-        ALINEACIÓN
+        {t("editor.image.alignment")}
       </div>
       {(["left", "center", "right"] as const).map((alignment) => (
         <button
           key={alignment}
           type="button"
           disabled={menu.mode !== "full"}
-          title={menu.mode === "full" ? undefined : "Disponible solo para imágenes completas"}
+          title={menu.mode === "full" ? undefined : t("editor.image.fullOnly")}
           onMouseDown={(event) => { event.preventDefault(); onAlign(alignment); }}
           style={{ ...mentionContextButtonStyle, opacity: menu.mode === "full" ? 1 : 0.4, cursor: menu.mode === "full" ? "pointer" : "not-allowed" }}
         >
-          {alignment === "left" ? "Izquierda" : alignment === "center" ? "Centro" : "Derecha"}
+          {t(`editor.image.${alignment}`)}
         </button>
       ))}
       <div style={{ borderTop: "1px solid #2A2E33", margin: "4px 0" }} />
       <button
         type="button"
         disabled={menu.mode !== "full"}
-        title={menu.mode === "full" ? undefined : "Disponible solo para imágenes completas"}
+        title={menu.mode === "full" ? undefined : t("editor.image.fullOnly")}
         onMouseDown={(event) => { event.preventDefault(); onDelete(); }}
         style={{ ...mentionContextButtonStyle, color: "#D84D4D", opacity: menu.mode === "full" ? 1 : 0.4, cursor: menu.mode === "full" ? "pointer" : "not-allowed" }}
       >
-        Eliminar bloque
+        {t("editor.image.deleteBlock")}
       </button>
       <button type="button" onMouseDown={(event) => { event.preventDefault(); onClose(); }} style={{ ...mentionContextButtonStyle, color: "#7A7F87" }}>
-        Cerrar
+        {t("common.actions.close")}
       </button>
     </div>
   );
@@ -1610,8 +1616,9 @@ function PickerMenu({
   showImageActions?: boolean;
   onAlignImage?: (alignment: "left" | "center" | "right") => void;
 }) {
+  const { t } = useLocale();
   const categories = items.reduce<Record<string, typeof items>>((groups, item) => {
-    const category = item.category || "Otros";
+    const category = item.category || t("editor.commands.other");
     (groups[category] ||= []).push(item);
     return groups;
   }, {});
@@ -1713,8 +1720,8 @@ function PickerMenu({
       ))}
       {showImageActions && onAlignImage && (
         <div style={{ borderTop: "1px solid #2A2E33", marginTop: "4px", paddingTop: "4px" }}>
-          <div style={{ padding: "7px 8px 3px", fontSize: "9px", color: "#5A5F66", letterSpacing: "0.1em" }}>IMAGEN</div>
-          <div style={{ padding: "0 8px 4px", fontSize: "11px", color: "#E8E9EA" }}>Alinear</div>
+          <div style={{ padding: "7px 8px 3px", fontSize: "9px", color: "#5A5F66", letterSpacing: "0.1em" }}>{t("editor.image.title")}</div>
+          <div style={{ padding: "0 8px 4px", fontSize: "11px", color: "#E8E9EA" }}>{t("editor.image.align")}</div>
           <div style={{ display: "flex", gap: "4px", padding: "0 4px 4px" }}>
             {(["left", "center", "right"] as const).map((alignment) => (
               <button
@@ -1726,7 +1733,7 @@ function PickerMenu({
                 }}
                 style={{ flex: 1, padding: "5px 3px", border: "1px solid #343940", borderRadius: "3px", background: "transparent", color: "#E8E9EA", cursor: "pointer", fontSize: "11px" }}
               >
-                {alignment === "left" ? "Izquierda" : alignment === "center" ? "Centro" : "Derecha"}
+                {t(`editor.image.${alignment}`)}
               </button>
             ))}
           </div>
@@ -1765,7 +1772,7 @@ function PickerMenu({
             transition: "background 0.12s ease, border-color 0.12s ease, transform 0.12s ease",
           }}
         >
-          Eliminar línea de texto
+          {t("editor.line.delete")}
         </button>
       )}
     </div>
@@ -1783,6 +1790,7 @@ function LineActionMenu({
   showImageActions?: boolean;
   onAlignImage?: (alignment: "left" | "center" | "right") => void;
 }) {
+  const { t } = useLocale();
   return (
     <div
       data-picker="true"
@@ -1801,8 +1809,8 @@ function LineActionMenu({
     >
       {showImageActions && onAlignImage && (
         <>
-          <div style={{ padding: "7px 8px 3px", fontSize: "9px", color: "#5A5F66", letterSpacing: "0.1em" }}>IMAGEN</div>
-          <div style={{ padding: "0 8px 4px", fontSize: "11px", color: "#E8E9EA" }}>Alinear</div>
+          <div style={{ padding: "7px 8px 3px", fontSize: "9px", color: "#5A5F66", letterSpacing: "0.1em" }}>{t("editor.image.title")}</div>
+          <div style={{ padding: "0 8px 4px", fontSize: "11px", color: "#E8E9EA" }}>{t("editor.image.align")}</div>
           <div style={{ display: "flex", gap: "4px", padding: "0 4px 4px" }}>
             {(["left", "center", "right"] as const).map((alignment) => (
               <button
@@ -1826,7 +1834,7 @@ function LineActionMenu({
                 }}
                 style={{ flex: 1, padding: "5px 3px", border: "1px solid #343940", borderRadius: "3px", background: "transparent", color: "#E8E9EA", cursor: "pointer", fontSize: "11px", transition: "background 0.12s ease, border-color 0.12s ease, transform 0.12s ease" }}
               >
-                {alignment === "left" ? "Izquierda" : alignment === "center" ? "Centro" : "Derecha"}
+                {t(`editor.image.${alignment}`)}
               </button>
             ))}
           </div>
@@ -1864,7 +1872,7 @@ function LineActionMenu({
           transition: "background 0.12s ease, border-color 0.12s ease, transform 0.12s ease",
         }}
       >
-        Eliminar línea de texto
+        {t("editor.line.delete")}
       </button>
     </div>
   );

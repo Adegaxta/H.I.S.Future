@@ -53,6 +53,7 @@ interface AppWorkspaceProps {
 const MAX_LOCAL_STORAGE_STRING_BYTES = 900_000;
 
 function TrashNodePreview({ node }: { node: NodeItem }) {
+  const { t } = useLocale();
   const parsed = new DOMParser().parseFromString(node.content, "text/html");
   const resource = node.type === "imagen" ? getImageResourceInfo(node.content, node.name) : null;
   const imageSource = resource?.src || parsed.querySelector("img")?.getAttribute("src");
@@ -60,7 +61,7 @@ function TrashNodePreview({ node }: { node: NodeItem }) {
     return <img src={imageSource} alt="" loading="lazy" decoding="async" />;
   }
   const text = parsed.body.textContent?.replace(/\s+/g, " ").trim().slice(0, 180);
-  return <span>{text || "Sin previsualización"}</span>;
+  return <span>{text || t("workspace.noPreview")}</span>;
 }
 
 const safeLocalStorageSet = (key: string, value: string) => {
@@ -673,13 +674,13 @@ export default function AppWorkspace({
   const trashActionItems: HisContextMenuItem[] = [
     {
       id: "restore",
-      label: "Recuperar seleccionados",
+      label: t("trash.restoreSelected"),
       disabled: workspace.selectedDeletedIds.length === 0,
       onSelect: workspace.restoreDeletedNodes,
     },
     {
       id: "delete-permanently",
-      label: "Eliminar permanentemente",
+      label: t("trash.deletePermanentlyAction"),
       danger: true,
       disabled: workspace.selectedDeletedIds.length === 0,
       onSelect: workspace.permanentlyDeleteNodes,
@@ -705,27 +706,27 @@ export default function AppWorkspace({
                 onClick={() => setView(option)}
                 className={view === option ? "is-active" : ""}
               >
-                {option === "list" ? "LISTA" : "GRAFO"}
+                {t(option === "list" ? "workspace.views.list" : "workspace.views.graph")}
               </button>
             ))}
             <button
               type="button"
               className="workspace-header__quick-template"
               data-tauri-drag-region="false"
-              title="Salir del proyecto (DEV)"
+              title={`${t("workspace.exit")} (DEV)`}
               onPointerDown={(event) => event.stopPropagation()}
               onClick={() => void exitWorkspace()}
             >
-              SALIR DEL PROYECTO <b>DEV</b>
+              {t("workspace.exitDev")} <b>DEV</b>
             </button>
           </div>
         </div>
         <div className="workspace-header__right" data-tauri-drag-region="false">
           <div className="workspace-header__version">{appVersion ? `v${appVersion}` : "v—"}</div>
           <div className="workspace-header__window-controls">
-            <button type="button" title="Minimizar" onClick={() => void getCurrentWindow().minimize()}><img src={windowMinimizeAsset} alt="" /></button>
-            <button type="button" title="Maximizar" onClick={() => void getCurrentWindow().toggleMaximize()}><img src={windowMaximizeAsset} alt="" /></button>
-            <button type="button" title="Cerrar" onClick={() => void closeApplication()}><img src={windowCloseAsset} alt="" /></button>
+            <button type="button" title={t("common.window.minimize")} onClick={() => void getCurrentWindow().minimize()}><img src={windowMinimizeAsset} alt="" /></button>
+            <button type="button" title={t("common.window.maximize")} onClick={() => void getCurrentWindow().toggleMaximize()}><img src={windowMaximizeAsset} alt="" /></button>
+            <button type="button" title={t("common.window.close")} onClick={() => void closeApplication()}><img src={windowCloseAsset} alt="" /></button>
           </div>
         </div>
       </header>
@@ -743,7 +744,7 @@ export default function AppWorkspace({
           data-sidebar="true"
           style={{ width: `${sidebarVisible ? width : 80}px` }}
         >
-          <nav className="view-rail" aria-label="Paneles">
+          <nav className="view-rail" aria-label={t("workspace.panels")}>
             <button className="view-rail__toggle" type="button" onClick={() => setSidebarVisible((current) => !current)} title={sidebarVisible ? t("sidebar.hide") : t("sidebar.show")}><SidebarIcon name="sidebar" /></button>
               {([
                 ["lore", "sidebar.lore"],
@@ -755,12 +756,12 @@ export default function AppWorkspace({
                   {sidebarPanel === id && <span>{t(labelKey)}</span>}
                 </button>
               ))}
-              <button type="button" className="view-rail__exit" onClick={() => void exitWorkspace()} title="Salir del proyecto"><SidebarIcon name="exit" /></button>
+              <button type="button" className="view-rail__exit" onClick={() => void exitWorkspace()} title={t("workspace.exit")}><SidebarIcon name="exit" /></button>
           </nav>
 
           <section className="context-sidebar" aria-hidden={!sidebarVisible}>
               <header className="context-sidebar__project">
-                <label className="workspace-sidebar__project-avatar" style={projectImage ? { backgroundImage: `url(${projectImage})` } : { backgroundColor: avatarColor }} title="Cambiar imagen del proyecto">
+                <label className="workspace-sidebar__project-avatar" style={projectImage ? { backgroundImage: `url(${projectImage})` } : { backgroundColor: avatarColor }} title={t("workspace.projectImage.change")}>
                   {!projectImage && projectInitial}
                   <input type="file" accept="image/*" onChange={(event) => { const file = event.target.files?.[0]; if (file) void handleProjectImageUpload(file); event.currentTarget.value = ""; }} />
                 </label>
@@ -768,11 +769,11 @@ export default function AppWorkspace({
                   <div className="workspace-sidebar__title">{projectName}</div>
                   {projectTab === "workspace" && <div className="workspace-sidebar__count">{t("sidebar.nodeCount", { count: workspace.nodes.length })}</div>}
                 </div>
-                <button type="button" onClick={() => { cancelLoreMultiSelection(); setSelectedTrashNodeId(null); setProjectTab((current) => current === "settings" ? "workspace" : "settings"); }} title="Ajustes del proyecto" className={`workspace-sidebar__settings ${projectTab === "settings" ? "is-active" : ""}`}><SidebarIcon name="settings" /></button>
+                <button type="button" onClick={() => { cancelLoreMultiSelection(); setSelectedTrashNodeId(null); setProjectTab((current) => current === "settings" ? "workspace" : "settings"); }} title={t("workspace.projectSettings")} className={`workspace-sidebar__settings ${projectTab === "settings" ? "is-active" : ""}`}><SidebarIcon name="settings" /></button>
               </header>
 
               {projectTab === "settings" ? (
-                <nav className="settings-navigation" aria-label="Ajustes del proyecto">
+                <nav className="settings-navigation" aria-label={t("workspace.projectSettings")}>
                   {([
                     ["general", "general", "sidebar.settings.general"],
                     ["changelog", "history", "sidebar.settings.history"],
@@ -831,10 +832,10 @@ export default function AppWorkspace({
           {selectedTrashNode ? (
             <div className="editor-page editor-page--trash">
               <button type="button" className="trash-node-back" onClick={returnToTrash}>
-                Volver
+                {t("trash.back")}
               </button>
               <div className="trash-node-warning">
-                Este nodo está en la papelera y no es editable.
+                {t("trash.readOnly")}
               </div>
               <div
                 className="editor-page__type"
@@ -881,27 +882,27 @@ export default function AppWorkspace({
             <section className="trash-view">
               <div className="trash-view__header">
                 <div>
-                  <div className="project-settings__eyebrow">PAPELERA</div>
-                  <h1>Nodos eliminados</h1>
+                  <div className="project-settings__eyebrow">{t("trash.heading")}</div>
+                  <h1>{t("trash.deletedNodes")}</h1>
                 </div>
                 <div className="trash-view__header-right">
-                  <div className="trash-view__view-toggle" role="group" aria-label="Vista de papelera">
-                    <button type="button" className={trashView === "gallery" ? "is-active" : ""} onClick={() => setTrashView("gallery")}>GALERÍA</button>
-                    <button type="button" className={trashView === "list" ? "is-active" : ""} onClick={() => setTrashView("list")}>LISTA</button>
+                  <div className="trash-view__view-toggle" role="group" aria-label={t("trash.view")}>
+                    <button type="button" className={trashView === "gallery" ? "is-active" : ""} onClick={() => setTrashView("gallery")}>{t("trash.gallery")}</button>
+                    <button type="button" className={trashView === "list" ? "is-active" : ""} onClick={() => setTrashView("list")}>{t("trash.list")}</button>
                   </div>
                   <div className="trash-view__actions">
                     <button
                       type="button"
                       className="trash-view__more"
-                      title="Acciones de seleccionados"
-                      aria-label="Acciones de seleccionados"
+                      title={t("trash.selectedActions")}
+                      aria-label={t("trash.selectedActions")}
                       onClick={(event) => setTrashActionsMenu({ x: event.currentTarget.getBoundingClientRect().right, y: event.currentTarget.getBoundingClientRect().bottom + 6 })}
                     >
                       <span aria-hidden="true">...</span>
                     </button>
                     <button
                       type="button"
-                      title="Restaurar seleccionados"
+                      title={t("trash.restoreSelected")}
                       disabled={workspace.selectedDeletedIds.length === 0}
                       onClick={workspace.restoreDeletedNodes}
                     >
@@ -909,7 +910,7 @@ export default function AppWorkspace({
                     </button>
                     <button
                       type="button"
-                      title="Eliminar definitivamente"
+                      title={t("trash.deletePermanently")}
                       disabled={workspace.selectedDeletedIds.length === 0}
                       onClick={workspace.permanentlyDeleteNodes}
                     >
@@ -919,7 +920,7 @@ export default function AppWorkspace({
                 </div>
               </div>
               {workspace.deletedNodes.length === 0 ? (
-                <div className="trash-view__empty">La papelera está vacía.</div>
+                <div className="trash-view__empty">{t("trash.empty")}</div>
               ) : trashView === "list" ? (
                 <div className="trash-view__list">
                   {workspace.deletedNodes.map((node) => (
@@ -976,7 +977,7 @@ export default function AppWorkspace({
             </section>
           ) : projectTab === "settings" && settingsPanel === "changelog" ? (
             <section className="project-settings">
-              <div className="project-settings__eyebrow">HISTORIAL DE CAMBIOS</div>
+              <div className="project-settings__eyebrow">{t("changelog.heading")}</div>
               <h1>Changelog</h1>
               <div className="changelog-list">
                 {CHANGELOG_ENTRIES.map((entry) => (
@@ -1015,12 +1016,12 @@ export default function AppWorkspace({
                   {!projectImage && projectInitial}
                 </div>
                 <div>
-                  <div className="project-settings__eyebrow">PROYECTO</div>
+                  <div className="project-settings__eyebrow">{t("settings.project.heading")}</div>
                   <h1>{projectName}</h1>
                 </div>
               </div>
               <label className="project-settings__field">
-                Tipo de Nodo por defecto
+                {t("settings.defaultNodeType")}
                 <select
                   value={defaultNodeType}
                   onChange={(event) =>
@@ -1042,13 +1043,13 @@ export default function AppWorkspace({
                 </select>
               </label>
               <label className="project-settings__field">
-                Formato horario
+                {t("settings.timeFormat")}
                 <select value={timeFormat} onChange={(event) => setTimeFormat(event.target.value as TimeFormat)}>
-                  <option value="12h">12 horas (AM/PM)</option>
-                  <option value="24h">24 horas</option>
+                  <option value="12h">{t("settings.timeFormat.12h")}</option>
+                  <option value="24h">{t("settings.timeFormat.24h")}</option>
                 </select>
               </label>
-              <div className="project-settings__version" aria-label="Versión de la aplicación">
+              <div className="project-settings__version" aria-label={t("settings.appVersion")}>
                 {appVersion ? `v${appVersion}` : "v—"}
               </div>
             </section>
@@ -1066,8 +1067,8 @@ export default function AppWorkspace({
             <div className="workspace-empty-state">
               <div>
                 {workspace.nodes.length === 0
-                  ? "Ningún nodo creado todavía."
-                  : "Selecciona una página o categoría en el panel."}
+                  ? t("workspace.empty.none")
+                  : t("workspace.empty.select")}
               </div>
             </div>
           ) : null}

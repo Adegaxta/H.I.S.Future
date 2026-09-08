@@ -64,7 +64,7 @@ try {
   assert.equal(invalidDrop[1].parentId, "parent");
   assert.equal(invalidDrop[1].order, 0);
 
-  assert.equal(SLASH_REGISTRY.get("UL")?.label, "Lista con viñetas");
+  assert.equal(SLASH_REGISTRY.get("UL")?.labelKey, "editor.commands.bullets");
   assert.equal(APP_WINDOW_TITLE, "H.I.S. Dev", "Vite development mode exposes the dev window title");
 
   console.log("PASS: 0.1.2 QoL naming, type UI state, picker reset, invalid drop, bullet command and dev title.");

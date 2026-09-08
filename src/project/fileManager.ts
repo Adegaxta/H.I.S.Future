@@ -2,16 +2,14 @@ import { invoke } from "@tauri-apps/api/core";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { asErrorMessage, isDesktopRuntime } from "./runtime";
 import type { ProjectInfo } from "./types";
+import type { Translate } from "../i18n/core";
 
-const DESKTOP_REQUIRED =
-  "Abre HIS Future con la app de escritorio (npm run tauri dev) para crear o cargar proyectos en tu PC.";
-
-export async function createProject(name: string): Promise<ProjectInfo | null> {
-  if (!isDesktopRuntime()) throw new Error(DESKTOP_REQUIRED);
+export async function createProject(name: string, t: Translate): Promise<ProjectInfo | null> {
+  if (!isDesktopRuntime()) throw new Error(t("home.desktopRequired"));
   const archivePath = await save({
     defaultPath: `${name.trim()}.his`,
-    title: "Guarda el nuevo proyecto HIS Future",
-    filters: [{ name: "Proyecto H.I.S. Future", extensions: ["his"] }],
+    title: t("home.dialog.saveNew"),
+    filters: [{ name: t("home.dialog.projectFilter"), extensions: ["his"] }],
   });
   if (!archivePath) return null;
   try {
@@ -24,13 +22,13 @@ export async function createProject(name: string): Promise<ProjectInfo | null> {
   }
 }
 
-export async function loadProject(): Promise<ProjectInfo | null> {
-  if (!isDesktopRuntime()) throw new Error(DESKTOP_REQUIRED);
+export async function loadProject(t: Translate): Promise<ProjectInfo | null> {
+  if (!isDesktopRuntime()) throw new Error(t("home.desktopRequired"));
   const path = await open({
     multiple: false,
     directory: false,
-    title: "Selecciona un proyecto H.I.S. Future",
-    filters: [{ name: "Proyecto H.I.S. Future o carpeta", extensions: ["his"] }],
+    title: t("home.dialog.open"),
+    filters: [{ name: t("home.dialog.openFilter"), extensions: ["his"] }],
   });
   if (!path) return null;
   try {
@@ -40,19 +38,19 @@ export async function loadProject(): Promise<ProjectInfo | null> {
   }
 }
 
-export async function convertProjectFolder(): Promise<string | null> {
-  if (!isDesktopRuntime()) throw new Error(DESKTOP_REQUIRED);
+export async function convertProjectFolder(t: Translate): Promise<string | null> {
+  if (!isDesktopRuntime()) throw new Error(t("home.desktopRequired"));
   const selected = await open({
     directory: true,
     multiple: false,
-    title: "Selecciona la carpeta de proyecto que quieres convertir",
+    title: t("home.dialog.convertSource"),
   });
   if (typeof selected !== "string" || !selected) return null;
 
   const archivePath = await save({
-    defaultPath: `${selected.split(/[\\/]/).pop() || "Proyecto"}.his`,
-    title: "Guarda el proyecto convertido",
-    filters: [{ name: "Proyecto H.I.S. Future", extensions: ["his"] }],
+    defaultPath: `${selected.split(/[\\/]/).pop() || t("home.dialog.defaultProjectName")}.his`,
+    title: t("home.dialog.convertSave"),
+    filters: [{ name: t("home.dialog.projectFilter"), extensions: ["his"] }],
   });
   if (!archivePath) return null;
   try {

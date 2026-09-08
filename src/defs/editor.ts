@@ -1,3 +1,5 @@
+import type { TranslationKey } from "../i18n/translations";
+
 export const normalizeSearchText = (value: string) =>
   value
     .normalize("NFD")
@@ -5,19 +7,19 @@ export const normalizeSearchText = (value: string) =>
     .toLowerCase();
 
 export const SLASH_COMMANDS = [
-  { id: "p", label: "Texto predeterminado", tag: "P", icon: "¶", category: "Texto" },
-  { id: "h1", label: "Título 1", tag: "H1", icon: "H1", category: "Texto" },
-  { id: "h2", label: "Título 2", tag: "H2", icon: "H2", category: "Texto" },
-  { id: "h3", label: "Título 3", tag: "H3", icon: "H3", category: "Texto" },
-  { id: "h4", label: "Título 4", tag: "H4", icon: "H4", category: "Texto" },
-  { id: "ul", label: "Lista con viñetas", tag: "UL", icon: "•", category: "Texto" },
-  { id: "color", label: "Color", tag: "COLOR", icon: "◉", category: "Texto" },
-  { id: "divider", label: "Divisor", tag: "DIVISOR", icon: "—", category: "Etc" },
-  { id: "index", label: "Índice", tag: "INDICE", icon: "≡", category: "Etc", aliases: ["indice"] },
-  { id: "globe", label: "Globo", tag: "GLOBO", icon: "◉", category: "Etc" },
-  { id: "globe-individual", label: "Globo individual", tag: "GLOBO_INDIVIDUAL", icon: "◎", category: "Etc" },
-  { id: "calendar", label: "Calendario", tag: "CALENDARIO", icon: "▦", category: "Nodos", aliases: ["calendario"] },
-] as const;
+  { id: "p", labelKey: "editor.commands.paragraph", tag: "P", icon: "¶", categoryKey: "editor.commands.text" },
+  { id: "h1", labelKey: "editor.commands.heading1", tag: "H1", icon: "H1", categoryKey: "editor.commands.text" },
+  { id: "h2", labelKey: "editor.commands.heading2", tag: "H2", icon: "H2", categoryKey: "editor.commands.text" },
+  { id: "h3", labelKey: "editor.commands.heading3", tag: "H3", icon: "H3", categoryKey: "editor.commands.text" },
+  { id: "h4", labelKey: "editor.commands.heading4", tag: "H4", icon: "H4", categoryKey: "editor.commands.text" },
+  { id: "ul", labelKey: "editor.commands.bullets", tag: "UL", icon: "•", categoryKey: "editor.commands.text" },
+  { id: "color", labelKey: "editor.commands.color", tag: "COLOR", icon: "◉", categoryKey: "editor.commands.text" },
+  { id: "divider", labelKey: "editor.commands.divider", tag: "DIVISOR", icon: "—", categoryKey: "editor.commands.other" },
+  { id: "index", labelKey: "editor.commands.index", tag: "INDICE", icon: "≡", categoryKey: "editor.commands.other", aliases: ["indice"] },
+  { id: "globe", labelKey: "editor.commands.globe", tag: "GLOBO", icon: "◉", categoryKey: "editor.commands.other" },
+  { id: "globe-individual", labelKey: "editor.commands.individualGlobe", tag: "GLOBO_INDIVIDUAL", icon: "◎", categoryKey: "editor.commands.other" },
+  { id: "calendar", labelKey: "editor.commands.calendar", tag: "CALENDARIO", icon: "▦", categoryKey: "editor.commands.nodes", aliases: ["calendario"] },
+] as const satisfies readonly { id: string; labelKey: TranslationKey; tag: string; icon: string; categoryKey: TranslationKey; aliases?: readonly string[] }[];
 export const SLASH_REGISTRY = {
   all: () => [...SLASH_COMMANDS],
   get: (tag: string) => SLASH_COMMANDS.find((command) => command.tag === tag),

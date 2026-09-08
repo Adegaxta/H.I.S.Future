@@ -1,10 +1,7 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { EN_TRANSLATIONS, ES_TRANSLATIONS, type TranslationKey } from "./translations";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { getProjectSetting, setProjectSetting } from "../project/settingsRepository";
-
-export type Locale = "es" | "en";
-type TranslationParams = Record<string, string | number>;
-type Translate = (key: TranslationKey, params?: TranslationParams) => string;
+import { createTranslator, isLocale, type Locale, type Translate } from "./core";
+import { cacheLocale, getInitialLocale } from "./persistence";
 
 interface LocaleContextValue {
   locale: Locale;
@@ -14,47 +11,48 @@ interface LocaleContextValue {
 
 const LocaleContext = createContext<LocaleContextValue | null>(null);
 
-const isLocale = (value: string | null): value is Locale => value === "es" || value === "en";
-
-export function ProjectLocaleProvider({ projectKey, children }: { projectKey: string; children: ReactNode }) {
-  const storageKey = `hisfuture.project.locale.${projectKey}`;
-  const [locale, setLocaleState] = useState<Locale>(() => {
-    const stored = localStorage.getItem(storageKey);
-    return isLocale(stored) ? stored : "es";
-  });
+export function LocaleProvider({ projectKey, children }: { projectKey?: string; children: ReactNode }) {
+  const [locale, setLocaleState] = useState<Locale>(() => getInitialLocale(localStorage, projectKey));
 
   useEffect(() => {
+    if (!projectKey) return;
     let active = true;
     void getProjectSetting("locale").then((stored) => {
       if (active && isLocale(stored)) {
-        localStorage.setItem(storageKey, stored);
+        try {
+          cacheLocale(localStorage, stored, projectKey);
+        } catch (error) {
+          console.warn("Could not cache locale preference", error);
+        }
         setLocaleState(stored);
       }
     }).catch((error) => console.warn("Could not load project locale", error));
     return () => { active = false; };
-  }, [storageKey]);
+  }, [projectKey]);
+
+  const setLocale = useCallback(async (nextLocale: Locale) => {
+    if (!isLocale(nextLocale)) return;
+    if (projectKey) await setProjectSetting("locale", nextLocale);
+    try {
+      cacheLocale(localStorage, nextLocale, projectKey);
+    } catch (error) {
+      console.warn("Could not cache locale preference", error);
+    }
+    setLocaleState(nextLocale);
+  }, [projectKey]);
 
   const value = useMemo<LocaleContextValue>(() => {
-    const dictionary = locale === "en" ? EN_TRANSLATIONS : ES_TRANSLATIONS;
     return {
       locale,
-      setLocale: async (nextLocale) => {
-        await setProjectSetting("locale", nextLocale);
-        localStorage.setItem(storageKey, nextLocale);
-        setLocaleState(nextLocale);
-      },
-      t: (key, params) => {
-        const template = dictionary[key] ?? ES_TRANSLATIONS[key] ?? key;
-        return Object.entries(params ?? {}).reduce(
-          (result, [name, replacement]) => result.split(`{${name}}`).join(String(replacement)),
-          template,
-        );
-      },
+      setLocale,
+      t: createTranslator(locale),
     };
-  }, [locale, storageKey]);
+  }, [locale, setLocale]);
 
   return <LocaleContext.Provider value={value}>{children}</LocaleContext.Provider>;
 }
+
+export const ProjectLocaleProvider = LocaleProvider;
 
 export function useLocale() {
   const context = useContext(LocaleContext);
@@ -62,4 +60,4 @@ export function useLocale() {
   return context;
 }
 
-export type { Translate };
+export type { Locale, Translate } from "./core";

@@ -1,8 +1,10 @@
 import { useState } from "react";
 import type { NodeItem, PickerState } from "../types/nodes";
 import { normalizeSearchText, SLASH_REGISTRY } from "../defs/editor";
+import { useLocale } from "../i18n/LocaleContext";
 
 export function useEditorPickers(nodes: NodeItem[]) {
+  const { t } = useLocale();
   const [callPicker, setCallPicker] = useState<PickerState | null>(null);
   const [callPickerIndex, setCallPickerIndex] = useState(0);
   const [imageMentionChoice, setImageMentionChoice] = useState<string | null>(null);
@@ -19,7 +21,11 @@ export function useEditorPickers(nodes: NodeItem[]) {
       )
     : [];
   const slashCandidates = slashPicker
-    ? SLASH_REGISTRY.all().filter((command) => {
+    ? SLASH_REGISTRY.all().map((command) => ({
+        ...command,
+        label: t(command.labelKey),
+        category: t(command.categoryKey),
+      })).filter((command) => {
         const query = normalizeSearchText(slashPicker.query);
         const haystack = normalizeSearchText(
           [command.label, command.tag, command.id, ...("aliases" in command ? command.aliases ?? [] : [])].join(" "),

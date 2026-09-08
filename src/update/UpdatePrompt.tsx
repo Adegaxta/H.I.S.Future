@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { check, type Update } from "@tauri-apps/plugin-updater";
 import { isDesktopRuntime } from "../project/runtime";
+import { useLocale } from "../i18n/LocaleContext";
 
 type UpdateState =
   | { kind: "checking" }
@@ -9,13 +10,14 @@ type UpdateState =
   | { kind: "error"; message: string }
   | { kind: "hidden" };
 
-function readableError(error: unknown) {
+function readableError(error: unknown, fallback: string) {
   if (error instanceof Error && error.message) return error.message;
   if (typeof error === "string" && error.trim()) return error;
-  return "No se pudo consultar GitHub Releases.";
+  return fallback;
 }
 
 export default function UpdatePrompt() {
+  const { t } = useLocale();
   const [state, setState] = useState<UpdateState>(
     isDesktopRuntime() ? { kind: "checking" } : { kind: "hidden" },
   );
@@ -35,7 +37,7 @@ export default function UpdatePrompt() {
       activeUpdate.current = update;
       setState(update ? { kind: "available", update } : { kind: "hidden" });
     } catch (error) {
-      if (mounted.current) setState({ kind: "error", message: readableError(error) });
+      if (mounted.current) setState({ kind: "error", message: readableError(error, t("update.checkError")) });
     }
   };
 
@@ -53,15 +55,15 @@ export default function UpdatePrompt() {
   if (state.kind === "hidden") return null;
 
   if (state.kind === "checking") {
-    return <div className="home-update-status">Comprobando actualizaciones…</div>;
+    return <div className="home-update-status">{t("update.checking")}</div>;
   }
 
   if (state.kind === "error") {
     return (
       <div className="home-update-status home-update-status--error" role="status">
         <span>{state.message}</span>
-        <button type="button" onClick={() => void runCheck()}>Reintentar</button>
-        <button type="button" onClick={() => setState({ kind: "hidden" })}>Más tarde</button>
+        <button type="button" onClick={() => void runCheck()}>{t("update.retry")}</button>
+        <button type="button" onClick={() => setState({ kind: "hidden" })}>{t("update.later")}</button>
       </div>
     );
   }
@@ -84,7 +86,7 @@ export default function UpdatePrompt() {
         }
       });
     } catch (error) {
-      if (mounted.current) setState({ kind: "error", message: readableError(error) });
+      if (mounted.current) setState({ kind: "error", message: readableError(error, t("update.checkError")) });
     }
   };
 
@@ -96,11 +98,11 @@ export default function UpdatePrompt() {
 
   if (state.kind === "installing") {
     return (
-      <div className="home-modal" role="dialog" aria-modal="true" aria-label="Instalando actualización">
+      <div className="home-modal" role="dialog" aria-modal="true" aria-label={t("update.installingDialog")}>
         <div className="home-modal__card home-modal__card--confirm">
-          <div className="home-modal__label">ACTUALIZANDO H.I.S. FUTURE</div>
+          <div className="home-modal__label">{t("update.installingLabel")}</div>
           <p className="home-modal__hint">
-            Descargando e instalando actualización…{state.progress !== undefined ? ` ${state.progress}%` : ""}
+            {t("update.installing", { progress: state.progress !== undefined ? ` ${state.progress}%` : "" })}
           </p>
         </div>
       </div>
@@ -108,18 +110,18 @@ export default function UpdatePrompt() {
   }
 
   return (
-    <div className="home-update" role="dialog" aria-label="Actualización de H.I.S. Future">
+    <div className="home-update" role="dialog" aria-label={t("update.availableDialog")}>
       <div>
         <strong>
-          {`Nueva versión disponible: ${state.update.version}`}
+          {t("update.available", { version: state.update.version })}
         </strong>
       </div>
       <div className="home-update__actions">
         <button type="button" className="home-screen__button home-screen__button--primary" onClick={() => void install()}>
-          Actualizar
+          {t("update.install")}
         </button>
         <button type="button" className="home-screen__button" onClick={dismiss}>
-          Más tarde
+          {t("update.later")}
         </button>
       </div>
     </div>

@@ -87,13 +87,13 @@ export default function NodePanels({ projectKey, panel, nodes, recentNodes, rece
               <button
                 className="type-group__add"
                 type="button"
-                title={`Crear ${getNodeDisplayLabel(definition.type, t)}`}
-                aria-label={`Crear ${getNodeDisplayLabel(definition.type, t)}`}
+                title={t("panels.createType", { type: getNodeDisplayLabel(definition.type, t) })}
+                aria-label={t("panels.createType", { type: getNodeDisplayLabel(definition.type, t) })}
                 onClick={() => onCreateType(definition.type)}
               >
                 +
               </button>
-              <button className="type-group__chevron-button" type="button" aria-label={isCollapsed ? "Abrir" : "Cerrar"} onClick={() => setCollapsed((current) => ({ ...current, [definition.type]: !current[definition.type] }))}>
+              <button className="type-group__chevron-button" type="button" aria-label={t(isCollapsed ? "panels.expand" : "panels.collapse")} onClick={() => setCollapsed((current) => ({ ...current, [definition.type]: !current[definition.type] }))}>
                 <SidebarIcon name={isCollapsed ? "arrow-close" : "arrow-open"} className="type-group__chevron" />
               </button>
             </div>

@@ -5,6 +5,7 @@ import { getImageResourceInfo } from "../utils/imageResource";
 import { DEFAULT_PAGE_META, getPageMeta, setPageMeta, type PageMeta } from "../utils/pageMeta";
 import { useNodeScopedEditorHistory } from "../hooks/useEditorHistory";
 import { isEditableElement } from "../utils/dom";
+import { useLocale } from "../i18n/LocaleContext";
 
 interface PageNodeHeaderProps {
   node: NodeItem;
@@ -23,6 +24,7 @@ export default function PageNodeHeader({
   onRename,
   onImageFileUpload,
 }: PageNodeHeaderProps) {
+  const { t } = useLocale();
   const [meta, setMeta] = useState<PageMeta>(() => getPageMeta(node.content));
   const [choice, setChoice] = useState<ImageChoice | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -148,17 +150,17 @@ export default function PageNodeHeader({
               <div className="page-node-header__type-row">
                 <NodeTypeLabel type="pagina" />
                 <div className="page-node-header__actions">
-                  <button type="button" onClick={() => setChoice("iconNodeId")} title="Elegir icono">Icono</button>
-                  <button type="button" onClick={() => setChoice("coverNodeId")} title="Elegir portada">Portada</button>
+                  <button type="button" onClick={() => setChoice("iconNodeId")} title={t("page.chooseIcon")}>{t("page.icon")}</button>
+                  <button type="button" onClick={() => setChoice("coverNodeId")} title={t("page.chooseCover")}>{t("page.cover")}</button>
                   <button
                     type="button"
                     onClick={() => updateMeta({ ...meta, hideDescription: !meta.hideDescription })}
-                    title="Mostrar u ocultar descripción"
+                    title={t("page.toggleDescription")}
                   >
-                    {meta.hideDescription ? "Mostrar descripción" : "Ocultar descripción"}
+                    {t(meta.hideDescription ? "page.showDescription" : "page.hideDescription")}
                   </button>
                   <span className="page-node-settings-anchor" ref={settingsRef}>
-                    <button type="button" onClick={() => { setSettingsOpen((open) => !open); setHeaderPositionOpen(false); setTextPositionOpen(false); }} title="Más opciones">...</button>
+                    <button type="button" onClick={() => { setSettingsOpen((open) => !open); setHeaderPositionOpen(false); setTextPositionOpen(false); }} title={t("page.moreOptions")}>...</button>
                     {settingsOpen && (
                       <div className="page-node-settings">
                         {hasCustomSettings && (
@@ -172,7 +174,7 @@ export default function PageNodeHeader({
                           <span>{meta.blockWidth}%</span>
                         </label>
                         <div className="page-node-settings__position">
-                          <button type="button" onMouseEnter={() => { setHeaderPositionOpen(true); setTextPositionOpen(false); }}>Posición de Cabecera</button>
+                          <button type="button" onMouseEnter={() => { setHeaderPositionOpen(true); setTextPositionOpen(false); }}>{t("page.headerPosition")}</button>
                           {headerPositionOpen && (
                             <div className="page-node-settings__position-menu">
                               {(["left", "center", "right"] as const).map((position) => (
@@ -184,7 +186,7 @@ export default function PageNodeHeader({
                           )}
                         </div>
                         <div className="page-node-settings__position">
-                          <button type="button" onMouseEnter={() => { setTextPositionOpen(true); setHeaderPositionOpen(false); }}>Posición de Bloques de Texto</button>
+                          <button type="button" onMouseEnter={() => { setTextPositionOpen(true); setHeaderPositionOpen(false); }}>{t("page.textPosition")}</button>
                           {textPositionOpen && (
                             <div className="page-node-settings__position-menu">
                               {(["left", "center", "right"] as const).map((position) => (
@@ -205,7 +207,7 @@ export default function PageNodeHeader({
                   className="editor-page__title page-node-header__title-input"
                   autoFocus
                   value={titleDraft}
-                  aria-label="Nombre de la página"
+                  aria-label={t("page.name")}
                   onChange={(event) => setTitleDraft(event.target.value)}
                   onFocus={(event) => event.currentTarget.select()}
                   onBlur={commitTitle}
@@ -223,7 +225,7 @@ export default function PageNodeHeader({
               ) : (
                 <h1
                   className="editor-page__title page-node-header__editable-title"
-                  title="Haz clic para cambiar el nombre"
+                  title={t("page.renameHint")}
                   onClick={() => setEditingTitle(true)}
                 >
                   {node.name}
@@ -235,8 +237,8 @@ export default function PageNodeHeader({
                   value={meta.description}
                   onChange={(event) => setMeta({ ...meta, description: event.target.value })}
                   onBlur={() => onContentChange(node.id, setPageMeta(node.content, meta))}
-                  placeholder="Añadir descripción..."
-                  aria-label="Descripción de la página"
+                  placeholder={t("page.description.placeholder")}
+                  aria-label={t("page.description")}
                   rows={1}
                 />
               )}
@@ -247,11 +249,11 @@ export default function PageNodeHeader({
       </div>
 
       {choice && (
-        <div className="page-image-picker" role="dialog" aria-modal="true" aria-label="Elegir imagen">
+        <div className="page-image-picker" role="dialog" aria-modal="true" aria-label={t("page.chooseImage")}>
           <div className="page-image-picker__panel">
             <div className="page-image-picker__header">
               <strong>{choice === "coverNodeId" ? "Elegir portada" : "Elegir icono"}</strong>
-              <button type="button" onClick={() => setChoice(null)} aria-label="Cerrar">X</button>
+              <button type="button" onClick={() => setChoice(null)} aria-label={t("common.actions.close")}>X</button>
             </div>
             <div className="page-image-picker__gallery">
               {imageNodes.map((imageNode) => {
@@ -276,7 +278,7 @@ export default function PageNodeHeader({
             <button type="button" className="page-image-picker__delete" onClick={clearImage}>
               Borrar imagen de {choice === "coverNodeId" ? "portada" : "icono"}
             </button>
-            {imageNodes.length === 0 && <div className="page-image-picker__empty">No hay Nodos Imagen disponibles.</div>}
+            {imageNodes.length === 0 && <div className="page-image-picker__empty">{t("page.noImages")}</div>}
           </div>
         </div>
       )}

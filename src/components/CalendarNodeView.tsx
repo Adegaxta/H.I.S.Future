@@ -21,6 +21,7 @@ import HisContextMenu from "./HisContextMenu";
 import HisTip from "./HisTip";
 import TempoInspector from "./TempoInspector";
 import WeeklyTempoView from "./WeeklyTempoView";
+import { useLocale } from "../i18n/LocaleContext";
 
 interface CalendarNodeViewProps {
   node: NodeItem;
@@ -83,16 +84,15 @@ const timeFromMinutes = (value: number) => {
 const hourTime = (hour: number) => `${String(hour).padStart(2, "0")}:00`;
 const hourLabel = (hour: number, format: TimeFormat) => formatTime(hourTime(hour), format).replace(":00", "");
 const capitalize = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
-const calendarHeading = (date: Date, view: CalendarView) => {
+const calendarHeading = (date: Date, view: CalendarView, locale: string) => {
   if (view === "day") {
-    const month = new Intl.DateTimeFormat("es-ES", { month: "long" }).format(date);
-    return `${date.getDate()} de ${capitalize(month)} de ${date.getFullYear()}`;
+    return capitalize(new Intl.DateTimeFormat(locale, { day: "numeric", month: "long", year: "numeric" }).format(date));
   }
-  const value = new Intl.DateTimeFormat("es-ES", { month: "long", year: "numeric" }).format(date);
+  const value = new Intl.DateTimeFormat(locale, { month: "long", year: "numeric" }).format(date);
   return value.charAt(0).toUpperCase() + value.slice(1);
 };
-const adjacentMonthLabel = (date: Date) => {
-  const month = date.toLocaleDateString("es-ES", { month: "short" }).replace(".", "");
+const adjacentMonthLabel = (date: Date, locale: string) => {
+  const month = date.toLocaleDateString(locale, { month: "short" }).replace(".", "");
   return `${month.charAt(0).toUpperCase()}${month.slice(1)} ${date.getDate()}`;
 };
 
@@ -125,6 +125,7 @@ export default function CalendarNodeView({
   onOpenNodeView, onFileImport, onSlashCommand,
   onRegisterNavigation, showTypeLabel = true,
 }: CalendarNodeViewProps) {
+  const { locale, t } = useLocale();
   const meta = getCalendarMeta(node.content);
   const currentDate = dateFromIso(meta.currentDate);
   const navigationHistory = useRef<{ entries: CalendarNavigationEntry[]; index: number }>({ entries: [{ meta, weeklyTempoView: false }], index: 0 });
@@ -293,11 +294,11 @@ export default function CalendarNodeView({
     const weeks = Array.from({ length: 6 }, (_, index) => dates.slice(index * 7, index * 7 + 7));
     return <>
       <div className="calendar-node__weekdays" aria-hidden="true">
-        {["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"].map((day) => <span key={day}>{day}</span>)}
+        {(["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const).map((day) => <span key={day}>{t(`calendar.weekday.${day}`)}</span>)}
       </div>
       <div className="calendar-node__month-weeks">
         {weeks.map((weekDates) => <div className="calendar-node__month-week" key={localIsoDate(weekDates[0])}>
-          <button type="button" className="calendar-node__week-access" aria-label={`Abrir Tempos de la semana del ${localIsoDate(weekDates[0])}`} onClick={() => openWeeklyTempoView(weekDates[0])}><span aria-hidden="true">TEMPO</span></button>
+          <button type="button" className="calendar-node__week-access" aria-label={t("calendar.openWeekForDate", { date: localIsoDate(weekDates[0]) })} onClick={() => openWeeklyTempoView(weekDates[0])}><span aria-hidden="true">TEMPO</span></button>
           <div className="calendar-node__grid calendar-node__grid--month">
           {weekDates.map((date) => {
           const isoDate = localIsoDate(date);
@@ -308,7 +309,7 @@ export default function CalendarNodeView({
             <article key={isoDate} className={`calendar-node__day${outsideMonth ? " is-outside" : ""}${isoDate === localIsoDate() ? " is-today" : ""}`}
               onClick={() => isFirstNextMonth ? openAdjacentMonth(date) : openDay(date)}>
               <div className="calendar-node__day-label">
-                <span>{isFirstNextMonth ? adjacentMonthLabel(date) : date.getDate()}</span>
+                <span>{isFirstNextMonth ? adjacentMonthLabel(date, locale) : date.getDate()}</span>
                 <button type="button" aria-label={`Crear Nodo Tempo para ${isoDate}`} onClick={(event) => {
                   event.stopPropagation();
                   createTempoForDate(date);
@@ -322,7 +323,7 @@ export default function CalendarNodeView({
           </div>
         </div>)}
       </div>
-      {adjacentMonthTipVisible && <HisTip storageKey={ADJACENT_MONTH_TIP_KEY} className="his-tip--calendar-navigation">Más adelante podrás cambiar cómo navegan los días adyacentes.</HisTip>}
+      {adjacentMonthTipVisible && <HisTip storageKey={ADJACENT_MONTH_TIP_KEY} className="his-tip--calendar-navigation">{t("calendar.tip.adjacentMonths")}</HisTip>}
     </>;
   };
 
@@ -330,12 +331,12 @@ export default function CalendarNodeView({
     const weekDates = Array.from({ length: 7 }, (_, index) => addDays(startOfWeek(currentDate), index));
     return (
       <div className="calendar-week">
-        <div className="calendar-week__headers"><button type="button" className="calendar-week__weekly-open" aria-label="Abrir Tempos de esta semana" onClick={() => openWeeklyTempoView(weekDates[0])}>TEMPO</button>{weekDates.map((date) => (
+        <div className="calendar-week__headers"><button type="button" className="calendar-week__weekly-open" aria-label={t("calendar.openWeek")} onClick={() => openWeeklyTempoView(weekDates[0])}>TEMPO</button>{weekDates.map((date) => (
           <button type="button" key={localIsoDate(date)} className={localIsoDate(date) === localIsoDate() ? "is-today" : ""} onClick={() => openDay(date)}>
             <strong>{date.getDate()}</strong><small>{date.toLocaleDateString("es-ES", { weekday: "short" })}</small>
           </button>
         ))}</div>
-        <div className="calendar-week__all-day"><span>Todo el día</span>{weekDates.map((date) => {
+        <div className="calendar-week__all-day"><span>{t("calendar.allDay")}</span>{weekDates.map((date) => {
           const isoDate = localIsoDate(date);
           return <div key={isoDate}>{tempos.filter((tempo) => tempo.meta.date === isoDate && !tempo.meta.startTime && !tempo.meta.endTime)
             .map((tempo) => <TempoSummary key={tempo.node.id} tempo={tempo} timeFormat={timeFormat} compact onOpen={() => openTempo(tempo)} onContextMenu={(event) => showTempoMenu(event, tempo.node.id)} />)}
@@ -384,7 +385,7 @@ export default function CalendarNodeView({
           onRename={onRenameTempo} onContentChange={onContentChange} setExpanded={setExpanded}
           onOpenDeletedNode={onOpenDeletedNode} onOpenNodeView={onOpenNodeView}
           onFileImport={onFileImport} onSlashCommand={onSlashCommand} />
-          : <div className="calendar-day-inspector__empty">Selecciona un Tempo semanal para editarlo.</div>}
+          : <div className="calendar-day-inspector__empty">{t("calendar.selectWeeklyTempo")}</div>}
       </aside>
     </div>;
   };
@@ -397,7 +398,7 @@ export default function CalendarNodeView({
     return (
       <div className={`calendar-day-layout${isoDate === localIsoDate() ? " is-today" : ""}`}>
         <div className="calendar-day-timeline">
-          {allDay.length > 0 && <div className="calendar-day-timeline__all-day"><span>Todo el día</span>{allDay.map((tempo) => <TempoSummary key={tempo.node.id} tempo={tempo} timeFormat={timeFormat} compact onOpen={() => setSelectedTempoId(tempo.node.id)} onContextMenu={(event) => showTempoMenu(event, tempo.node.id)} />)}</div>}
+          {allDay.length > 0 && <div className="calendar-day-timeline__all-day"><span>{t("calendar.allDay")}</span>{allDay.map((tempo) => <TempoSummary key={tempo.node.id} tempo={tempo} timeFormat={timeFormat} compact onOpen={() => setSelectedTempoId(tempo.node.id)} onContextMenu={(event) => showTempoMenu(event, tempo.node.id)} />)}</div>}
           <div className="calendar-day-timeline__scroll">
             <div className="calendar-day-timeline__hours">{HOURS.map((hour) => <span key={hour}>{hourLabel(hour, timeFormat)}</span>)}</div>
             <div className="calendar-day-timeline__column">
@@ -425,8 +426,8 @@ export default function CalendarNodeView({
             onRename={onRenameTempo} onContentChange={onContentChange} setExpanded={setExpanded}
             onOpenDeletedNode={onOpenDeletedNode} onOpenNodeView={onOpenNodeView}
             onFileImport={onFileImport} onSlashCommand={onSlashCommand} />
-            : selectedHour !== null ? <div className="calendar-day-inspector__create"><span>{hourLabel(selectedHour, timeFormat)}</span><button type="button" onClick={() => createInDay(selectedHour)}>+</button><p>Crear un Nodo Tempo en esta hora.</p></div>
-              : <div className="calendar-day-inspector__empty">Selecciona una hora o un Tempo para comenzar.</div>}
+            : selectedHour !== null ? <div className="calendar-day-inspector__create"><span>{hourLabel(selectedHour, timeFormat)}</span><button type="button" onClick={() => createInDay(selectedHour)}>+</button><p>{t("calendar.createAtHour")}</p></div>
+              : <div className="calendar-day-inspector__empty">{t("calendar.selectHourOrTempo")}</div>}
         </aside>
       </div>
     );
@@ -436,15 +437,15 @@ export default function CalendarNodeView({
     <section className={`calendar-node calendar-node--${meta.view}`}>
       {showTypeLabel && <NodeTypeLabel type="calendario" />}
       <header className="calendar-node__header">
-        <div className="calendar-node__navigation"><button type="button" onClick={() => move(-1)}>‹</button><button type="button" onClick={() => updateMeta({ ...meta, currentDate: localIsoDate() })}>Hoy</button><button type="button" onClick={() => move(1)}>›</button></div>
-        <div className={`calendar-node__identity${meta.view === "day" && localIsoDate(currentDate) === localIsoDate() ? " is-today" : ""}`}><h1>{calendarHeading(currentDate, meta.view)}</h1><p>{node.name}</p></div>
-        <label className="calendar-node__search"><span>⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar" /></label>
-        <div className="calendar-node__views"><button type="button" disabled>Año</button>{(["month", "week", "day"] as const).map((view) => <button type="button" key={view} className={meta.view === view ? "is-active" : ""} onClick={() => selectView(view)}>{view === "month" ? "Mes" : view === "week" ? "Semana" : "Día"}</button>)}</div>
+        <div className="calendar-node__navigation"><button type="button" onClick={() => move(-1)}>‹</button><button type="button" onClick={() => updateMeta({ ...meta, currentDate: localIsoDate() })}>{t("calendar.today")}</button><button type="button" onClick={() => move(1)}>›</button></div>
+        <div className={`calendar-node__identity${meta.view === "day" && localIsoDate(currentDate) === localIsoDate() ? " is-today" : ""}`}><h1>{calendarHeading(currentDate, meta.view, locale)}</h1><p>{node.name}</p></div>
+        <label className="calendar-node__search"><span>⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t("calendar.search")} /></label>
+        <div className="calendar-node__views"><button type="button" disabled>{t("calendar.views.year")}</button>{(["month", "week", "day"] as const).map((view) => <button type="button" key={view} className={meta.view === view ? "is-active" : ""} onClick={() => selectView(view)}>{t(`calendar.views.${view}`)}</button>)}</div>
       </header>
-      {weekTipVisible && <HisTip storageKey={WEEK_TIP_KEY} className="his-tip--week-flow">Al crear un Tempo desde Semana, HIS abre su Vista Día para configurarlo. Este comportamiento podrá personalizarse más adelante.</HisTip>}
+      {weekTipVisible && <HisTip storageKey={WEEK_TIP_KEY} className="his-tip--week-flow">{t("calendar.tip.weekFlow")}</HisTip>}
       {meta.view === "month" ? renderMonth() : meta.view === "week" && weeklyTempoView ? renderWeeklyTempos() : meta.view === "week" ? renderWeek() : renderDay()}
       {tempoMenu && <HisContextMenu x={tempoMenu.x} y={tempoMenu.y} onClose={() => setTempoMenu(null)} items={[{
-        id: "delete-tempo", label: "Eliminar Nodo Tempo", danger: true, onSelect: () => removeTempo(tempoMenu.tempoId),
+        id: "delete-tempo", label: t("calendar.deleteTempo"), danger: true, onSelect: () => removeTempo(tempoMenu.tempoId),
       }]} />}
     </section>
   );
