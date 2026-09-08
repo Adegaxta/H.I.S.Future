@@ -1,0 +1,3 @@
+import type { NodeRendererProps } from "../rendering";
+import TempoInspector from "./view";
+export const TempoNodeRenderer = ({ node, host }: NodeRendererProps) => <TempoInspector tempo={node} nodes={host.data.nodes} deletedNodes={host.data.deletedNodes} timeFormat={host.data.timeFormat} variant="standalone" onRename={host.mutations.renameNode} onContentChange={host.mutations.updateContent} setExpanded={host.tree.setExpanded} onOpenDeletedNode={host.navigation.openDeletedNode} onFileImport={host.files.importFile} onSlashCommand={host.editor.runSlashCommand} onOpenNodeView={host.navigation.openNodeView} />;

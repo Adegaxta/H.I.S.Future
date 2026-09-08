@@ -1,4 +1,5 @@
 import type { NodeItem, RenderNodeType } from "../types/nodes";
+import { hasNodeCapability } from "../defs/nodeTypes";
 
 export function getChildren(
   nodes: NodeItem[],
@@ -160,5 +161,5 @@ export function sortNodesForPersistence(nodes: NodeItem[]): NodeItem[] {
 
 // Categories are structural folders; Page folders and Calendar keep their own click behavior.
 export function opensNodeViewOnClick(node: NodeItem): boolean {
-  return node.type !== "categoria";
+  return hasNodeCapability(node.type, "openOnPrimaryAction");
 }

@@ -5,6 +5,7 @@ import type {
   RefObject,
   SetStateAction,
 } from "react";
+import { EDITOR_NON_EDITABLE_BLOCK_SELECTOR, keepOutermostBlocks } from "../editor/blockModel";
 
 interface UseEditorBlockSelectionOptions {
   editorRef: RefObject<HTMLDivElement | null>;
@@ -131,19 +132,20 @@ export function useEditorBlockSelection({
     if (!blockSelectionRef.current || !blockSelection) return;
     const editor = editorRef.current;
     if (editor && blockSelection.width > 6 && blockSelection.height > 6) {
-      const selected = Array.from(editor.querySelectorAll<HTMLElement>(textLineSelector)).filter((block) => {
+      const intersecting = Array.from(editor.querySelectorAll<HTMLElement>(textLineSelector)).filter((block) => {
         const rect = block.getBoundingClientRect();
         return rect.right >= blockSelection.left &&
           rect.left <= blockSelection.left + blockSelection.width &&
           rect.bottom >= blockSelection.top &&
           rect.top <= blockSelection.top + blockSelection.height;
       });
+      const selected = keepOutermostBlocks(intersecting);
 
       if (selected.length) {
         clearLineSelection();
         selected.forEach((block) => {
           block.setAttribute("data-line-selected", "true");
-          if (!block.matches('[data-divider], [data-globe], [data-page-index], [data-mention-id][data-mention-mode="full"]')) block.contentEditable = "false";
+          if (!block.matches(EDITOR_NON_EDITABLE_BLOCK_SELECTOR)) block.contentEditable = "false";
         });
         setSelectedLineBlocks(selected);
         const selection = window.getSelection();

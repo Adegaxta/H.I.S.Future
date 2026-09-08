@@ -45,6 +45,7 @@ interface RichTextEditorProps {
   onCreatePastedNode?: (name: string) => NodeItem | null;
   onSlashCommand?: (tag: string) => boolean;
   readOnly?: boolean;
+  className?: string;
   style: CSSProperties;
 }
 
@@ -64,6 +65,7 @@ export default function RichTextEditor({
   onCreatePastedNode,
   onSlashCommand,
   readOnly = false,
+  className,
   style,
 }: RichTextEditorProps) {
   const { t } = useLocale();
@@ -575,7 +577,7 @@ export default function RichTextEditor({
       )}
       <div
         ref={editorRef}
-        className="editor-content"
+        className={`editor-content${className ? ` ${className}` : ""}`}
         data-block-selecting={controller.blockSelection ? "true" : undefined}
         contentEditable={!readOnly}
         suppressContentEditableWarning
@@ -643,6 +645,13 @@ export default function RichTextEditor({
             controller.focusOrCreatePageLine();
           }
           const clickedBlock = controller.getEditorBlock?.(event.target as Node) ?? null;
+          if (!readOnly && clickedBlock && (event.ctrlKey || event.metaKey) && !clickedBlock.matches("[data-page-index]")) {
+            event.preventDefault();
+            event.stopPropagation();
+            controller.toggleLineSelection(clickedBlock);
+            controller.setLineActionBlock?.(null);
+            return;
+          }
           if (!readOnly && clickedBlock && clickedBlock.matches("p, h1, h2, h3, h4, blockquote, li, [data-page-index]")) {
             const currentSelected = controller.selectedLineBlocks.filter((line) => line.isConnected);
             if (currentSelected.length > 0) {

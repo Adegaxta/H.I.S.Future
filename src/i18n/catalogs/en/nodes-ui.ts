@@ -81,4 +81,12 @@ export const EN_NODES_UI_TRANSLATIONS = {
   "page.description": "Page description",
   "page.chooseImage": "Choose image",
   "page.noImages": "No Image Nodes available.",
+  "page.resetLayout": "Reset default layout",
+  "page.blockWidth": "Page block width",
+  "page.position.left": "Left",
+  "page.position.center": "Center",
+  "page.position.right": "Right",
+  "page.uploadImage": "Upload external image",
+  "page.removeCover": "Remove cover image",
+  "page.removeIcon": "Remove icon image",
 } as const;

@@ -1,0 +1,83 @@
+.pdf-node-view__header { padding: 20px 24px 0; }
+
+.pdf-node-view__loading,
+.pdf-node-view__error,
+.pdf-viewer__state {
+  padding: 24px;
+  color: #8f949b;
+  font-size: 13px;
+}
+
+.pdf-node-view__error,
+.pdf-viewer__state.is-error { color: #d85f5f; }
+
+.pdf-viewer {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  height: calc(100vh - 82px);
+  background: #111316;
+}
+
+.pdf-viewer__toolbar {
+  display: flex;
+  z-index: 2;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 42px;
+  border-bottom: 1px solid #2a2e33;
+  background: #171a1e;
+  color: #c7c9cc;
+  font-size: 12px;
+}
+
+.pdf-viewer__toolbar button {
+  width: 28px;
+  height: 26px;
+  border: 1px solid #343940;
+  border-radius: 0;
+  background: transparent;
+  color: #e8e9ea;
+  cursor: pointer;
+  font-size: 17px;
+}
+
+.pdf-viewer__toolbar button:hover { border-color: #d85f5f; color: #d85f5f; }
+.pdf-viewer__document { flex: 1; min-height: 0; overflow: auto; padding: 24px; text-align: center; }
+.pdf-viewer__page { position: relative; display: block; width: max-content; margin: 0 auto 18px; line-height: 1; background: #fff; }
+.pdf-viewer__page canvas { display: block; }
+.pdf-viewer__page .textLayer {
+  --min-font-size: 1;
+  --text-scale-factor: calc(var(--total-scale-factor) * var(--min-font-size));
+  --min-font-size-inv: calc(1 / var(--min-font-size));
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: clip;
+  color-scheme: only light;
+  line-height: 1;
+  letter-spacing: normal;
+  word-spacing: normal;
+  text-align: initial;
+  text-size-adjust: none;
+  forced-color-adjust: none;
+  transform-origin: 0 0;
+}
+
+.pdf-viewer__page .textLayer :is(span, br) { position: absolute; color: transparent; white-space: pre; cursor: text; user-select: text; transform-origin: 0 0; }
+.pdf-viewer__page .textLayer > :not(.markedContent),
+.pdf-viewer__page .textLayer .markedContent span:not(.markedContent) {
+  --font-height: 0;
+  --scale-x: 1;
+  --rotate: 0deg;
+  z-index: 1;
+  font-size: calc(var(--text-scale-factor) * var(--font-height));
+  transform: rotate(var(--rotate)) scaleX(var(--scale-x)) scale(var(--min-font-size-inv));
+}
+
+.pdf-viewer__page .textLayer .markedContent { display: contents; }
+.pdf-viewer__page .textLayer ::selection { color: transparent; background: rgba(77, 148, 216, 0.38); }
+.pdf-viewer__page .textLayer .endOfContent { position: absolute; display: block; inset: 100% 0 0; z-index: 0; cursor: default; user-select: none; }
+.pdf-viewer__page .textLayer.selecting .endOfContent { top: 0; }

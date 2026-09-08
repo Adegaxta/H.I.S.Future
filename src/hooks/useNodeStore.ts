@@ -1,9 +1,10 @@
 import { useLocale } from "../i18n/LocaleContext";
-import { courseAwareDeletionIds, courseTitleFromName, hasMissingCourseCalendar, setNodalMeta, reconcileCourseCalendars, synchronizedNodeIds } from "../utils/nodalMeta";
+import { courseAwareDeletionIds, hasMissingCourseCalendar, reconcileCourseCalendars, synchronizedNodeIds } from "../nodes/course/domain";
+import { applyNodeRename } from "../nodes/runtime";
 import { useDebouncedPersistence } from "./useDebouncedPersistence";
 import { useEffect, useRef, useState } from "react";
 import { listNodes, saveNodes, loadDeletedNodes } from "../project/nodeRepository";
-import { getNodeDefinition } from "../defs/nodeTypes";
+import { getNodeDefinition, hasNodeCapability } from "../defs/nodeTypes";
 import type { BaseNodeType, NodeItem } from "../types/nodes";
 import { setLoreMembership } from "../utils/loreTree";
 import {
@@ -194,7 +195,7 @@ export function useNodeStore(projectKey?: string) {
   };
   const selectedNode = nodes.find((node) => node.id === selectedId);
   const recentNodes = nodes
-    .filter((node) => Boolean(recentActivity[node.id]) && node.type !== "categoria")
+    .filter((node) => Boolean(recentActivity[node.id]) && hasNodeCapability(node.type, "openOnPrimaryAction"))
     .sort((a, b) => recentActivity[b.id] - recentActivity[a.id]);
   const selectNode = (id: string | null) => {
     setSelectedId(id);
@@ -235,7 +236,7 @@ export function useNodeStore(projectKey?: string) {
       ]);
     });
     if (parentId) setExpanded((current) => ({ ...current, [parentId]: true }));
-    if (selectCreated && getNodeDefinition(type).selectOnCreation) setSelectedId(id);
+    if (selectCreated && getNodeDefinition(type).creation.selectAfterCreation) setSelectedId(id);
     return id;
   };
   const renameNode = (id: string, name: string) =>
@@ -246,7 +247,7 @@ export function useNodeStore(projectKey?: string) {
       markDirty();
       markRecent(id, "rename");
       return reconcile(current.map((item) =>
-        item.id === id ? { ...item, name: nextName, content: item.type === "curso" ? setNodalMeta(item.content, { courseTitle: courseTitleFromName({ ...item, name: nextName }) }) : item.content } : item,
+        item.id === id ? applyNodeRename(item, nextName) : item,
       ));
     });
   const deleteNode = (id: string) => {

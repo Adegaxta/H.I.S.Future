@@ -1,8 +1,8 @@
-import type { NavigationHandler } from "../hooks/useWorkspaceNavigation";
-import { calendarTempos } from "../utils/nodalMeta";
+import type { NavigationHandler } from "../../hooks/useWorkspaceNavigation";
+import { calendarTempos } from "./projections";
 import { useEffect, useRef, useState } from "react";
-import type { NodeItem } from "../types/nodes";
-import NodeTypeLabel from "./NodeTypeLabel";
+import type { NodeItem } from "../../types/nodes";
+import NodeTypeLabel from "../../components/NodeTypeLabel";
 import {
   formatTempoTime,
   formatTime,
@@ -16,12 +16,12 @@ import {
   type TempoMeta,
   type TempoSubtype,
   type TimeFormat,
-} from "../utils/temporalMeta";
-import HisContextMenu from "./HisContextMenu";
-import HisTip from "./HisTip";
-import TempoInspector from "./TempoInspector";
-import WeeklyTempoView from "./WeeklyTempoView";
-import { useLocale } from "../i18n/LocaleContext";
+} from "../../utils/temporalMeta";
+import HisContextMenu from "../../components/HisContextMenu";
+import HisTip from "../../components/HisTip";
+import TempoInspector from "../tempo/view";
+import WeeklyTempoView from "../../components/WeeklyTempoView";
+import { useLocale } from "../../i18n/LocaleContext";
 
 interface CalendarNodeViewProps {
   node: NodeItem;

@@ -11,7 +11,7 @@ import type {
   NodeItem,
   RenderNodeType,
 } from "../types/nodes";
-import { NODE_REGISTRY, getNodeDefinition, getNodeDisplayLabel } from "../defs/nodeTypes";
+import { NODE_REGISTRY, getNodeDefinition, getNodeDisplayLabel, hasNodeCapability } from "../defs/nodeTypes";
 import { getChildren, getEffectiveNodeType, opensNodeViewOnClick } from "../utils/nodeTree";
 import { useLocale } from "../i18n/LocaleContext";
 import { findImportableFile, isImportableDragItem } from "../project/fileNodeImporter";
@@ -121,7 +121,7 @@ export default function SidebarTree(props: SidebarTreeProps) {
     if (additive || event.shiftKey) return;
     props.setCreating(null);
     const type = getEffectiveNodeType(projectNodes, node);
-    if (getNodeDefinition(type).canContainChildren || type === "pagina-carpeta") {
+    if (hasNodeCapability(type, "containChildren")) {
       props.setExpanded((current) => ({ ...current, [node.id]: !current[node.id] }));
     }
     if (opensNodeViewOnClick(node)) props.setSelectedId(node.id);
@@ -183,8 +183,7 @@ export default function SidebarTree(props: SidebarTreeProps) {
   const renderNode = (node: NodeItem, depth: number): React.ReactNode => {
     const children = childrenOf(node.id);
     const type: RenderNodeType = getEffectiveNodeType(projectNodes, node);
-    const isFolder =
-      getNodeDefinition(type).canContainChildren || type === "pagina-carpeta";
+    const isFolder = hasNodeCapability(type, "containChildren");
     const canContainChildren =
       isFolder || children.length > 0 || creating?.parentId === node.id;
     const isExpanded = expanded[node.id] || (Boolean(normalizedQuery) && visibleIds.has(node.id));
@@ -420,9 +419,7 @@ export default function SidebarTree(props: SidebarTreeProps) {
           const targetType = targetNode
             ? getEffectiveNodeType(nodes, targetNode)
             : null;
-          const canContain = targetType
-            ? getNodeDefinition(targetType).canContainChildren || targetType === "pagina-carpeta"
-            : false;
+          const canContain = targetType ? hasNodeCapability(targetType, "containChildren") : false;
           props.onFileDrop(file, canContain ? targetId || null : targetNode?.parentId || null);
           return;
         }

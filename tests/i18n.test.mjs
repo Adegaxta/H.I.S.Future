@@ -56,7 +56,7 @@ try {
   const criticalSources = [
     "src/screens/HomeScreen.tsx",
     "src/components/AppWorkspace.tsx",
-    "src/components/CalendarNodeView.tsx",
+    "src/nodes/calendar/view.tsx",
     "src/components/LoreAddDialog.tsx",
   ].map((file) => fs.readFileSync(path.join(root, file), "utf8")).join("\n");
   for (const forbidden of [

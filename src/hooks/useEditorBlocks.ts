@@ -124,10 +124,14 @@ export function useEditorBlocks({
     return true;
   }, [blockSelector, editorRef, isRootEditorBlock]);
 
-  const removeLine = useCallback((block: HTMLElement, caretAtEnd = false) => {
+  const removeLine = useCallback((
+    block: HTMLElement,
+    caretAtEnd = false,
+    options: { captureUndo?: boolean; sync?: boolean } = {},
+  ) => {
     const editor = editorRef.current;
     if (!editor || !editor.contains(block)) return;
-    captureStructuralUndo();
+    if (options.captureUndo !== false) captureStructuralUndo();
     const globeContent = block.closest("[data-globe-content]") as HTMLElement | null;
     const rootCandidates = globeContent
       ? Array.from(globeContent.querySelectorAll<HTMLElement>(textLineSelector))
@@ -170,22 +174,8 @@ export function useEditorBlocks({
     controls.clearBlockControls();
     setPlaceholderBlock(null);
     updatePlaceholder();
-    syncContent();
+    if (options.sync !== false) syncContent();
   }, [captureStructuralUndo, clearLineSelection, controls, editorRef, isRootEditorBlock, setPlaceholderBlock, syncContent, textLineSelector, updatePlaceholder]);
-
-  const hasTextLineAfter = useCallback((block: HTMLElement) => {
-    const editor = editorRef.current;
-    if (!editor) return false;
-    const lines = Array.from(
-      editor.querySelectorAll<HTMLElement>(
-        'p, h1, h2, h3, h4, blockquote, li, [data-divider], [data-mention-id][data-mention-mode="full"]',
-      ),
-    );
-    const blockIndex = lines.indexOf(block);
-    return lines
-      .slice(blockIndex + 1)
-      .some((line) => Boolean(line.textContent?.trim()));
-  }, [editorRef]);
 
   const deleteSelectedLine = useCallback(() => {
     const blocks = selectedLineBlocks.filter((line) => line.isConnected);
@@ -195,11 +185,13 @@ export function useEditorBlocks({
         ? [lineActionBlock]
         : [];
     if (!targets.length) return;
-    targets.forEach((block) => removeLine(block));
+    captureStructuralUndo();
+    targets.forEach((block) => removeLine(block, false, { captureUndo: false, sync: false }));
+    syncContent();
     pickers.setPickerPosition(null);
     pickers.setSlashPicker(null);
     setLineActionBlock(null);
-  }, [lineActionBlock, pickers, removeLine, selectedLineBlocks, setLineActionBlock]);
+  }, [captureStructuralUndo, lineActionBlock, pickers, removeLine, selectedLineBlocks, setLineActionBlock, syncContent]);
 
   const openLineCommands = useCallback((block: HTMLElement, anchor?: HTMLElement) => {
     imageResizeRef.current = null;
@@ -519,8 +511,7 @@ export function useEditorBlocks({
     setSelectionToolbar(null);
     duplicateDragRef.current = event.altKey;
     if (isLineEmpty(block)) {
-      if (!hasTextLineAfter(block)) removeLine(block);
-      else openLineCommands(block);
+      openLineCommands(block);
       return;
     }
     const selected = selectedLineBlocks.filter((line) => line.isConnected);
@@ -534,7 +525,7 @@ export function useEditorBlocks({
     document.body.style.cursor = duplicateDragRef.current ? "copy" : "grabbing";
     updateDragPreview(block, event.clientX, event.clientY);
     controls.setIsDraggingLine(true);
-  }, [controls, hasTextLineAfter, isLineEmpty, openLineCommands, removeLine, selectedLineBlocks, setSelectionToolbar, updateDragPreview]);
+  }, [controls, isLineEmpty, openLineCommands, selectedLineBlocks, setSelectionToolbar, updateDragPreview]);
 
   const moveLineDrag = useCallback((event: PointerEvent<HTMLButtonElement>) => {
     const dragged = controls.draggedLineRef.current;
@@ -577,7 +568,6 @@ export function useEditorBlocks({
     insertLine,
     ensureEditorLine,
     removeLine,
-    hasTextLineAfter,
     deleteSelectedLine,
     openLineCommands,
     duplicateLine,

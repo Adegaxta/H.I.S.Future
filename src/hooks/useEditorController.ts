@@ -18,6 +18,7 @@ import { useEditorPickers } from "./useEditorPickers";
 import { useRichTextEditor } from "./useRichTextEditor";
 import draftAsset from "../assets/third-party/google-material/icons/draft.svg";
 import { createEmptyEditorPickerSession, getEditorPickerTrigger, isSameMentionTriggerRange, type MentionTriggerRange } from "../utils/editorPickerSession";
+import { EDITOR_NON_EDITABLE_BLOCK_SELECTOR, EDITOR_SELECTABLE_BLOCK_SELECTOR, EDITOR_STRUCTURAL_BLOCK_SELECTOR } from "../editor/blockModel";
 
 interface EditorControllerOptions {
   node: NodeItem;
@@ -33,10 +34,8 @@ interface EditorControllerOptions {
   onSlashCommand?: (tag: string) => boolean;
 }
 
-const blockSelector =
-  'p, h1, h2, h3, h4, blockquote, li, [data-divider], [data-globe], [data-page-index], [data-mention-id][data-mention-mode="full"]';
-const textLineSelector =
-  'p, h1, h2, h3, h4, blockquote, li, [data-divider], [data-globe], [data-page-index], [data-mention-id][data-mention-mode="full"]';
+const blockSelector = EDITOR_STRUCTURAL_BLOCK_SELECTOR;
+const textLineSelector = EDITOR_SELECTABLE_BLOCK_SELECTOR;
 
 export function useEditorController({
   node,
@@ -168,7 +167,7 @@ export function useEditorController({
   const isRootEditorBlock = (block: HTMLElement) =>
     !block.parentElement?.closest(blockSelector);
   const isNonEditableBlockType = (block: HTMLElement) =>
-    block.matches('[data-divider], [data-globe], [data-page-index], [data-mention-id][data-mention-mode="full"]');
+    block.matches(EDITOR_NON_EDITABLE_BLOCK_SELECTOR);
   const clearTransientEditorState = () => {
     const editor = editorRef.current;
     if (!editor) return;
@@ -1369,6 +1368,7 @@ export function useEditorController({
     if (event.key === "Tab") {
       if (selectedBlocks.length) {
         event.preventDefault();
+        captureStructuralUndo();
         selectedBlocks.forEach((block) => {
           const currentMargin = Number.parseFloat(block.style.marginLeft || "0");
           const nextMargin = Math.max(0, currentMargin + (event.shiftKey ? -24 : 24));

@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import type { NodeItem } from "../types/nodes";
-import NodeTypeLabel from "./NodeTypeLabel";
-import { getImageResourceInfo } from "../utils/imageResource";
-import { DEFAULT_PAGE_META, getPageMeta, setPageMeta, type PageMeta } from "../utils/pageMeta";
-import { useNodeScopedEditorHistory } from "../hooks/useEditorHistory";
-import { isEditableElement } from "../utils/dom";
-import { useLocale } from "../i18n/LocaleContext";
+import type { NodeItem } from "../../types/nodes";
+import NodeTypeLabel from "../../components/NodeTypeLabel";
+import { getImageResourceInfo } from "../../utils/imageResource";
+import { DEFAULT_PAGE_META, getPageBlockWidthPercent, getPageMeta, setPageMeta, type PageMeta } from "../../utils/pageMeta";
+import { useNodeScopedEditorHistory } from "../../hooks/useEditorHistory";
+import { isEditableElement } from "../../utils/dom";
+import { useLocale } from "../../i18n/LocaleContext";
 
 interface PageNodeHeaderProps {
   node: NodeItem;
@@ -34,6 +34,7 @@ export default function PageNodeHeader({
   const [titleDraft, setTitleDraft] = useState(node.name);
   const history = useNodeScopedEditorHistory<PageMeta>(node.id, 50);
   const metaRef = useRef(meta);
+  const descriptionStartRef = useRef<PageMeta | null>(null);
   const settingsRef = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
@@ -46,6 +47,14 @@ export default function PageNodeHeader({
     setEditingTitle(false);
     setTitleDraft(node.name);
   }, [node.id, node.name]);
+
+  useEffect(() => {
+    setChoice(null);
+    setSettingsOpen(false);
+    setHeaderPositionOpen(false);
+    setTextPositionOpen(false);
+    descriptionStartRef.current = null;
+  }, [node.id]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -165,13 +174,13 @@ export default function PageNodeHeader({
                       <div className="page-node-settings">
                         {hasCustomSettings && (
                       <button type="button" onMouseEnter={() => { setHeaderPositionOpen(false); setTextPositionOpen(false); }} onClick={() => { updateMeta({ ...meta, ...DEFAULT_PAGE_META, description: meta.description, iconNodeId: meta.iconNodeId, coverNodeId: meta.coverNodeId }); setSettingsOpen(false); }}>
-                            Restablecer a diseño predeterminado
+                            {t("page.resetLayout")}
                           </button>
                         )}
                         <label onMouseEnter={() => { setHeaderPositionOpen(false); setTextPositionOpen(false); }}>
-                          Ancho de bloques de Nodo Página
+                          {t("page.blockWidth")}
                           <input type="range" min="100" max="200" value={meta.blockWidth} onChange={(event) => updateMeta({ ...meta, blockWidth: Number(event.target.value) })} />
-                          <span>{meta.blockWidth}%</span>
+                          <span>{getPageBlockWidthPercent(meta)}%</span>
                         </label>
                         <div className="page-node-settings__position">
                           <button type="button" onMouseEnter={() => { setHeaderPositionOpen(true); setTextPositionOpen(false); }}>{t("page.headerPosition")}</button>
@@ -179,7 +188,7 @@ export default function PageNodeHeader({
                             <div className="page-node-settings__position-menu">
                               {(["left", "center", "right"] as const).map((position) => (
                                 <button type="button" key={position} onClick={() => { updateMeta({ ...meta, headerPosition: position }); setHeaderPositionOpen(false); setSettingsOpen(false); }}>
-                                  {position === "left" ? "Izquierda" : position === "center" ? "Centro" : "Derecha"}
+                                  {t(`page.position.${position}`)}
                                 </button>
                               ))}
                             </div>
@@ -191,7 +200,7 @@ export default function PageNodeHeader({
                             <div className="page-node-settings__position-menu">
                               {(["left", "center", "right"] as const).map((position) => (
                                 <button type="button" key={position} onClick={() => { updateMeta({ ...meta, textPosition: position }); setTextPositionOpen(false); setSettingsOpen(false); }}>
-                                  {position === "left" ? "Izquierda" : position === "center" ? "Centro" : "Derecha"}
+                                  {t(`page.position.${position}`)}
                                 </button>
                               ))}
                             </div>
@@ -235,8 +244,19 @@ export default function PageNodeHeader({
                 <textarea
                   className="page-node-header__description"
                   value={meta.description}
-                  onChange={(event) => setMeta({ ...meta, description: event.target.value })}
-                  onBlur={() => onContentChange(node.id, setPageMeta(node.content, meta))}
+                  onFocus={() => { descriptionStartRef.current = metaRef.current; }}
+                  onChange={(event) => {
+                    const next = { ...metaRef.current, description: event.target.value };
+                    metaRef.current = next;
+                    setMeta(next);
+                  }}
+                  onBlur={() => {
+                    const start = descriptionStartRef.current;
+                    const current = metaRef.current;
+                    if (start && start.description !== current.description) history.push(start);
+                    descriptionStartRef.current = null;
+                    onContentChange(node.id, setPageMeta(node.content, current));
+                  }}
                   placeholder={t("page.description.placeholder")}
                   aria-label={t("page.description")}
                   rows={1}
@@ -252,7 +272,7 @@ export default function PageNodeHeader({
         <div className="page-image-picker" role="dialog" aria-modal="true" aria-label={t("page.chooseImage")}>
           <div className="page-image-picker__panel">
             <div className="page-image-picker__header">
-              <strong>{choice === "coverNodeId" ? "Elegir portada" : "Elegir icono"}</strong>
+              <strong>{t(choice === "coverNodeId" ? "page.chooseCover" : "page.chooseIcon")}</strong>
               <button type="button" onClick={() => setChoice(null)} aria-label={t("common.actions.close")}>X</button>
             </div>
             <div className="page-image-picker__gallery">
@@ -268,7 +288,7 @@ export default function PageNodeHeader({
               })}
             </div>
             <label className="page-image-picker__upload">
-              Cargar imagen externa
+              {t("page.uploadImage")}
               <input type="file" accept="image/*" onChange={(event) => {
                 const file = event.target.files?.[0];
                 if (file) void uploadImage(file);
@@ -276,7 +296,7 @@ export default function PageNodeHeader({
               }} />
             </label>
             <button type="button" className="page-image-picker__delete" onClick={clearImage}>
-              Borrar imagen de {choice === "coverNodeId" ? "portada" : "icono"}
+              {t(choice === "coverNodeId" ? "page.removeCover" : "page.removeIcon")}
             </button>
             {imageNodes.length === 0 && <div className="page-image-picker__empty">{t("page.noImages")}</div>}
           </div>

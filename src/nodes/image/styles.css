@@ -1,0 +1,85 @@
+.image-node-view {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) minmax(280px, 0.8fr);
+  gap: 28px;
+  min-height: 420px;
+}
+
+.image-node-view__preview {
+  display: grid;
+  min-height: 280px;
+  place-items: center;
+  padding: 0;
+  background: transparent;
+}
+
+.image-node-view__preview img {
+  max-width: 100%;
+  max-height: min(560px, 60vh);
+  object-fit: contain;
+}
+
+.image-node-view__panel { min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.image-node-view__panel::before {
+  content: "DETALLES DEL RECURSO";
+  color: #7a7f87;
+  font: 10px ui-monospace, "SF Mono", "Cascadia Code", monospace;
+  letter-spacing: 0.08em;
+}
+
+.image-node-view__description {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #343940;
+  border-radius: 4px;
+  outline: none;
+  color: #f2f3f4;
+  background: #1a1d21;
+  font-family: inherit;
+  font-size: 12px;
+  resize: vertical;
+  min-height: 60px;
+}
+
+.image-node-view__description::placeholder { color: #7a7f87; }
+.image-node-view__description:focus { border-color: #4dd8c0; }
+.image-node-view__title {
+  width: 100%;
+  padding: 0 0 10px;
+  border: none;
+  border-bottom: 1px solid #343940;
+  outline: none;
+  color: #f2f3f4;
+  background: transparent;
+  font-size: 24px;
+}
+
+.image-node-view__actions { display: flex; flex-wrap: wrap; gap: 6px; margin: 18px 0 12px; }
+.image-node-view__actions button,
+.image-node-view__button {
+  padding: 7px 10px;
+  border: 1px solid #343940;
+  border-radius: 3px;
+  color: #e8e9ea;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  text-decoration: none;
+  transition: border-color 120ms ease, color 120ms ease, background 120ms ease, transform 120ms ease;
+}
+
+.image-node-view__actions button:hover,
+.image-node-view__button:hover { border-color: #4dd8c0; color: #4dd8c0; background: rgba(77, 216, 192, 0.05); transform: translateY(-1px); }
+.image-node-view__actions .is-danger:hover { border-color: #d84d4d; color: #d87878; }
+.image-node-view__button input { display: none; }
+.image-node-view__button[style*="background"] { background: rgba(77, 216, 192, 0.08); }
+.image-node-view__message { margin-bottom: 14px; color: #d8b34d; font-size: 12px; }
+.image-node-view__metadata { display: grid; grid-template-columns: minmax(120px, 0.8fr) minmax(0, 1.2fr); gap: 8px 14px; margin: 0; font-size: 12px; }
+.image-node-view__metadata dt { color: #7a7f87; }
+.image-node-view__metadata dd { margin: 0; color: #c7c9cc; overflow-wrap: anywhere; }
+.image-node-view__empty { color: #d87878; }
+
+@media (max-width: 760px) {
+  .image-node-view { grid-template-columns: 1fr; }
+}

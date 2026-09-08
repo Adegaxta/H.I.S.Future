@@ -1,17 +1,17 @@
 import { useEffect, useState, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { save } from "@tauri-apps/plugin-dialog";
-import type { NodeItem } from "../types/nodes";
+import type { NodeItem } from "../../types/nodes";
 import {
   getImageResourceInfo,
   hashImageFile,
   createImageContent,
   getDataUrlByteSize,
   getImageMimeType,
-} from "../utils/imageResource";
-import { isDesktopRuntime } from "../project/runtime";
-import NodeTypeLabel from "./NodeTypeLabel";
-import { useLocale } from "../i18n/LocaleContext";
+} from "../../utils/imageResource";
+import { isDesktopRuntime } from "../../project/runtime";
+import NodeTypeLabel from "../../components/NodeTypeLabel";
+import { useLocale } from "../../i18n/LocaleContext";
 
 interface ImageNodeViewProps {
   node: NodeItem;

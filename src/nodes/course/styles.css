@@ -1,0 +1,166 @@
+.course-node-view {
+  display: grid;
+  grid-template-columns: minmax(0, 1.28fr) minmax(380px, 0.92fr);
+  align-items: stretch;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  gap: clamp(24px, 3vw, 44px);
+  color: #e8e9ea;
+}
+
+.course-node-view__identity {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.course-node-view__context {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.workspace-main:has(> .editor-page > .course-node-view) { overflow: hidden; }
+.editor-page:has(> .course-node-view) { height: 100%; min-height: 0; overflow: hidden; padding-top: 56px; container: course-workspace / inline-size; }
+.editor-page:has(.course-node-view) > .course-node-view .editor-page__type { margin-top: 2px; }
+.course-identity-fields { display: grid; grid-template-columns: 1fr 1.35fr 0.58fr; gap: 34px; margin: 15px 0 8px; }
+.course-identity-fields input, .course-link-field input, .course-description-field textarea, .room-link input { width: 100%; border: 0; border-bottom: 1px solid transparent; border-radius: 0; padding: 4px 0; background: transparent; color: #e8e9ea; outline: 0; font: inherit; }
+.course-identity-fields input { min-width: 0; color: #e8e9ea; font-size: 14px; font-weight: 500; }
+.course-identity-fields input::placeholder { color: #656a73; opacity: 1; }
+.course-identity-fields input:focus, .course-link-field input:focus, .course-description-field textarea:focus, .room-link input:focus { border-color: #4dd8c0; }
+.course-section-title { display: flex; align-items: center; gap: 9px; height: 24px; border: 0; padding: 0; background: transparent; color: #e8e9ea; cursor: pointer; font: inherit; font-size: 14px; font-weight: 500; text-align: left; }
+.course-caret { width: 0; height: 0; border-top: 6px solid #4dd8c0; border-right: 6px solid transparent; border-left: 6px solid transparent; }
+.course-caret.is-collapsed { transform: rotate(-90deg); }
+.course-cover { display: grid; place-items: center; position: relative; box-sizing: border-box; width: 100%; height: 132px; border: 0; border-radius: 0; padding: 0; background: transparent center/cover no-repeat; color: #4dd8c0; cursor: pointer; }
+.course-cover .sidebar-icon--image-add { width: 36px; height: 36px; }
+.course-cover > .node-reference { padding: 6px 9px; background: rgba(18, 20, 23, 0.88); }
+.course-cover > .nodal-unlink { position: absolute; top: 2px; right: 1px; background: #101316; }
+.course-cover .corner { position: absolute; width: 12px; height: 12px; pointer-events: none; }
+.course-cover .corner--tl { top: 0; left: 0; border-top: 4px solid #4dd8c0; border-left: 4px solid #4dd8c0; }
+.course-cover .corner--tr { top: 0; right: 0; border-top: 4px solid #4dd8c0; border-right: 4px solid #4dd8c0; }
+.course-cover .corner--bl { bottom: 0; left: 0; border-bottom: 4px solid #4dd8c0; border-left: 4px solid #4dd8c0; }
+.course-cover .corner--br { right: 0; bottom: 0; border-right: 4px solid #4dd8c0; border-bottom: 4px solid #4dd8c0; }
+.course-empty-action b { display: block; font-size: 50px; font-weight: 300; }
+.course-link-field { display: grid; grid-template-columns: 170px minmax(0, 220px); align-items: center; gap: 8px; margin-top: 12px; color: #e8e9ea; font-size: 14px; }
+.course-link-field > span, .course-link-input { display: flex; align-items: center; gap: 7px; }
+.course-link-field .node-type-icon { width: 21px; height: 21px; color: #4dd8c0; }
+.course-link-input { border-bottom: 2px solid #4dd8c0; }
+.course-link-input .nodal-icon { width: 19px; height: 19px; }
+.course-link-field input { min-width: 0; padding: 2px 0; }
+.course-description-field { display: grid; margin-top: 10px; color: #fff; font-size: 14px; }
+.course-description-field > button, .course-schedule__toggle { display: flex; align-items: center; gap: 10px; width: max-content; height: 23px; border: 0; border-radius: 0; padding: 0; background: transparent; color: #fff; cursor: pointer; font: inherit; text-align: left; }
+.course-description-field:not(.is-open) > button .course-caret, .course-schedule:not(.is-open) > button .course-caret { transform: rotate(-90deg); }
+.course-description-field textarea { box-sizing: border-box; min-height: 32px; max-height: 58px; padding: 2px 26px; resize: vertical; }
+.course-schedule { display: flex; min-width: 0; min-height: 0; flex: 1 1 auto; flex-direction: column; gap: 7px; margin-top: 18px; font-size: 14px; }
+.course-schedule:not(.is-open) { flex: 0 0 auto; }
+.course-nav { display: grid; grid-template-columns: 1fr 1.35fr 1.45fr; gap: 0 9px; border-bottom: 3px solid #4dd8c0; padding: 14px 0 7px; }
+.course-nav button { display: flex; align-items: center; gap: 5px; width: max-content; border: 0; border-bottom: 3px solid transparent; border-radius: 0; padding: 4px 0; background: transparent; color: #e8e9ea; cursor: pointer; font-size: 15px; }
+.course-nav button .nodal-icon { width: 20px; height: 20px; color: #4dd8c0; }
+.course-nav button:nth-child(1) { grid-column: 1; }
+.course-nav button:nth-child(2) { grid-column: 2 / span 2; }
+.course-nav button:nth-child(3) { grid-column: 1; }
+.course-nav button:nth-child(4) { grid-column: 2; }
+.course-nav button:nth-child(5) { grid-column: 3; }
+.course-nav button.is-active { border-bottom-color: #4dd8c0; }
+.course-context-panel { min-height: 0; flex: 1; overflow: auto; padding: 10px 2px; }
+.course-context-actions { display: flex; align-items: center; justify-content: space-between; min-height: 40px; }
+.course-context-actions--search { justify-content: flex-end; }
+.course-context-actions .nodal-add { padding: 0; }
+.course-context-actions .nodal-add .nodal-icon { width: 34px; height: 34px; color: #4dd8c0; }
+.course-syllabus { position: relative; overflow: hidden; background: #15181c; }
+.course-syllabus .pdf-viewer { height: 100%; min-height: 0; }
+.course-syllabus .pdf-node-view__header { display: none; }
+.course-syllabus > button:last-child:not(.course-empty-action) { position: absolute; right: 8px; top: 8px; z-index: 2; }
+.course-empty-action { display: grid; place-content: center; gap: 14px; width: 100%; height: 100%; min-height: 515px; border: 0; border-radius: 0; background: transparent; color: #4dd8c0; cursor: pointer; font-size: 15px; }
+.room-link { display: grid; grid-template-columns: 25px minmax(0, 1fr) auto auto; align-items: center; gap: 9px; margin-top: 12px; }
+.room-link button { border: 0; background: transparent; color: #4dd8c0; cursor: pointer; }
+.room-link button:disabled { cursor: default; opacity: 0.42; }
+.room-link__icon { display: grid; place-items: center; width: 25px; height: 25px; padding: 0; }
+.room-link__icon:disabled { opacity: 1; }
+.room-link__icon .nodal-icon { width: 22px; height: 22px; color: #4dd8c0; }
+.course-content-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+.course-content-columns h2 { display: flex; align-items: center; gap: 7px; color: #e8e9ea; font-size: 17px; font-weight: 500; }
+.course-content-columns h2 .nodal-icon { color: #4dd8c0; }
+.evaluation-row { display: flex; align-items: center; margin-top: 9px; }
+.evaluation-row > span { display: flex; align-items: center; gap: 6px; margin-left: auto; color: #e8e9ea; }
+
+.course-schedule__calendar { min-width: 0; height: auto; max-height: none; overflow: visible; container: course-calendar / inline-size; }
+.course-schedule .calendar-node { min-width: 0; height: auto; overflow: visible; }
+.course-schedule .calendar-node__header { grid-template-columns: minmax(0, 1fr) auto; gap: 12px; margin-top: 16px; }
+.course-schedule .calendar-node__identity { grid-column: 1 / -1; grid-row: 1; width: auto; overflow-wrap: anywhere; }
+.course-schedule .calendar-node__search { grid-column: 1 / -1; grid-row: 3; }
+.course-schedule .calendar-node__views { flex-wrap: wrap; }
+.course-schedule .calendar-week { overflow: visible; flex: auto; }
+.course-schedule .calendar-week__headers,
+.course-schedule .calendar-week__all-day,
+.course-schedule .calendar-week__timeline { min-width: 0; grid-template-columns: 52px repeat(7, minmax(0, 1fr)); }
+.course-schedule .calendar-week__headers > button { min-width: 0; padding-inline: 2px; }
+.course-schedule .calendar-week__timeline { flex: auto; max-height: 520px; }
+.course-schedule .calendar-day-layout,
+.course-schedule .weekly-tempo-layout { grid-template-columns: minmax(0, 1fr); overflow: visible; flex: auto; }
+.course-schedule .calendar-day-timeline__scroll { flex: auto; max-height: 520px; }
+.course-schedule .calendar-day-inspector { min-height: 240px; }
+.course-schedule .calendar-week__timeline,
+.course-schedule .calendar-day-timeline__scroll,
+.course-schedule .weekly-tempo-surface-scroll,
+.course-schedule .tempo-inspector__editor-scroll { overscroll-behavior: auto; }
+
+@container course-workspace (max-width: 760px) {
+  .course-node-view { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Embedded Calendar is contextual Course presentation, so Course owns these overrides. */
+.course-schedule:has(.calendar-node--week) .course-schedule__calendar,
+.course-schedule:has(.calendar-node--day) .course-schedule__calendar { display: flex; min-height: 0; flex: 1; flex-direction: column; overflow: hidden; }
+.course-schedule .calendar-node--week,
+.course-schedule .calendar-node--day { height: 100%; max-height: none; min-height: 0; flex: 1; overflow: hidden; }
+.course-schedule .calendar-week { flex: 1; min-height: 0; overflow-x: auto; overflow-y: hidden; }
+.course-schedule .calendar-week__timeline { flex: 1; min-height: 0; max-height: none; overflow-y: auto; }
+.course-schedule .calendar-day-layout { flex: 1; min-height: 0; grid-template-rows: minmax(0, 1fr) minmax(210px, 0.8fr); overflow: hidden; }
+.course-schedule .weekly-tempo-layout { grid-template-rows: minmax(0, 1fr) minmax(210px, 0.8fr); }
+.course-schedule .calendar-day-inspector { min-height: 0; overflow-y: auto; }
+.course-schedule .tempo-inspector { height: auto; min-height: 100%; overflow-y: auto; }
+.course-schedule .tempo-inspector__editor-scroll { min-height: 120px; overflow-y: auto; }
+.course-schedule .calendar-day-timeline__scroll { flex: 1; min-height: 0; max-height: none; overflow-y: auto; }
+.course-schedule .calendar-node__type { font-size: 9px; }
+.course-schedule .calendar-node__header { grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; margin: 8px 0 10px; }
+.course-schedule .calendar-node__identity h1 { margin: 3px 0 0; font-size: 18px; }
+.course-schedule .calendar-node__identity p { margin-top: 2px; font-size: 10px; }
+.course-schedule .calendar-node__navigation button { min-width: 24px; height: 25px; font-size: 11px; }
+.course-schedule .calendar-node__views button { padding: 4px 6px; font-size: 8px; }
+.course-schedule .calendar-node__search { padding: 4px 7px; font-size: 11px; }
+.course-schedule .calendar-node__weekdays span { padding: 4px; font-size: 9px; }
+.course-schedule .calendar-node__weekdays { width: calc(100% - 22px); margin-left: 22px; }
+.course-schedule .calendar-node__month-week { margin-left: 22px; }
+.course-schedule .calendar-node__week-access { left: -22px; width: 18px; height: 56px; opacity: 0; }
+.course-schedule .calendar-node__day { min-height: 58px; padding: 4px; }
+.course-schedule .calendar-node__day-label { margin-bottom: 3px; font-size: 9px; }
+.course-schedule .calendar-node__tempos { gap: 2px; }
+.course-schedule .calendar-node__tempos button { padding: 2px 4px; font-size: 9px; }
+.course-schedule .calendar-node--week .calendar-node__day,
+.course-schedule .calendar-node--day .calendar-node__day { min-height: 170px; }
+.course-schedule .calendar-week__headers,
+.course-schedule .calendar-week__all-day,
+.course-schedule .calendar-week__timeline { grid-template-columns: 38px repeat(7, minmax(0, 1fr)); }
+.course-schedule .calendar-week__headers > button { padding: 5px 2px 7px; }
+.course-schedule .calendar-week__headers > button strong { font-size: 16px; }
+.course-schedule .calendar-week__headers > button small { font-size: 8px; }
+.course-schedule .calendar-week__timeline,
+.course-schedule .calendar-day-timeline__scroll { max-height: none; }
+.course-schedule .calendar-day-inspector { min-height: 150px; }
+
+@media (max-width: 760px) {
+  .course-node-view { grid-template-columns: 1fr; }
+  .course-node-view__context { min-height: 600px; }
+}
+
+@container course-calendar (max-width: 420px) {
+  .course-schedule .calendar-node__header { grid-template-columns: minmax(0, 1fr); }
+  .course-schedule .calendar-node__views { grid-row: 3; justify-self: start; }
+  .course-schedule .calendar-node__search { grid-row: 4; }
+}

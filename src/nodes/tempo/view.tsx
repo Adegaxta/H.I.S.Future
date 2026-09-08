@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import type { NodeItem } from "../types/nodes";
-import { formatTempoTime, getTempoMeta, localIsoDate, setTempoMeta, type IsoWeekday, type TimeFormat } from "../utils/temporalMeta";
-import FutureBadge from "./FutureBadge";
-import NodeTypeLabel from "./NodeTypeLabel";
-import RichTextEditor from "./RichTextEditor";
-import { useLocale } from "../i18n/LocaleContext";
+import type { NodeItem } from "../../types/nodes";
+import { formatTempoTime, getTempoMeta, localIsoDate, setTempoMeta, type IsoWeekday, type TimeFormat } from "../../utils/temporalMeta";
+import FutureBadge from "../../components/FutureBadge";
+import NodeTypeLabel from "../../components/NodeTypeLabel";
+import RichTextEditor from "../../components/RichTextEditor";
+import { useLocale } from "../../i18n/LocaleContext";
 
 interface TempoInspectorProps {
   tempo: NodeItem;

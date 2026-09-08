@@ -3,7 +3,8 @@ import { NODE_REGISTRY, getNodeDefinition, getNodeDisplayLabel } from "../defs/n
 import { useLocale } from "../i18n/LocaleContext";
 import type { BaseNodeType, NodeItem } from "../types/nodes";
 import { getEffectiveNodeType } from "../utils/nodeTree";
-import { getNodalMeta, type RelationRole } from "../utils/nodalMeta";
+import { getNodalMeta } from "../nodes/metadata";
+import type { RelationRole } from "../nodes/relationTypes";
 import { normalizeSearchText } from "../defs/editor";
 import { NodeIcon, SidebarIcon } from "./SidebarIcon";
 

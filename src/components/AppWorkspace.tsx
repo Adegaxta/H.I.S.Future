@@ -3,7 +3,7 @@ import { useWorkspaceNavigation, type NavigationHandler } from "../hooks/useWork
 import { readEditorContent } from "../utils/editorPersistence";
 import { AVATAR_COLORS } from "../defs/palette";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { NODE_REGISTRY, getNodeDefinition, getNodeDisplayLabel } from "../defs/nodeTypes";
+import { NODE_REGISTRY, getNodeDefinition, getNodeDisplayLabel, hasNodeCapability } from "../defs/nodeTypes";
 import type { BaseNodeType, NodeItem } from "../types/nodes";
 import { getEffectiveNodeType } from "../utils/nodeTree";
 import { useTreeController } from "../hooks/useTreeController";
@@ -15,16 +15,11 @@ import NodePanels from "./NodePanels";
 import LoreAddDialog from "./LoreAddDialog";
 import { SidebarIcon } from "./SidebarIcon";
 import RichTextEditor from "./RichTextEditor";
-import ImageNodeView from "./ImageNodeView";
-import PdfNodeView from "./PdfNodeView";
-import PageNodeHeader from "./PageNodeHeader";
-import FolderNodeView from "./FolderNodeView";
 import GraphView from "./GraphView";
-import CalendarNodeView from "./CalendarNodeView";
-import TempoInspector from "./TempoInspector";
-import { NodalNodeView } from "./NodalViews";
-import { getPageMeta } from "../utils/pageMeta";
-import { createCalendarContent, createTempoContent, DEFAULT_TEMPO_COLOR, setTempoMeta, type TempoMeta, type TempoSubtype, type TimeFormat } from "../utils/temporalMeta";
+import RegisteredNodeView from "./RegisteredNodeView";
+import type { TimeFormat } from "../utils/temporalMeta";
+import { handleCalendarSlashCommand } from "../nodes/calendar/operations";
+import type { NodeViewHost } from "../nodes/rendering";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { getVersion } from "@tauri-apps/api/app";
 import { CHANGELOG_ENTRIES } from "../defs/changelog";
@@ -174,13 +169,6 @@ export default function AppWorkspace({
   const selectedTrashNode = workspace.deletedNodes.find(
     (node) => node.id === selectedTrashNodeId,
   );
-  // El ancho y la posición de bloques de Nodo Página solo afectan el texto, no la cabecera.
-  const pageMeta = selectedNode?.type === "pagina" ? getPageMeta(selectedNode.content) : null;
-  const textBlockMargin = pageMeta?.textPosition === "right"
-    ? { marginLeft: "auto", marginRight: 0 }
-    : pageMeta?.textPosition === "left"
-      ? { marginLeft: 0, marginRight: "auto" }
-      : { marginLeft: "auto", marginRight: "auto" };
   useEffect(() => {
     if (workspace.selectedId) setSelectedTrashNodeId(null);
   }, [workspace.selectedId]);
@@ -206,7 +194,7 @@ export default function AppWorkspace({
   useWorkspaceNavigation({
     selectedId: workspace.selectedId,
     selectedTrashId: selectedTrashNodeId,
-    navigateWithinView: (direction) => (selectedNode?.type === "calendario" || selectedNode?.type === "curso") && Boolean(calendarNavigation.current?.(direction)),
+    navigateWithinView: (direction) => Boolean(selectedNode && hasNodeCapability(selectedNode.type, "navigateWithinView") && calendarNavigation.current?.(direction)),
     onNavigate: (next) => {
       if (next.kind === "trash") {
         workspace.setSelectedId(null);
@@ -400,8 +388,7 @@ export default function AppWorkspace({
     if (!targetNode) return null;
 
     const targetType = getEffectiveNodeType(workspace.nodes, targetNode);
-    const canContain =
-      getNodeDefinition(targetType).canContainChildren || targetType === "pagina-carpeta";
+    const canContain = hasNodeCapability(targetType, "containChildren");
 
     return canContain ? targetId : targetNode.parentId ?? null;
   }, [workspace.nodes]);
@@ -518,29 +505,14 @@ export default function AppWorkspace({
       if (resource) setProjectImage(resource.src);
     }
   };
-  const createCalendarNode = () => {
-    const usedNumbers = new Set(
-      workspace.nodes
-        .filter((node) => node.type === "calendario")
-        .map((node) => /^Calendario (\d+)$/.exec(node.name)?.[1])
-        .filter((value): value is string => Boolean(value))
-        .map(Number),
-    );
-    let number = 1;
-    while (usedNumbers.has(number)) number += 1;
-    const id = workspace.createNode(
-      `Calendario ${number}`,
-      "calendario",
-      null,
-      createCalendarContent(),
-    );
-    workspace.setSelectedId(id);
-    return true;
+  const calendarOperationsHost = {
+    nodes: workspace.nodes,
+    createNode: workspace.createNode,
+    selectNode: workspace.setSelectedId,
+    setExpanded: workspace.setExpanded,
+    updateContent: workspace.updateContent,
   };
-  const handleSlashCommand = (tag: string) => {
-    if (tag !== "CALENDARIO") return false;
-    return createCalendarNode();
-  };
+  const handleSlashCommand = (tag: string) => handleCalendarSlashCommand(tag, calendarOperationsHost);
   const createPastedNode = (rawName: string): NodeItem | null => {
     const name = rawName.trim() || getNodeDisplayLabel(defaultNodeType, t);
     const normalizedName = name.toLocaleLowerCase();
@@ -560,64 +532,6 @@ export default function AppWorkspace({
       content: defaultContent,
     };
   };
-  const createTempoNode = (calendarId: string, date: string, startTime?: string, subtype: TempoSubtype = "daily", endDate: string | null = null, weeklyVisualOrder: number | null = null) => {
-    const usedNumbers = new Set(
-      workspace.nodes
-        .filter((node) => node.type === "tempo" && node.parentId === calendarId)
-        .map((node) => /^Tempo (\d+)$/.exec(node.name)?.[1])
-        .filter((value): value is string => Boolean(value))
-        .map(Number),
-    );
-    let number = 1;
-    while (usedNumbers.has(number)) number += 1;
-    const id = workspace.createNode(
-      `Tempo ${number}`,
-      "tempo",
-      calendarId,
-      createTempoContent({ date, startTime: startTime ?? null, endTime: null, subtype, endDate, color: DEFAULT_TEMPO_COLOR, weeklyVisualOrder, activeWeekdays: null }),
-    );
-    workspace.setExpanded((current) => ({ ...current, [calendarId]: true }));
-    return id;
-  };
-  const moveTempoNode = (id: string, meta: TempoMeta) => {
-    const tempo = workspace.nodes.find((item) => item.id === id && item.type === "tempo");
-    if (tempo) workspace.updateContent(id, setTempoMeta(tempo.content, meta));
-  };
-  const renderCalendar = (calendar: NodeItem, embedded = false) => (
-    <CalendarNodeView
-      key={calendar.id}
-      node={calendar}
-      nodes={workspace.nodes}
-      deletedNodes={workspace.deletedNodes}
-      onContentChange={workspace.updateContent}
-      onCreateTempo={(date, startTime, subtype, endDate, weeklyVisualOrder) => createTempoNode(calendar.id, date, startTime, subtype, endDate, weeklyVisualOrder)}
-      onMoveTempo={moveTempoNode}
-      onRenameTempo={workspace.renameNode}
-      onDeleteTempo={workspace.deleteNode}
-      setExpanded={workspace.setExpanded}
-      onOpenDeletedNode={(id) => {
-        openDeletedNode(id);
-      }}
-      onOpenNodeView={(id) => {
-        setSelectedTrashNodeId(null);
-        setProjectTab("workspace");
-        setView("list");
-        workspace.setSelectedId(id);
-      }}
-      onFileImport={async (file: File, parentId?: string | null) => {
-        return createNodeFromFile(file, parentId ?? calendar.id);
-      }}
-      onSlashCommand={handleSlashCommand}
-      onRegisterNavigation={(handler) => {
-        calendarNavigation.current = handler;
-        return () => {
-          if (calendarNavigation.current === handler) calendarNavigation.current = null;
-        };
-      }}
-      showTypeLabel={!embedded}
-      timeFormat={timeFormat}
-    />
-  );
   useEffect(() => {
     if (!workspace.hydrated || !projectImage) return;
     const imageNode = findCoverNode();
@@ -686,6 +600,53 @@ export default function AppWorkspace({
       onSelect: workspace.permanentlyDeleteNodes,
     },
   ];
+  const openNodeView = (id: string) => {
+    setSelectedTrashNodeId(null);
+    setProjectTab("workspace");
+    setView("list");
+    workspace.setSelectedId(id);
+  };
+  const nodeViewHost: NodeViewHost = {
+    data: { nodes: workspace.nodes, deletedNodes: workspace.deletedNodes, timeFormat },
+    mutations: {
+      createNode: workspace.createNode,
+      updateContent: workspace.updateContent,
+      mutateNodes: workspace.mutateNodes,
+      renameNode: workspace.renameNode,
+      deleteNode: workspace.deleteNode,
+    },
+    navigation: {
+      selectNode: workspace.setSelectedId,
+      openNodeView,
+      openDeletedNode,
+      registerWithinView: (handler) => {
+        calendarNavigation.current = handler;
+        return () => {
+          if (calendarNavigation.current === handler) calendarNavigation.current = null;
+        };
+      },
+    },
+    tree: { setExpanded: workspace.setExpanded },
+    files: { importFile: (file, parentId) => createNodeFromFile(file, parentId ?? selectedNode?.parentId ?? null) },
+    editor: {
+      ref: editorRef,
+      pendingNodeDrop: workspace.pendingEditorNodeDrop,
+      clearPendingNodeDrop: workspace.clearPendingEditorNodeDrop,
+      createPastedNode,
+      runSlashCommand: handleSlashCommand,
+    },
+    contextMenus: { openNodeMenu: setContextMenu },
+    projectImage: {
+      updateContent: updateImageContent,
+      useAsCover: (nodeId) => {
+        const imageNode = workspace.nodes.find((node) => node.id === nodeId);
+        const resource = imageNode ? getImageResourceInfo(imageNode.content, imageNode.name) : null;
+        if (!resource) return;
+        setProjectImage(resource.src);
+        safeLocalStorageSet(coverNodeStorageKey, nodeId);
+      },
+    },
+  };
 
   return (
     <div
@@ -1075,155 +1036,10 @@ export default function AppWorkspace({
 
           {projectTab !== "settings" && view === "list" && selectedNode && selectedType && (
             <div className="editor-page">
-              {selectedNode.type === "pagina" ? (
-                <>
-                  <PageNodeHeader
-                    node={selectedNode}
-                    nodes={workspace.nodes}
-                    onContentChange={workspace.updateContent}
-                    onRename={workspace.renameNode}
-                    onImageFileUpload={async (file) => (await createNodeFromFile(file, selectedNode.parentId))?.id ?? null}
-                  />
-                  <RichTextEditor
-                    node={selectedNode}
-                    nodes={workspace.nodes}
-                    deletedNodes={workspace.deletedNodes}
-                    editorRef={editorRef}
-                    onContentChange={workspace.updateContent}
-                    setSelectedId={(id) => workspace.setSelectedId(id)}
-                    setExpanded={workspace.setExpanded}
-                    pendingNodeDrop={workspace.pendingEditorNodeDrop}
-                    onNodeDropHandled={workspace.clearPendingEditorNodeDrop}
-                    onOpenDeletedNode={openDeletedNode}
-                    onFileImport={async (file: File, parentId?: string | null) => {
-                      return createNodeFromFile(file, parentId ?? selectedNode.parentId ?? null);
-                    }}
-                    onCreatePastedNode={createPastedNode}
-                    onSlashCommand={handleSlashCommand}
-                    onOpenNodeView={(id) => {
-                      setSelectedTrashNodeId(null);
-                      setProjectTab("workspace");
-                      setView("list");
-                      workspace.setSelectedId(id);
-                    }}
-                    style={{
-                      display: "block",
-                      width: pageMeta ? `${pageMeta.blockWidth / 2}%` : "100%",
-                      ...textBlockMargin,
-                      minHeight: 0,
-                      minWidth: 0,
-                      padding: 0,
-                      border: "none",
-                      resize: "none",
-                      background: "transparent",
-                      color: "#E8E9EA",
-                      fontSize: "14px",
-                      fontFamily: "inherit",
-                      lineHeight: "1.6",
-                      outline: "none",
-                    }}
-                  />
-                </>
-              ) : selectedNode.type === "categoria" ? (
-                <FolderNodeView onContextMenu={setContextMenu} node={selectedNode} nodes={workspace.nodes} onSelect={workspace.setSelectedId} />
-              ) : selectedNode.type === "calendario" ? (
-                renderCalendar(selectedNode)
-              ) : selectedNode.type === "tempo" ? (
-                <TempoInspector
-                  tempo={selectedNode}
-                  nodes={workspace.nodes}
-                  deletedNodes={workspace.deletedNodes}
-                  timeFormat={timeFormat}
-                  variant="standalone"
-                  onRename={workspace.renameNode}
-                  onContentChange={workspace.updateContent}
-                  setExpanded={workspace.setExpanded}
-                  onOpenDeletedNode={(id) => {
-                    openDeletedNode(id);
-                  }}
-                  onFileImport={async (file: File, parentId?: string | null) => {
-                    return createNodeFromFile(file, parentId ?? selectedNode.parentId ?? null);
-                  }}
-                  onSlashCommand={handleSlashCommand}
-                  onOpenNodeView={(id) => {
-                    setSelectedTrashNodeId(null);
-                    setProjectTab("workspace");
-                    setView("list");
-                    workspace.setSelectedId(id);
-                  }}
-                />
-              ) : selectedNode.type === "pdf" ? (
-                <PdfNodeView node={selectedNode} />
-              ) : selectedNode.type === "imagen" ? (
-                <ImageNodeView
-                  node={selectedNode}
-                  onContentChange={updateImageContent}
-                  onRename={workspace.renameNode}
-                  onDelete={workspace.deleteNode}
-                  onUseAsProjectCover={(nodeId) => {
-                    const imageNode = workspace.nodes.find((node) => node.id === nodeId);
-                    const resource = imageNode ? getImageResourceInfo(imageNode.content, imageNode.name) : null;
-                    if (!resource) return;
-                    setProjectImage(resource.src);
-                    safeLocalStorageSet(coverNodeStorageKey, nodeId);
-                  }}
-                />
-              ) : (
-                <NodalNodeView
-                  renderCalendar={renderCalendar}
-                  node={selectedNode}
-                  nodes={workspace.nodes}
-                  deletedNodes={workspace.deletedNodes}
-                  timeFormat={timeFormat}
-                  setExpanded={workspace.setExpanded}
-                  onMutate={workspace.mutateNodes}
-                  onOpen={workspace.setSelectedId}
-                  onRename={workspace.renameNode}
-                  onImport={(file) => createNodeFromFile(file, null)}
-                  onDelete={workspace.deleteNode}
-                >
-                <RichTextEditor
-                  node={selectedNode}
-                  nodes={workspace.nodes}
-                  deletedNodes={workspace.deletedNodes}
-                  editorRef={editorRef}
-                  onContentChange={workspace.updateContent}
-                  setSelectedId={(id) => workspace.setSelectedId(id)}
-                  setExpanded={workspace.setExpanded}
-                  pendingNodeDrop={workspace.pendingEditorNodeDrop}
-                  onNodeDropHandled={workspace.clearPendingEditorNodeDrop}
-                  onOpenDeletedNode={(id) => {
-                    openDeletedNode(id);
-                  }}
-                  onFileImport={async (file: File, parentId?: string | null) => {
-                    return createNodeFromFile(file, parentId ?? selectedNode.parentId ?? null);
-                  }}
-                  onCreatePastedNode={createPastedNode}
-                  onSlashCommand={handleSlashCommand}
-                  onOpenNodeView={(id) => {
-                    setSelectedTrashNodeId(null);
-                    setProjectTab("workspace");
-                    setView("list");
-                    workspace.setSelectedId(id);
-                  }}
-                  style={{
-                    display: "block",
-                    width: "100%",
-                    minHeight: "calc(100vh - 40px)",
-                    minWidth: 0,
-                    padding: 0,
-                    border: "none",
-                    resize: "none",
-                    background: "transparent",
-                    color: "#E8E9EA",
-                    fontSize: "14px",
-                    fontFamily: "inherit",
-                    lineHeight: "1.6",
-                    outline: "none",
-                  }}
-                />
-                </NodalNodeView>
-              )}
+              <RegisteredNodeView
+                node={selectedNode}
+                host={nodeViewHost}
+              />
             </div>
           )}
         </main>

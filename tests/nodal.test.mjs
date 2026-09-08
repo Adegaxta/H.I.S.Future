@@ -6,7 +6,7 @@ try {
   const { NODE_REGISTRY } = await server.ssrLoadModule("/src/defs/nodeTypes.ts");
   const definitions = NODE_REGISTRY.all();
   assert.equal(new Set(definitions.map((d) => d.type)).size, definitions.length);
-  assert.deepEqual(definitions.filter((d) => d.selectOnCreation).map((d) => d.type), ["pagina", "curso", "tarea", "video"]);
+  assert.deepEqual(definitions.filter((d) => d.creation.selectAfterCreation).map((d) => d.type), ["pagina", "curso", "tarea", "video"]);
   const { readFile } = await import("node:fs/promises");
   const backend = await readFile(new URL("../src-tauri/src/project.rs", import.meta.url), "utf8");
   for (const match of backend.matchAll(/CHECK\(type IN \(([^)]+)\)\)/g)) {
@@ -27,10 +27,24 @@ try {
   history = nav.recordWorkspaceVisit(history, { kind: "node", id: "c" });
   assert.equal(nav.stepWorkspaceNavigation(history, 1), undefined, "new visit replaces the forward branch");
   assert.deepEqual(history.entries.map((entry) => entry.id), ["a", "c"]);
-  const nodal = await server.ssrLoadModule("/src/utils/nodalMeta.ts");
+  const nodal = await server.ssrLoadModule("/src/nodes/domain.ts");
   const video = await server.ssrLoadModule("/src/utils/videoSource.ts");
   const webUrl = await server.ssrLoadModule("/src/utils/webUrl.ts");
   const base = (id, type, content = "<p><br></p>") => ({ id, name: id, type, parentId: null, order: 0, content });
+
+  const ordinaryRename = nodal.applyNodeRename(base("page", "pagina", "<p>original</p>"), "Nueva página");
+  assert.equal(ordinaryRename.name, "Nueva página");
+  assert.equal(ordinaryRename.content, "<p>original</p>", "generic rename preserves ordinary Node content");
+  const courseForRename = { ...base("course-rename", "curso"), name: "ABC - Título", content: nodal.setNodalMeta("<p>notas</p>", { code: "ABC", courseTitle: "Título", modality: "SRM" }) };
+  const renamedCourse = nodal.applyNodeRename(courseForRename, "ABC - Título nuevo (SRM)");
+  assert.equal(nodal.getNodalMeta(renamedCourse.content).courseTitle, "Título nuevo");
+  assert.ok(renamedCourse.content.endsWith("<p>notas</p>"), "Course runtime rename preserves its body");
+  const graphCalendar = base("graph-calendar", "calendario");
+  const graphTempo = { ...base("graph-tempo", "tempo"), parentId: graphCalendar.id };
+  const graphNodes = new Map([[graphCalendar.id, graphCalendar], [graphTempo.id, graphTempo]]);
+  assert.deepEqual(nodal.getNodeGraphRelationIds(graphTempo, graphNodes), [graphCalendar.id]);
+  assert.deepEqual(nodal.getNodeGraphRelationIds({ ...graphTempo, parentId: "missing" }, graphNodes), []);
+
   let nodes = [base("course", "curso"), base("task", "tarea"), base("pdf", "pdf"), base("calendar", "calendario")];
 
   nodes = nodal.withRelation(nodes, "task", "course", "course");
@@ -57,6 +71,11 @@ try {
   assert.equal(nodal.courseTasks(reload, "course")[0].id, "task");
   assert.equal(nodal.calendarTempos(reload, "calendar")[0].id, "tempo");
   assert.equal(nodal.withRelation(nodes, "course", "syllabus", "task"), nodes, "invalid target is rejected");
+  const relationFixture = [...nodes, base("pdf-2", "pdf"), base("video-1", "video"), base("video-2", "video")];
+  const replacedSyllabus = nodal.withRelation(nodal.withRelation(relationFixture, "course", "syllabus", "pdf"), "course", "syllabus", "pdf-2");
+  assert.deepEqual(nodal.getNodalMeta(replacedSyllabus.find((node) => node.id === "course").content).relations.filter((relation) => relation.role === "syllabus").map((relation) => relation.targetId), ["pdf-2"], "declarative one-cardinality replaces the previous target");
+  const multipleClasses = nodal.withRelation(nodal.withRelation(relationFixture, "course", "class", "video-1"), "course", "class", "video-2");
+  assert.deepEqual(nodal.getNodalMeta(multipleClasses.find((node) => node.id === "course").content).relations.filter((relation) => relation.role === "class").map((relation) => relation.targetId), ["video-1", "video-2"], "declarative many-cardinality retains both targets");
   const dangling = nodes.filter((n) => n.id !== "pdf");
   assert.equal(nodal.relatedNode(dangling, dangling[0], "syllabus"), undefined);
   assert.equal(nodal.relationId(dangling[0], "syllabus"), "pdf", "deletion keeps semantic identity for restoration");
@@ -134,14 +153,18 @@ try {
   assert.equal(nodal.hasMissingCourseCalendar(safetyResult.nodes.map(n => n.type === 'calendario' ? { ...n, type: 'pagina' } : n)), true);
   assert.equal(nodal.hasMissingCourseCalendar([extra]), false);
   console.log('PASS: automatic safety repair preserves the old Course and all its information without duplicate Calendars.');
-  const courseView = await readFile(new URL('../src/components/NodalViews.tsx', import.meta.url), 'utf8');
+  const courseView = await readFile(new URL('../src/nodes/course/view.tsx', import.meta.url), 'utf8');
+  const registeredView = await readFile(new URL('../src/components/RegisteredNodeView.tsx', import.meta.url), 'utf8');
+  const courseRenderer = await readFile(new URL('../src/nodes/course/renderer.tsx', import.meta.url), 'utf8');
   const workspaceView = await readFile(new URL('../src/components/AppWorkspace.tsx', import.meta.url), 'utf8');
   assert.equal(courseView.includes('CourseCalendarPreview'), false);
   assert.ok(courseView.includes('props.renderCalendar(calendar, true)'));
-  assert.ok(workspaceView.includes('renderCalendar={renderCalendar}'));
-  assert.ok(workspaceView.includes('renderCalendar(selectedNode)'));
+  assert.ok(registeredView.includes('calendar: CalendarNodeRenderer'));
+  assert.ok(courseRenderer.includes('<CalendarNodeRenderer'));
   console.log('PASS: Course Calendar identity, hidden creation, rename, idempotent migration, reopening and synchronized lifecycle.');
   const page = await server.ssrLoadModule("/src/utils/pageMeta.ts");
+  const blockModel = await server.ssrLoadModule("/src/editor/blockModel.ts");
+  const editorPersistence = await server.ssrLoadModule("/src/utils/editorPersistence.ts");
   const pdf = await server.ssrLoadModule("/src/utils/pdfResource.ts");
   const temporal = await server.ssrLoadModule("/src/utils/temporalMeta.ts");
   const special = "text --> <tag> & quotation \"";
@@ -150,6 +173,21 @@ try {
   const replacementText = special + "   assert.equal(page.getPageMeta(pageContent).description, special); $";
   assert.equal(page.getPageMeta(page.setPageMeta(pageContent, { ...page.DEFAULT_PAGE_META, description: replacementText })).description, replacementText);
   assert.equal((pageContent.match(/-->/g) ?? []).length, 1);
+  assert.equal(page.getPageBlockWidthPercent({ blockWidth: 100 }), 50);
+  assert.equal(page.getPageBlockWidthPercent({ blockWidth: 200 }), 100);
+  assert.equal(page.getPageBlockWidthPercent({ blockWidth: 250 }), 100, "legacy out-of-range width remains safe");
+  assert.equal(blockModel.EDITOR_STRUCTURAL_BLOCK_SELECTOR.includes("[data-globe]"), true);
+  assert.equal(blockModel.EDITOR_SELECTABLE_BLOCK_SELECTOR.includes("[data-globe]"), false, "a Globe group must not compete with its selectable children");
+  assert.deepEqual(blockModel.EDITOR_TRANSIENT_BLOCK_ATTRIBUTES, ["data-line-selected", "data-line-dragging", "data-line-drop-target"]);
+  const removedEditorAttributes = [];
+  const transientBlock = { removeAttribute: (attribute) => removedEditorAttributes.push(attribute) };
+  const fakeEditor = { cloneNode: () => ({ querySelectorAll: () => [transientBlock], innerHTML: "<p>body</p>" }) };
+  assert.equal(editorPersistence.readEditorContent(fakeEditor, base("persisted-page", "pagina")), "<p>body</p>");
+  assert.deepEqual(removedEditorAttributes, ["data-editor-placeholder", ...blockModel.EDITOR_TRANSIENT_BLOCK_ATTRIBUTES]);
+  const innerBlock = { contains: () => false };
+  const outerBlock = { contains: (other) => other === innerBlock };
+  const siblingBlock = { contains: () => false };
+  assert.deepEqual(blockModel.keepOutermostBlocks([outerBlock, innerBlock, siblingBlock]), [outerBlock, siblingBlock]);
   const pdfInfo = { resourceId: "resource", fileName: special, fileSize: 100, hash: "hash" };
   assert.deepEqual(pdf.getPdfResourceInfo(pdf.createPdfContent(pdfInfo)), pdfInfo);
   const tempoMeta = { ...temporal.getTempoMeta(""), date: "2026-09-05", color: "#112233" };

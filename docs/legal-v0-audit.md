@@ -62,9 +62,9 @@ CSS referencia fuentes del sistema/instaladas sin archivos de fuente versionados
 | Proyectos elegidos por el usuario, manifiesto y SQLite | [fileManager.ts](../src/project/fileManager.ts), [project.rs](../src-tauri/src/project.rs): MANIFEST_FILE, DATABASE_FILE, SCHEMA, create/open/save |
 | `.his`, temporales, recursos PDF y limpieza sin garantía | [project.rs](../src-tauri/src/project.rs): temporary_project_folder, zip_directory, remove_temporary_folder, resource_path |
 | Papelera, ocultos, idioma y contenido estructurado | [nodeRepository.ts](../src/project/nodeRepository.ts), [settingsRepository.ts](../src/project/settingsRepository.ts), [project.rs](../src-tauri/src/project.rs) |
-| Imágenes y metadatos incorporados/referencias remotas | [imageResource.ts](../src/utils/imageResource.ts), [RichTextEditor.tsx](../src/components/RichTextEditor.tsx), [ImageNodeView.tsx](../src/components/ImageNodeView.tsx) |
+| Imágenes y metadatos incorporados/referencias remotas | [imageResource.ts](../src/utils/imageResource.ts), [RichTextEditor.tsx](../src/components/RichTextEditor.tsx), [Image view](../src/nodes/image/view.tsx) |
 | Preferencias, rutas recientes y actividad local | [useProjectSession.ts](../src/project/useProjectSession.ts), [AppWorkspace.tsx](../src/components/AppWorkspace.tsx), [useNodeStore.ts](../src/hooks/useNodeStore.ts), [LocaleContext.tsx](../src/i18n/LocaleContext.tsx), [GraphView.tsx](../src/components/GraphView.tsx), [HisTip.tsx](../src/components/HisTip.tsx) |
-| YouTube, Vimeo, vídeos directos, enlaces y descargas | [videoSource.ts](../src/utils/videoSource.ts), [NodalViews.tsx](../src/components/NodalViews.tsx), [ImageNodeView.tsx](../src/components/ImageNodeView.tsx) |
+| YouTube, Vimeo, vídeos directos, enlaces y descargas | [videoSource.ts](../src/utils/videoSource.ts), [Video view](../src/nodes/video/view.tsx), [Image view](../src/nodes/image/view.tsx) |
 | PDF local y worker incluido | [PdfViewer.tsx](../src/components/PdfViewer.tsx), [pdfjs.ts](../src/pdf/pdfjs.ts), [resourceRepository.ts](../src/project/resourceRepository.ts) |
 | Discord: consola local con nombre de proyecto, sin RPC real | [App.tsx](../src/App.tsx), [discordPresence.ts](../src/utils/discordPresence.ts), [lib.rs](../src-tauri/src/lib.rs) |
 | Registro Windows e icono local | [lib.rs](../src-tauri/src/lib.rs): register_his_file_association |

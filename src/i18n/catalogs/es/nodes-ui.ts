@@ -81,4 +81,12 @@ export const ES_NODES_UI_TRANSLATIONS = {
   "page.description": "Descripción de la página",
   "page.chooseImage": "Elegir imagen",
   "page.noImages": "No hay Nodos Imagen disponibles.",
+  "page.resetLayout": "Restablecer diseño predeterminado",
+  "page.blockWidth": "Ancho de los bloques de Página",
+  "page.position.left": "Izquierda",
+  "page.position.center": "Centro",
+  "page.position.right": "Derecha",
+  "page.uploadImage": "Cargar imagen externa",
+  "page.removeCover": "Borrar imagen de portada",
+  "page.removeIcon": "Borrar imagen de icono",
 } as const;

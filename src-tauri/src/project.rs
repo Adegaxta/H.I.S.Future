@@ -1095,7 +1095,18 @@ mod tests {
         let state = Mutex::new(Some(
             create_project_file(path.to_string_lossy().into(), "All".into()).unwrap(),
         ));
-        let definitions = include_str!("../../src/defs/nodeTypes.ts");
+        let definitions = [
+            include_str!("../../src/nodes/category/definition.ts"),
+            include_str!("../../src/nodes/page/definition.ts"),
+            include_str!("../../src/nodes/image/definition.ts"),
+            include_str!("../../src/nodes/calendar/definition.ts"),
+            include_str!("../../src/nodes/tempo/definition.ts"),
+            include_str!("../../src/nodes/pdf/definition.ts"),
+            include_str!("../../src/nodes/course/definition.ts"),
+            include_str!("../../src/nodes/task/definition.ts"),
+            include_str!("../../src/nodes/video/definition.ts"),
+        ]
+        .concat();
         let types = [
             "categoria",
             "pagina",

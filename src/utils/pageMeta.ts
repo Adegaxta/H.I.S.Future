@@ -22,6 +22,9 @@ export const DEFAULT_PAGE_META: PageMeta = {
   textPosition: "center",
 };
 
+export const getPageBlockWidthPercent = (meta: Pick<PageMeta, "blockWidth">): number =>
+  Math.min(100, Math.max(50, meta.blockWidth / 2));
+
 export function getPageMeta(content: string): PageMeta {
   const start = content.indexOf(META_PREFIX);
   if (start < 0) return { ...DEFAULT_PAGE_META };

@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
-import type { NodeItem } from "../types/nodes";
-import { getPdfResourceInfo } from "../utils/pdfResource";
-import { readProjectResource } from "../project/resourceRepository";
-import { useLocale } from "../i18n/LocaleContext";
-import PdfViewer from "./PdfViewer";
-import NodeTypeLabel from "./NodeTypeLabel";
+import type { NodeItem } from "../../types/nodes";
+import { getPdfResourceInfo } from "../../utils/pdfResource";
+import { readProjectResource } from "../../project/resourceRepository";
+import { useLocale } from "../../i18n/LocaleContext";
+import PdfViewer from "../../components/PdfViewer";
+import NodeTypeLabel from "../../components/NodeTypeLabel";
 
 export default function PdfNodeView({ node }: { node: NodeItem }) {
   const { t } = useLocale();

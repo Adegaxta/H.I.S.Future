@@ -1,5 +1,6 @@
 import AppWorkspace from "./components/AppWorkspace";
 import "./App.css";
+import "./nodes/styles.css";
 import HomeScreen from "./screens/HomeScreen";
 import { useProjectSession } from "./project/useProjectSession";
 import { useEffect } from "react";

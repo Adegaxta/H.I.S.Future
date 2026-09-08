@@ -1,7 +1,7 @@
-import { getNodalMeta } from "../utils/nodalMeta";
+import { getNodalMeta } from "../nodes/metadata";
+import { getNodeGraphImageSource, getNodeGraphRelationIds } from "../nodes/runtime";
 import { useEffect, useRef, useState } from "react";
 import { NODE_REGISTRY, getNodeDefinition } from "../defs/nodeTypes";
-import { getImageResourceInfo } from "../utils/imageResource";
 import type { BaseNodeType, NodeItem } from "../types/nodes";
 import { useLocale, type Translate } from "../i18n/LocaleContext";
 
@@ -84,9 +84,7 @@ function layoutNodes(nodes: NodeItem[], showConcepts: boolean, t: Translate): Gr
       id: node.id,
       label: node.name,
       type: node.type,
-      imageSrc: node.type === "imagen"
-        ? getImageResourceInfo(node.content, node.name)?.src
-        : undefined,
+      imageSrc: getNodeGraphImageSource(node),
       x: startX + (index % columns) * gapX,
       y: startY + Math.floor(index / columns) * gapY,
     });
@@ -125,9 +123,9 @@ function buildEdges(nodes: NodeItem[], showConcepts: boolean): GraphEdge[] {
     });
   }
   nodes.forEach((node) => {
-    if (node.type === "tempo" && node.parentId && nodesById.get(node.parentId)?.type === "calendario") {
-      edges.push({ from: node.parentId, to: node.id });
-    }
+    getNodeGraphRelationIds(node, nodesById).forEach((targetId) => {
+      edges.push({ from: targetId, to: node.id });
+    });
   });
   nodes.forEach((node) => {
     [...getCallTargets(node, nodesById), ...getNodalMeta(node.content).relations.map((r) => r.targetId).filter((id) => nodesById.has(id))].forEach((targetId) => {
