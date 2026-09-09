@@ -11,9 +11,9 @@ const server = await createServer({
 try {
   const { getUniqueNodeName } = await server.ssrLoadModule("/src/utils/nodeNames.ts");
   const { parseCollapsedNodeTypes, serializeCollapsedNodeTypes } = await server.ssrLoadModule("/src/utils/nodeTypePanelState.ts");
-  const { createEmptyEditorPickerSession, getEditorPickerTrigger, isSameMentionTriggerRange } = await server.ssrLoadModule("/src/utils/editorPickerSession.ts");
+  const { createEmptyEditorPickerSession, getEditorPickerTrigger, isSameMentionTriggerRange } = await server.ssrLoadModule("/src/editor/pickerSession.ts");
   const { reorderMultipleNodes } = await server.ssrLoadModule("/src/utils/nodeTree.ts");
-  const { SLASH_REGISTRY } = await server.ssrLoadModule("/src/defs/editor.ts");
+  const { SLASH_REGISTRY } = await server.ssrLoadModule("/src/editor/commands.ts");
   const { APP_WINDOW_TITLE } = await server.ssrLoadModule("/src/utils/appEnvironment.ts");
 
   const named = ["Página", "Página 3", "pÁGINA 4"].map((name) => ({ name }));
@@ -65,7 +65,7 @@ try {
   assert.equal(invalidDrop[1].order, 0);
 
   assert.equal(SLASH_REGISTRY.get("UL")?.labelKey, "editor.commands.bullets");
-  assert.equal(APP_WINDOW_TITLE, "H.I.S. Dev", "Vite development mode exposes the dev window title");
+  assert.equal(APP_WINDOW_TITLE, "H.I.S. Future Dev", "Vite development mode exposes the official dev window title");
 
   console.log("PASS: 0.1.2 QoL naming, type UI state, picker reset, invalid drop, bullet command and dev title.");
 } finally {

@@ -5,7 +5,7 @@ import type {
   RefObject,
   SetStateAction,
 } from "react";
-import { EDITOR_NON_EDITABLE_BLOCK_SELECTOR, keepOutermostBlocks } from "../editor/blockModel";
+import { EDITOR_NON_EDITABLE_BLOCK_SELECTOR, keepOutermostBlocks } from "./blockModel";
 
 interface UseEditorBlockSelectionOptions {
   editorRef: RefObject<HTMLDivElement | null>;

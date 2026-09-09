@@ -1,4 +1,5 @@
 export const EN_NODES_UI_TRANSLATIONS = {
+  "calendar.createTempoForDate": "Create Tempo Node for {date}",
   "calendar.openWeekForDate": "Open the week's Tempos for {date}",
   "calendar.openWeek": "Open this week's Tempos",
   "calendar.allDay": "All day",
@@ -89,4 +90,5 @@ export const EN_NODES_UI_TRANSLATIONS = {
   "page.uploadImage": "Upload external image",
   "page.removeCover": "Remove cover image",
   "page.removeIcon": "Remove icon image",
+  "tempo.future": "Future",
 } as const;

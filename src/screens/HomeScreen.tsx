@@ -96,7 +96,7 @@ export default function HomeScreen({
       <main className="home-screen__content">
         <div className="home-screen__columns">
           <section className="home-screen__projects">
-            <img className="home-screen__his-panel" src={hisPanelAsset} alt="HIS Future" />
+            <img className="home-screen__his-panel" src={hisPanelAsset} alt="H.I.S. Future" />
             <div className="home-screen__actions">
               <div className="home-action">
                 <button

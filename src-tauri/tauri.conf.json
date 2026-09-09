@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "hisfuture",
+  "productName": "H.I.S. Future",
   "version": "0.1.4",
   "identifier": "com.terce.hisfuture",
   "build": {  
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "H.I.S.",
+        "title": "H.I.S. Future",
         "width": 1100,
         "height": 720,
         "minWidth": 960,
@@ -39,7 +39,7 @@
     "fileAssociations": [
       {
         "ext": ["his"],
-        "name": "HIS Future Project",
+        "name": "H.I.S. Future Project",
         "description": "Proyecto H.I.S. Future",
         "role": "Editor"
       }

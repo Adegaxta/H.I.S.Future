@@ -1,6 +1,6 @@
 import type { NavigationHandler } from "../../hooks/useWorkspaceNavigation";
 import { calendarTempos } from "./projections";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { NodeItem } from "../../types/nodes";
 import NodeTypeLabel from "../../components/NodeTypeLabel";
 import {
@@ -20,8 +20,17 @@ import {
 import HisContextMenu from "../../components/HisContextMenu";
 import HisTip from "../../components/HisTip";
 import TempoInspector from "../tempo/view";
-import WeeklyTempoView from "../../components/WeeklyTempoView";
+import WeeklyTempoView from "./weeklyView";
 import { useLocale } from "../../i18n/LocaleContext";
+import {
+  addDays,
+  dateFromIso,
+  hourTime,
+  minutesFromTime,
+  startOfWeek,
+  timeFromMinutes,
+  timeRangeDurationMinutes,
+} from "./dateMath";
 
 interface CalendarNodeViewProps {
   node: NodeItem;
@@ -58,30 +67,11 @@ const HOUR_HEIGHT = 48;
 const WEEK_TIP_KEY = "hisfuture.tip.week-tempo-opens-day";
 const ADJACENT_MONTH_TIP_KEY = "hisfuture.tip.adjacent-month-navigation";
 
-const dateFromIso = (value: string) => {
-  const [year, month, day] = value.split("-").map(Number);
-  return new Date(year, month - 1, day);
-};
-const addDays = (date: Date, days: number) => {
-  const next = new Date(date);
-  next.setDate(next.getDate() + days);
-  return next;
-};
-const startOfWeek = (date: Date) => addDays(date, -((date.getDay() + 6) % 7));
 const visibleMonthDates = (date: Date) => {
   const start = startOfWeek(new Date(date.getFullYear(), date.getMonth(), 1));
   return Array.from({ length: 42 }, (_, index) => addDays(start, index));
 };
 const monthIndex = (date: Date) => date.getFullYear() * 12 + date.getMonth();
-const minutesFromTime = (value: string) => {
-  const [hours, minutes] = value.split(":").map(Number);
-  return hours * 60 + minutes;
-};
-const timeFromMinutes = (value: number) => {
-  const safe = Math.max(0, Math.min(1439, value));
-  return `${String(Math.floor(safe / 60)).padStart(2, "0")}:${String(safe % 60).padStart(2, "0")}`;
-};
-const hourTime = (hour: number) => `${String(hour).padStart(2, "0")}:00`;
 const hourLabel = (hour: number, format: TimeFormat) => formatTime(hourTime(hour), format).replace(":00", "");
 const capitalize = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
 const calendarHeading = (date: Date, view: CalendarView, locale: string) => {
@@ -128,6 +118,8 @@ export default function CalendarNodeView({
   const { locale, t } = useLocale();
   const meta = getCalendarMeta(node.content);
   const currentDate = dateFromIso(meta.currentDate);
+  const contentRef = useRef(node.content);
+  contentRef.current = node.content;
   const navigationHistory = useRef<{ entries: CalendarNavigationEntry[]; index: number }>({ entries: [{ meta, weeklyTempoView: false }], index: 0 });
   const [query, setQuery] = useState("");
   const [selectedTempoId, setSelectedTempoId] = useState<string | null>(null);
@@ -138,13 +130,17 @@ export default function CalendarNodeView({
   const [tempoMenu, setTempoMenu] = useState<{ x: number; y: number; tempoId: string } | null>(null);
   const [weeklyTempoView, setWeeklyTempoView] = useState(false);
   useEffect(() => {
-    const today = localIsoDate();
-    if (meta.currentDate === today) return;
-    const nextMeta = { ...meta, currentDate: today };
-    navigationHistory.current = { entries: [{ meta: nextMeta, weeklyTempoView: false }], index: 0 };
-    onContentChange(node.id, setCalendarMeta(node.content, nextMeta));
+    navigationHistory.current = { entries: [{ meta, weeklyTempoView: false }], index: 0 };
+    setQuery("");
+    setSelectedTempoId(null);
+    setSelectedWeeklyTempoIds([]);
+    setSelectedHour(null);
+    setWeekTipVisible(false);
+    setAdjacentMonthTipVisible(false);
+    setTempoMenu(null);
+    setWeeklyTempoView(false);
   }, [node.id]);
-  const normalizedQuery = query.trim().toLocaleLowerCase("es");
+  const normalizedQuery = query.trim().toLocaleLowerCase(locale);
   const allTempos: TempoEntry[] = calendarTempos(nodes, node.id)
     .map((item) => ({ node: item, meta: getTempoMeta(item.content), description: getTempoDescription(item.content) }));
   const weeklyTempoEntries = allTempos
@@ -152,7 +148,7 @@ export default function CalendarNodeView({
     .sort((a, b) => (a.meta.weeklyVisualOrder ?? a.node.order) - (b.meta.weeklyVisualOrder ?? b.node.order) || a.node.order - b.node.order);
   const regularTempos = allTempos.filter((tempo) => tempo.meta.subtype !== "weekly");
   const tempos = normalizedQuery
-    ? regularTempos.filter((tempo) => `${tempo.node.name} ${tempo.description}`.toLocaleLowerCase("es").includes(normalizedQuery))
+    ? regularTempos.filter((tempo) => `${tempo.node.name} ${tempo.description}`.toLocaleLowerCase(locale).includes(normalizedQuery))
     : regularTempos;
   const selectedTempo = selectedTempoId ? nodes.find((item) => item.id === selectedTempoId && item.type === "tempo") : null;
   const visibleWeekStart = startOfWeek(currentDate);
@@ -164,6 +160,11 @@ export default function CalendarNodeView({
     return tempoStart <= visibleWeekEnd && tempoEnd >= visibleWeekStart;
   });
 
+  const persistMeta = useCallback((next: CalendarMeta) => {
+    const content = setCalendarMeta(contentRef.current, next);
+    contentRef.current = content;
+    onContentChange(node.id, content);
+  }, [node.id, onContentChange]);
   const updateMeta = (next: typeof meta) => {
     const history = navigationHistory.current;
     const current = history.entries[history.index].meta;
@@ -171,19 +172,19 @@ export default function CalendarNodeView({
       history.entries = [...history.entries.slice(0, history.index + 1), { meta: next, weeklyTempoView: false }];
       history.index += 1;
     }
-    onContentChange(node.id, setCalendarMeta(node.content, next));
+    persistMeta(next);
   };
-  const navigateHistory = (direction: -1 | 1) => {
+  const navigateHistory = useCallback((direction: -1 | 1) => {
     const history = navigationHistory.current;
     const nextIndex = history.index + direction;
     if (nextIndex < 0 || nextIndex >= history.entries.length) return false;
     history.index = nextIndex;
     const next = history.entries[nextIndex];
     setWeeklyTempoView(next.weeklyTempoView);
-    onContentChange(node.id, setCalendarMeta(node.content, next.meta));
+    persistMeta(next.meta);
     return true;
-  };
-  useEffect(() => onRegisterNavigation(navigateHistory), [onRegisterNavigation, node.id]);
+  }, [persistMeta]);
+  useEffect(() => onRegisterNavigation(navigateHistory), [navigateHistory, onRegisterNavigation]);
   const openWeeklyTempoView = (date = currentDate) => {
     const history = navigationHistory.current;
     const nextMeta: CalendarMeta = { view: "week", currentDate: localIsoDate(startOfWeek(date)) };
@@ -193,7 +194,7 @@ export default function CalendarNodeView({
       history.index += 1;
     }
     setWeeklyTempoView(true);
-    onContentChange(node.id, setCalendarMeta(node.content, nextMeta));
+    persistMeta(nextMeta);
   };
   const selectView = (view: CalendarView, date = currentDate) => {
     setWeeklyTempoView(false);
@@ -230,7 +231,7 @@ export default function CalendarNodeView({
     const nextStart = hourTime(hour);
     let nextEnd: string | null = null;
     if (tempo.meta.startTime && tempo.meta.endTime) {
-      const duration = Math.max(1, minutesFromTime(tempo.meta.endTime) - minutesFromTime(tempo.meta.startTime));
+      const duration = timeRangeDurationMinutes(tempo.meta.startTime, tempo.meta.endTime);
       nextEnd = timeFromMinutes(hour * 60 + duration);
     }
     onMoveTempo(tempo.node.id, { ...tempo.meta, date, startTime: nextStart, endTime: nextEnd });
@@ -310,7 +311,7 @@ export default function CalendarNodeView({
               onClick={() => isFirstNextMonth ? openAdjacentMonth(date) : openDay(date)}>
               <div className="calendar-node__day-label">
                 <span>{isFirstNextMonth ? adjacentMonthLabel(date, locale) : date.getDate()}</span>
-                <button type="button" aria-label={`Crear Nodo Tempo para ${isoDate}`} onClick={(event) => {
+                <button type="button" aria-label={t("calendar.createTempoForDate", { date: isoDate })} onClick={(event) => {
                   event.stopPropagation();
                   createTempoForDate(date);
                 }}>+</button>
@@ -333,7 +334,7 @@ export default function CalendarNodeView({
       <div className="calendar-week">
         <div className="calendar-week__headers"><button type="button" className="calendar-week__weekly-open" aria-label={t("calendar.openWeek")} onClick={() => openWeeklyTempoView(weekDates[0])}>TEMPO</button>{weekDates.map((date) => (
           <button type="button" key={localIsoDate(date)} className={localIsoDate(date) === localIsoDate() ? "is-today" : ""} onClick={() => openDay(date)}>
-            <strong>{date.getDate()}</strong><small>{date.toLocaleDateString("es-ES", { weekday: "short" })}</small>
+            <strong>{date.getDate()}</strong><small>{date.toLocaleDateString(locale, { weekday: "short" })}</small>
           </button>
         ))}</div>
         <div className="calendar-week__all-day"><span>{t("calendar.allDay")}</span>{weekDates.map((date) => {
@@ -355,7 +356,7 @@ export default function CalendarNodeView({
               }}><button type="button" onClick={() => createFromWeek(date, hourTime(hour))}>+</button></div>)}
               {timed.map((tempo) => {
                 const start = minutesFromTime(tempo.meta.startTime!);
-                const end = tempo.meta.endTime ? minutesFromTime(tempo.meta.endTime) : start + 60;
+                const end = start + timeRangeDurationMinutes(tempo.meta.startTime!, tempo.meta.endTime);
                 return <div key={tempo.node.id} className="calendar-week__tempo" draggable
                   onDragStart={(event) => event.dataTransfer.setData("application/x-his-tempo", tempo.node.id)}
                   onClick={() => openTempo(tempo)} onContextMenu={(event) => showTempoMenu(event, tempo.node.id)}
@@ -410,7 +411,7 @@ export default function CalendarNodeView({
                 }}><span>+</span></button>)}
               {timed.map((tempo) => {
                 const start = minutesFromTime(tempo.meta.startTime!);
-                const end = tempo.meta.endTime ? minutesFromTime(tempo.meta.endTime) : start + 60;
+                const end = start + timeRangeDurationMinutes(tempo.meta.startTime!, tempo.meta.endTime);
                 return <div key={tempo.node.id} className={`calendar-day-timeline__tempo${selectedTempoId === tempo.node.id ? " is-selected" : ""}`} draggable
                   onDragStart={(event) => event.dataTransfer.setData("application/x-his-tempo", tempo.node.id)}
                   onClick={() => { setSelectedTempoId(tempo.node.id); setSelectedHour(null); }} onContextMenu={(event) => showTempoMenu(event, tempo.node.id)}

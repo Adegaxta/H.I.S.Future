@@ -2,9 +2,9 @@ import type { NodeItem } from "../types/nodes";
 import {
   EDITOR_TRANSIENT_BLOCK_ATTRIBUTES,
   EDITOR_TRANSIENT_BLOCK_SELECTOR,
-} from "../editor/blockModel";
-import { getPageMeta, setPageMeta } from "./pageMeta";
-import { getTempoMeta, setTempoMeta } from "./temporalMeta";
+} from "./blockModel";
+import { getPageMeta, setPageMeta } from "../utils/pageMeta";
+import { getTempoMeta, setTempoMeta } from "../utils/temporalMeta";
 
 export function readEditorContent(editor: HTMLElement, node: NodeItem): string {
   const persistableEditor = editor.cloneNode(true) as HTMLElement;

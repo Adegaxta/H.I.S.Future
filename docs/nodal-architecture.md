@@ -62,7 +62,7 @@ No toda condición de tipo debe convertirse en una contribución. Una regla inte
 
 El traslado conserva selectores y valores, y mantiene el orden base → integración → responsive dentro del owner. `App.css` ya no puede declarar `.course-node-view`; una prueba estructural protege esta frontera. Los iconos globales por tipo permanecen temporalmente en el shell porque comparten rutas relativas al catálogo de assets y requieren una extracción conjunta, no copias por Node.
 
-La migración continuará por Calendar/Tempo antes de separar primitives/editor/shell. No se dividirán reglas aisladas solo para reducir líneas: cada corte debe dejar un responsable inequívoco y compilar con la misma cascada efectiva.
+Calendar y Tempo completan ahora el ownership CSS de los Nodes con superficies propias. El siguiente corte será separar primitives/editor/shell. No se dividirán reglas aisladas solo para reducir líneas: cada corte debe dejar un responsable inequívoco y compilar con la misma cascada efectiva.
 
 ## Página, editor y bloques (2026-09-08)
 
@@ -75,6 +75,58 @@ Globe es un contenedor estructural anidado: agrupa contenido, pero su envoltorio
 El llamado `BlockTextDevTree` no representa el documento ni sus bloques. Es solamente el pequeño árbol de interfaz del botón flotante de opciones y su panel hijo de color. Su `parentId` expresa qué menú abrió a cuál; no debe persistirse ni confundirse con `parentId` Nodal o con la anidación HTML de Globe/listas.
 
 Las operaciones sobre varios bloques comparten una sola captura de historial y una sola sincronización de contenido. Las marcas `data-line-selected`, `data-line-dragging` y `data-line-drop-target` son estado efímero: la serialización trabaja sobre un clon y las elimina antes de guardar, de modo que el archivo `.his` conserva contenido y metadata, no selección visual de una sesión anterior.
+
+## Familia temporal Calendar/Tempo (2026-09-08)
+
+Calendar posee las superficies de mes, semana, día y Weekly Tempo en `nodes/calendar/`; Weekly Tempo es una proyección editable dentro de Calendar, no un componente transversal. Tempo posee su inspector autónomo y embebido. Las primitivas reutilizables `HisTip`, `HisContextMenu` y `FutureBadge` continúan en el shell: su aspecto base no pertenece a un Node concreto, mientras los modificadores contextuales de Calendar sí permanecen con Calendar.
+
+Abrir un Calendar ya no reemplaza `currentDate` persistido por la fecha de hoy. Cambiar entre Calendars reinicia únicamente búsqueda, selección, menús e historial de navegación local. El callback de atrás/adelante escribe mediante una referencia al contenido más reciente, evitando restaurar metadata sobre una copia obsoleta. Búsqueda, nombres de días y textos accesibles consumen el locale activo.
+
+La aritmética repetida de Calendar y Weekly Tempo se concentra en `calendar/dateMath.ts`: semana ISO local, desplazamiento de días, índices civiles inmunes a cambios horarios y duración de rangos. Un rango horario invertido conserva una duración segura de una hora al arrastrarse, en lugar de degradarse a un minuto. Los días activos solo aparecen para Tempo semanal, que es el único subtipo que actualmente los consume.
+
+La metadata temporal comparte normalizadores para lectura y escritura. Fechas inexistentes, horas fuera de 00:00–23:59, colores inválidos, órdenes no finitos y finales anteriores al inicio no llegan crudos al contenido persistido. Este límite protege tanto la UI como llamadas futuras de plugins, importadores o agentes sin cambiar los prefijos HTML compatibles del `.his`.
+
+## Subsistema editor (2026-09-08)
+
+`src/editor/` contiene ahora el contrato estructural de bloques y toda la presentación del editor enriquecido. `App.tsx` compone shell → editor → Nodes; así, las superficies propietarias pueden especializar el editor sin que el editor dependa de Página, Tempo o `App.css`. El shell conserva `.editor-page`, pese a su nombre histórico, porque es el lienzo común donde se alojan vistas de múltiples tipos y no el contenido editable.
+
+Los estilos de HTML enriquecido, índices, Globes, menciones, selección rectangular, drag/drop, placeholders y previsualizaciones viven en `editor/styles.css`. Una clase generada sin consumidor (`lui-300f78b9`) fue eliminada en lugar de convertirse en una falsa API. Las pruebas impiden que `.editor-content` vuelva al shell global.
+
+El dueño físico coincide ahora con el dueño conceptual. `RichTextEditor`, los controladores y hooks de bloque, historial, selección, menciones y pickers, el árbol del menú de bloques, los comandos slash, la serialización HTML, la sesión de pickers y la persistencia viven juntos en `src/editor/`. Página y Tempo consumen esa API; no implementan copias del editor. Los hooks transversales que no son propios del editor, como `useDismissibleLayer`, permanecen compartidos.
+
+`PickerState` y `LineControlState` son estado efímero de interfaz y viven en `editor/types.ts`; dejaron de formar parte de `types/nodes.ts`, que describe entidades persistidas y contratos realmente transversales. La normalización textual quedó en `utils/searchText.ts` porque también la consume la búsqueda de referencias fuera del editor. Esta división evita convertir `editor/commands.ts` en una dependencia general por accidente.
+
+Las pruebas de arquitectura fijan esta frontera y fallan si los archivos vuelven a dispersarse entre `components/`, `hooks/`, `defs/` o `utils/`. El movimiento no altera el HTML persistido, los IDs de comandos, el comportamiento de multiselección ni las marcas transitorias que se eliminan antes de guardar.
+
+## Servicios del workspace (2026-09-08)
+
+`AppWorkspace` conserva la composición de vistas y estado visible, pero dejó de implementar cuatro políticas de infraestructura. `workspace/useWorkspaceLifecycle.ts` captura el HTML activo antes de guardar, coordina salida/cierre y posee el listener de cierre de Tauri. `workspace/useFileNodeImports.ts` traduce errores, resuelve el padre según capacidades declarativas e instala el drop global. `workspace/useProjectCover.ts` sincroniza la portada con su Node Imagen propietario. `workspace/safeStorage.ts` aplica el límite defensivo de compatibilidad local.
+
+Estas extracciones son servicios con comportamiento, no componentes renombrados: cada uno recibe un contrato mínimo de nodos y operaciones. `AppWorkspace` ya no importa el serializador del editor, el importador de archivos ni el constructor de contenido Imagen. La portada continúa siendo una entidad Imagen normal y el ID en localStorage sigue siendo únicamente un puntero compatible; no se creó una segunda fuente de verdad.
+
+El redimensionado lateral vive en `workspace/useSidebarResize.ts`; el workspace consume ancho e inicio de gesto, pero no instala listeners globales. El enfoque solicitado tras crear un bloque o Página vive en `editor/usePendingEditorFocus.ts`, incluyendo la selección DOM y la cancelación de frames pendientes. Así, el coordinador no manipula rangos de texto del editor.
+
+La prueba de snapshot verifica que el cierre capture HTML todavía no sincronizado sin mutar el array de nodos. Las pruebas estructurales impiden que los detalles de Tauri, importación, portada y límite de almacenamiento regresen al componente central. El formato `.his`, la identidad de recursos y el comportamiento del grafo no cambian en esta etapa.
+
+Los paneles Papelera, vista de un eliminado, Configuración y Changelog viven en `workspace/panels/`. `AppWorkspace` conserva únicamente el estado que decide cuál está activo y les entrega operaciones explícitas. Papelera es dueña de lista/galería, modificadores de multiselección y anclaje de sus menús. La vista de un eliminado consume `NodeViewHost`, el mismo contrato empleado por los Nodes registrados, y configura el editor como solo lectura sin inventar otro host.
+
+Configuración consulta directamente el registro declarativo para ofrecer tipos creables y consume el contexto de locale. Changelog renderiza su catálogo propietario. Con esto, `AppWorkspace` deja de conocer `NODE_REGISTRY`, `CHANGELOG_ENTRIES`, previsualización de papelera y configuración concreta de `RichTextEditor`; su tamaño baja de unas 1071 a 568 líneas manteniendo la composición central visible.
+
+`workspace/panels/styles.css` posee ahora la presentación completa de Papelera, Configuración, Changelog y avisos del workspace. `App.tsx` declara explícitamente la composición shell → paneles del workspace → editor → Nodes. Las pruebas impiden que `.trash-view`, `.project-settings`, `.changelog-entry` o `.workspace-file-import-error` regresen a `App.css`. Las reglas se trasladaron completas, incluidos estados responsive, sin cambiar nombres de clase ni precedencia frente a las especializaciones de Nodes.
+
+## Subsistema Grafo (2026-09-08)
+
+`src/graph/` reúne proyección semántica, preferencias persistidas, vista interactiva y presentación. `GraphView` dejó de ser un componente compartido: es el adaptador visual del modelo proyectado y vive como `graph/view.tsx`. `graph/styles.css` posee canvas, toolbar, menú, vértices, aristas, Type Hubs, estados de arrastre y responsive. `AppWorkspace` únicamente selecciona el modo Grafo y entrega nodos/navegación.
+
+La proyección continúa siendo pura: deriva vértices y aristas desde Registry, relaciones Nodal, menciones, jerarquía y contribuciones runtime de cada tipo sin mutar Nodes. La vista reduce aristas duplicadas solo para dibujarlas; los diagnósticos y roles del modelo permanecen intactos. Las pruebas impiden que vista o selectores regresen a `components/` y `App.css`, y conservan las preferencias compatibles existentes.
+
+## Navegación del workspace (2026-09-09)
+
+`workspace/navigation/` posee `SidebarTree`, `NodePanels` y su presentación: rail, sidebar contextual, búsqueda, árbol Lore, jerarquías visuales, Recent, Types, creación y estados de drag/drop. El composition root sigue decidiendo qué panel está activo, pero no implementa el árbol ni los agrupadores del Registry. Las rutas del preview interno fueron actualizadas y los componentes antiguos se eliminaron de `components/`.
+
+La extracción separa iconografía por responsabilidad. `ui/Icon.tsx` y `ui/styles.css` poseen los iconos de acciones reutilizables; `nodes/NodeIcon.tsx` y `nodes/iconStyles.css` poseen los iconos asociados a tipos persistidos. Grafo, referencias y renderers consumen `NodeIcon` sin depender del workspace. Los paths de assets se resolvieron desde sus nuevos dueños y el build verifica que Vite los empaquete; una primera ruta relativa incorrecta fue detectada y corregida antes de validar la etapa.
+
+Las pruebas impiden que navegación, assets de acciones o assets de tipos regresen a `App.css`, y que `SidebarTree`, `NodePanels` o el antiguo `SidebarIcon` reaparezcan en `components/`. `App.tsx` compone shell → UI compartida → paneles → navegación → Grafo → editor → Nodes.
 
 ## Autopsia antes de cambios (2026-09-05)
 
@@ -132,7 +184,7 @@ Etapas 1–3: pruebas nodales, build/typecheck, cargo fmt --check, cargo check, 
 - La papelera perdida por versiones anteriores no puede reconstruirse. Abrir el proyecto con una versión anterior de la aplicación no garantiza que esa versión mantenga actualizada la nueva papelera.
 - Configuración visual, portada del proyecto y recientes siguen parcialmente locales; no se migraron por carecer de un contrato único de proyecto en esta tarea.
 - Los temporales de aperturas fallidas pueden quedar en disco. No se hizo limpieza masiva.
-- CSS sigue siendo dueño de los assets de iconos. Los tipos SQLite siguen declarados en dos esquemas; el test detecta divergencias con Defs.
+- CSS sigue siendo dueño de los assets de iconos, ahora separado entre UI y tipos Nodal. SQLite consume un único registro backend de IDs persistidos; el test detecta divergencias con los Defs frontend.
 - Persisten avisos previos de bundle grande y current_project sin uso. No se modificó New Interface.ai.
 
 ## Historiales: etapa 5
@@ -161,12 +213,56 @@ Para un Audio remoto sencillo, la estimación actual es de nueve archivos, inclu
 5. Un asset de icono si no existe uno adecuado.
 6. Una vista Audio en su módulo de dominio, con reproducción/estado propio solo si el producto lo requiere.
 7. `nodes/audio/renderer.tsx`: adaptador que consume `NodeViewHost`; se conecta en el composition root sin añadir casos a AppWorkspace.
-8. src-tauri/src/project.rs: ampliar CHECK del esquema y migración, condición que detecta esquemas antiguos y prueba de roundtrip. El guardado genérico no necesita otra rama por Audio.
+8. src-tauri/src/persistence.rs: añadir el ID estable al registro persistido; el CHECK y la migración se generan desde ese registro. `project.rs` no necesita otra rama por Audio.
 9. tests/nodal.test.mjs: expectativa de selección tras crear y pruebas de comportamiento. La comprobación del contrato registry/SQLite detecta automáticamente divergencias.
 
 No es una promesa de coste fijo: importar bytes locales requeriría además política de recurso, extensión soportada, importador y quizá codec propio. resourceRepository/fileNodeImporter seguirían siendo servicios transversales, sin duplicarlos dentro de Audio. Audio no debe reutilizar reglas de proveedores de Video solo para ahorrar un archivo.
 
-El tipo aparecería automáticamente en Tipos y creación según flags, en referencias por ID y en el grafo según concepto. Las relaciones material/content/relatedWork ya admiten un destino independiente; no haría falta añadir un rol para cada tipo. Los IDs, jerarquía, papelera y guardado consumirían servicios actuales. El sistema de iconos y el contrato de SQLite siguen exigiendo cambios explícitos justificables. La metadata de esquema todavía no se genera desde TypeScript; automatizarlo ahora introduciría otro proceso de build.
+El tipo aparecería automáticamente en Tipos y creación según flags, en referencias por ID y en el grafo según concepto. Las relaciones material/content/relatedWork ya admiten un destino independiente; no haría falta añadir un rol para cada tipo. Los IDs, jerarquía, papelera y guardado consumirían servicios actuales. El sistema de iconos y el registro backend de persistencia siguen exigiendo cambios explícitos justificables. TypeScript y Rust no comparten ejecución: una prueba contractual compara ambos registros para impedir divergencias sin acoplar el backend al bundle frontend.
+
+## Registro de persistencia y compatibilidad `.his` (2026-09-09)
+
+`src-tauri/src/persistence.rs` es el único dueño backend de los IDs de Node admitidos por SQLite, la clave/versión del esquema y los constructores de tablas `nodes` y `links`. `project.rs` conserva la orquestación de abrir, migrar y guardar, pero ya no repite listas de tipos ni SQL de Node. Los nodos activos y los guardados en Papelera se validan contra el mismo registro antes de iniciar la transacción.
+
+La versión Nodal permanece en `1`: este cambio reorganiza el código, no modifica columnas, IDs, manifiesto ni contenedor. Al abrir un proyecto anterior se extraen los tipos aceptados por su CHECK; si no coinciden exactamente con el registro actual, se reconstruye `nodes` dentro de la migración existente y se conservan filas, jerarquía, contenido y enlaces. Una versión futura desconocida continúa siendo rechazada antes de tocar el esquema. Así, `.his` v1 sigue siendo compatible y un tipo nuevo requiere una decisión explícita en ambos registros, detectada por pruebas.
+
+## Identidad del producto (2026-09-09)
+
+El nombre oficial visible es `H.I.S. Future`: ventana, pantalla inicial, documento web, instalador, asociación `.his` y automatización de releases usan la misma forma. Identificadores técnicos históricos como `hisfuture`, `com.terce.hisfuture`, nombres de claves locales, MIME interno y `hisfuture-project` permanecen estables porque cambiarlos no mejora la marca y sí rompería rutas, actualizaciones o compatibilidad de proyectos.
+
+## Resource Policies (2026-09-09)
+
+Una Resource Policy declara cómo un archivo externo se reconoce y se convierte en Node sin obligar a todos los recursos a compartir almacenamiento. `project/fileImportRegistry.ts` compone los módulos propietarios y expone reconocimiento y `accept` declarativos; `fileNodeImporter.ts` solo prepara, crea una identidad y ejecuta rollback si la creación falla. Extensiones, MIME, validación y construcción de contenido viven en `nodes/<tipo>/fileImport.ts`.
+
+Las estrategias actuales son deliberadamente distintas:
+
+| Módulo | Node | Estrategia | Persistencia |
+| --- | --- | --- | --- |
+| Image | `imagen` | `inline` | Data URL y metadata dentro de `content`; no participa en cleanup de archivos |
+| PDF | `pdf` | `project-resource` | Bytes en `resources/pdf/<id>.pdf`; `content` conserva la referencia compatible |
+
+`project/resourceRegistry.ts` es el contrato frontend de recursos binarios. El backend refleja ese límite en `persistence.rs`, donde cada definición registra kind, NodeType, extensión, prefijo de metadata y validación de bytes. Una prueba contractual compara kind/NodeType/extensión entre ambos lados. Image no aparece en este registro binario porque convertirla artificialmente en `resources/` cambiaría el formato `.his`.
+
+El lifecycle de recursos compara referencias activas + Papelera antes y después de un snapshot completo. Mover un PDF a Papelera conserva sus bytes; restaurarlo conserva la misma identidad; eliminarlo permanentemente retira el archivo solo cuando ninguna referencia conservada lo usa. Llamadas internas antiguas que omiten el snapshot de Papelera no autorizan recolección. La limpieza ocurre después del commit SQLite y un fallo físico se reporta en diagnóstico sin revertir un snapshot ya confirmado.
+
+Para incorporar otro recurso se añade su NodeDefinition normal y, únicamente si importa archivos, un módulo `fileImport.ts`. Si usa bytes externos también se declara en los registros de recursos frontend/backend. El coordinador, workspace, Graph, Lore y relaciones no reciben nuevas ramas por tipo. No existe una Resource Policy para Nodes que no importan archivos.
+
+## Auditoría de cierre arquitectónico Nodal (2026-09-09)
+
+| Área | Estado | Clasificación de lo restante |
+| --- | --- | --- |
+| Node Definitions y Registry frontend | Cerrado | Sin deuda arquitectónica |
+| Persistence Registry y SQLite | Cerrado | Doble lenguaje TS/Rust inevitable, protegido por contrato (C) |
+| Relaciones, metadata y capacidades | Cerrado | Branching semántico dentro de cada dominio (C) |
+| Renderers y editor | Cerrado | Selección de imágenes en menciones es comportamiento propio del editor (C) |
+| Calendar/Tempo y Course/Task | Cerrado | Compatibilidad `parentId` histórica de Tempo (B) |
+| Workspace, paneles y navegación | Cerrado | Composition root conserva selección de superficies (C) |
+| Graph/proyección | Cerrado | Optimización o layouts futuros no bloquean arquitectura (E) |
+| Resource Policies | Cerrado | Image inline y PDF externo son estrategias legítimamente distintas (C) |
+| Shell/App.css | No bloqueante | CSS visual compartido restante (D); dividirlo por porcentaje sería artificial (F) |
+| `.his` v1 y SQLite | Cerrado | Nombres internos y prefijos históricos permanecen estables (B) |
+
+No se detecta un blocker arquitectónico Nodal. Las comparaciones de tipo restantes fuera de módulos corresponden a semántica real: menciones Imagen/Página en editor, portada Imagen, preview de Papelera, agrupación dinámica por Def y compatibilidad de Página-carpeta. Convertirlas en hooks vacíos ocultaría decisiones sin reducir acoplamiento.
 
 La mejora es acotada: se retiraron una lista paralela de selección, el default repetido y la conexión repetida de tres vistas. AppWorkspace aún conoce Página/Imagen/PDF/Calendar/Tempo y conserva import/drop y cierre. No se afirma que añadir un Nodo cueste cero cambios ni que Nodal esté terminado.
 

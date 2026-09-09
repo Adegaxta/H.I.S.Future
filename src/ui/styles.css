@@ -1,0 +1,37 @@
+/* Shared masked action icons. */
+
+.sidebar-icon {
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+  background: currentColor;
+  mask-image: var(--icon-url);
+  mask-position: center;
+  mask-repeat: no-repeat;
+  mask-size: contain;
+  -webkit-mask-image: var(--icon-url);
+  -webkit-mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+}
+
+.sidebar-icon--sidebar { --icon-url: url("../assets/third-party/google-material/icons/sidebar.svg"); }
+.sidebar-icon--settings { --icon-url: url("../assets/original/ui/settings.svg"); }
+.sidebar-icon--search { --icon-url: url("../assets/third-party/google-material/icons/search.svg"); }
+.sidebar-icon--add { --icon-url: url("../assets/third-party/google-material/icons/circle_add.svg"); }
+.sidebar-icon--folder { --icon-url: url("../assets/third-party/google-material/icons/create_folder_node.svg"); }
+.sidebar-icon--image-add { --icon-url: url("../assets/third-party/google-material/icons/create_image_node.svg"); }
+.sidebar-icon--general { --icon-url: url("../assets/third-party/google-material/icons/general.svg"); }
+.sidebar-icon--history { --icon-url: url("../assets/third-party/google-material/icons/deployed_code_history.svg"); }
+.sidebar-icon--trash { --icon-url: url("../assets/third-party/google-material/icons/trash_list.svg"); }
+.sidebar-icon--exit { --icon-url: url("../assets/third-party/google-material/icons/exit.svg"); }
+.sidebar-icon--arrow-open { --icon-url: url("../assets/third-party/google-material/icons/arrow_open.svg"); }
+.sidebar-icon--arrow-close { --icon-url: url("../assets/third-party/google-material/icons/arrow_close.svg"); }
+.sidebar-icon--lore { --icon-url: url("../assets/third-party/google-material/icons/lore_inactive.svg"); }
+.sidebar-icon--lore.is-active { --icon-url: url("../assets/modified/google-material/icons/lore_active.svg"); }
+.sidebar-icon--recent { --icon-url: url("../assets/third-party/google-material/icons/recent_inactive.svg"); }
+.sidebar-icon--recent.is-active { --icon-url: url("../assets/modified/google-material/icons/recent_active.svg"); }
+.sidebar-icon--types { --icon-url: url("../assets/third-party/google-material/icons/nodetype_inactive.svg"); }
+.sidebar-icon--types.is-active { --icon-url: url("../assets/modified/google-material/icons/nodetype_active.svg"); }
+.sidebar-icon--graph { --icon-url: url("../assets/third-party/google-material/icons/graph_7.svg"); }

@@ -1,7 +1,7 @@
 import type { RenderNodeType } from "../types/nodes";
 import { getNodeDefinition, getNodeDisplayLabel } from "../defs/nodeTypes";
 import { useLocale } from "../i18n/LocaleContext";
-import { NodeIcon } from "./SidebarIcon";
+import { NodeIcon } from "../nodes/NodeIcon";
 
 export default function NodeTypeLabel({ type }: { type: RenderNodeType }) {
   const { t } = useLocale();

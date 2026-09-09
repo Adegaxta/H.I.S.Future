@@ -1,3 +1,8 @@
+use crate::persistence::{
+    is_persisted_node_type, nodes_table_sql, project_resource_definition, resource_id_from_content,
+    schema_matches_registry, validate_project_resource, CURRENT_NODAL_SCHEMA_VERSION, LINKS_SCHEMA,
+    NODAL_SCHEMA_VERSION_KEY, PROJECT_META_SCHEMA,
+};
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
@@ -14,33 +19,6 @@ const PROJECT_ICON_NAME: &str = "his-file.ico";
 
 pub const MANIFEST_FILE: &str = "hisfuture.project.json";
 pub const DATABASE_FILE: &str = "lore.sqlite";
-pub const SCHEMA: &str = r#"
-PRAGMA foreign_keys = ON;
-
-CREATE TABLE IF NOT EXISTS project_meta (
-  key TEXT PRIMARY KEY,
-  value TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS nodes (
-  id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
-    type TEXT NOT NULL CHECK(type IN ('categoria', 'pagina', 'imagen', 'calendario', 'tempo', 'pdf', 'curso', 'tarea', 'video')),
-  parent_id TEXT,
-  sort_order INTEGER NOT NULL DEFAULT 0,
-  content TEXT NOT NULL DEFAULT '<p><br></p>',
-  FOREIGN KEY (parent_id) REFERENCES nodes(id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS links (
-  from_node_id TEXT NOT NULL,
-  to_node_id TEXT NOT NULL,
-  PRIMARY KEY (from_node_id, to_node_id),
-  FOREIGN KEY (from_node_id) REFERENCES nodes(id) ON DELETE CASCADE,
-  FOREIGN KEY (to_node_id) REFERENCES nodes(id) ON DELETE CASCADE
-);
-"#;
-
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectInfo {
@@ -191,20 +169,27 @@ fn init_database(path: &Path) -> Result<Connection, String> {
     if has_meta {
         let version: Option<String> = db
             .query_row(
-                "SELECT value FROM project_meta WHERE key = 'nodal_schema_version'",
-                [],
+                "SELECT value FROM project_meta WHERE key = ?1",
+                [NODAL_SCHEMA_VERSION_KEY],
                 |row| row.get(0),
             )
             .optional()
             .map_err(|err| format!("No se pudo leer la versión Nodal: {err}"))?;
-        if version.as_deref().is_some_and(|v| v != "1") {
+        if version
+            .as_deref()
+            .is_some_and(|version| version != CURRENT_NODAL_SCHEMA_VERSION)
+        {
             return Err(
                 "La versión Nodal del proyecto no es compatible; no se modificó su esquema.".into(),
             );
         }
     }
-    db.execute_batch(SCHEMA)
-        .map_err(|err| format!("No se pudo inicializar el esquema: {err}"))?;
+    db.execute_batch(PROJECT_META_SCHEMA)
+        .map_err(|err| format!("No se pudo inicializar la metadata: {err}"))?;
+    db.execute_batch(&nodes_table_sql("nodes", true))
+        .map_err(|err| format!("No se pudo inicializar el registro de nodos: {err}"))?;
+    db.execute_batch(LINKS_SCHEMA)
+        .map_err(|err| format!("No se pudo inicializar el esquema de enlaces: {err}"))?;
     let schema: String = db
         .query_row(
             "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'nodes'",
@@ -212,33 +197,21 @@ fn init_database(path: &Path) -> Result<Connection, String> {
             |row| row.get(0),
         )
         .map_err(|err| format!("No se pudo comprobar el esquema de nodos: {err}"))?;
-    if !schema.contains("'calendario'")
-        || !schema.contains("'tempo'")
-        || !schema.contains("'pdf'")
-        || !schema.contains("'curso'")
-        || !schema.contains("'tarea'")
-        || !schema.contains("'video'")
-    {
-        db.execute_batch(
+    if !schema_matches_registry(&schema) {
+        let migration = format!(
             "PRAGMA foreign_keys = OFF;
-                         BEGIN;
-                         CREATE TABLE nodes_new (
-               id TEXT PRIMARY KEY,
-               name TEXT NOT NULL,
-               type TEXT NOT NULL CHECK(type IN ('categoria', 'pagina', 'imagen', 'calendario', 'tempo', 'pdf', 'curso', 'tarea', 'video')),
-               parent_id TEXT,
-               sort_order INTEGER NOT NULL DEFAULT 0,
-               content TEXT NOT NULL DEFAULT '<p><br></p>',
-               FOREIGN KEY (parent_id) REFERENCES nodes(id) ON DELETE CASCADE
-             );
-                         INSERT INTO nodes_new (id, name, type, parent_id, sort_order, content)
-                             SELECT id, name, type, parent_id, sort_order, content FROM nodes;
-                         DROP TABLE nodes;
-                         ALTER TABLE nodes_new RENAME TO nodes;
-                         COMMIT;
-                         PRAGMA foreign_keys = ON;",
-        )
-        .map_err(|err| format!("No se pudo actualizar el esquema de nodos: {err}"))?;
+             BEGIN;
+             {}
+             INSERT INTO nodes_new (id, name, type, parent_id, sort_order, content)
+                 SELECT id, name, type, parent_id, sort_order, content FROM nodes;
+             DROP TABLE nodes;
+             ALTER TABLE nodes_new RENAME TO nodes;
+             COMMIT;
+             PRAGMA foreign_keys = ON;",
+            nodes_table_sql("nodes_new", false)
+        );
+        db.execute_batch(&migration)
+            .map_err(|err| format!("No se pudo actualizar el esquema de nodos: {err}"))?;
     }
     repair_links_foreign_key(&mut db)?;
     let broken: bool = db
@@ -255,8 +228,8 @@ fn init_database(path: &Path) -> Result<Connection, String> {
         );
     }
     db.execute(
-        "INSERT OR REPLACE INTO project_meta (key, value) VALUES ('nodal_schema_version', '1')",
-        [],
+        "INSERT OR REPLACE INTO project_meta (key, value) VALUES (?1, ?2)",
+        [NODAL_SCHEMA_VERSION_KEY, CURRENT_NODAL_SCHEMA_VERSION],
     )
     .map_err(|err| format!("No se pudo registrar la versión Nodal: {err}"))?;
     Ok(db)
@@ -534,7 +507,7 @@ fn open_folder(folder: &Path) -> Result<OpenProject, String> {
     let db_path = database_path(folder);
     if !db_path.exists() {
         return Err(format!(
-            "No se encontró {DATABASE_FILE} en esa carpeta. Elige un proyecto de HIS Future."
+            "No se encontró {DATABASE_FILE} en esa carpeta. Elige un proyecto de H.I.S. Future."
         ));
     }
     if manifest_path(folder).exists() {
@@ -750,6 +723,16 @@ pub fn save_workspace(
     hidden_ids: Option<Vec<String>>,
     deleted_nodes: Option<String>,
 ) -> Result<(), String> {
+    let has_complete_trash_snapshot = deleted_nodes.is_some();
+    if let Some(node) = nodes
+        .iter()
+        .find(|node| !is_persisted_node_type(&node.node_type))
+    {
+        return Err(format!(
+            "El tipo de nodo '{}' no está registrado para persistencia.",
+            node.node_type
+        ));
+    }
     let ids: HashSet<&str> = nodes.iter().map(|node| node.id.as_str()).collect();
     if ids.len() != nodes.len() || ids.contains("") {
         return Err("El proyecto contiene identidades vacías o duplicadas.".into());
@@ -759,9 +742,21 @@ pub fn save_workspace(
             return Err("Lore contiene un ID inexistente.".into());
         }
     }
-    if let Some(ref deleted) = deleted_nodes {
-        let trash: Vec<NodeRecord> =
-            serde_json::from_str(deleted).map_err(|err| format!("Papelera inválida: {err}"))?;
+    let trash = deleted_nodes
+        .as_deref()
+        .map(serde_json::from_str::<Vec<NodeRecord>>)
+        .transpose()
+        .map_err(|err| format!("Papelera inválida: {err}"))?;
+    if let Some(ref trash) = trash {
+        if let Some(node) = trash
+            .iter()
+            .find(|node| !is_persisted_node_type(&node.node_type))
+        {
+            return Err(format!(
+                "La papelera contiene el tipo de nodo '{}' sin registrar.",
+                node.node_type
+            ));
+        }
         let mut trash_ids = HashSet::new();
         if trash.iter().any(|node| {
             node.id.is_empty() || ids.contains(node.id.as_str()) || !trash_ids.insert(&node.id)
@@ -790,6 +785,16 @@ pub fn save_workspace(
         .lock()
         .map_err(|_| "No se pudo bloquear el estado del proyecto.".to_string())?;
     let project = guard.as_mut().ok_or("No hay un proyecto abierto.")?;
+    let previous_resources = persisted_resource_references(project)?;
+    let mut current_resources = resource_references(
+        nodes
+            .iter()
+            .chain(trash.as_deref().unwrap_or_default().iter()),
+    );
+    if !has_complete_trash_snapshot {
+        // Legacy/internal callers that omit Trash do not authorize resource collection.
+        current_resources.extend(previous_resources.iter().cloned());
+    }
     let tx = project
         .db
         .transaction()
@@ -831,7 +836,75 @@ pub fn save_workspace(
         }
     }
     tx.commit()
-        .map_err(|err| format!("No se pudo confirmar el guardado: {err}"))
+        .map_err(|err| format!("No se pudo confirmar el guardado: {err}"))?;
+    cleanup_removed_resources(project, &previous_resources, &current_resources);
+    Ok(())
+}
+
+type ResourceIdentity = (String, String);
+
+fn resource_references<'a>(
+    nodes: impl Iterator<Item = &'a NodeRecord>,
+) -> HashSet<ResourceIdentity> {
+    nodes
+        .filter_map(|node| resource_id_from_content(&node.node_type, &node.content))
+        .filter(|(_, resource_id)| validate_resource_identity(resource_id).is_ok())
+        .map(|(kind, resource_id)| (kind.to_string(), resource_id))
+        .collect()
+}
+
+fn persisted_resource_references(
+    project: &OpenProject,
+) -> Result<HashSet<ResourceIdentity>, String> {
+    let mut statement = project
+        .db
+        .prepare("SELECT id, name, type, parent_id, sort_order, content FROM nodes")
+        .map_err(|error| format!("No se pudieron revisar los recursos activos: {error}"))?;
+    let active = statement
+        .query_map([], |row| {
+            Ok(NodeRecord {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                node_type: row.get(2)?,
+                parent_id: row.get(3)?,
+                order: row.get(4)?,
+                content: row.get(5)?,
+            })
+        })
+        .map_err(|error| format!("No se pudieron revisar los recursos activos: {error}"))?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|error| format!("No se pudieron revisar los recursos activos: {error}"))?;
+    let deleted: Option<String> = project
+        .db
+        .query_row(
+            "SELECT value FROM project_meta WHERE key = 'deletedNodes'",
+            [],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|error| format!("No se pudieron revisar los recursos de Papelera: {error}"))?;
+    let trash = deleted
+        .as_deref()
+        .and_then(|value| serde_json::from_str::<Vec<NodeRecord>>(value).ok())
+        .unwrap_or_default();
+    Ok(resource_references(active.iter().chain(trash.iter())))
+}
+
+fn cleanup_removed_resources(
+    project: &OpenProject,
+    previous: &HashSet<ResourceIdentity>,
+    current: &HashSet<ResourceIdentity>,
+) {
+    for (kind, resource_id) in previous.difference(current) {
+        match resource_path(project, kind, resource_id) {
+            Ok(path) if path.exists() => {
+                if let Err(error) = fs::remove_file(&path) {
+                    eprintln!("No se pudo limpiar el recurso {}: {error}", path.display());
+                }
+            }
+            _ => {}
+        }
+    }
 }
 
 fn validate_resource_identity(value: &str) -> Result<(), String> {
@@ -846,21 +919,15 @@ fn validate_resource_identity(value: &str) -> Result<(), String> {
     Ok(())
 }
 
-fn resource_extension(kind: &str) -> Result<&'static str, String> {
-    match kind {
-        "pdf" => Ok("pdf"),
-        _ => Err(format!("Tipo de recurso no compatible: {kind}")),
-    }
-}
-
 fn resource_path(project: &OpenProject, kind: &str, resource_id: &str) -> Result<PathBuf, String> {
     validate_resource_identity(resource_id)?;
-    let extension = resource_extension(kind)?;
+    let definition = project_resource_definition(kind)
+        .ok_or_else(|| format!("Tipo de recurso no compatible: {kind}"))?;
     Ok(project
         .working_folder
         .join("resources")
-        .join(kind)
-        .join(format!("{resource_id}.{extension}")))
+        .join(definition.kind)
+        .join(format!("{resource_id}.{}", definition.extension)))
 }
 
 pub fn store_project_resource(
@@ -869,9 +936,7 @@ pub fn store_project_resource(
     resource_id: String,
     data: Vec<u8>,
 ) -> Result<(), String> {
-    if kind == "pdf" && !data.windows(5).take(1024).any(|window| window == b"%PDF-") {
-        return Err("El archivo no contiene una cabecera PDF válida.".into());
-    }
+    validate_project_resource(&kind, &data)?;
     let guard = state
         .lock()
         .map_err(|_| "No se pudo bloquear el estado del proyecto.".to_string())?;
@@ -1065,6 +1130,10 @@ mod tests {
             1
         );
         let before = list_nodes(&state).unwrap();
+        let unknown_trash = serde_json::to_string(&vec![test_node("trash", "unknown", None)])
+            .expect("serialize invalid trash fixture");
+        assert!(save_workspace(&state, nodes.clone(), Some(vec![]), Some(unknown_trash)).is_err());
+        assert_eq!(list_nodes(&state).unwrap(), before);
         let mut invalid = nodes.clone();
         invalid[0].name = "must rollback".into();
         invalid[1].node_type = "unknown".into();
@@ -1409,6 +1478,21 @@ mod tests {
             bytes
         );
         assert!(read_project_resource(&reopened_state, "pdf".into(), "../escape".into()).is_err());
+        save_workspace(
+            &reopened_state,
+            vec![],
+            Some(vec![]),
+            Some(serde_json::to_string(&nodes).expect("serialize PDF Trash snapshot")),
+        )
+        .expect("move PDF node to Trash");
+        assert_eq!(
+            read_project_resource(&reopened_state, "pdf".into(), "resource-1".into())
+                .expect("Trash preserves PDF resource"),
+            bytes
+        );
+        save_workspace(&reopened_state, vec![], Some(vec![]), Some("[]".into()))
+            .expect("permanently delete PDF node");
+        assert!(read_project_resource(&reopened_state, "pdf".into(), "resource-1".into()).is_err());
         close_project(&reopened_state).expect("close reopened project");
         fs::remove_dir_all(root).expect("test cleanup");
     }

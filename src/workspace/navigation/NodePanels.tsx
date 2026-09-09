@@ -1,15 +1,16 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
-import type { ContextMenuState, NodeItem, RenderNodeType } from "../types/nodes";
-import { NODE_REGISTRY, getNodeDefinition, getNodeDisplayLabel } from "../defs/nodeTypes";
-import { getEffectiveNodeType, opensNodeViewOnClick } from "../utils/nodeTree";
-import { useLocale } from "../i18n/LocaleContext";
-import { NodeIcon, SidebarIcon } from "./SidebarIcon";
-import { useSearchReveal } from "../hooks/useSearchReveal";
+import type { ContextMenuState, NodeItem, RenderNodeType } from "../../types/nodes";
+import { NODE_REGISTRY, getNodeDefinition, getNodeDisplayLabel } from "../../defs/nodeTypes";
+import { getEffectiveNodeType, opensNodeViewOnClick } from "../../utils/nodeTree";
+import { useLocale } from "../../i18n/LocaleContext";
+import { UiIcon } from "../../ui/Icon";
+import { NodeIcon } from "../../nodes/NodeIcon";
+import { useSearchReveal } from "../../hooks/useSearchReveal";
 import {
   nodeTypePanelStorageKey,
   parseCollapsedNodeTypes,
   serializeCollapsedNodeTypes,
-} from "../utils/nodeTypePanelState";
+} from "../../utils/nodeTypePanelState";
 
 interface NodePanelsProps {
   projectKey: string;
@@ -21,7 +22,7 @@ interface NodePanelsProps {
   query: string;
   onSelect: (id: string) => void;
   onContextMenu: (menu: ContextMenuState) => void;
-  onCreateType: (type: import("../types/nodes").BaseNodeType) => void;
+  onCreateType: (type: import("../../types/nodes").BaseNodeType) => void;
 }
 
 const startOfDay = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
@@ -94,7 +95,7 @@ export default function NodePanels({ projectKey, panel, nodes, recentNodes, rece
                 +
               </button>
               <button className="type-group__chevron-button" type="button" aria-label={t(isCollapsed ? "panels.expand" : "panels.collapse")} onClick={() => setCollapsed((current) => ({ ...current, [definition.type]: !current[definition.type] }))}>
-                <SidebarIcon name={isCollapsed ? "arrow-close" : "arrow-open"} className="type-group__chevron" />
+                <UiIcon name={isCollapsed ? "arrow-close" : "arrow-open"} className="type-group__chevron" />
               </button>
             </div>
             {!isCollapsed && items.map((node) => <NodeRow key={node.id} node={node} nodes={nodes} selected={node.id === selectedId} onSelect={onSelect} context={panel} onContextMenu={onContextMenu} compact searchMatch={normalizedQuery ? matches(node) : undefined} />)}
@@ -104,7 +105,6 @@ export default function NodePanels({ projectKey, panel, nodes, recentNodes, rece
     </div>
   );
 }
-
 function NodeRow({ node, nodes, selected, onSelect, context, onContextMenu, compact = false, searchMatch }: { node: NodeItem; nodes: NodeItem[]; selected: boolean; compact?: boolean; searchMatch?: boolean; onSelect: (id: string) => void; context: "recent" | "types"; onContextMenu: (menu: ContextMenuState) => void }) {
   const type = getEffectiveNodeType(nodes, node);
   return (

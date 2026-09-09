@@ -1,6 +1,8 @@
 import { useState } from "react";
-import type { NodeItem, PickerState } from "../types/nodes";
-import { normalizeSearchText, SLASH_REGISTRY } from "../defs/editor";
+import type { NodeItem } from "../types/nodes";
+import { normalizeSearchText } from "../utils/searchText";
+import { SLASH_REGISTRY } from "./commands";
+import type { PickerState } from "./types";
 import { useLocale } from "../i18n/LocaleContext";
 
 export function useEditorPickers(nodes: NodeItem[]) {

@@ -11,7 +11,7 @@ try {
   const catalogs = await server.ssrLoadModule("/src/i18n/translations.ts");
   const persistence = await server.ssrLoadModule("/src/i18n/persistence.ts");
   const { NODE_REGISTRY } = await server.ssrLoadModule("/src/defs/nodeTypes.ts");
-  const { SLASH_REGISTRY } = await server.ssrLoadModule("/src/defs/editor.ts");
+  const { SLASH_REGISTRY } = await server.ssrLoadModule("/src/editor/commands.ts");
 
   assert.equal(core.DEFAULT_LOCALE, "es");
   assert.equal(core.BASE_LOCALE, "es");

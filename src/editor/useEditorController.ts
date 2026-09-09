@@ -7,9 +7,10 @@ import type {
 } from "react";
 import { useNodeScopedEditorHistory } from "./useEditorHistory";
 import { useEditorSelection } from "./useEditorSelection";
-import type { NodeItem, PickerState } from "../types/nodes";
+import type { NodeItem } from "../types/nodes";
+import type { PickerState } from "./types";
 import { findImportableFile, isImportableDragItem } from "../project/fileNodeImporter";
-import { formatPastedText, sanitizeEditorHtml, anytypeClipboardToHtml } from "../utils/editorHtml";
+import { formatPastedText, sanitizeEditorHtml, anytypeClipboardToHtml } from "./html";
 import { useBlockControls } from "./useBlockControls";
 import { useEditorBlocks } from "./useEditorBlocks";
 import { useEditorBlockSelection } from "./useEditorBlockSelection";
@@ -17,8 +18,8 @@ import { useEditorMentions } from "./useEditorMentions";
 import { useEditorPickers } from "./useEditorPickers";
 import { useRichTextEditor } from "./useRichTextEditor";
 import draftAsset from "../assets/third-party/google-material/icons/draft.svg";
-import { createEmptyEditorPickerSession, getEditorPickerTrigger, isSameMentionTriggerRange, type MentionTriggerRange } from "../utils/editorPickerSession";
-import { EDITOR_NON_EDITABLE_BLOCK_SELECTOR, EDITOR_SELECTABLE_BLOCK_SELECTOR, EDITOR_STRUCTURAL_BLOCK_SELECTOR } from "../editor/blockModel";
+import { createEmptyEditorPickerSession, getEditorPickerTrigger, isSameMentionTriggerRange, type MentionTriggerRange } from "./pickerSession";
+import { EDITOR_NON_EDITABLE_BLOCK_SELECTOR, EDITOR_SELECTABLE_BLOCK_SELECTOR, EDITOR_STRUCTURAL_BLOCK_SELECTOR } from "./blockModel";
 
 interface EditorControllerOptions {
   node: NodeItem;

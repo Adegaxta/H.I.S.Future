@@ -1,7 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
 import { asErrorMessage } from "./runtime";
+import type { ProjectResourceKind } from "./resourceRegistry";
 
-export type ProjectResourceKind = "pdf";
+export type { ProjectResourceKind } from "./resourceRegistry";
 
 export async function storeProjectResource(
   kind: ProjectResourceKind,
@@ -40,4 +41,3 @@ export async function deleteProjectResource(
     throw new Error(asErrorMessage(error));
   }
 }
-

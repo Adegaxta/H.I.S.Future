@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import type { LineControlState } from "../types/nodes";
+import type { LineControlState } from "./types";
 
 export function useBlockControls() {
   const [lineControl, setLineControl] = useState<LineControlState | null>(null);

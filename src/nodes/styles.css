@@ -1,7 +1,11 @@
 /* Node-owned visual modules are composed after the application shell. */
-@import "./course/styles.css";
+@import "./iconStyles.css";
 @import "./task/styles.css";
 @import "./video/styles.css";
 @import "./image/styles.css";
 @import "./pdf/styles.css";
 @import "./page/styles.css";
+@import "./calendar/styles.css";
+@import "./tempo/styles.css";
+/* Course consumes Calendar/Tempo/PDF surfaces, so its contextual overrides load last. */
+@import "./course/styles.css";

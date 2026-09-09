@@ -1,4 +1,5 @@
 export const ES_NODES_UI_TRANSLATIONS = {
+  "calendar.createTempoForDate": "Crear Nodo Tempo para {date}",
   "calendar.openWeekForDate": "Abrir Tempos de la semana del {date}",
   "calendar.openWeek": "Abrir Tempos de esta semana",
   "calendar.allDay": "Todo el día",
@@ -89,4 +90,5 @@ export const ES_NODES_UI_TRANSLATIONS = {
   "page.uploadImage": "Cargar imagen externa",
   "page.removeCover": "Borrar imagen de portada",
   "page.removeIcon": "Borrar imagen de icono",
+  "tempo.future": "Futuro",
 } as const;

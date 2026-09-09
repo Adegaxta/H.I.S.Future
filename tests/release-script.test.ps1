@@ -60,7 +60,7 @@ try {
   # an abbreviation of a PowerShell wrapper parameter.
   New-LocalReleaseTag -Tag 'v0.1.3' -TargetVersion '0.1.3'
   $tagCall = @($script:capturedGitCalls[0])
-  Assert-Equal ($tagCall -join '|') 'tag|-a|v0.1.3|-m|H.I.S. 0.1.3' 'Tag arguments were not forwarded literally.'
+  Assert-Equal ($tagCall -join '|') 'tag|-a|v0.1.3|-m|H.I.S. Future 0.1.3' 'Tag arguments were not forwarded literally.'
 
   Invoke-Checked git push --atomic origin HEAD:refs/heads/main refs/tags/v0.1.3:refs/tags/v0.1.3
   $pushCall = @($script:capturedGitCalls[1])

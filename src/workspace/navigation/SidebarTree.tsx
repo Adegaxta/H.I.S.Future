@@ -10,15 +10,15 @@ import type {
   DropTarget,
   NodeItem,
   RenderNodeType,
-} from "../types/nodes";
-import { NODE_REGISTRY, getNodeDefinition, getNodeDisplayLabel, hasNodeCapability } from "../defs/nodeTypes";
-import { getChildren, getEffectiveNodeType, opensNodeViewOnClick } from "../utils/nodeTree";
-import { useLocale } from "../i18n/LocaleContext";
-import { findImportableFile, isImportableDragItem } from "../project/fileNodeImporter";
-import { NodeIcon } from "./SidebarIcon";
-import { useSearchReveal } from "../hooks/useSearchReveal";
+} from "../../types/nodes";
+import { NODE_REGISTRY, getNodeDefinition, getNodeDisplayLabel, hasNodeCapability } from "../../defs/nodeTypes";
+import { getChildren, getEffectiveNodeType, opensNodeViewOnClick } from "../../utils/nodeTree";
+import { useLocale } from "../../i18n/LocaleContext";
+import { findImportableFile, isImportableDragItem } from "../../project/fileNodeImporter";
+import { NodeIcon } from "../../nodes/NodeIcon";
+import { useSearchReveal } from "../../hooks/useSearchReveal";
 import { useEffect, useRef } from "react";
-import { getLoreNodes, selectLoreRange } from "../utils/loreTree";
+import { getLoreNodes, selectLoreRange } from "../../utils/loreTree";
 
 interface SidebarTreeProps {
   selectedLoreIds: string[];

@@ -5,8 +5,10 @@ import type { BaseNodeType, NodeItem } from "../types/nodes";
 import { getEffectiveNodeType } from "../utils/nodeTree";
 import { getNodalMeta } from "../nodes/metadata";
 import type { RelationRole } from "../nodes/relationTypes";
-import { normalizeSearchText } from "../defs/editor";
-import { NodeIcon, SidebarIcon } from "./SidebarIcon";
+import { normalizeSearchText } from "../utils/searchText";
+import { NodeIcon } from "../nodes/NodeIcon";
+import { UiIcon } from "../ui/Icon";
+import { fileImportAccept } from "../project/fileImportRegistry";
 
 const assets = import.meta.glob<string>("../assets/third-party/google-material/icons/*.svg", { eager: true, query: "?url", import: "default" });
 export type NodalIconName = "syllable" | "classroom" | "classes_video" | "content" | "Evaluation" | "add_video" | "add_link" | "material" | "task" | "state" | "undated" | "download" | "delete" | "extension" | "storage" | "audio_capture" | "link_1" | "link_2";
@@ -57,18 +59,17 @@ export function NodePicker({ nodes, types, onChoose, onCreate, onImport, onClose
   const mounted = useRef(true);
   useEffect(() => { mounted.current = true; ref.current?.showModal(); return () => { mounted.current = false; ref.current?.close(); }; }, []);
   const filtered = nodes.filter((n) => (!types || types.includes(n.type)) && normalizeSearchText(n.name).includes(normalizeSearchText(query)));
-  const allowPdf = !types || types.includes("pdf");
-  const allowImage = !types || types.includes("imagen");
+  const importAccept = fileImportAccept(types);
   return <dialog ref={ref} className="lore-add-dialog node-picker" onCancel={(e) => { if (busy) e.preventDefault(); else onClose(); }} aria-label={t("nodal.choose")}>
     <div className="lore-add-dialog__content"><header><h2>{t("nodal.choose")}</h2><button disabled={busy} onClick={onClose} aria-label={t("nodal.close")}>×</button></header>
-      <label className="nodal-search"><SidebarIcon name="search" /><input autoFocus placeholder={t("nodal.search")} aria-label={t("nodal.search")} value={query} onChange={(e) => setQuery(e.target.value)} /></label>
+      <label className="nodal-search"><UiIcon name="search" /><input autoFocus placeholder={t("nodal.search")} aria-label={t("nodal.search")} value={query} onChange={(e) => setQuery(e.target.value)} /></label>
       <div className="lore-add-dialog__list">{filtered.map((n) => <button disabled={busy} type="button" key={n.id} className="node-reference" style={{ "--node-color": getNodeDefinition(getEffectiveNodeType(nodes, n)).color } as CSSProperties} onClick={() => { onChoose(n.id); onClose(); }}><NodeIcon type={getEffectiveNodeType(nodes, n)} /><span>{n.name}</span><small>{getNodeDisplayLabel(n.type, t)}</small></button>)}{!filtered.length && <p>{t("nodal.empty")}</p>}</div>
       {onCreate && availableTypes.length > 0 && <form onSubmit={(e) => { e.preventDefault(); if (name.trim()) { onCreate(name.trim(), type); onClose(); } }}>
         <label>{t("nodal.name")}<input value={name} onChange={(e) => setName(e.target.value)} required /></label>
         {availableTypes.length > 1 && <label>{t("nodal.type")}<select value={type} onChange={(e) => setType(e.target.value as BaseNodeType)}>{availableTypes.map((d) => <option value={d.type} key={d.type}>{t(d.labelKey)}</option>)}</select></label>}
         <button disabled={busy || !name.trim()} type="submit">{t("nodal.create")}</button>
       </form>}
-      {onImport && (allowPdf || allowImage) && <label className="nodal-file-action">{t("nodal.import")}<input disabled={busy} type="file" accept={[allowPdf && ".pdf", allowImage && "image/*"].filter(Boolean).join(",")} onChange={async (e) => {
+      {onImport && importAccept && <label className="nodal-file-action">{t("nodal.import")}<input disabled={busy} type="file" accept={importAccept} onChange={async (e) => {
         const file = e.target.files?.[0]; if (!file) return; setBusy(true); setError(false);
         try { const imported = await onImport(file); if (!mounted.current) return; if (!imported || (types && !types.includes(imported.type))) throw new Error(); onChoose(imported.id); onClose(); }
         catch { if (mounted.current) setError(true); } finally { if (mounted.current) setBusy(false); }

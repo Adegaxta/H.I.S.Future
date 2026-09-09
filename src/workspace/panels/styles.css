@@ -1,0 +1,536 @@
+/* Workspace panels own their complete presentation. */
+
+/* Contenedor principal de la vista de papelera. */
+.trash-view {
+  width: min(100%, 760px);
+  min-height: 100%;
+  margin: 0 auto;
+  padding: 64px 48px;
+}
+
+/* Cabecera de la papelera y sus acciones. */
+.trash-view__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+/* Agrupa el selector de vista y las acciones de la papelera. */
+.trash-view__header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-top: 8px;
+}
+
+/* Selector compacto entre las dos presentaciones de la papelera. */
+.trash-view__view-toggle {
+  display: flex;
+  border: 1px solid #363b42;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.trash-view__view-toggle button {
+  min-height: 34px;
+  padding: 0 10px;
+  border: none;
+  color: #777d84;
+  background: #15181b;
+  cursor: pointer;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+}
+
+.trash-view__view-toggle button + button {
+  border-left: 1px solid #363b42;
+}
+
+.trash-view__view-toggle button.is-active {
+  color: #101416;
+  background: #4dd8c0;
+}
+
+/* Titulo de la papelera. */
+.trash-view h1 {
+  margin: 8px 0 32px;
+  color: #f2f3f4;
+  font-size: 30px;
+  font-weight: 500;
+}
+
+/* Grupo de acciones de la papelera. */
+.trash-view__actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* Boton individual de accion de la papelera. */
+.trash-view__actions button {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  padding: 8px;
+  border: 1px solid #363b42;
+  border-radius: 4px;
+  background: #1a1d21;
+  cursor: pointer;
+}
+
+/* Borde de acciones normales al pasar el cursor. */
+.trash-view__actions button:hover {
+  border-color: #4dd8c0;
+}
+
+.trash-view__actions button:disabled {
+  cursor: default;
+  opacity: 0.35;
+}
+
+.trash-view__actions button:disabled:hover {
+  border-color: #363b42;
+}
+
+.trash-view__actions .trash-view__more {
+  color: #c7c9cc;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.trash-view__actions .trash-view__more:hover {
+  color: #4dd8c0;
+}
+
+/* Borde de la accion destructiva al pasar el cursor. */
+.trash-view__actions button:last-child:hover {
+  border-color: #d84d4d;
+}
+
+/* Iconos de las acciones de la papelera. */
+.trash-view__action-icon {
+  font-size: 22px;
+  line-height: 1;
+}
+
+/* Lista de elementos enviados a la papelera. */
+.trash-view__list {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid #2a2e33;
+}
+
+/* Fila individual de la papelera; grid-template-columns controla sus columnas. */
+.trash-view__item {
+  display: grid;
+  grid-template-columns: 20px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  padding: 8px 4px;
+  border-bottom: 1px solid #1f2226;
+  color: #c7c9cc;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+/* Boton de nombre dentro de cada fila de papelera. */
+.trash-view__item button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+/* Texto de fila al pasar el cursor. */
+.trash-view__item button:hover {
+  color: #f2f3f4;
+}
+
+/* Punto de color que indica el tipo del elemento. */
+.trash-view__type-dot {
+  width: 9px;
+  height: 9px;
+  flex: 0 0 9px;
+  border-radius: 50%;
+}
+
+/* Ajuste de posicion para mostrar avisos dentro de la pagina de papelera. */
+.editor-page--trash {
+  position: relative;
+}
+
+/* Aviso flotante de nodo eliminado; top y right controlan su posicion. */
+.trash-node-warning {
+  position: absolute;
+  top: 28px;
+  right: 28px;
+  max-width: 260px;
+  padding: 9px 12px;
+  border: 1px solid #6b5430;
+  border-radius: 4px;
+  color: #d8b34d;
+  background: #241f16;
+  font-size: 11px;
+}
+
+.trash-node-back {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  margin-bottom: 24px;
+  padding: 0 10px;
+  border: 1px solid #363b42;
+  border-radius: 4px;
+  color: #c7c9cc;
+  background: #1a1d21;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.trash-node-back:hover {
+  border-color: #4dd8c0;
+  color: #f2f3f4;
+}
+
+/* Fondo de la fila al pasar el cursor. */
+.trash-view__item:hover {
+  background: #1a1d21;
+}
+
+.trash-view__item.is-selected {
+  background: #202b2d;
+  outline: 1px solid #347d73;
+  outline-offset: -1px;
+}
+
+/* Cuadricula de previews ligeras para la vista de galeria. */
+.trash-view__gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 12px;
+}
+
+.trash-view__card {
+  min-width: 0;
+  border: 1px solid #2a2e33;
+  border-radius: 4px;
+  background: #15181b;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.trash-view__card:hover {
+  border-color: #4b555b;
+}
+
+.trash-view__card.is-selected {
+  border-color: #4dd8c0;
+  background: #202b2d;
+}
+
+.trash-view__preview {
+  position: relative;
+  display: flex;
+  height: 112px;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  border-bottom: 1px solid #2a2e33;
+  color: #777d84;
+  background: #101214;
+  font-size: 11px;
+  line-height: 1.45;
+  overflow: hidden;
+}
+
+.trash-view__preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.trash-view__preview > small {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  max-width: calc(100% - 16px);
+  padding: 3px 5px;
+  color: #c7c9cc;
+  background: #101214;
+  font-family: ui-monospace, "SF Mono", "Cascadia Code", monospace;
+  font-size: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trash-view__preview span {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 5;
+}
+
+.trash-view__card-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px;
+}
+
+.trash-view__card-name {
+  min-width: 0;
+  overflow: hidden;
+  color: #c7c9cc;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trash-view__card-meta small {
+  flex: 0 0 auto;
+}
+
+/* Color de las casillas de seleccion de la papelera. */
+.trash-view__item input {
+  accent-color: #4dd8c0;
+}
+
+/* Metadatos pequenos de cada elemento de papelera. */
+.trash-view__item small {
+  color: #5a5f66;
+  font-family: ui-monospace, "SF Mono", "Cascadia Code", monospace;
+  font-size: 8px;
+  letter-spacing: 0.08em;
+}
+
+/* Mensaje mostrado cuando la papelera esta vacia. */
+.trash-view__empty {
+  padding: 18px 0;
+  color: #5a5f66;
+  font-size: 13px;
+}
+
+@media (max-width: 620px) {
+  .trash-view {
+    padding: 40px 20px;
+  }
+
+  .trash-view__header {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .trash-view__header-right {
+    justify-content: space-between;
+    padding-top: 0;
+  }
+
+  .trash-view__gallery {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+
+/* Contenedor de la pagina de configuracion del proyecto. */
+.project-settings {
+  display: flex;
+  width: min(100%, 760px);
+  min-height: 100%;
+  margin: 0 auto;
+  padding: 80px 48px;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Cabecera visual de configuracion con imagen y texto. */
+.project-settings__hero {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  text-align: left;
+}
+
+/* Grupo del boton volver y el titulo de configuracion. */
+.project-settings__heading {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+/* Boton para regresar desde configuracion. */
+.project-settings__back {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  place-items: center;
+  padding: 7px;
+  border: 1px solid #363b42;
+  border-radius: 4px;
+  background: #1a1d21;
+  cursor: pointer;
+}
+
+/* Estado hover del boton volver. */
+.project-settings__back:hover {
+  border-color: #4dd8c0;
+}
+
+/* Icono del boton volver. */
+.project-settings__back img {
+  width: 100%;
+  height: 100%;
+}
+
+/* Imagen o avatar grande del proyecto. */
+.project-settings__image {
+  display: grid;
+  width: 128px;
+  height: 128px;
+  flex: 0 0 128px;
+  place-items: center;
+  border-radius: 8px;
+  color: #121417;
+  background-position: center;
+  background-size: cover;
+  font-size: 48px;
+  font-weight: 600;
+}
+
+/* Etiqueta tecnica sobre el titulo de configuracion. */
+.project-settings__eyebrow {
+  margin-bottom: 8px;
+  color: #4dd8c0;
+  font-family: ui-monospace, "SF Mono", "Cascadia Code", monospace;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+}
+
+/* Nombre grande del proyecto en configuracion. */
+.project-settings h1 {
+  max-width: 430px;
+  margin: 0;
+  color: #f2f3f4;
+  font-size: 34px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+/* Campo de configuracion; margin-top controla su distancia de la cabecera. */
+.project-settings__field {
+  display: flex;
+  width: min(100%, 430px);
+  margin-top: 64px;
+  gap: 14px;
+  flex-direction: column;
+  color: #9da3aa;
+  font-size: 12px;
+}
+
+/* Selector de opciones del proyecto. */
+.project-settings__field select {
+  padding: 11px 12px;
+  border: 1px solid #363b42;
+  border-radius: 4px;
+  outline: none;
+  color: #e8e9ea;
+  background: #1a1d21;
+  cursor: pointer;
+  font: inherit;
+}
+
+/* Borde del selector cuando esta enfocado. */
+.project-settings__field select:focus {
+  border-color: #4dd8c0;
+}
+
+/* Version de la aplicacion, anclada discretamente al pie de configuracion. */
+.project-settings__version {
+  width: 100%;
+  margin-top: auto;
+  padding-top: 48px;
+  color: #5f666e;
+  font-family: ui-monospace, "SF Mono", "Cascadia Code", monospace;
+  font-size: 10px;
+  line-height: 1;
+  text-align: right;
+}
+
+/* Ajustes de configuracion y papelera para moviles pequenos. */
+@media (max-width: 560px) {
+  .project-settings {
+    align-items: stretch;
+    padding: 48px 24px;
+  }
+
+  .project-settings__hero {
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .project-settings__image {
+    width: 84px;
+    height: 84px;
+    flex-basis: 84px;
+    font-size: 32px;
+  }
+
+  .project-settings h1 {
+    font-size: 25px;
+  }
+
+  .trash-view {
+    padding: 48px 24px;
+  }
+}
+
+
+.changelog-list { display: grid; gap: 18px; max-width: 720px; margin-top: 24px; }
+.changelog-entry { padding: 16px 0; border-top: 1px solid #343940; }
+.changelog-entry__meta { color: #4dd8c0; font: 11px ui-monospace, "SF Mono", "Cascadia Code", monospace; letter-spacing: 0.08em; }
+.changelog-entry h2 { margin: 8px 0 10px; color: #f2f3f4; font-size: 18px; }
+.changelog-entry ul { margin: 0; padding-left: 18px; color: #c7c9cc; font-size: 13px; line-height: 1.7; }
+.changelog-entry__summary { max-width: 640px; margin: 0 0 20px; color: #92989e; font-size: 13px; line-height: 1.55; }
+.changelog-entry__sections { display: grid; gap: 18px; }
+.changelog-entry__sections section { padding-left: 13px; border-left: 2px solid #4dd8c0; }
+.changelog-entry__sections section.is-fix { border-left-color: #d8b34d; }
+.changelog-entry__sections h3 { margin: 0 0 6px; color: #e8e9ea; font-size: 14px; font-weight: 600; }
+.changelog-entry__sections .is-fix h3 { color: #d8b34d; }
+
+.workspace-file-import-error {
+  position: fixed;
+  z-index: 12000;
+  top: 48px;
+  right: 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  max-width: 420px;
+  border: 1px solid #d85f5f;
+  border-radius: 0;
+  padding: 10px 12px;
+  background: #1b1719;
+  color: #e8b9b9;
+  font-size: 12px;
+}
+
+.workspace-file-import-error button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: 16px;
+}

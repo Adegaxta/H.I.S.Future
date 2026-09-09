@@ -32,11 +32,26 @@ const localIsoDate = (date = new Date()) => {
   return `${year}-${month}-${day}`;
 };
 
-const isIsoDate = (value: unknown): value is string =>
-  typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
+export const isIsoDate = (value: unknown): value is string => {
+  if (typeof value !== "string") return false;
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return false;
+  const [, yearText, monthText, dayText] = match;
+  const year = Number(yearText);
+  const month = Number(monthText);
+  const day = Number(dayText);
+  const parsed = new Date(year, month - 1, day);
+  return year >= 1 &&
+    parsed.getFullYear() === year &&
+    parsed.getMonth() === month - 1 &&
+    parsed.getDate() === day;
+};
 
-const isTime = (value: unknown): value is string =>
-  typeof value === "string" && /^\d{2}:\d{2}$/.test(value);
+export const isTime = (value: unknown): value is string => {
+  if (typeof value !== "string") return false;
+  const match = /^(\d{2}):(\d{2})$/.exec(value);
+  return Boolean(match && Number(match[1]) <= 23 && Number(match[2]) <= 59);
+};
 
 const isColor = (value: unknown): value is string =>
   typeof value === "string" && /^#[0-9a-f]{6}$/i.test(value);
@@ -77,19 +92,23 @@ export function createCalendarContent(date = new Date()): string {
 
 export function getCalendarMeta(content: string): CalendarMeta {
   const parsed = readMeta<CalendarMeta>(content, CALENDAR_PREFIX);
+  return normalizeCalendarMeta(parsed);
+}
+
+export function normalizeCalendarMeta(meta: Partial<CalendarMeta> | null): CalendarMeta {
   return {
-    currentDate: isIsoDate(parsed?.currentDate)
-      ? parsed.currentDate
+    currentDate: isIsoDate(meta?.currentDate)
+      ? meta.currentDate
       : localIsoDate(),
     view:
-      parsed?.view === "week" || parsed?.view === "day"
-        ? parsed.view
+      meta?.view === "week" || meta?.view === "day"
+        ? meta.view
         : "month",
   };
 }
 
 export function setCalendarMeta(content: string, meta: CalendarMeta): string {
-  return writeMeta(content, CALENDAR_PREFIX, meta);
+  return writeMeta(content, CALENDAR_PREFIX, normalizeCalendarMeta(meta));
 }
 
 export function createTempoContent(meta: TempoMeta): string {
@@ -98,24 +117,30 @@ export function createTempoContent(meta: TempoMeta): string {
 
 export function getTempoMeta(content: string): TempoMeta {
   const parsed = readMeta<TempoMeta>(content, TEMPO_PREFIX);
+  return normalizeTempoMeta(parsed);
+}
+
+export function normalizeTempoMeta(meta: Partial<TempoMeta> | null): TempoMeta {
+  const date = isIsoDate(meta?.date) ? meta.date : localIsoDate();
+  const rawEndDate = isIsoDate(meta?.endDate) ? meta.endDate : null;
   return {
-    date: isIsoDate(parsed?.date) ? parsed.date : localIsoDate(),
-    startTime: isTime(parsed?.startTime) ? parsed.startTime : null,
-    endTime: isTime(parsed?.endTime) ? parsed.endTime : null,
-    subtype: parsed?.subtype === "weekly" || parsed?.subtype === "monthly" || parsed?.subtype === "annual"
-      ? parsed.subtype
+    date,
+    startTime: isTime(meta?.startTime) ? meta.startTime : null,
+    endTime: isTime(meta?.endTime) ? meta.endTime : null,
+    subtype: meta?.subtype === "weekly" || meta?.subtype === "monthly" || meta?.subtype === "annual"
+      ? meta.subtype
       : "daily",
-    endDate: isIsoDate(parsed?.endDate) ? parsed.endDate : null,
-    color: isColor(parsed?.color) ? parsed.color : DEFAULT_TEMPO_COLOR,
-    weeklyVisualOrder: typeof parsed?.weeklyVisualOrder === "number" && Number.isFinite(parsed.weeklyVisualOrder)
-      ? parsed.weeklyVisualOrder
+    endDate: rawEndDate && rawEndDate < date ? date : rawEndDate,
+    color: isColor(meta?.color) ? meta.color : DEFAULT_TEMPO_COLOR,
+    weeklyVisualOrder: typeof meta?.weeklyVisualOrder === "number" && Number.isFinite(meta.weeklyVisualOrder)
+      ? meta.weeklyVisualOrder
       : null,
-    activeWeekdays: readActiveWeekdays(parsed?.activeWeekdays),
+    activeWeekdays: readActiveWeekdays(meta?.activeWeekdays),
   };
 }
 
 export function setTempoMeta(content: string, meta: TempoMeta): string {
-  return writeMeta(content, TEMPO_PREFIX, meta);
+  return writeMeta(content, TEMPO_PREFIX, normalizeTempoMeta(meta));
 }
 
 export function stripTemporalMeta(content: string): string {
@@ -125,8 +150,8 @@ export function stripTemporalMeta(content: string): string {
 }
 
 export function formatTime(value: string, format: TimeFormat): string {
+  if (!isTime(value)) return value;
   const [hours, minutes] = value.split(":").map(Number);
-  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return value;
   if (format === "24h") return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
   const suffix = hours >= 12 ? "PM" : "AM";
   const displayHour = hours % 12 || 12;

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
 import type { Dispatch, MouseEvent, PointerEvent, SetStateAction } from "react";
-import type { LineControlState, PickerState } from "../types/nodes";
+import type { LineControlState, PickerState } from "./types";
 
 interface UseEditorBlocksOptions {
   editorRef: React.RefObject<HTMLDivElement | null>;

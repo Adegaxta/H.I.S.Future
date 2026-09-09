@@ -1,6 +1,6 @@
 import type { NodeRendererProps } from "../rendering";
 import PageNodeHeader from "./header";
-import RichTextEditor from "../../components/RichTextEditor";
+import RichTextEditor from "../../editor/RichTextEditor";
 import { getPageBlockWidthPercent, getPageMeta } from "../../utils/pageMeta";
 
 export function PageNodeRenderer({ node, host }: NodeRendererProps) {

@@ -8,13 +8,12 @@ try {
   assert.equal(new Set(definitions.map((d) => d.type)).size, definitions.length);
   assert.deepEqual(definitions.filter((d) => d.creation.selectAfterCreation).map((d) => d.type), ["pagina", "curso", "tarea", "video"]);
   const { readFile } = await import("node:fs/promises");
-  const backend = await readFile(new URL("../src-tauri/src/project.rs", import.meta.url), "utf8");
-  for (const match of backend.matchAll(/CHECK\(type IN \(([^)]+)\)\)/g)) {
-    const sqlTypes = [...match[1].matchAll(/'([^']+)'/g)].map((m) => m[1]);
-    // Legacy schemas in test fixtures intentionally accept fewer types.
-    if (match.index > backend.indexOf("mod tests")) continue;
-    assert.deepEqual(sqlTypes.sort(), definitions.map((d) => d.type).sort(), "SQLite and the registry must accept exactly the same types");
-  }
+  const persistence = await readFile(new URL("../src-tauri/src/persistence.rs", import.meta.url), "utf8");
+  const persistedTypeBlock = persistence.match(/PERSISTED_NODE_TYPES:\s*&\[&str\]\s*=\s*&\[([\s\S]*?)\];/);
+  assert.ok(persistedTypeBlock, "the backend exposes one explicit persisted Node registry");
+  const persistedTypes = [...persistedTypeBlock[1].matchAll(/"([^"]+)"/g)].map((match) => match[1]);
+  assert.deepEqual(persistedTypes, definitions.map((definition) => definition.type), "frontend Defs and backend persistence IDs must stay ordered and identical");
+  assert.equal((persistence.match(/PERSISTED_NODE_TYPES/g) ?? []).length >= 4, true, "schema and validation consume the backend registry");
   const nav = await server.ssrLoadModule("/src/hooks/useWorkspaceNavigation.ts");
   let history = { entries: [], index: -1 };
   assert.equal(nav.stepWorkspaceNavigation(history, -1), undefined);
@@ -164,9 +163,11 @@ try {
   console.log('PASS: Course Calendar identity, hidden creation, rename, idempotent migration, reopening and synchronized lifecycle.');
   const page = await server.ssrLoadModule("/src/utils/pageMeta.ts");
   const blockModel = await server.ssrLoadModule("/src/editor/blockModel.ts");
-  const editorPersistence = await server.ssrLoadModule("/src/utils/editorPersistence.ts");
+  const editorPersistence = await server.ssrLoadModule("/src/editor/persistence.ts");
+  const workspaceLifecycle = await server.ssrLoadModule("/src/workspace/useWorkspaceLifecycle.ts");
   const pdf = await server.ssrLoadModule("/src/utils/pdfResource.ts");
   const temporal = await server.ssrLoadModule("/src/utils/temporalMeta.ts");
+  const calendarDateMath = await server.ssrLoadModule("/src/nodes/calendar/dateMath.ts");
   const special = "text --> <tag> & quotation \"";
   const pageContent = page.setPageMeta("<p>body</p>", { ...page.DEFAULT_PAGE_META, description: special });
   assert.equal(page.getPageMeta(pageContent).description, special);
@@ -184,6 +185,15 @@ try {
   const fakeEditor = { cloneNode: () => ({ querySelectorAll: () => [transientBlock], innerHTML: "<p>body</p>" }) };
   assert.equal(editorPersistence.readEditorContent(fakeEditor, base("persisted-page", "pagina")), "<p>body</p>");
   assert.deepEqual(removedEditorAttributes, ["data-editor-placeholder", ...blockModel.EDITOR_TRANSIENT_BLOCK_ATTRIBUTES]);
+  const snapshotNode = { ...base("snapshot-page", "pagina"), content: "<p>old</p>" };
+  const snapshotEditor = {
+    getAttribute: (name) => name === "data-active-id" ? snapshotNode.id : null,
+    cloneNode: () => ({ querySelectorAll: () => [], innerHTML: "<p>latest</p>" }),
+  };
+  const liveSnapshot = workspaceLifecycle.getWorkspaceSnapshot([snapshotNode], snapshotNode.id, snapshotEditor);
+  assert.equal(liveSnapshot[0].content, "<p>latest</p>", "closing captures unsynchronized editor HTML");
+  assert.equal(snapshotNode.content, "<p>old</p>", "snapshot creation does not mutate workspace state");
+  assert.equal(workspaceLifecycle.getWorkspaceSnapshot([snapshotNode], null, snapshotEditor)[0], snapshotNode);
   const innerBlock = { contains: () => false };
   const outerBlock = { contains: (other) => other === innerBlock };
   const siblingBlock = { contains: () => false };
@@ -194,6 +204,30 @@ try {
   const tempoContent = temporal.setTempoMeta("<p>body</p>", tempoMeta);
   assert.equal((tempoContent.match(/-->/g) ?? []).length, 1);
   assert.deepEqual(temporal.getTempoMeta(tempoContent), tempoMeta);
+  assert.equal(temporal.isIsoDate("2024-02-29"), true);
+  assert.equal(temporal.isIsoDate("2026-02-29"), false);
+  assert.equal(temporal.isIsoDate("2026-13-01"), false);
+  assert.equal(temporal.isTime("23:59"), true);
+  assert.equal(temporal.isTime("24:00"), false);
+  assert.equal(temporal.isTime("12:60"), false);
+  const invalidTempo = temporal.getTempoMeta(temporal.setTempoMeta("", { ...tempoMeta, date: "2026-02-30", startTime: "24:00", endTime: "12:60" }));
+  assert.equal(invalidTempo.date, temporal.localIsoDate());
+  assert.equal(invalidTempo.startTime, null);
+  assert.equal(invalidTempo.endTime, null);
+  const normalizedTempoContent = temporal.setTempoMeta("<p>safe</p>", { ...tempoMeta, date: "2026-02-30", endDate: "2025-01-01", startTime: "25:00" });
+  assert.equal(normalizedTempoContent.includes("2026-02-30"), false);
+  assert.equal(normalizedTempoContent.includes("25:00"), false);
+  const normalizedTempo = temporal.getTempoMeta(normalizedTempoContent);
+  assert.equal(normalizedTempo.date, temporal.localIsoDate());
+  assert.equal(normalizedTempo.endDate, normalizedTempo.date);
+  assert.equal(normalizedTempo.startTime, null);
+  const normalizedCalendarContent = temporal.setCalendarMeta("", { currentDate: "2026-13-01", view: "future" });
+  assert.equal(normalizedCalendarContent.includes("2026-13-01"), false);
+  assert.deepEqual(temporal.getCalendarMeta(normalizedCalendarContent), { currentDate: temporal.localIsoDate(), view: "month" });
+  assert.equal(calendarDateMath.timeRangeDurationMinutes("10:00", "11:30"), 90);
+  assert.equal(calendarDateMath.timeRangeDurationMinutes("10:00", "09:00"), 60);
+  assert.equal(calendarDateMath.timeFromMinutes(1500), "23:59");
+  assert.equal(calendarDateMath.dayIndex(calendarDateMath.dateFromIso("2026-09-14"), calendarDateMath.dateFromIso("2026-09-07")), 7);
   const escaped = nodal.setNodalMeta("<p>body</p>", { description: "unsafe --> <tag>" });
   assert.equal(nodal.getNodalMeta(escaped).description, "unsafe --> <tag>");
   assert.equal((escaped.match(/<!--hisfuture-nodal-meta:/g) ?? []).length, 1);

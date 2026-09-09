@@ -3,7 +3,7 @@ import type { NodeItem } from "../../types/nodes";
 import { formatTempoTime, getTempoMeta, localIsoDate, setTempoMeta, type IsoWeekday, type TimeFormat } from "../../utils/temporalMeta";
 import FutureBadge from "../../components/FutureBadge";
 import NodeTypeLabel from "../../components/NodeTypeLabel";
-import RichTextEditor from "../../components/RichTextEditor";
+import RichTextEditor from "../../editor/RichTextEditor";
 import { useLocale } from "../../i18n/LocaleContext";
 
 interface TempoInspectorProps {
@@ -109,7 +109,7 @@ export default function TempoInspector({
           <span>{t("tempo.unit")}</span>
           <div className="tempo-inspector__subtype-value">
             {t(TEMPO_SUBTYPE_LABELS[meta.subtype])}
-            {(meta.subtype === "monthly" || meta.subtype === "annual") && <FutureBadge />}
+            {(meta.subtype === "monthly" || meta.subtype === "annual") && <FutureBadge label={t("tempo.future")} />}
           </div>
         </div>
         {formattedTime && <div className="tempo-inspector__summary">{formattedTime}</div>}
@@ -127,13 +127,13 @@ export default function TempoInspector({
           <label>{t("tempo.startTime")}<input type="time" value={meta.startTime ?? ""} onChange={(event) => updateMeta({ ...meta, startTime: event.target.value || null })} /></label>
           <label>{t("tempo.endTime")}<input type="time" value={meta.endTime ?? ""} onChange={(event) => updateMeta({ ...meta, endTime: event.target.value || null })} /></label>
         </div>
-        <div className="tempo-inspector__active-weekdays">
+        {meta.subtype === "weekly" && <div className="tempo-inspector__active-weekdays">
           <span>{t("tempo.weekdays")}</span>
           <div role="group" aria-label={t("tempo.weekdays")}>{localizedWeekdays.map(({ day, label, name }) => {
             const active = meta.activeWeekdays === null || meta.activeWeekdays.includes(day);
             return <button type="button" key={day} className={active ? "is-active" : ""} aria-pressed={active} aria-label={t("tempo.weekdayState", { name, state: t(active ? "tempo.active" : "tempo.inactive") })} title={name} onClick={() => toggleWeekday(day)}>{active ? label : "·"}</button>;
           })}</div>
-        </div>
+        </div>}
         <label className="tempo-inspector__color"><span>{t("tempo.color")}</span><span className="tempo-inspector__color-swatch" style={{ backgroundColor: meta.color }}><input type="color" value={meta.color} aria-label={t("tempo.color")} onChange={(event) => updateMeta({ ...meta, color: event.target.value })} /></span></label>
       </div>
       <div className={`tempo-inspector__content${editorExpanded ? " is-expanded" : ""}`} role={editorExpanded ? "dialog" : undefined} aria-modal={editorExpanded ? "true" : undefined} aria-label={editorExpanded ? t("tempo.expandedEditor") : undefined}>

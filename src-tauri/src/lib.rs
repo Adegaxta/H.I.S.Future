@@ -1,3 +1,4 @@
+mod persistence;
 mod project;
 
 use project::{NodeRecord, ProjectInfo, ProjectState};
@@ -38,7 +39,7 @@ fn register_his_file_association(app: &tauri::AppHandle) -> Result<(), String> {
         .create_subkey("Software\\Classes\\HISFuture.Project")
         .map_err(|error| format!("No se pudo registrar el tipo de proyecto .his: {error}"))?;
     project_class
-        .set_value("", &"HIS Future Project")
+        .set_value("", &"H.I.S. Future Project")
         .map_err(|error| format!("No se pudo registrar el nombre del proyecto .his: {error}"))?;
     let (default_icon, _) = project_class
         .create_subkey("DefaultIcon")

@@ -3,7 +3,7 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import type { NodeItem } from "../types/nodes";
 import { normalizeWebUrl } from "../utils/webUrl";
 import { useLocale } from "../i18n/LocaleContext";
-import { SidebarIcon } from "../components/SidebarIcon";
+import { UiIcon } from "../ui/Icon";
 
 export const isWebUrl = (value: string) => Boolean(normalizeWebUrl(value));
 export const openWebUrl = async (value: string) => {
@@ -21,5 +21,5 @@ export function NodeNameInput({ node, onRename, className = "", placeholder = ""
 
 export function NodeSearchAction({ value, onChange }: { value: string; onChange: (value: string) => void }) {
   const { t } = useLocale();
-  return <label className="nodal-inline-search" title={t("nodal.search")}><input value={value} onChange={(event) => onChange(event.target.value)} placeholder={t("nodal.search")} aria-label={t("nodal.search")} /><SidebarIcon name="search" /></label>;
+  return <label className="nodal-inline-search" title={t("nodal.search")}><input value={value} onChange={(event) => onChange(event.target.value)} placeholder={t("nodal.search")} aria-label={t("nodal.search")} /><UiIcon name="search" /></label>;
 }

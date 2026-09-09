@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { PALETTE } from "../defs/palette";
-import type { NodeItem } from "../types/nodes";
-import type { IsoWeekday, TempoMeta } from "../utils/temporalMeta";
-import { useLocale } from "../i18n/LocaleContext";
+import { PALETTE } from "../../defs/palette";
+import type { NodeItem } from "../../types/nodes";
+import { localIsoDate, type TempoMeta } from "../../utils/temporalMeta";
+import { useLocale } from "../../i18n/LocaleContext";
+import { addDays, dateFromIso, dayIndex, isoWeekday } from "./dateMath";
 
 interface WeeklyTempoEntry { node: NodeItem; meta: TempoMeta; }
 interface WeeklyDragPreview { id: string; startIndex: number; endIndex: number; duration: number; }
@@ -25,12 +26,6 @@ const WEEK_DAYS = 7;
 const DRAG_INTENT_THRESHOLD = 10;
 const DAY_LABEL_WIDTH = 72;
 const TEMPO_WIDTH = 58;
-const iso = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-const fromIso = (value: string) => { const [year, month, day] = value.split("-").map(Number); return new Date(year, month - 1, day); };
-const addDays = (date: Date, days: number) => { const next = new Date(date); next.setDate(next.getDate() + days); return next; };
-const calendarDayNumber = (date: Date) => Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86400000;
-const dayIndex = (date: Date, weekStart: Date) => calendarDayNumber(date) - calendarDayNumber(weekStart);
-const isoWeekday = (date: Date): IsoWeekday => (date.getDay() === 0 ? 7 : date.getDay()) as IsoWeekday;
 const stackedName = (name: string) => Array.from(name).map((character, index) => <i aria-hidden="true" key={`${character}-${index}`}>{character === " " ? "\u00a0" : character}</i>);
 
 export default function WeeklyTempoView({ weekDates, tempos, selectedTempoId, selectedTempoIds, onSelectTempo, onCreateTempo, onMoveTempo, onReorderTempos, onContextMenu, onBack }: WeeklyTempoViewProps) {
@@ -61,8 +56,8 @@ export default function WeeklyTempoView({ weekDates, tempos, selectedTempoId, se
     return clientY < tracks[0].getBoundingClientRect().top ? 0 : WEEK_DAYS - 1;
   };
   const getRange = (entry: WeeklyTempoEntry) => {
-    const start = fromIso(entry.meta.date);
-    const storedEnd = entry.meta.endDate ? fromIso(entry.meta.endDate) : addDays(start, 6);
+    const start = dateFromIso(entry.meta.date);
+    const storedEnd = entry.meta.endDate ? dateFromIso(entry.meta.endDate) : addDays(start, 6);
     return { start, end: storedEnd < start ? start : storedEnd };
   };
   const updateFromPointer = (event: PointerEvent) => {
@@ -74,7 +69,7 @@ export default function WeeklyTempoView({ weekDates, tempos, selectedTempoId, se
     const { start, end } = getRange(entry);
     const nextStart = resize.edge === "start" ? (target <= end ? target : end) : start;
     const nextEnd = resize.edge === "end" ? (target >= start ? target : start) : end;
-    onMoveTempo(entry.node.id, { ...entry.meta, date: iso(nextStart), endDate: iso(nextEnd) });
+    onMoveTempo(entry.node.id, { ...entry.meta, date: localIsoDate(nextStart), endDate: localIsoDate(nextEnd) });
   };
   useEffect(() => {
     if (!resize) return undefined;
@@ -163,8 +158,8 @@ export default function WeeklyTempoView({ weekDates, tempos, selectedTempoId, se
     const nextStart = weekDates[dragPreview.startIndex];
     onMoveTempo(entry.node.id, {
       ...entry.meta,
-      date: iso(nextStart),
-      endDate: iso(addDays(nextStart, dragPreview.duration - 1)),
+      date: localIsoDate(nextStart),
+      endDate: localIsoDate(addDays(nextStart, dragPreview.duration - 1)),
     });
     clearDrag();
   };
@@ -190,7 +185,7 @@ export default function WeeklyTempoView({ weekDates, tempos, selectedTempoId, se
       viewport.scrollLeft += event.deltaY;
     }}>
       <div className="weekly-tempo-surface" ref={surfaceRef} onDragOver={updateDragPreview} onDrop={finishDrop} style={{ gridTemplateColumns: surfaceColumns, width: `max(100%, ${surfaceWidth}px)` }}>
-        {weekDates.map((date, weekDayIndex) => <div className="weekly-tempo-day" key={iso(date)}>
+        {weekDates.map((date, weekDayIndex) => <div className="weekly-tempo-day" key={localIsoDate(date)}>
           <span className="weekly-tempo-day__label" style={{ gridRow: weekDayIndex + 1 }}>{date.toLocaleDateString(locale, { weekday: "short" }).replace(".", "")} {date.getDate()}</span>
           <span className="weekly-tempo-day__track" data-week-day-index={weekDayIndex} style={{ gridRow: weekDayIndex + 1 }} aria-hidden="true" />
         </div>)}

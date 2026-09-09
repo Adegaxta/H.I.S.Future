@@ -1,5 +1,10 @@
 import AppWorkspace from "./components/AppWorkspace";
 import "./App.css";
+import "./ui/styles.css";
+import "./workspace/panels/styles.css";
+import "./workspace/navigation/styles.css";
+import "./graph/styles.css";
+import "./editor/styles.css";
 import "./nodes/styles.css";
 import HomeScreen from "./screens/HomeScreen";
 import { useProjectSession } from "./project/useProjectSession";

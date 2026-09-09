@@ -58,7 +58,7 @@ jobs:
           }
 
           $nonEmptyLines = @(($content -split '\r?\n') | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
-          $expectedHeading = "## H.I.S. $env:RELEASE_VERSION"
+          $expectedHeading = "## H.I.S. Future $env:RELEASE_VERSION"
           if ($nonEmptyLines.Count -lt 2 -or $nonEmptyLines[0].Trim() -cne $expectedHeading) {
             throw "Release notes must start with '$expectedHeading' and contain a non-empty body."
           }
@@ -158,7 +158,7 @@ jobs:
         shell: pwsh
         run: |
           $bundleDirectory = Join-Path $PWD 'src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis'
-          $artifactName = "hisfuture_$env:RELEASE_VERSION`_x64-setup.exe"
+          $artifactName = "H.I.S. Future_$env:RELEASE_VERSION`_x64-setup.exe"
           $artifactPath = Join-Path $bundleDirectory $artifactName
           $signaturePath = "$artifactPath.sig"
 
@@ -257,7 +257,7 @@ jobs:
             --verify-tag `
             --draft `
             --notes-file $env:RELEASE_NOTES_PATH `
-            --title "H.I.S. $env:RELEASE_VERSION"
+            --title "H.I.S. Future $env:RELEASE_VERSION"
           if ($LASTEXITCODE -ne 0) {
             throw 'Could not create the draft release and upload all assets.'
           }
@@ -283,7 +283,7 @@ jobs:
             [System.Text.UTF8Encoding]::new($false, $true)
           )
 
-          if (-not $release.isDraft -or $release.tagName -ne $env:RELEASE_TAG -or $release.name -ne "H.I.S. $env:RELEASE_VERSION") {
+          if (-not $release.isDraft -or $release.tagName -ne $env:RELEASE_TAG -or $release.name -ne "H.I.S. Future $env:RELEASE_VERSION") {
             throw 'Draft release metadata is incorrect.'
           }
           if (@(Compare-Object $expectedAssets $actualAssets).Count -ne 0) {

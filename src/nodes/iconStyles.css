@@ -1,0 +1,17 @@
+/* Persisted Node type icons are owned by the Node system. */
+
+.node-type-icon--categoria,
+.node-type-icon--pagina-carpeta { --icon-url: url("../assets/third-party/google-material/icons/folder_inactive.svg"); }
+.node-type-icon--categoria.is-open,
+.node-type-icon--pagina-carpeta.is-open { --icon-url: url("../assets/third-party/google-material/icons/folder_active.svg"); }
+.node-type-icon--pagina { --icon-url: url("../assets/third-party/google-material/icons/nodes/node_page.svg"); }
+.node-type-icon--imagen { --icon-url: url("../assets/third-party/google-material/icons/nodes/node_image.svg"); }
+.node-type-icon--calendario { --icon-url: url("../assets/third-party/google-material/icons/nodes/node_calendar.svg"); }
+.node-type-icon--tempo { --icon-url: url("../assets/third-party/google-material/icons/nodes/node_tempo.svg"); }
+.node-type-icon--pdf { --icon-url: url("../assets/third-party/google-material/icons/nodes/node_pdf.svg"); }
+.node-type-icon--curso { --icon-url: url("../assets/third-party/google-material/icons/nodes/node_course.svg"); }
+.node-type-icon--tarea { --icon-url: url("../assets/third-party/google-material/icons/task.svg"); }
+.node-type-icon--video { --icon-url: url("../assets/third-party/google-material/icons/nodes/node_video.svg"); }
+
+
+.node-type-icon { width: 23px; height: 23px; color: var(--node-color); }

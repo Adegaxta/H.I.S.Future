@@ -3,7 +3,7 @@ import type { ContextMenuState, NodeItem } from "../../types/nodes";
 import { getNodeDefinition, getNodeDisplayLabel } from "../../defs/nodeTypes";
 import { getChildren, getEffectiveNodeType, opensNodeViewOnClick } from "../../utils/nodeTree";
 import { useLocale } from "../../i18n/LocaleContext";
-import { NodeIcon } from "../../components/SidebarIcon";
+import { NodeIcon } from "../NodeIcon";
 import NodeTypeLabel from "../../components/NodeTypeLabel";
 
 export default function FolderNodeView({ node, nodes, onSelect, onContextMenu }: { node: NodeItem; nodes: NodeItem[]; onSelect: (id: string) => void; onContextMenu: (menu: ContextMenuState) => void }) {

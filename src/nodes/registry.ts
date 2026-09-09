@@ -1,9 +1,8 @@
 import type { TranslationKey } from "../i18n/translations";
-import { PALETTE } from "../defs/palette";
 import { calendarNodeModule } from "./calendar/definition";
 import { categoryNodeModule } from "./category/definition";
 import { courseNodeModule } from "./course/definition";
-import type { NodeCapability, NodeCategoryDefinition, NodeDefinition, NodeModule } from "./definition";
+import type { NodeCapability, NodeDefinition, NodeModule } from "./definition";
 import { imageNodeModule } from "./image/definition";
 import { pageFolderNodeModule, pageNodeModule } from "./page/definition";
 import { pdfNodeModule } from "./pdf/definition";
@@ -15,8 +14,6 @@ const BASE_MODULES = [categoryNodeModule, pageNodeModule, imageNodeModule, calen
 const RENDER_MODULES = [...BASE_MODULES, pageFolderNodeModule] as const;
 export type BaseNodeType = (typeof BASE_MODULES)[number]["definition"]["type"];
 export type RenderNodeType = (typeof RENDER_MODULES)[number]["definition"]["type"];
-
-const NODE_CATEGORIES = [{ id: "documents", labelKey: "categories.documents", color: PALETTE.documents }] as const satisfies readonly NodeCategoryDefinition[];
 
 export function createNodeRegistry<const T extends readonly NodeModule[]>(modules: T) {
   const byType = new Map<string, NodeModule>();
@@ -43,12 +40,10 @@ export const NODE_REGISTRY = {
   all: baseDefinitions,
   availableForCreation: () => baseDefinitions().filter((definition) => definition.creation.available),
   visibleInTypePanel: () => baseDefinitions().filter((definition) => definition.typePanel.visible),
-  conceptual: () => baseDefinitions().filter((definition) => Boolean(definition.concept)),
-  categories: () => [...NODE_CATEGORIES] as NodeCategoryDefinition[],
 };
 export const getNodeDefinition = (type: RenderNodeType) => NODE_REGISTRY.get(type);
 export const getNodeRenderer = (type: RenderNodeType) => renderRegistry.get(type).renderer;
 export const getNodeRelationPolicy = (type: BaseNodeType) => renderRegistry.get(type).relations;
 export const hasNodeCapability = (type: RenderNodeType, capability: NodeCapability) => getNodeDefinition(type).capabilities[capability] === true;
 export const getNodeDisplayLabel = (type: RenderNodeType, translate: (key: TranslationKey) => string) => translate(getNodeDefinition(type).nodeNameKey);
-export type { NodeCapability, NodeCategoryDefinition, NodeConceptDefinition, NodeConceptId, NodeCategoryId, NodeDefinition, NodeModule, NodeRendererId } from "./definition";
+export type { NodeCapability, NodeDefinition, NodeModule, NodeRendererId } from "./definition";

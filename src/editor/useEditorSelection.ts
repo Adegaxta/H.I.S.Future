@@ -4,7 +4,7 @@ import type {
   RefObject,
   SetStateAction,
 } from "react";
-import type { LineControlState } from "../types/nodes";
+import type { LineControlState } from "./types";
 import { isEditableElement } from "../utils/dom";
 
 interface UseEditorSelectionOptions {

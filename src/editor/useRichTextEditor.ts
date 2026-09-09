@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import type { FormEventHandler, FocusEventHandler, RefObject } from "react";
 import type { NodeItem } from "../types/nodes";
-import { readEditorContent } from "../utils/editorPersistence";
+import { readEditorContent } from "./persistence";
 
 interface UseRichTextEditorOptions {
   node: NodeItem | undefined;

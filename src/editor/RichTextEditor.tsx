@@ -5,7 +5,7 @@ import { getNodeDefinition } from "../defs/nodeTypes";
 import { getImageResourceInfo } from "../utils/imageResource";
 import { getEffectiveNodeType } from "../utils/nodeTree";
 import { useLocale } from "../i18n/LocaleContext";
-import { useEditorController } from "../hooks/useEditorController";
+import { useEditorController } from "./useEditorController";
 import {
   EDITOR_BACKGROUND_COLORS,
   EDITOR_TEXT_COLORS,
@@ -15,7 +15,7 @@ import {
   clampFloatNodePosition,
   type BlockTextDevNodeKind,
   type BlockTextDevNodeTree,
-} from "../defs/devNodes";
+} from "./menuTree";
 import draftAsset from "../assets/third-party/google-material/icons/draft.svg";
 import { useDismissibleLayer } from "../hooks/useDismissibleLayer";
 

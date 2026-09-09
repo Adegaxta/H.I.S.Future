@@ -34,7 +34,7 @@ function New-LocalReleaseTag {
     [string]$TargetVersion
   )
 
-  Invoke-Checked git tag -a $Tag -m "H.I.S. $TargetVersion"
+  Invoke-Checked git tag -a $Tag -m "H.I.S. Future $TargetVersion"
 }
 
 function Get-ReleaseRecoveryPlan {
@@ -262,7 +262,7 @@ function New-ReleaseNotesDraft {
   }
 
   $lines = [System.Collections.Generic.List[string]]::new()
-  $lines.Add("## H.I.S. $TargetVersion")
+  $lines.Add("## H.I.S. Future $TargetVersion")
   foreach ($section in $sections.GetEnumerator()) {
     if ($section.Value.Count -eq 0) {
       continue
@@ -341,7 +341,7 @@ function Get-ValidatedReleaseNotes {
 
   $lines = @($content -split '\r?\n')
   $nonEmptyLines = @($lines | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
-  $expectedHeading = "## H.I.S. $TargetVersion"
+  $expectedHeading = "## H.I.S. Future $TargetVersion"
   if ($nonEmptyLines.Count -lt 2 -or $nonEmptyLines[0].Trim() -cne $expectedHeading) {
     throw "Release notes must start with '$expectedHeading' and contain a non-empty body."
   }
@@ -404,7 +404,7 @@ function Assert-ReleaseStateAtRef {
     }) -Expected $TargetVersion
 
   $nonEmptyNoteLines = @(($notes -split '\r?\n') | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
-  $expectedHeading = "## H.I.S. $TargetVersion"
+  $expectedHeading = "## H.I.S. Future $TargetVersion"
   if ($nonEmptyNoteLines.Count -lt 2 -or $nonEmptyNoteLines[0].Trim() -cne $expectedHeading) {
     throw "Release notes at $Ref must start with '$expectedHeading' and contain a non-empty body."
   }
@@ -651,7 +651,7 @@ try {
   Write-Host ''
   Write-Host $releaseNotesContent
   Write-Host ''
-  Write-Host -NoNewline 'This will trigger a public H.I.S. release. Continue? [y/N] '
+  Write-Host -NoNewline 'This will trigger a public H.I.S. Future release. Continue? [y/N] '
   $confirmation = [Console]::ReadLine()
   if ($confirmation -cne 'y') {
     if ($Resume) {

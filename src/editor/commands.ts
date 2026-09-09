@@ -1,11 +1,5 @@
 import type { TranslationKey } from "../i18n/translations";
 
-export const normalizeSearchText = (value: string) =>
-  value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase();
-
 export const SLASH_COMMANDS = [
   { id: "p", labelKey: "editor.commands.paragraph", tag: "P", icon: "¶", categoryKey: "editor.commands.text" },
   { id: "h1", labelKey: "editor.commands.heading1", tag: "H1", icon: "H1", categoryKey: "editor.commands.text" },

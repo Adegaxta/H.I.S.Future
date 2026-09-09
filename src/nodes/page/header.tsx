@@ -3,7 +3,7 @@ import type { NodeItem } from "../../types/nodes";
 import NodeTypeLabel from "../../components/NodeTypeLabel";
 import { getImageResourceInfo } from "../../utils/imageResource";
 import { DEFAULT_PAGE_META, getPageBlockWidthPercent, getPageMeta, setPageMeta, type PageMeta } from "../../utils/pageMeta";
-import { useNodeScopedEditorHistory } from "../../hooks/useEditorHistory";
+import { useNodeScopedEditorHistory } from "../../editor/useEditorHistory";
 import { isEditableElement } from "../../utils/dom";
 import { useLocale } from "../../i18n/LocaleContext";
 

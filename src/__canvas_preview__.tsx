@@ -13,10 +13,10 @@ import App from './App';
 import AppWorkspace from './components\\AppWorkspace';
 import ContextMenu from './components\\ContextMenu';
 import DragPreview from './components\\DragPreview';
-import GraphView from './components\\GraphView';
-import NodePanels from './components\\NodePanels';
-import RichTextEditor from './components\\RichTextEditor';
-import SidebarTree from './components\\SidebarTree';
+import GraphView from './graph\\view';
+import NodePanels from './workspace\\navigation\\NodePanels';
+import RichTextEditor from './editor\\RichTextEditor';
+import SidebarTree from './workspace\\navigation\\SidebarTree';
 import HomeScreen from './screens\\HomeScreen';
 
 const componentRegistry: Record<string, PreviewComponent> = {
@@ -24,10 +24,10 @@ const componentRegistry: Record<string, PreviewComponent> = {
   'src\\components\\AppWorkspace.tsx': toPreviewComponent(AppWorkspace),
   'src\\components\\ContextMenu.tsx': toPreviewComponent(ContextMenu),
   'src\\components\\DragPreview.tsx': toPreviewComponent(DragPreview),
-  'src\\components\\GraphView.tsx': toPreviewComponent(GraphView),
-  'src\\components\\NodePanels.tsx': toPreviewComponent(NodePanels),
-  'src\\components\\RichTextEditor.tsx': toPreviewComponent(RichTextEditor),
-  'src\\components\\SidebarTree.tsx': toPreviewComponent(SidebarTree),
+  'src\\graph\\view.tsx': toPreviewComponent(GraphView),
+  'src\\workspace\\navigation\\NodePanels.tsx': toPreviewComponent(NodePanels),
+  'src\\editor\\RichTextEditor.tsx': toPreviewComponent(RichTextEditor),
+  'src\\workspace\\navigation\\SidebarTree.tsx': toPreviewComponent(SidebarTree),
   'src\\screens\\HomeScreen.tsx': toPreviewComponent(HomeScreen),
 };
 
@@ -44,9 +44,9 @@ const declaredPropNamesMap: Record<string, string[]> = {
   'src\\components\\AppWorkspace.tsx': ["projectKey", "projectName"],
   'src\\components\\ContextMenu.tsx': ["menu", "onCreate", "onDelete", "onClose"],
   'src\\components\\DragPreview.tsx': ["node", "nodeType", "position"],
-  'src\\components\\GraphView.tsx': ["nodes", "onSelectNode", "onOpenNode", "projectKey"],
-  'src\\components\\NodePanels.tsx': ["panel", "nodes", "recentNodes", "selectedId", "onSelect"],
-  'src\\components\\RichTextEditor.tsx': ["node", "nodes", "editorRef", "onContentChange", "setSelectedId", "setExpanded", "pendingNodeDrop", "onNodeDropHandled", "readOnly", "style"],
+  'src\\graph\\view.tsx': ["nodes", "onSelectNode", "onOpenNode", "projectKey"],
+  'src\\workspace\\navigation\\NodePanels.tsx': ["panel", "nodes", "recentNodes", "selectedId", "onSelect"],
+  'src\\editor\\RichTextEditor.tsx': ["node", "nodes", "editorRef", "onContentChange", "setSelectedId", "setExpanded", "pendingNodeDrop", "onNodeDropHandled", "readOnly", "style"],
   'src\\screens\\HomeScreen.tsx': ["busy", "error", "onCreateProject", "onLoadProject"],
 };
 
@@ -55,10 +55,10 @@ const sampleRenderersMap: Record<string, Record<string, React.FC>> = {
   'src\\components\\AppWorkspace.tsx': {},
   'src\\components\\ContextMenu.tsx': {},
   'src\\components\\DragPreview.tsx': {},
-  'src\\components\\GraphView.tsx': {},
-  'src\\components\\NodePanels.tsx': {},
-  'src\\components\\RichTextEditor.tsx': {},
-  'src\\components\\SidebarTree.tsx': {},
+  'src\\graph\\view.tsx': {},
+  'src\\workspace\\navigation\\NodePanels.tsx': {},
+  'src\\editor\\RichTextEditor.tsx': {},
+  'src\\workspace\\navigation\\SidebarTree.tsx': {},
   'src\\screens\\HomeScreen.tsx': {},
 };
 
@@ -745,4 +745,3 @@ export default function CanvasPreview({ component: componentProp, mode: modeProp
     </ComponentErrorBoundary>
   );
 }
-
