@@ -3,6 +3,19 @@ import { open, save } from "@tauri-apps/plugin-dialog";
 import { asErrorMessage, isDesktopRuntime } from "./runtime";
 import type { ProjectInfo } from "./types";
 import type { Translate } from "../i18n/core";
+import {
+  getActiveCloseProjectTraceId,
+  measureActiveCloseProjectPhase,
+  recordCloseProjectPhase,
+} from "../lifecycle/metrics";
+
+interface CloseProjectTimings {
+  sqliteCheckpointMs: number;
+  archivePackagingMs: number;
+  workingDirectoryCleanupMs: number;
+  totalMs: number;
+  packaged: boolean;
+}
 
 export async function createProject(name: string, t: Translate): Promise<ProjectInfo | null> {
   if (!isDesktopRuntime()) throw new Error(t("home.desktopRequired"));
@@ -74,7 +87,14 @@ export async function openProject(path: string): Promise<ProjectInfo> {
 export async function closeProject(): Promise<void> {
   if (!isDesktopRuntime()) return;
   try {
-    await invoke("close_project");
+    const traceId = getActiveCloseProjectTraceId();
+    const timings = await measureActiveCloseProjectPhase("backend close", () =>
+      invoke<CloseProjectTimings>("close_project", { traceId }),
+    );
+    recordCloseProjectPhase(traceId, "SQLite checkpoint", timings.sqliteCheckpointMs);
+    recordCloseProjectPhase(traceId, "archive packaging", timings.archivePackagingMs);
+    recordCloseProjectPhase(traceId, "working directory cleanup", timings.workingDirectoryCleanupMs);
+    console.info(`[lifecycle][${traceId}] archive packaged=${timings.packaged}`);
   } catch (error) {
     throw new Error(asErrorMessage(error));
   }

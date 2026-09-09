@@ -149,7 +149,7 @@ try {
     assert.equal(appCss.includes(selector), false, `${selector} must not return to App.css`);
     assert.ok(workspacePanelStyles.includes(selector), `workspace panels own ${selector}`);
   }
-  for (const selector of [".graph-view", ".graph-node", ".graph-edge"]) {
+  for (const selector of [".graph-view", ".graph-view__renderer", ".graph-view__canvas"]) {
     assert.equal(appCss.includes(selector), false, `${selector} must not return to App.css`);
     assert.ok(graphStyles.includes(selector), `Graph owns ${selector}`);
   }
@@ -162,7 +162,7 @@ try {
   assert.equal(appCss.includes(".node-type-icon--"), false, "Node icon assets stay out of App.css");
   assert.ok(nodeIconStyles.includes(".node-type-icon--pagina"), "the Node system owns persisted type icons");
   assert.equal(fs.existsSync(path.join(root, "src/components/GraphView.tsx")), false, "Graph view stays out of shared components");
-  for (const file of ["view.tsx", "projection.ts", "preferences.ts", "styles.css"]) {
+  for (const file of ["view.tsx", "projection.ts", "preferences.ts", "runtime.ts", "scene.ts", "PixiGraphRenderer.ts", "iconSource.ts", "styles.css"]) {
     assert.equal(fs.existsSync(path.join(root, "src/graph", file)), true, `Graph owns ${file}`);
   }
   assert.ok(courseStyles.includes(".course-node-view"));

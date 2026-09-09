@@ -18,6 +18,27 @@ import NodePanels from './workspace\\navigation\\NodePanels';
 import RichTextEditor from './editor\\RichTextEditor';
 import SidebarTree from './workspace\\navigation\\SidebarTree';
 import HomeScreen from './screens\\HomeScreen';
+import { LocaleProvider } from './i18n\\LocaleContext';
+
+const graphPreviewTypes = ['pagina', 'imagen', 'calendario', 'tempo', 'pdf', 'curso', 'tarea', 'video', 'categoria'];
+const graphPreviewNodes = Array.from({ length: 49 }, (_, index) => {
+  const relations = index < 48 ? [{ role: 'content', targetId: `graph-preview-${index + 1}` }] : [];
+  const metadata = `<!--hisfuture-nodal-meta:${JSON.stringify({ version: 1, relations })}-->`;
+  return {
+    id: `graph-preview-${index}`,
+    name: `Preview Node ${index + 1}`,
+    type: graphPreviewTypes[index % graphPreviewTypes.length],
+    parentId: null,
+    order: index,
+    content: metadata + (index % graphPreviewTypes.length === 1
+      ? '<p><img src="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2264%22 height=%2264%22%3E%3Crect width=%2232%22 height=%2264%22 fill=%22%23ff3da8%22/%3E%3Crect x=%2232%22 width=%2232%22 height=%2264%22 fill=%22%234dd8c0%22/%3E%3C/svg%3E"></p>'
+      : '<p>Graph renderer preview</p>'),
+  };
+});
+
+function GraphPreviewSample() {
+  return <LocaleProvider projectKey="graph-preview"><div style={{ width: 'calc(100vw - 40px)', height: 'calc(100vh - 40px)', background: '#111418' }}><GraphView nodes={graphPreviewNodes} projectKey="graph-preview" onSelectNode={() => {}} onOpenNode={() => {}} /></div></LocaleProvider>;
+}
 
 const componentRegistry: Record<string, PreviewComponent> = {
   'src\\App.tsx': toPreviewComponent(App),
@@ -35,6 +56,7 @@ const appEntrySet = new Set<string>([
 ]);
 
 const sampleRenderMap: Record<string, React.FC> = {
+  'src\\graph\\view.tsx': GraphPreviewSample,
 };
 
 const componentExportsMap: Record<string, string[]> = {

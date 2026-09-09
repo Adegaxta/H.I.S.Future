@@ -1,8 +1,12 @@
-import { useCallback, useEffect, useRef, type RefObject } from "react";
-import { getCurrentWindow } from "@tauri-apps/api/window";
+import { useCallback, useEffect, type RefObject } from "react";
 import { readEditorContent } from "../editor/persistence";
-import { isDesktopRuntime } from "../project/runtime";
+import { useAppLifecycle } from "../lifecycle/AppLifecycle";
 import type { NodeItem } from "../types/nodes";
+import {
+  beginCloseProjectTrace,
+  failCloseProjectTrace,
+  measureActiveCloseProjectPhase,
+} from "../lifecycle/metrics";
 
 interface WorkspaceLifecycleOptions {
   nodes: NodeItem[];
@@ -24,23 +28,8 @@ export function getWorkspaceSnapshot(
     : undefined;
 
   if (!selectedId || currentHtml === undefined) return nodes;
+  if (currentHtml === active?.content) return nodes;
   return nodes.map((node) => node.id === selectedId ? { ...node, content: currentHtml } : node);
-}
-
-async function closeWindowSafely() {
-  const currentWindow = getCurrentWindow();
-  try {
-    await currentWindow.close();
-    return;
-  } catch (error) {
-    console.warn("close() falló, intentando destroy():", error);
-  }
-
-  try {
-    await currentWindow.destroy();
-  } catch (error) {
-    console.error("No se pudo cerrar la ventana", error);
-  }
 }
 
 export function useWorkspaceLifecycle({
@@ -51,8 +40,7 @@ export function useWorkspaceLifecycle({
   exitProject,
   reportError,
 }: WorkspaceLifecycleOptions) {
-  const closingWindowRef = useRef(false);
-  const allowWindowCloseRef = useRef(false);
+  const { hideApplication, registerWorkspaceFlush } = useAppLifecycle();
 
   const saveCurrentWorkspace = useCallback(
     () => saveNow(getWorkspaceSnapshot(nodes, selectedId, editorRef.current)),
@@ -60,50 +48,22 @@ export function useWorkspaceLifecycle({
   );
 
   const exitWorkspace = useCallback(async () => {
+    beginCloseProjectTrace();
     try {
-      await saveCurrentWorkspace();
+      const snapshot = measureActiveCloseProjectPhase("capture active editor", () =>
+        getWorkspaceSnapshot(nodes, selectedId, editorRef.current),
+      );
+      await measureActiveCloseProjectPhase("frontend save", () => saveNow(snapshot));
       await exitProject();
     } catch (error) {
+      failCloseProjectTrace(error);
       reportError(String(error));
     }
-  }, [exitProject, reportError, saveCurrentWorkspace]);
-
-  const closeApplication = useCallback(async () => {
-    if (closingWindowRef.current) return;
-    closingWindowRef.current = true;
-
-    try {
-      await saveCurrentWorkspace();
-      await exitProject();
-      allowWindowCloseRef.current = true;
-      await closeWindowSafely();
-    } catch (error) {
-      reportError(String(error));
-    } finally {
-      closingWindowRef.current = false;
-    }
-  }, [exitProject, reportError, saveCurrentWorkspace]);
-
-  const closeApplicationRef = useRef(closeApplication);
-  closeApplicationRef.current = closeApplication;
+  }, [editorRef, exitProject, nodes, reportError, saveNow, selectedId]);
 
   useEffect(() => {
-    if (!isDesktopRuntime()) return;
-    let disposed = false;
-    let unlisten: (() => void) | undefined;
-    void getCurrentWindow().onCloseRequested((event) => {
-      if (allowWindowCloseRef.current) return;
-      event.preventDefault();
-      if (!closingWindowRef.current) void closeApplicationRef.current();
-    }).then((stop) => {
-      if (disposed) stop();
-      else unlisten = stop;
-    }).catch((error) => reportError(String(error)));
-    return () => {
-      disposed = true;
-      unlisten?.();
-    };
-  }, [reportError]);
+    return registerWorkspaceFlush(saveCurrentWorkspace);
+  }, [registerWorkspaceFlush, saveCurrentWorkspace]);
 
-  return { exitWorkspace, closeApplication, saveCurrentWorkspace };
+  return { exitWorkspace, hideApplication, saveCurrentWorkspace };
 }

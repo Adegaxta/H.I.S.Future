@@ -6,11 +6,12 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "test:graph": "node tests/graph-projection.test.mjs && node tests/graph-runtime.test.mjs",
+    "test:graph": "node tests/graph-projection.test.mjs && node tests/graph-runtime.test.mjs && node tests/graph-renderer.test.mjs && node tests/graph-simulation.test.mjs",
     "test:graph:stress": "node tests/graph-stress.mjs",
     "test:node-registry": "node tests/node-registry.test.mjs",
     "test:nodal": "node tests/node-registry.test.mjs && node tests/nodal.test.mjs && npm run test:graph && node tests/import-invariants.test.mjs && node tests/ux-context.test.mjs && node tests/qol-0.1.2.test.mjs",
     "test:i18n": "node tests/i18n.test.mjs",
+    "test:lifecycle": "node tests/lifecycle.test.mjs",
     "test:release": "pwsh -NoProfile -File tests/release-script.test.ps1",
     "preview": "vite preview",
     "tauri": "tauri"
@@ -22,6 +23,7 @@
     "@tauri-apps/plugin-sql": "^2.4.0",
     "@tauri-apps/plugin-updater": "^2.11.0",
     "pdfjs-dist": "6.3.289",
+    "pixi.js": "^8.20.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },

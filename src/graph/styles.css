@@ -1,6 +1,3 @@
-/* Graph owns its canvas, controls, vertices and edges. */
-
-/* Contenedor visible de la vista de grafo. */
 .graph-view {
   position: relative;
   width: 100%;
@@ -10,16 +7,15 @@
   overflow: hidden;
 }
 
-/* Barra de herramientas superpuesta al grafo. */
 .graph-view__toolbar {
   position: relative;
   z-index: 4;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
+  pointer-events: none;
 }
 
-/* Etiqueta pequena sobre el titulo del grafo. */
 .graph-view__eyebrow {
   color: #5a5f66;
   font-family: ui-monospace, "SF Mono", "Cascadia Code", monospace;
@@ -27,7 +23,6 @@
   letter-spacing: 0.12em;
 }
 
-/* Titulo principal de la vista de grafo. */
 .graph-view h1 {
   margin: 8px 0 0;
   color: #f2f3f4;
@@ -35,12 +30,11 @@
   font-weight: 500;
 }
 
-/* Referencia de posicion para el menu del grafo. */
 .graph-view__menu-wrap {
   position: relative;
+  pointer-events: auto;
 }
 
-/* Boton que abre el menu del grafo. */
 .graph-view__menu-button {
   width: 36px;
   height: 36px;
@@ -53,13 +47,11 @@
   line-height: 1;
 }
 
-/* Estado hover del boton de menu del grafo. */
 .graph-view__menu-button:hover {
   border-color: #4dd8c0;
   color: #4dd8c0;
 }
 
-/* Menu desplegable del grafo; top y right lo colocan respecto al boton. */
 .graph-view__menu {
   position: absolute;
   top: 44px;
@@ -72,7 +64,6 @@
   box-shadow: 0 10px 26px rgb(0 0 0 / 35%);
 }
 
-/* Titulo interno del menu del grafo. */
 .graph-view__menu-title {
   margin-bottom: 10px;
   color: #5a5f66;
@@ -81,7 +72,6 @@
   letter-spacing: 0.1em;
 }
 
-/* Etiqueta con interruptor de opciones del grafo. */
 .graph-view__toggle {
   display: flex;
   align-items: center;
@@ -91,168 +81,25 @@
   font-size: 13px;
 }
 
-/* Color del interruptor de opciones del grafo. */
-.graph-view__toggle input {
-  accent-color: #4dd8c0;
-}
+.graph-view__toggle input { accent-color: #4dd8c0; }
 
-/* Lienzo grande y arrastrable del grafo; width, height y transform controlan su escala. */
-.graph-view__canvas {
-  position: relative;
-  width: 5000px;
-  min-width: 5000px;
-  min-height: 3200px;
-  height: 3200px;
-  margin-top: -8px;
-  transform-origin: top left;
-  will-change: transform;
-  cursor: grab;
+.graph-view__renderer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
   touch-action: none;
 }
 
-/* Cursor mientras se arrastra el lienzo. */
-.graph-view__canvas:active {
-  cursor: grabbing;
-}
-
-/* SVG que dibuja las conexiones del grafo. */
-.graph-view__canvas svg {
-  position: absolute;
-  inset: 0;
+.graph-view__canvas {
+  display: block;
   width: 100%;
   height: 100%;
-  overflow: visible;
+  cursor: default;
+  outline: none;
+  touch-action: none;
 }
 
-/* Linea normal entre nodos del grafo. */
-.graph-edge {
-  stroke: #8d969b;
-  stroke-width: 1.5;
-  stroke-linecap: round;
-  opacity: 0.42;
-}
-
-/* Linea especial que conecta un Type Hub con sus Nodes reales. */
-.graph-edge--type-hub {
-  stroke: #4dd8c0;
-  stroke-dasharray: 4 6;
-  opacity: 0.28;
-}
-
-/* Atenua los elementos que no pertenecen al nodo activo. */
-.graph-view--node-active .graph-edge,
-.graph-view--node-active .graph-node:not(.graph-node--active) {
-  opacity: 0.16;
-}
-
-/* Mantiene visible el nodo activo. */
-.graph-view--node-active .graph-node--active {
-  opacity: 1;
-}
-
-/* Nodo normal del grafo; los Type Hubs conservan una caja mayor. */
-.graph-node {
-  position: absolute;
-  z-index: 2;
-  display: flex;
-  width: 108px;
-  min-height: 86px;
-  transform: translate(-50%, -50%);
-  flex-direction: column;
-  justify-content: center;
-  gap: 4px;
-  align-items: center;
-  padding: 6px;
-  border: none;
-  border-radius: 0;
-  color: #e8e9ea;
-  background: transparent;
-  cursor: pointer;
-  text-align: center;
-}
-
-/* Mantiene transparente el fondo del nodo al pasar el cursor. */
-.graph-node:hover:not(:disabled) {
-  background: transparent;
-}
-
-/* Circulo visual que representa un nodo. */
-.graph-node__dot {
-  display: block;
-  width: 32px;
-  height: 32px;
-  flex: 0 0 auto;
-  border: none;
-  border-radius: 50%;
-  box-shadow: 0 6px 18px rgb(0 0 0 / 28%);
-}
-
-/* Resalta el circulo del nodo al pasar el cursor. */
-.graph-node:hover .graph-node__dot {
-  box-shadow: 0 0 0 2px #e8e9ea, 0 6px 18px rgb(0 0 0 / 32%);
-}
-
-/* Miniatura reutilizada por los nodos de imagen del grafo. */
-.graph-node__image {
-  display: block;
-  width: 36px;
-  height: 36px;
-  flex: 0 0 auto;
-  border: none;
-  border-radius: 50%;
-  box-shadow: 0 6px 18px rgb(0 0 0 / 28%);
-  object-fit: cover;
-}
-
-/* Icono oficial mostrado por Type Hubs y por la opcion Iconos. */
-.graph-node__icon {
-  width: 34px;
-  height: 34px;
-  flex: 0 0 auto;
-}
-
-.graph-node__icon--hub {
-  width: 50px;
-  height: 50px;
-}
-
-/* Nombre del nodo dentro del grafo. */
-.graph-node strong {
-  max-width: 104px;
-  overflow: hidden;
-  color: #dfe2e3;
-  font-size: 12px;
-  font-weight: 500;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* Variante Type Hub, con mayor tamano y cursor de arrastre. */
-.graph-node--type-hub {
-  width: 140px;
-  min-height: 128px;
-  color: #4dd8c0;
-  cursor: grab;
-}
-
-/* Cursor durante el arrastre de un nodo. */
-.graph-node--type-hub:active,
-.graph-node:active {
-  cursor: grabbing;
-}
-
-/* Texto de los Type Hubs. */
-.graph-node--type-hub strong {
-  color: #4dd8c0;
-  font-size: 14px;
-}
-
-/* Identificador pequeno mostrado bajo el nombre del nodo. */
-.graph-node span {
-  font-family: ui-monospace, "SF Mono", "Cascadia Code", monospace;
-  font-size: 8px;
-  letter-spacing: 0.08em;
-}
+.graph-view__canvas.is-grabbing { cursor: grabbing !important; }
 
 .graph-view__intro {
   position: absolute;
@@ -266,23 +113,75 @@
   pointer-events: none;
 }
 
-/* Mensaje centrado cuando el grafo no tiene contenido. */
 .graph-view__empty {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
   display: grid;
-  min-height: 500px;
   place-items: center;
   color: #5a5f66;
   font-size: 13px;
+  pointer-events: none;
 }
 
-/* Ajustes del grafo para pantallas pequenas. */
-@media (max-width: 700px) {
-  .graph-view {
-    padding: 24px 18px;
-    overflow: auto;
-  }
+.graph-view__hover-stack {
+  position: fixed;
+  z-index: 6;
+  width: 256px;
+  pointer-events: none;
+}
 
-  .graph-view__canvas {
-    min-width: 760px;
-  }
+.graph-view__hover-card {
+  width: 256px;
+  padding: 12px;
+  border: 1px solid;
+  border-radius: 5px;
+  background: #171a1e;
+  box-shadow: 0 14px 34px rgb(0 0 0 / 45%);
+}
+
+.graph-view__hover-preview-frame {
+  width: 100%;
+  margin-bottom: 8px;
+  padding: 5px;
+  border: 1px solid;
+  border-radius: 5px;
+  background: #171a1e;
+  box-shadow: 0 14px 34px rgb(0 0 0 / 35%);
+}
+
+.graph-view__hover-preview {
+  display: block;
+  width: 100%;
+  height: 170px;
+  border-radius: 2px;
+  background: #0e1012;
+  object-fit: contain;
+}
+
+.graph-view__hover-name {
+  overflow: hidden;
+  color: #f2f3f4;
+  font-size: 14px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.graph-view__hover-type {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 9px;
+  font-size: 12px;
+}
+
+.graph-view__hover-type .sidebar-icon {
+  width: 18px;
+  height: 18px;
+  flex-basis: 18px;
+}
+
+@media (max-width: 700px) {
+  .graph-view { padding: 24px 18px; }
 }

@@ -3,6 +3,20 @@ import type { NodeItem } from "../types/nodes";
 import { asErrorMessage } from "./runtime";
 import type { PersistedNode } from "./types";
 import { getProjectSetting } from "./settingsRepository";
+import {
+  getActiveCloseProjectTraceId,
+  measureActiveCloseProjectPhase,
+  measureLifecyclePhase,
+  recordCloseProjectPhase,
+} from "../lifecycle/metrics";
+
+interface SaveWorkspaceTimings {
+  resourceScanMs: number;
+  sqliteMs: number;
+  resourceCleanupMs: number;
+  totalMs: number;
+  changedRows: number;
+}
 
 function toNodeItem(record: PersistedNode): NodeItem {
   return {
@@ -28,9 +42,9 @@ function toRecord(node: NodeItem): PersistedNode {
 
 export async function listNodes(): Promise<NodeItem[]> {
   try {
-    const [rows, hiddenSetting] = await Promise.all([
+    const [rows, hiddenSetting] = await measureLifecyclePhase("project.load-nodes", () => Promise.all([
       invoke<PersistedNode[]>("list_nodes"), getProjectSetting("loreHiddenIds"),
-    ]);
+    ]));
     const hidden = new Set<string>(JSON.parse(hiddenSetting || "[]"));
     return rows.map((row) => ({ ...toNodeItem(row), loreHidden: hidden.has(row.id) }));
   } catch (error) {
@@ -40,11 +54,22 @@ export async function listNodes(): Promise<NodeItem[]> {
 
 export async function saveNodes(nodes: NodeItem[], deletedNodes: NodeItem[]): Promise<void> {
   try {
-    await invoke("save_nodes", {
+    const serializeStarted = performance.now();
+    const payload = {
       nodes: nodes.map(toRecord),
       hiddenIds: nodes.filter((node) => node.loreHidden).map((node) => node.id),
       deletedNodes: JSON.stringify(deletedNodes),
-    });
+      traceId: getActiveCloseProjectTraceId(),
+    };
+    console.info(`[lifecycle] persistence.serialize: ${(performance.now() - serializeStarted).toFixed(1)} ms`);
+    const traceId = getActiveCloseProjectTraceId();
+    const timings = await measureActiveCloseProjectPhase("backend persistence", () =>
+      measureLifecyclePhase("persistence.backend-roundtrip", () =>
+        invoke<SaveWorkspaceTimings>("save_nodes", payload),
+      ),
+    );
+    recordCloseProjectPhase(traceId, "SQLite save", timings.sqliteMs);
+    recordCloseProjectPhase(traceId, "resource cleanup", timings.resourceCleanupMs);
   } catch (error) {
     throw new Error(asErrorMessage(error));
   }

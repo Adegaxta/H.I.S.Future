@@ -1,11 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { buildGraphProjection } from "./projection";
 import { readGraphBooleanPreference, writeGraphBooleanPreference } from "./preferences";
-import { buildGraphRuntime, GRAPH_CANVAS_HEIGHT, GRAPH_CANVAS_WIDTH, type GraphPosition } from "./runtime";
-import { useGraphInteraction } from "./useGraphInteraction";
+import { buildGraphRuntime, type GraphPosition } from "./runtime";
+import { buildGraphScene } from "./scene";
+import type { PixiGraphRenderer } from "./PixiGraphRenderer";
+import type { GraphPoint } from "./runtime";
 import type { NodeItem } from "../types/nodes";
 import { useLocale } from "../i18n/LocaleContext";
+import { getNodeDisplayLabel } from "../nodes/registry";
 import { NodeIcon } from "../nodes/NodeIcon";
+
+interface HoveredGraphNode {
+  point: GraphPoint;
+  clientX: number;
+  clientY: number;
+}
 
 interface GraphViewProps {
   nodes: NodeItem[];
@@ -25,8 +34,11 @@ export default function GraphView({ nodes, onSelectNode, onOpenNode, projectKey 
   const [showImages, setShowImages] = useState(() => readGraphBooleanPreference(localStorage, imagesPreferenceKey, true));
   const [showIntro, setShowIntro] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
-  const rootRef = useRef<HTMLElement | null>(null);
-  const canvasRef = useRef<HTMLDivElement | null>(null);
+  const [hoveredNode, setHoveredNode] = useState<HoveredGraphNode | null>(null);
+  const rendererHostRef = useRef<HTMLDivElement | null>(null);
+  const rendererRef = useRef<PixiGraphRenderer | null>(null);
+  const callbacksRef = useRef({ onSelectNode, onOpenNode });
+  callbacksRef.current = { onSelectNode, onOpenNode };
   const positionCacheRef = useRef(new Map<string, GraphPosition>());
   const positionCacheProjectRef = useRef(projectKey);
   if (positionCacheProjectRef.current !== projectKey) {
@@ -41,14 +53,40 @@ export default function GraphView({ nodes, onSelectNode, onOpenNode, projectKey 
   );
   const runtime = useMemo(
     () => buildGraphRuntime(projection, positionCacheRef.current),
-    [projection],
+    [projection, projectKey],
   );
-  const interaction = useGraphInteraction({
-    canvasRef,
-    rootRef,
-    runtime,
-    positionCache: positionCacheRef.current,
-  });
+  const scene = useMemo(() => buildGraphScene(runtime, { showIcons, showImages }), [runtime, showIcons, showImages]);
+  const latestSceneRef = useRef(scene);
+  latestSceneRef.current = scene;
+
+  useEffect(() => {
+    const host = rendererHostRef.current;
+    if (!host) return;
+    let cancelled = false;
+    void import("./PixiGraphRenderer").then(({ PixiGraphRenderer }) => PixiGraphRenderer.create(host, {
+      onSelectNode: (id) => callbacksRef.current.onSelectNode(id),
+      onOpenNode: (id) => callbacksRef.current.onOpenNode(id),
+      onHoverNode: (point, clientX = 0, clientY = 0) => setHoveredNode(point ? { point, clientX, clientY } : null),
+    })).then((renderer) => {
+      if (cancelled) {
+        renderer.destroy();
+        return;
+      }
+      rendererRef.current = renderer;
+      renderer.setScene(latestSceneRef.current, positionCacheRef.current);
+    }).catch((error) => {
+      if (!cancelled) console.error("Graph renderer failed to initialize", error);
+    });
+    return () => {
+      cancelled = true;
+      rendererRef.current?.destroy();
+      rendererRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    rendererRef.current?.setScene(scene, positionCacheRef.current);
+  }, [scene]);
 
   useEffect(() => writeGraphBooleanPreference(localStorage, typesPreferenceKey, showTypes), [typesPreferenceKey, showTypes]);
   useEffect(() => writeGraphBooleanPreference(localStorage, iconsPreferenceKey, showIcons), [iconsPreferenceKey, showIcons]);
@@ -59,7 +97,7 @@ export default function GraphView({ nodes, onSelectNode, onOpenNode, projectKey 
   }, []);
 
   return (
-    <section ref={rootRef} className="graph-view" aria-label={t("graph.label")}>
+    <section className="graph-view" aria-label={t("graph.label")}>
       <div className="graph-view__toolbar">
         <div>
           <div className="graph-view__eyebrow">{t("graph.eyebrow")}</div>
@@ -93,72 +131,33 @@ export default function GraphView({ nodes, onSelectNode, onOpenNode, projectKey 
         </div>
       </div>
       {showIntro && <div className="graph-view__intro" role="status">{t("graph.intro")}</div>}
-      {nodes.length === 0 ? (
-        <div className="graph-view__empty">{t("graph.empty")}</div>
-      ) : (
+      <div ref={rendererHostRef} className="graph-view__renderer" />
+      {hoveredNode && (
         <div
-          ref={canvasRef}
-          className="graph-view__canvas"
-          onWheel={interaction.onCanvasWheel}
-          onPointerDown={interaction.onCanvasPointerDown}
-          onPointerMove={interaction.onCanvasPointerMove}
-          onPointerUp={interaction.onCanvasPointerUp}
-          onPointerCancel={interaction.onCanvasPointerCancel}
+          className="graph-view__hover-stack"
+          role="status"
+          style={{
+            left: Math.min(hoveredNode.clientX + 18, Math.max(12, window.innerWidth - 292)),
+            top: Math.min(hoveredNode.clientY + 18, Math.max(12, window.innerHeight - 190)),
+          }}
         >
-          <svg viewBox={`0 0 ${GRAPH_CANVAS_WIDTH} ${GRAPH_CANVAS_HEIGHT}`} aria-hidden="true">
-            {runtime.edges.map(({ id, edge, from, to }) => (
-              <line
-                ref={(element) => interaction.setEdgeElement(id, element)}
-                key={id}
-                x1={from.x}
-                y1={from.y}
-                x2={to.x}
-                y2={to.y}
-                vectorEffect="non-scaling-stroke"
-                className={edge.kind === "grouping" ? "graph-edge graph-edge--type-hub" : "graph-edge"}
-              />
-            ))}
-          </svg>
-          {runtime.points.map((point) => (
-            <button
-              ref={(element) => interaction.setNodeElement(point.id, element)}
-              key={point.id}
-              data-graph-point-id={point.id}
-              type="button"
-              className={`graph-node${point.kind === "type-hub" ? " graph-node--type-hub" : ""}`}
-              style={{
-                left: `${(point.x / GRAPH_CANVAS_WIDTH) * 100}%`,
-                top: `${(point.y / GRAPH_CANVAS_HEIGHT) * 100}%`,
-                color: point.color,
-              }}
-              onPointerDown={(event) => interaction.onNodePointerDown(event, point.id)}
-              onPointerMove={(event) => interaction.onNodePointerMove(event, point.id)}
-              onPointerUp={interaction.onNodePointerUp}
-              onPointerCancel={interaction.onNodePointerCancel}
-              onClick={() => {
-                if (point.kind === "node" && interaction.shouldSelectAfterClick()) onSelectNode(point.id);
-              }}
-              onDoubleClick={() => {
-                if (point.kind === "node") onOpenNode(point.id);
-              }}
-            >
-              {point.kind === "node" && (
-                point.imageSrc && showImages ? (
-                  <img className="graph-node__image" src={point.imageSrc} alt="" />
-                ) : showIcons ? (
-                  <NodeIcon type={point.nodeType!} className="graph-node__icon" />
-                ) : (
-                  <span className="graph-node__dot" style={{ backgroundColor: point.color }} />
-                )
-              )}
-              {point.kind === "type-hub" && point.nodeType && (
-                <NodeIcon type={point.nodeType} className="graph-node__icon graph-node__icon--hub" />
-              )}
-              <strong style={{ color: point.color }}>{point.label}</strong>
-            </button>
-          ))}
+          {hoveredNode.point.imageSrc && (
+            <div className="graph-view__hover-preview-frame" style={{ borderColor: hoveredNode.point.color }}>
+              <img className="graph-view__hover-preview" src={hoveredNode.point.imageSrc} alt="" />
+            </div>
+          )}
+          <div className="graph-view__hover-card" style={{ borderColor: hoveredNode.point.color }}>
+            <div className="graph-view__hover-name">{hoveredNode.point.label}</div>
+            {hoveredNode.point.nodeType && (
+              <div className="graph-view__hover-type" style={{ color: hoveredNode.point.color }}>
+                <NodeIcon type={hoveredNode.point.nodeType} />
+                <span>{getNodeDisplayLabel(hoveredNode.point.nodeType, t)}</span>
+              </div>
+            )}
+          </div>
         </div>
       )}
+      {nodes.length === 0 && <div className="graph-view__empty">{t("graph.empty")}</div>}
     </section>
   );
 }

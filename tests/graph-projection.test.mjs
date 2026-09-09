@@ -196,10 +196,10 @@ try {
   assert.equal(preferences.readGraphBooleanPreference(storageApi, "types", false, "legacy-concepts"), true);
   assert.equal(storage.get("types"), "true");
   assert.deepEqual(project([base("isolated", "pagina")]), project([base("isolated", "pagina")], false));
-  const graphViewSource = fs.readFileSync(new URL("../src/graph/view.tsx", import.meta.url), "utf8");
-  assert.ok(graphViewSource.includes("point.imageSrc && showImages"));
-  assert.ok(graphViewSource.includes("showIcons ?"));
-  assert.ok(graphViewSource.includes("<NodeIcon type={point.nodeType!}"));
+  const projectionSource = fs.readFileSync(new URL("../src/graph/projection.ts", import.meta.url), "utf8");
+  assert.equal(projectionSource.includes("pixi.js"), false);
+  assert.equal(projectionSource.includes("PixiGraphRenderer"), false);
+  assert.equal(projectionSource.includes("graphLodForZoom"), false);
 
   console.log("PASS: Graph projection preserves Type Hubs, Nodal, mention, grouping and Tempo legacy semantics without mutation.");
 } finally {

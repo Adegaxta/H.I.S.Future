@@ -32,6 +32,7 @@ try {
   const model = runtime.buildGraphRuntime({ vertices, edges, diagnostics: [] }, cache);
   assert.equal(model.points.length, 50);
   assert.equal(model.edges.length, 50, "visual edges remain deduplicated by directed endpoints");
+  assert.equal(model.edges.reduce((count, rendered) => count + rendered.facts.length, 0), 101, "all non-missing semantic facts remain attached to visual edges");
   assert.equal(model.pointsById.size, 50);
   assert.equal(model.edgesByPointId.get("node-0").length, 2, "incident edges are indexed once for direct drag updates");
 
@@ -43,20 +44,18 @@ try {
   assert.deepEqual(runtime.clampGraphPosition({ x: -100, y: 99999 }), { x: 45, y: runtime.GRAPH_CANVAS_HEIGHT - 45 });
 
   const viewSource = fs.readFileSync(new URL("../src/graph/view.tsx", import.meta.url), "utf8");
-  const interactionSource = fs.readFileSync(new URL("../src/graph/useGraphInteraction.ts", import.meta.url), "utf8");
+  const rendererSource = fs.readFileSync(new URL("../src/graph/PixiGraphRenderer.ts", import.meta.url), "utf8");
   assert.ok(viewSource.includes("useMemo("), "projection and runtime use low-frequency memoized paths");
   for (const formerHighFrequencyState of ["setPositions", "setPan", "setZoom", "setDraggingId"]) {
     assert.equal(viewSource.includes(formerHighFrequencyState), false, `${formerHighFrequencyState} must not return to Graph rendering`);
   }
-  assert.ok(interactionSource.includes("requestAnimationFrame"), "pointer events are coalesced to animation frames");
-  assert.equal(interactionSource.includes("buildGraphProjection"), false, "interaction cannot perform semantic projection");
-  assert.equal(interactionSource.includes("setState"), false, "high-frequency interaction stays outside React state");
-  const dragHandler = interactionSource.slice(
-    interactionSource.indexOf("onNodePointerMove"),
-    interactionSource.indexOf("onNodePointerUp"),
-  );
-  assert.equal(dragHandler.includes("edges.forEach"), false, "drag does not scan all edges per pointer event");
-  console.log("PASS: Graph runtime indexes endpoints and keeps drag, pan and zoom outside React state.");
+  assert.ok(rendererSource.includes("requestAnimationFrame"), "pointer and render work is coalesced to animation frames");
+  assert.ok(rendererSource.includes("updatePositions(updates:"), "renderer exposes a direct position-update boundary");
+  assert.equal(rendererSource.includes("buildGraphProjection"), false, "renderer cannot perform semantic projection");
+  assert.equal(rendererSource.includes("setState"), false, "high-frequency interaction stays outside React state");
+  assert.equal(viewSource.includes("<svg"), false, "React no longer creates an SVG/DOM object per graph primitive");
+  assert.equal(viewSource.includes("runtime.points.map"), false, "React does not reconcile nodes");
+  console.log("PASS: Graph runtime keeps semantic facts and delegates localized visual updates outside React.");
 } finally {
   await server.close();
 }

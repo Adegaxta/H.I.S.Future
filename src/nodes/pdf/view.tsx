@@ -5,6 +5,7 @@ import { readProjectResource } from "../../project/resourceRepository";
 import { useLocale } from "../../i18n/LocaleContext";
 import PdfViewer from "../../components/PdfViewer";
 import NodeTypeLabel from "../../components/NodeTypeLabel";
+import { measureLifecyclePhase } from "../../lifecycle/metrics";
 
 export default function PdfNodeView({ node }: { node: NodeItem }) {
   const { t } = useLocale();
@@ -20,10 +21,11 @@ export default function PdfNodeView({ node }: { node: NodeItem }) {
       setError(t("pdf.invalidResource"));
       return () => { active = false; };
     }
-    void readProjectResource("pdf", resource.resourceId)
+    const resourceId = resource.resourceId;
+    void measureLifecyclePhase("pdf.read-resource", () => readProjectResource("pdf", resourceId))
       .then((bytes) => { if (active) setData(bytes); })
       .catch((reason) => {
-        console.error(reason);
+        console.error("[pdf] resource read failed", { nodeId: node.id, resourceId, reason });
         if (active) setError(t("pdf.loadError"));
       });
     return () => { active = false; };
@@ -31,6 +33,6 @@ export default function PdfNodeView({ node }: { node: NodeItem }) {
 
   return <>
     <header className="pdf-node-view__header"><NodeTypeLabel type="pdf" /><h1 className="editor-page__title">{node.name}</h1></header>
-    {error ? <div className="pdf-node-view__error">{error}</div> : !data ? <div className="pdf-node-view__loading">{t("pdf.loading")}</div> : <PdfViewer data={data} />}
+    {error ? <div className="pdf-node-view__error">{error}</div> : !data ? <div className="pdf-node-view__loading">{t("pdf.loading")}</div> : <PdfViewer data={data} resourceId={resource?.resourceId} />}
   </>;
 }

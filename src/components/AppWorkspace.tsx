@@ -36,6 +36,8 @@ import { ChangelogPanel } from "../workspace/panels/ChangelogPanel";
 import { ProjectSettingsPanel } from "../workspace/panels/ProjectSettingsPanel";
 import { TrashPanel } from "../workspace/panels/TrashPanel";
 import { TrashNodeView } from "../workspace/panels/TrashNodeView";
+import { finishLifecycleFlow } from "../lifecycle/metrics";
+import { getActiveCloseProjectTraceId, recordCloseProjectPhase } from "../lifecycle/metrics";
 
 interface AppWorkspaceProps {
   projectKey: string;
@@ -57,6 +59,24 @@ export default function AppWorkspace({
     localStorage.getItem(timeFormatStorageKey) === "24h" ? "24h" : "12h",
   );
   const workspace = useTreeController(defaultNodeType, projectKey);
+  useEffect(() => () => {
+    const started = performance.now();
+    const traceId = getActiveCloseProjectTraceId();
+    queueMicrotask(() => recordCloseProjectPhase(traceId, "workspace dispose", performance.now() - started));
+  }, []);
+  useEffect(() => {
+    if (!workspace.hydrated) return;
+    let secondFrame = 0;
+    const firstFrame = requestAnimationFrame(() => {
+      secondFrame = requestAnimationFrame(() => {
+        finishLifecycleFlow("project.time-to-useful-ui", "painted");
+      });
+    });
+    return () => {
+      cancelAnimationFrame(firstFrame);
+      cancelAnimationFrame(secondFrame);
+    };
+  }, [projectKey, workspace.hydrated]);
   const { width, startResize } = useSidebarResize();
   const [sidebarVisible, setSidebarVisible] = useState(true);
   const [sidebarPanel, setSidebarPanel] = useState<"lore" | "recent" | "types">(
@@ -186,7 +206,7 @@ export default function AppWorkspace({
   const previewNode = workspace.nodes.find(
     (node) => node.id === workspace.dragPreviewId,
   );
-  const { exitWorkspace, closeApplication } = useWorkspaceLifecycle({
+  const { exitWorkspace, hideApplication } = useWorkspaceLifecycle({
     nodes: workspace.nodes,
     selectedId: workspace.selectedId,
     editorRef,
@@ -347,7 +367,7 @@ export default function AppWorkspace({
           <div className="workspace-header__window-controls">
             <button type="button" title={t("common.window.minimize")} onClick={() => void getCurrentWindow().minimize()}><img src={windowMinimizeAsset} alt="" /></button>
             <button type="button" title={t("common.window.maximize")} onClick={() => void getCurrentWindow().toggleMaximize()}><img src={windowMaximizeAsset} alt="" /></button>
-            <button type="button" title={t("common.window.close")} onClick={() => void closeApplication()}><img src={windowCloseAsset} alt="" /></button>
+            <button type="button" title={t("common.window.close")} onClick={() => void hideApplication()}><img src={windowCloseAsset} alt="" /></button>
           </div>
         </div>
       </header>

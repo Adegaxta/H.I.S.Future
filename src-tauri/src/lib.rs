@@ -1,8 +1,9 @@
 mod persistence;
 mod project;
 
-use project::{NodeRecord, ProjectInfo, ProjectState};
+use project::{CloseProjectTimings, NodeRecord, ProjectInfo, ProjectState, SaveWorkspaceTimings};
 use std::sync::Mutex;
+use tauri::{Emitter, Manager};
 
 #[cfg(windows)]
 const PROJECT_FILE_ICON: &[u8] = include_bytes!("../icons/his-file.ico");
@@ -98,8 +99,22 @@ fn open_project(path: String, state: tauri::State<ProjectState>) -> Result<Proje
 }
 
 #[tauri::command]
-fn close_project(state: tauri::State<ProjectState>) -> Result<(), String> {
-    project::close_project(&state)
+fn close_project(
+    trace_id: Option<String>,
+    state: tauri::State<ProjectState>,
+) -> Result<CloseProjectTimings, String> {
+    project::close_project_traced(&state, trace_id.as_deref())
+}
+
+#[tauri::command]
+fn exit_application(
+    app: tauri::AppHandle,
+    state: tauri::State<ProjectState>,
+) -> Result<(), String> {
+    project::close_project_traced(&state, Some("application-exit"))?;
+    app.remove_tray_by_id("main-tray");
+    app.exit(0);
+    Ok(())
 }
 
 #[tauri::command]
@@ -112,9 +127,10 @@ fn save_nodes(
     nodes: Vec<NodeRecord>,
     hidden_ids: Option<Vec<String>>,
     deleted_nodes: Option<String>,
+    trace_id: Option<String>,
     state: tauri::State<ProjectState>,
-) -> Result<(), String> {
-    project::save_workspace(&state, nodes, hidden_ids, deleted_nodes)
+) -> Result<SaveWorkspaceTimings, String> {
+    project::save_workspace_traced(&state, nodes, hidden_ids, deleted_nodes, trace_id.as_deref())
 }
 
 #[tauri::command]
@@ -132,8 +148,8 @@ fn read_project_resource(
     kind: String,
     resource_id: String,
     state: tauri::State<ProjectState>,
-) -> Result<Vec<u8>, String> {
-    project::read_project_resource(&state, kind, resource_id)
+) -> Result<tauri::ipc::Response, String> {
+    project::read_project_resource(&state, kind, resource_id).map(tauri::ipc::Response::new)
 }
 
 #[tauri::command]
@@ -171,9 +187,53 @@ fn save_image_file(path: String, data: Vec<u8>) -> Result<(), String> {
 pub fn run() {
     tauri::Builder::default()
         .setup(|app| {
+            use tauri::{
+                menu::{Menu, MenuItem},
+                tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
+            };
+
+            let open = MenuItem::with_id(app, "open", "Abrir H.I.S. Future", true, None::<&str>)?;
+            let exit = MenuItem::with_id(app, "exit", "Salir", true, None::<&str>)?;
+            let menu = Menu::with_items(app, &[&open, &exit])?;
+            TrayIconBuilder::with_id("main-tray")
+                .icon(app.default_window_icon().expect("application icon").clone())
+                .tooltip("H.I.S. Future")
+                .menu(&menu)
+                .show_menu_on_left_click(false)
+                .on_menu_event(|app, event| match event.id().as_ref() {
+                    "open" => {
+                        if let Some(window) = app.get_webview_window("main") {
+                            let _ = window.show();
+                            let _ = window.unminimize();
+                            let _ = window.set_focus();
+                        }
+                    }
+                    "exit" => {
+                        if let Err(error) = app.emit("app-exit-requested", ()) {
+                            eprintln!("No se pudo solicitar la salida segura: {error}");
+                        }
+                    }
+                    _ => {}
+                })
+                .on_tray_icon_event(|tray, event| {
+                    if let TrayIconEvent::Click {
+                        button: MouseButton::Left,
+                        button_state: MouseButtonState::Up,
+                        ..
+                    } = event
+                    {
+                        let app = tray.app_handle();
+                        if let Some(window) = app.get_webview_window("main") {
+                            let _ = window.show();
+                            let _ = window.unminimize();
+                            let _ = window.set_focus();
+                        }
+                    }
+                })
+                .build(app)?;
+
             #[cfg(windows)]
             {
-                use tauri::Manager;
                 use windows_sys::Win32::Graphics::Dwm::DwmSetWindowAttribute;
 
                 const DWMWA_WINDOW_CORNER_PREFERENCE: u32 = 33;
@@ -215,6 +275,7 @@ pub fn run() {
             convert_project_folder,
             open_project,
             close_project,
+            exit_application,
             list_nodes,
             save_nodes,
             store_project_resource,

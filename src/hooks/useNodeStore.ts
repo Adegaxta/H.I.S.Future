@@ -20,6 +20,14 @@ import {
   sortNodesForPersistence,
   wouldCreateCycle,
 } from "../utils/nodeTree";
+import { PersistenceQueue } from "../lifecycle/PersistenceQueue";
+import { measureActiveCloseProjectPhase } from "../lifecycle/metrics";
+
+interface NodePersistenceRequest {
+  nodes: NodeItem[];
+  deletedNodes: NodeItem[];
+  version: number;
+}
 
 export function useNodeStore(projectKey?: string) {
   const { t } = useLocale();
@@ -55,32 +63,30 @@ export function useNodeStore(projectKey?: string) {
   const [persistenceError, setPersistenceError] = useState<string | null>(null);
   const changeVersionRef = useRef(0);
   const persistedVersionRef = useRef(0);
-  const pendingSaveRef = useRef<{ nodes: NodeItem[]; deletedNodes: NodeItem[]; version: number } | null>(null);
-  const saveQueueRef = useRef<Promise<void> | null>(null);
+  const enqueuedVersionRef = useRef(0);
+  const persistenceQueueRef = useRef<PersistenceQueue<NodePersistenceRequest> | null>(null);
+  if (!persistenceQueueRef.current) {
+    persistenceQueueRef.current = new PersistenceQueue(async (request) => {
+      const toSave = sortNodesForPersistence(sanitizeParentIds(request.nodes));
+      await saveNodes(toSave, request.deletedNodes);
+      setPersistenceError(null);
+      console.log(
+        `%c[guardado] ${new Date().toLocaleTimeString()} — ${toSave.length} nodos persistidos`,
+        "color: #4dd8c0; font-weight: bold;",
+      );
+      persistedVersionRef.current = Math.max(persistedVersionRef.current, request.version);
+    });
+  }
 
   nodesRef.current = nodes;
 
   const enqueueSave = (snapshot: NodeItem[], version: number) => {
-    pendingSaveRef.current = { nodes: snapshot, deletedNodes: deletedNodesRef.current, version };
-    if (saveQueueRef.current) return saveQueueRef.current;
-    const save = (async () => {
-      while (pendingSaveRef.current) {
-        const next = pendingSaveRef.current;
-        pendingSaveRef.current = null;
-        const toSave = sortNodesForPersistence(sanitizeParentIds(next.nodes));
-        await saveNodes(toSave, next.deletedNodes);
-        setPersistenceError(null);
-        console.log(
-          `%c[guardado] ${new Date().toLocaleTimeString()} — ${toSave.length} nodos persistidos`,
-          "color: #4dd8c0; font-weight: bold;",
-        );
-        persistedVersionRef.current = next.version;
-      }
-    })();
-    saveQueueRef.current = save.finally(() => {
-      saveQueueRef.current = null;
+    enqueuedVersionRef.current = Math.max(enqueuedVersionRef.current, version);
+    return persistenceQueueRef.current!.enqueue({
+      nodes: snapshot,
+      deletedNodes: deletedNodesRef.current,
+      version,
     });
-    return saveQueueRef.current;
   };
 
   const markDirty = () => {
@@ -164,8 +170,27 @@ export function useNodeStore(projectKey?: string) {
       );
     }
     persistence.cancelPending();
-
-    return enqueueSave(snapshot, changeVersionRef.current);
+    if (snapshot !== nodesRef.current) {
+      nodesRef.current = snapshot;
+      setNodes(snapshot);
+      markDirty();
+    }
+    if (persistedVersionRef.current === changeVersionRef.current) {
+      return measureActiveCloseProjectPhase("PersistenceQueue.flush", () =>
+        persistenceQueueRef.current!.flush(),
+      );
+    }
+    if (
+      persistenceQueueRef.current!.hasPendingWrites()
+      && enqueuedVersionRef.current >= changeVersionRef.current
+    ) {
+      return measureActiveCloseProjectPhase("PersistenceQueue.flush", () =>
+        persistenceQueueRef.current!.flush(),
+      );
+    }
+    return measureActiveCloseProjectPhase("PersistenceQueue.flush", () =>
+      enqueueSave(snapshot, changeVersionRef.current),
+    );
   };
 
   const reconcile = (next: NodeItem[]) => {

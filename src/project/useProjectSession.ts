@@ -9,6 +9,11 @@ import {
 import type { ProjectInfo } from "../project/types";
 import { asErrorMessage } from "../project/runtime";
 import type { Translate } from "../i18n/core";
+import {
+  markCloseProjectReactTransition,
+  measureLifecyclePhase,
+  startLifecycleFlow,
+} from "../lifecycle/metrics";
 
 export function useProjectSession() {
   const [project, setProject] = useState<ProjectInfo | null>(null);
@@ -22,11 +27,12 @@ export function useProjectSession() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const run = async (task: () => Promise<ProjectInfo | null>) => {
+  const run = async (operation: string, task: () => Promise<ProjectInfo | null>) => {
     setBusy(true);
     setError(null);
+    startLifecycleFlow("project.time-to-useful-ui");
     try {
-      const next = await task();
+      const next = await measureLifecyclePhase(`project.${operation}.backend`, task);
       if (next) {
         setProject(next);
         setRecentProjects((current) => {
@@ -54,8 +60,8 @@ export function useProjectSession() {
         return nextList;
       });
     },
-    createNew: (name: string, t: Translate) => run(() => createProject(name, t)),
-    openExisting: (t: Translate) => run(() => loadProject(t)),
+    createNew: (name: string, t: Translate) => run("create", () => createProject(name, t)),
+    openExisting: (t: Translate) => run("open-dialog", () => loadProject(t)),
     convertExisting: async (t: Translate) => {
       setBusy(true);
       setError(null);
@@ -68,12 +74,13 @@ export function useProjectSession() {
         setBusy(false);
       }
     },
-    openRecent: (path: string) => run(() => openProject(path)),
+    openRecent: (path: string) => run("open-recent", () => openProject(path)),
     close: async () => {
       setBusy(true);
       setError(null);
       try {
-        await closeProject();
+        await measureLifecyclePhase("project.close.backend", closeProject);
+        markCloseProjectReactTransition();
         setProject(null);
       } catch (caught) {
         setError(asErrorMessage(caught));

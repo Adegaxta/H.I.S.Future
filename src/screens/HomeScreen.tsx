@@ -1,4 +1,4 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useLayoutEffect, useState } from "react";
 import type { ProjectInfo } from "../project/types";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import hisFutureIconAsset from "../assets/original/HISFuture_ICONS/HISFUTURE_ICON.png";
@@ -20,6 +20,7 @@ import UpdatePrompt from "../update/UpdatePrompt";
 import { APP_WINDOW_TITLE } from "../utils/appEnvironment";
 import { useLocale } from "../i18n/LocaleContext";
 import type { Translate } from "../i18n/core";
+import { finishCloseProjectAtHomePaint, markCloseProjectHomeLayout } from "../lifecycle/metrics";
 
 interface HomeScreenProps {
   busy: boolean;
@@ -47,6 +48,12 @@ export default function HomeScreen({
   const [name, setName] = useState("");
   const [conversionMessage, setConversionMessage] = useState<string | null>(null);
   const [pendingRemoval, setPendingRemoval] = useState<ProjectInfo | null>(null);
+
+  useLayoutEffect(() => {
+    markCloseProjectHomeLayout();
+    const frame = requestAnimationFrame(finishCloseProjectAtHomePaint);
+    return () => cancelAnimationFrame(frame);
+  }, []);
 
   const startWindowDrag = (event: React.PointerEvent<HTMLDivElement>) => {
     if (event.button !== 0 || event.target instanceof Element && event.target.closest("button")) {

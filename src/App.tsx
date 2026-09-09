@@ -14,9 +14,11 @@ import { LocaleProvider } from "./i18n/LocaleContext";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { APP_WINDOW_TITLE } from "./utils/appEnvironment";
 import { isDesktopRuntime } from "./project/runtime";
+import { AppLifecycleProvider, useAppLifecycle } from "./lifecycle/AppLifecycle";
 
-export default function App() {
+function AppContent() {
   const session = useProjectSession();
+  const lifecycle = useAppLifecycle();
 
   useEffect(() => {
     document.title = APP_WINDOW_TITLE;
@@ -37,6 +39,13 @@ export default function App() {
   }, [session.project]);
 
   return (
+    <>
+    {lifecycle.exitError && (
+      <div className="workspace-file-import-error app-lifecycle-error" role="alert">
+        <span>{lifecycle.exitError}</span>
+        <button type="button" onClick={lifecycle.dismissExitError} aria-label="Cerrar aviso">×</button>
+      </div>
+    )}
     <LocaleProvider key={session.project?.folderPath ?? "home"} projectKey={session.project?.folderPath}>
       {!session.project ? (
       <HomeScreen
@@ -57,5 +66,10 @@ export default function App() {
       />
       )}
     </LocaleProvider>
+    </>
   );
+}
+
+export default function App() {
+  return <AppLifecycleProvider><AppContent /></AppLifecycleProvider>;
 }

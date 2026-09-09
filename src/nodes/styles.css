@@ -9,3 +9,6 @@
 @import "./tempo/styles.css";
 /* Course consumes Calendar/Tempo/PDF surfaces, so its contextual overrides load last. */
 @import "./course/styles.css";
+.pdf-viewer__page--placeholder {
+  min-height: 1100px;
+}

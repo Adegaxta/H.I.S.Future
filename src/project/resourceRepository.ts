@@ -25,7 +25,8 @@ export async function readProjectResource(
   resourceId: string,
 ): Promise<Uint8Array> {
   try {
-    return new Uint8Array(await invoke<number[]>("read_project_resource", { kind, resourceId }));
+    const response = await invoke<ArrayBuffer | Uint8Array>("read_project_resource", { kind, resourceId });
+    return response instanceof Uint8Array ? response : new Uint8Array(response);
   } catch (error) {
     throw new Error(asErrorMessage(error));
   }

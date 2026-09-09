@@ -7,10 +7,10 @@ use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::fs;
-use std::io::{Read, Write};
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use zip::write::SimpleFileOptions;
 use zip::{CompressionMethod, ZipArchive, ZipWriter};
 
@@ -53,9 +53,30 @@ pub struct OpenProject {
     pub db: Connection,
     archive_path: Option<PathBuf>,
     working_folder: PathBuf,
+    archive_dirty: bool,
 }
 
 pub type ProjectState = Mutex<Option<OpenProject>>;
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SaveWorkspaceTimings {
+    pub resource_scan_ms: f64,
+    pub sqlite_ms: f64,
+    pub resource_cleanup_ms: f64,
+    pub total_ms: f64,
+    pub changed_rows: usize,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CloseProjectTimings {
+    pub sqlite_checkpoint_ms: f64,
+    pub archive_packaging_ms: f64,
+    pub working_directory_cleanup_ms: f64,
+    pub total_ms: f64,
+    pub packaged: bool,
+}
 
 fn now_iso() -> String {
     let secs = SystemTime::now()
@@ -157,8 +178,9 @@ fn repair_links_foreign_key(db: &mut Connection) -> Result<(), String> {
     result
 }
 
-fn init_database(path: &Path) -> Result<Connection, String> {
+fn init_database(path: &Path) -> Result<(Connection, bool), String> {
     let mut db = Connection::open(path).map_err(|err| format!("No se pudo abrir SQLite: {err}"))?;
+    let changes_before = db.total_changes();
     let has_meta: bool = db
         .query_row(
             "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name = 'project_meta')",
@@ -228,11 +250,14 @@ fn init_database(path: &Path) -> Result<Connection, String> {
         );
     }
     db.execute(
-        "INSERT OR REPLACE INTO project_meta (key, value) VALUES (?1, ?2)",
+        "INSERT INTO project_meta (key, value) VALUES (?1, ?2)
+         ON CONFLICT(key) DO UPDATE SET value=excluded.value
+         WHERE project_meta.value IS NOT excluded.value",
         [NODAL_SCHEMA_VERSION_KEY, CURRENT_NODAL_SCHEMA_VERSION],
     )
     .map_err(|err| format!("No se pudo registrar la versión Nodal: {err}"))?;
-    Ok(db)
+    let changed = db.total_changes() > changes_before;
+    Ok((db, changed))
 }
 
 fn project_info(name: String, folder: &Path) -> ProjectInfo {
@@ -307,9 +332,6 @@ fn zip_directory(folder: &Path, archive_path: &Path) -> Result<(), String> {
 
 fn write_archive(folder: &Path, file: fs::File) -> Result<(), String> {
     let mut writer = ZipWriter::new(file);
-    let options = SimpleFileOptions::default()
-        .compression_method(CompressionMethod::Deflated)
-        .unix_permissions(0o644);
     let mut written_entries = HashSet::new();
     let mut entries = vec![folder.to_path_buf()];
     while let Some(current) = entries.pop() {
@@ -330,21 +352,35 @@ fn write_archive(folder: &Path, file: fs::File) -> Result<(), String> {
             if !written_entries.insert(name.clone()) {
                 continue;
             }
+            let already_compressed = path
+                .extension()
+                .and_then(|extension| extension.to_str())
+                .is_some_and(|extension| {
+                    matches!(
+                        extension.to_ascii_lowercase().as_str(),
+                        "pdf" | "png" | "jpg" | "jpeg" | "webp" | "gif" | "mp4" | "webm"
+                    )
+                });
+            let options = SimpleFileOptions::default()
+                .compression_method(if already_compressed {
+                    CompressionMethod::Stored
+                } else {
+                    CompressionMethod::Deflated
+                })
+                .unix_permissions(0o644);
             writer
                 .start_file(name, options)
                 .map_err(|err| format!("No se pudo añadir el archivo al .his: {err}"))?;
             let mut input = fs::File::open(&path)
                 .map_err(|err| format!("No se pudo abrir un archivo del proyecto: {err}"))?;
-            let mut buffer = Vec::new();
-            input
-                .read_to_end(&mut buffer)
-                .map_err(|err| format!("No se pudo leer un archivo del proyecto: {err}"))?;
-            writer
-                .write_all(&buffer)
+            std::io::copy(&mut input, &mut writer)
                 .map_err(|err| format!("No se pudo escribir el archivo .his: {err}"))?;
         }
     }
     if !folder.join(PROJECT_ICON_NAME).is_file() && !written_entries.contains(PROJECT_ICON_NAME) {
+        let options = SimpleFileOptions::default()
+            .compression_method(CompressionMethod::Stored)
+            .unix_permissions(0o644);
         writer
             .start_file(PROJECT_ICON_NAME, options)
             .map_err(|err| format!("No se pudo añadir el icono al .his: {err}"))?;
@@ -519,12 +555,13 @@ fn open_folder(folder: &Path) -> Result<OpenProject, String> {
             .map(|value| value.to_string_lossy().into_owned())
             .unwrap_or_else(|| "Proyecto".into())
     });
-    let db = init_database(&db_path)?;
+    let (db, archive_dirty) = init_database(&db_path)?;
     Ok(OpenProject {
         info: project_info(name, folder),
         db,
         archive_path: None,
         working_folder: folder.to_path_buf(),
+        archive_dirty,
     })
 }
 
@@ -543,7 +580,7 @@ pub fn create_project(parent_dir: String, name: String) -> Result<OpenProject, S
     fs::create_dir_all(&folder).map_err(|err| format!("No se pudo crear la carpeta: {err}"))?;
     write_manifest(&folder, name.trim())?;
     let db_path = database_path(&folder);
-    let db = init_database(&db_path)?;
+    let (db, _) = init_database(&db_path)?;
     db.execute(
         "INSERT OR REPLACE INTO project_meta (key, value) VALUES ('name', ?1)",
         params![name.trim()],
@@ -554,6 +591,7 @@ pub fn create_project(parent_dir: String, name: String) -> Result<OpenProject, S
         db,
         archive_path: None,
         working_folder: folder,
+        archive_dirty: false,
     })
 }
 
@@ -599,16 +637,18 @@ pub fn create_project_file(archive_path: String, name: String) -> Result<OpenPro
     drop(created);
     remove_temporary_folder(&temporary_root);
     let working_folder = extract_archive(&archive)?;
-    let db = init_database(&working_folder.join(DATABASE_FILE))?;
+    let (db, archive_dirty) = init_database(&working_folder.join(DATABASE_FILE))?;
     Ok(OpenProject {
         info: archive_project_info(project_name, &archive, &working_folder),
         db,
         archive_path: Some(archive),
         working_folder,
+        archive_dirty,
     })
 }
 
 pub fn open_project_from_path(path: String) -> Result<OpenProject, String> {
+    let total_started = Instant::now();
     let selected = PathBuf::from(path.trim());
     if !selected.exists() {
         return Err("La ruta seleccionada no existe.".into());
@@ -619,14 +659,23 @@ pub fn open_project_from_path(path: String) -> Result<OpenProject, String> {
             .and_then(|extension| extension.to_str())
             == Some("his")
     {
+        let extraction_started = Instant::now();
         let extracted_root = extract_archive(&selected)?;
+        let extraction_ms = extraction_started.elapsed().as_secs_f64() * 1000.0;
+        let sqlite_started = Instant::now();
         let opened = open_folder(&extracted_root)?;
+        let sqlite_ms = sqlite_started.elapsed().as_secs_f64() * 1000.0;
         let name = opened.info.name.clone();
+        eprintln!(
+            "[lifecycle] project.open archive_extract={extraction_ms:.2}ms sqlite_init={sqlite_ms:.2}ms total={:.2}ms",
+            total_started.elapsed().as_secs_f64() * 1000.0
+        );
         return Ok(OpenProject {
             info: archive_project_info(name, &selected, &extracted_root),
             db: opened.db,
             archive_path: Some(selected),
             working_folder: extracted_root,
+            archive_dirty: opened.archive_dirty,
         });
     }
     let folder = resolve_project_folder(&selected)?;
@@ -645,27 +694,42 @@ pub fn set_open_project(state: &ProjectState, project: OpenProject) -> Result<Pr
     Ok(info)
 }
 
-pub fn close_project(state: &ProjectState) -> Result<(), String> {
+pub fn close_project_traced(
+    state: &ProjectState,
+    trace_id: Option<&str>,
+) -> Result<CloseProjectTimings, String> {
+    let total_started = Instant::now();
+    let mut checkpoint_ms = 0.0;
+    let mut archive_ms = 0.0;
+    let mut cleanup_ms = 0.0;
+    let mut packaged = false;
     let mut guard = state
         .lock()
         .map_err(|_| "No se pudo bloquear el estado del proyecto.".to_string())?;
     if let Some(project) = guard.as_ref() {
-        if let Some(archive_path) = project.archive_path.as_ref() {
-            let (busy, _, _): (i64, i64, i64) = project
-                .db
-                .query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |row| {
-                    Ok((row.get(0)?, row.get(1)?, row.get(2)?))
-                })
-                .map_err(|err| format!("No se pudo preparar SQLite para empaquetar: {err}"))?;
-            if busy != 0 {
-                return Err("SQLite está ocupado; el proyecto sigue abierto.".into());
+        if project.archive_dirty {
+            if let Some(archive_path) = project.archive_path.as_ref() {
+                let checkpoint_started = Instant::now();
+                let (busy, _, _): (i64, i64, i64) = project
+                    .db
+                    .query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |row| {
+                        Ok((row.get(0)?, row.get(1)?, row.get(2)?))
+                    })
+                    .map_err(|err| format!("No se pudo preparar SQLite para empaquetar: {err}"))?;
+                if busy != 0 {
+                    return Err("SQLite está ocupado; el proyecto sigue abierto.".into());
+                }
+                checkpoint_ms = checkpoint_started.elapsed().as_secs_f64() * 1000.0;
+                let archive_started = Instant::now();
+                zip_directory(&project.working_folder, archive_path).map_err(|err| {
+                    format!(
+                        "{err} Copia de trabajo conservada en {}",
+                        project.working_folder.display()
+                    )
+                })?;
+                archive_ms = archive_started.elapsed().as_secs_f64() * 1000.0;
+                packaged = true;
             }
-            zip_directory(&project.working_folder, archive_path).map_err(|err| {
-                format!(
-                    "{err} Copia de trabajo conservada en {}",
-                    project.working_folder.display()
-                )
-            })?;
         }
     }
     if let Some(project) = guard.take() {
@@ -675,10 +739,28 @@ pub fn close_project(state: &ProjectState) -> Result<(), String> {
             .then(|| project.working_folder.clone());
         drop(project);
         if let Some(folder) = temporary {
+            let cleanup_started = Instant::now();
             remove_temporary_folder(&folder);
+            cleanup_ms = cleanup_started.elapsed().as_secs_f64() * 1000.0;
         }
     }
-    Ok(())
+    let total_ms = total_started.elapsed().as_secs_f64() * 1000.0;
+    eprintln!(
+        "[lifecycle][{}] project.close checkpoint={checkpoint_ms:.2}ms archive={archive_ms:.2}ms working_directory_cleanup={cleanup_ms:.2}ms packaged={packaged} total={total_ms:.2}ms",
+        trace_id.unwrap_or("no-trace")
+    );
+    Ok(CloseProjectTimings {
+        sqlite_checkpoint_ms: checkpoint_ms,
+        archive_packaging_ms: archive_ms,
+        working_directory_cleanup_ms: cleanup_ms,
+        total_ms,
+        packaged,
+    })
+}
+
+#[cfg(test)]
+pub fn close_project(state: &ProjectState) -> Result<(), String> {
+    close_project_traced(state, None).map(|_| ())
 }
 
 pub fn list_nodes(state: &ProjectState) -> Result<Vec<NodeRecord>, String> {
@@ -717,12 +799,14 @@ pub fn save_nodes(state: &ProjectState, nodes: Vec<NodeRecord>) -> Result<(), St
 }
 
 // One transaction owns active entities, Lore membership and trash.
-pub fn save_workspace(
+pub fn save_workspace_traced(
     state: &ProjectState,
     nodes: Vec<NodeRecord>,
     hidden_ids: Option<Vec<String>>,
     deleted_nodes: Option<String>,
-) -> Result<(), String> {
+    trace_id: Option<&str>,
+) -> Result<SaveWorkspaceTimings, String> {
+    let total_started = Instant::now();
     let has_complete_trash_snapshot = deleted_nodes.is_some();
     if let Some(node) = nodes
         .iter()
@@ -785,6 +869,7 @@ pub fn save_workspace(
         .lock()
         .map_err(|_| "No se pudo bloquear el estado del proyecto.".to_string())?;
     let project = guard.as_mut().ok_or("No hay un proyecto abierto.")?;
+    let resources_started = Instant::now();
     let previous_resources = persisted_resource_references(project)?;
     let mut current_resources = resource_references(
         nodes
@@ -795,6 +880,8 @@ pub fn save_workspace(
         // Legacy/internal callers that omit Trash do not authorize resource collection.
         current_resources.extend(previous_resources.iter().cloned());
     }
+    let resources_ms = resources_started.elapsed().as_secs_f64() * 1000.0;
+    let sqlite_started = Instant::now();
     let tx = project
         .db
         .transaction()
@@ -811,15 +898,18 @@ pub fn save_workspace(
         rows.collect::<Result<_, _>>()
             .map_err(|err| err.to_string())?
     };
+    let mut changed_rows = 0usize;
     for node in &nodes {
-        tx.execute("INSERT INTO nodes (id, name, type, parent_id, sort_order, content) VALUES (?1, ?2, ?3, ?4, ?5, ?6)
-            ON CONFLICT(id) DO UPDATE SET name=excluded.name, type=excluded.type, parent_id=excluded.parent_id, sort_order=excluded.sort_order, content=excluded.content",
+        changed_rows += tx.execute("INSERT INTO nodes (id, name, type, parent_id, sort_order, content) VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+            ON CONFLICT(id) DO UPDATE SET name=excluded.name, type=excluded.type, parent_id=excluded.parent_id, sort_order=excluded.sort_order, content=excluded.content
+            WHERE nodes.name IS NOT excluded.name OR nodes.type IS NOT excluded.type OR nodes.parent_id IS NOT excluded.parent_id OR nodes.sort_order IS NOT excluded.sort_order OR nodes.content IS NOT excluded.content",
             params![node.id, node.name, node.node_type, node.parent_id, node.order, node.content])
             .map_err(|err| format!("No se pudo guardar el nodo {}: {err}", node.id))?;
     }
     for id in previous {
         if !ids.contains(id.as_str()) {
-            tx.execute("DELETE FROM nodes WHERE id = ?1", [id])
+            changed_rows += tx
+                .execute("DELETE FROM nodes WHERE id = ?1", [id])
                 .map_err(|err| err.to_string())?;
         }
     }
@@ -831,14 +921,42 @@ pub fn save_workspace(
         ("deletedNodes", deleted_nodes),
     ] {
         if let Some(value) = value {
-            tx.execute("INSERT INTO project_meta (key, value) VALUES (?1, ?2) ON CONFLICT(key) DO UPDATE SET value=excluded.value", params![key, value])
+            changed_rows += tx.execute("INSERT INTO project_meta (key, value) VALUES (?1, ?2) ON CONFLICT(key) DO UPDATE SET value=excluded.value WHERE project_meta.value IS NOT excluded.value", params![key, value])
                 .map_err(|err| format!("No se pudo guardar {key}: {err}"))?;
         }
     }
     tx.commit()
         .map_err(|err| format!("No se pudo confirmar el guardado: {err}"))?;
-    cleanup_removed_resources(project, &previous_resources, &current_resources);
-    Ok(())
+    let sqlite_ms = sqlite_started.elapsed().as_secs_f64() * 1000.0;
+    let cleanup_started = Instant::now();
+    let removed_resources =
+        cleanup_removed_resources(project, &previous_resources, &current_resources);
+    let cleanup_ms = cleanup_started.elapsed().as_secs_f64() * 1000.0;
+    if changed_rows > 0 || removed_resources {
+        project.archive_dirty = true;
+    }
+    let total_ms = total_started.elapsed().as_secs_f64() * 1000.0;
+    eprintln!(
+        "[lifecycle][{}] project.save resources={resources_ms:.2}ms sqlite={sqlite_ms:.2}ms cleanup={cleanup_ms:.2}ms changed_rows={changed_rows} total={total_ms:.2}ms",
+        trace_id.unwrap_or("no-trace")
+    );
+    Ok(SaveWorkspaceTimings {
+        resource_scan_ms: resources_ms,
+        sqlite_ms,
+        resource_cleanup_ms: cleanup_ms,
+        total_ms,
+        changed_rows,
+    })
+}
+
+#[cfg(test)]
+pub fn save_workspace(
+    state: &ProjectState,
+    nodes: Vec<NodeRecord>,
+    hidden_ids: Option<Vec<String>>,
+    deleted_nodes: Option<String>,
+) -> Result<(), String> {
+    save_workspace_traced(state, nodes, hidden_ids, deleted_nodes, None).map(|_| ())
 }
 
 type ResourceIdentity = (String, String);
@@ -894,17 +1012,21 @@ fn cleanup_removed_resources(
     project: &OpenProject,
     previous: &HashSet<ResourceIdentity>,
     current: &HashSet<ResourceIdentity>,
-) {
+) -> bool {
+    let mut removed = false;
     for (kind, resource_id) in previous.difference(current) {
         match resource_path(project, kind, resource_id) {
             Ok(path) if path.exists() => {
                 if let Err(error) = fs::remove_file(&path) {
                     eprintln!("No se pudo limpiar el recurso {}: {error}", path.display());
+                } else {
+                    removed = true;
                 }
             }
             _ => {}
         }
     }
+    removed
 }
 
 fn validate_resource_identity(value: &str) -> Result<(), String> {
@@ -937,10 +1059,10 @@ pub fn store_project_resource(
     data: Vec<u8>,
 ) -> Result<(), String> {
     validate_project_resource(&kind, &data)?;
-    let guard = state
+    let mut guard = state
         .lock()
         .map_err(|_| "No se pudo bloquear el estado del proyecto.".to_string())?;
-    let project = guard.as_ref().ok_or("No hay un proyecto abierto.")?;
+    let project = guard.as_mut().ok_or("No hay un proyecto abierto.")?;
     let target = resource_path(project, &kind, &resource_id)?;
     let parent = target
         .parent()
@@ -957,7 +1079,9 @@ pub fn store_project_resource(
     fs::rename(&temporary, &target).map_err(|error| {
         let _ = fs::remove_file(&temporary);
         format!("No se pudo confirmar el recurso importado: {error}")
-    })
+    })?;
+    project.archive_dirty = true;
+    Ok(())
 }
 
 pub fn read_project_resource(
@@ -965,12 +1089,21 @@ pub fn read_project_resource(
     kind: String,
     resource_id: String,
 ) -> Result<Vec<u8>, String> {
-    let guard = state
-        .lock()
-        .map_err(|_| "No se pudo bloquear el estado del proyecto.".to_string())?;
-    let project = guard.as_ref().ok_or("No hay un proyecto abierto.")?;
-    fs::read(resource_path(project, &kind, &resource_id)?)
-        .map_err(|error| format!("No se pudo leer el recurso: {error}"))
+    let started = Instant::now();
+    let path = {
+        let guard = state
+            .lock()
+            .map_err(|_| "No se pudo bloquear el estado del proyecto.".to_string())?;
+        let project = guard.as_ref().ok_or("No hay un proyecto abierto.")?;
+        resource_path(project, &kind, &resource_id)?
+    };
+    let bytes = fs::read(path).map_err(|error| format!("No se pudo leer el recurso: {error}"))?;
+    eprintln!(
+        "[lifecycle] resource.read kind={kind} bytes={} filesystem={:.2}ms",
+        bytes.len(),
+        started.elapsed().as_secs_f64() * 1000.0
+    );
+    Ok(bytes)
 }
 
 pub fn delete_project_resource(
@@ -978,15 +1111,17 @@ pub fn delete_project_resource(
     kind: String,
     resource_id: String,
 ) -> Result<(), String> {
-    let guard = state
+    let mut guard = state
         .lock()
         .map_err(|_| "No se pudo bloquear el estado del proyecto.".to_string())?;
-    let project = guard.as_ref().ok_or("No hay un proyecto abierto.")?;
+    let project = guard.as_mut().ok_or("No hay un proyecto abierto.")?;
     let path = resource_path(project, &kind, &resource_id)?;
     if !path.exists() {
         return Ok(());
     }
-    fs::remove_file(path).map_err(|error| format!("No se pudo eliminar el recurso: {error}"))
+    fs::remove_file(path).map_err(|error| format!("No se pudo eliminar el recurso: {error}"))?;
+    project.archive_dirty = true;
+    Ok(())
 }
 
 pub fn get_project_setting(state: &ProjectState, key: String) -> Result<Option<String>, String> {
@@ -1017,18 +1152,23 @@ pub fn set_project_setting(state: &ProjectState, key: String, value: String) -> 
     if !valid {
         return Err("Configuración de proyecto no válida.".into());
     }
-    let guard = state
+    let mut guard = state
         .lock()
         .map_err(|_| "No se pudo bloquear el estado del proyecto.".to_string())?;
-    let project = guard.as_ref().ok_or("No hay un proyecto abierto.")?;
-    project
+    let project = guard.as_mut().ok_or("No hay un proyecto abierto.")?;
+    let changed = project
         .db
         .execute(
-            "INSERT OR REPLACE INTO project_meta (key, value) VALUES (?1, ?2)",
+            "INSERT INTO project_meta (key, value) VALUES (?1, ?2)
+             ON CONFLICT(key) DO UPDATE SET value=excluded.value
+             WHERE project_meta.value IS NOT excluded.value",
             params![key, value],
         )
-        .map(|_| ())
-        .map_err(|error| format!("No se pudo guardar la configuración del proyecto: {error}"))
+        .map_err(|error| format!("No se pudo guardar la configuración del proyecto: {error}"))?;
+    if changed > 0 {
+        project.archive_dirty = true;
+    }
+    Ok(())
 }
 
 pub fn current_project(state: &ProjectState) -> Result<Option<ProjectInfo>, String> {
@@ -1053,6 +1193,7 @@ pub fn project_name_from_meta(db: &Connection) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::io::Read;
 
     fn test_root(label: &str) -> PathBuf {
         let root = std::env::temp_dir().join(format!(
@@ -1248,7 +1389,12 @@ mod tests {
         let original = fs::read(&path).unwrap();
         let missing = folder.with_extension("missing");
         let state = Mutex::new(Some(project));
-        state.lock().unwrap().as_mut().unwrap().working_folder = missing;
+        {
+            let mut guard = state.lock().unwrap();
+            let project = guard.as_mut().unwrap();
+            project.archive_dirty = true;
+            project.working_folder = missing;
+        }
         assert!(close_project(&state).is_err());
         assert!(state.lock().unwrap().is_some());
         assert_eq!(fs::read(&path).unwrap(), original);
@@ -1262,7 +1408,7 @@ mod tests {
     fn future_schema_is_rejected_without_downgrading_metadata() {
         let root = test_root("future-schema");
         let path = root.join(DATABASE_FILE);
-        let db = init_database(&path).unwrap();
+        let (db, _) = init_database(&path).unwrap();
         db.execute(
             "UPDATE project_meta SET value='99' WHERE key='nodal_schema_version'",
             [],
@@ -1531,7 +1677,7 @@ mod tests {
         ).expect("create pre-pdf schema");
         drop(legacy);
 
-        let migrated = init_database(&database).expect("migrate schema");
+        let (migrated, _) = init_database(&database).expect("migrate schema");
         for (id, name, node_type) in [
             ("pdf-1", "Document.pdf", "pdf"),
             ("course-1", "Course", "curso"),
@@ -1637,7 +1783,7 @@ mod tests {
             .expect("create affected schema");
         drop(legacy);
 
-        let repaired = init_database(&database).expect("repair database");
+        let (repaired, _) = init_database(&database).expect("repair database");
         let target: String = repaired
             .query_row(
                 "SELECT \"table\" FROM pragma_foreign_key_list('links') WHERE \"from\" = 'from_node_id'",
@@ -1664,7 +1810,7 @@ mod tests {
         assert_eq!(node_count, 2);
         drop(repaired);
 
-        let reopened = init_database(&database).expect("already repaired database");
+        let (reopened, _) = init_database(&database).expect("already repaired database");
         let count: i64 = reopened
             .query_row("SELECT COUNT(*) FROM links", [], |row| row.get(0))
             .expect("relationship after second open");
@@ -1718,6 +1864,85 @@ mod tests {
         assert!(nodes.is_empty());
         close_project(&state).expect("close converted project");
         assert!(source.is_dir());
+        fs::remove_dir_all(root).expect("test cleanup");
+    }
+
+    #[test]
+    fn clean_archive_close_skips_repack_and_real_changes_mark_it_dirty() {
+        let root = test_root("archive-dirty");
+        let archive = root.join("Lifecycle.his");
+        let state = Mutex::new(Some(
+            create_project_file(archive.to_string_lossy().into_owned(), "Lifecycle".into())
+                .expect("create archive"),
+        ));
+        assert!(!state.lock().unwrap().as_ref().unwrap().archive_dirty);
+        close_project(&state).expect("close pristine archive");
+
+        let reopened =
+            open_project_from_path(archive.to_string_lossy().into_owned()).expect("reopen archive");
+        let state = Mutex::new(Some(reopened));
+        save_workspace(&state, vec![], None, None).expect("no-op snapshot");
+        assert!(!state.lock().unwrap().as_ref().unwrap().archive_dirty);
+
+        save_nodes(&state, vec![test_node("changed", "pagina", None)]).expect("small save");
+        assert!(state.lock().unwrap().as_ref().unwrap().archive_dirty);
+        close_project(&state).expect("package changed archive");
+        assert!(archive.is_file());
+        fs::remove_dir_all(root).expect("test cleanup");
+    }
+
+    #[test]
+    #[ignore = "reproducible lifecycle benchmark; run explicitly with --ignored --nocapture"]
+    fn lifecycle_benchmark_reports_phases() {
+        use std::time::Instant;
+
+        let root = test_root("lifecycle-benchmark");
+        let archive = root.join("Benchmark.his");
+        let started = Instant::now();
+        let state = Mutex::new(Some(
+            create_project_file(archive.to_string_lossy().into_owned(), "Benchmark".into())
+                .expect("create benchmark archive"),
+        ));
+        let create_ms = started.elapsed().as_secs_f64() * 1000.0;
+        let mut pdf = vec![0_u8; 12 * 1024 * 1024];
+        pdf[..8].copy_from_slice(b"%PDF-1.7");
+        let mut seed = 0x1234_5678_u32;
+        for byte in &mut pdf[8..] {
+            seed = seed.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+            *byte = (seed >> 24) as u8;
+        }
+        store_project_resource(&state, "pdf".into(), "benchmark".into(), pdf)
+            .expect("store representative PDF payload");
+        close_project(&state).expect("close initial archive");
+
+        let started = Instant::now();
+        let opened = open_project_from_path(archive.to_string_lossy().into_owned())
+            .expect("open benchmark archive");
+        let open_ms = started.elapsed().as_secs_f64() * 1000.0;
+        let state = Mutex::new(Some(opened));
+
+        let started = Instant::now();
+        save_workspace(&state, vec![], None, None).expect("save unchanged");
+        let save_unchanged_ms = started.elapsed().as_secs_f64() * 1000.0;
+
+        let started = Instant::now();
+        save_nodes(&state, vec![test_node("page", "pagina", None)]).expect("save one change");
+        let save_small_ms = started.elapsed().as_secs_f64() * 1000.0;
+
+        let started = Instant::now();
+        close_project(&state).expect("close dirty project");
+        let close_dirty_ms = started.elapsed().as_secs_f64() * 1000.0;
+
+        let opened = open_project_from_path(archive.to_string_lossy().into_owned())
+            .expect("open for clean close");
+        let state = Mutex::new(Some(opened));
+        let started = Instant::now();
+        close_project(&state).expect("close clean project");
+        let close_clean_ms = started.elapsed().as_secs_f64() * 1000.0;
+
+        println!(
+            "LIFECYCLE_BENCHMARK_MS create={create_ms:.2} open={open_ms:.2} save_unchanged={save_unchanged_ms:.2} save_small={save_small_ms:.2} close_dirty={close_dirty_ms:.2} close_clean={close_clean_ms:.2}"
+        );
         fs::remove_dir_all(root).expect("test cleanup");
     }
 }
