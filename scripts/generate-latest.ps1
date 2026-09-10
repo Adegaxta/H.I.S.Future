@@ -25,8 +25,9 @@ if ([string]::IsNullOrWhiteSpace($signature)) {
 }
 
 $artifactName = [System.IO.Path]::GetFileName($resolvedArtifact)
+$githubAssetName = ($artifactName -replace '[\s.]+', '.').Trim('.')
 $encodedTag = [System.Uri]::EscapeDataString($Tag)
-$encodedArtifact = [System.Uri]::EscapeDataString($artifactName)
+$encodedArtifact = [System.Uri]::EscapeDataString($githubAssetName)
 $downloadUrl = "https://github.com/$Repository/releases/download/$encodedTag/$encodedArtifact"
 $outputPath = Join-Path ([System.IO.Path]::GetDirectoryName($resolvedArtifact)) "latest.json"
 

@@ -4,6 +4,12 @@ on:
   push:
     tags:
       - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Existing draft tag to recover, for example v0.1.6'
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -27,7 +33,7 @@ jobs:
       - name: Validate tag and derive version
         shell: pwsh
         env:
-          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
         run: |
           if ($env:RELEASE_TAG -notmatch '^v((0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*))$') {
             throw "Release tags must have the exact form vX.Y.Z."
@@ -214,7 +220,8 @@ jobs:
 
           $expectedSignature = (Get-Content -LiteralPath $env:SIGNATURE_PATH -Raw).Trim()
           $artifactName = Split-Path $env:ARTIFACT_PATH -Leaf
-          $encodedArtifactName = [System.Uri]::EscapeDataString($artifactName)
+          $githubAssetName = ($artifactName -replace '[\s.]+', '.').Trim('.')
+          $encodedArtifactName = [System.Uri]::EscapeDataString($githubAssetName)
           $expectedUrl = "https://github.com/$env:RELEASE_REPOSITORY/releases/download/$env:RELEASE_TAG/$encodedArtifactName"
           $windows = $manifest.platforms.'windows-x86_64'
 
@@ -240,11 +247,36 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release view $env:RELEASE_TAG *> $null
+          $releaseJson = gh release view $env:RELEASE_TAG --json isDraft,tagName,name,body,assets 2>$null
           $releaseExists = $LASTEXITCODE -eq 0
           $global:LASTEXITCODE = 0
           if ($releaseExists) {
-            throw "A GitHub Release already exists for $env:RELEASE_TAG."
+            if ('${{ github.event_name }}' -ne 'workflow_dispatch') {
+              throw "A GitHub Release already exists for $env:RELEASE_TAG."
+            }
+
+            $release = $releaseJson | ConvertFrom-Json
+            $expectedBody = [System.IO.File]::ReadAllText(
+              $env:RELEASE_NOTES_PATH,
+              [System.Text.UTF8Encoding]::new($false, $true)
+            )
+            if (-not $release.isDraft -or $release.tagName -ne $env:RELEASE_TAG -or $release.name -ne "H.I.S. Future $env:RELEASE_VERSION" -or $release.body -cne $expectedBody) {
+              throw "Existing release $env:RELEASE_TAG is not the expected draft and will not be recovered."
+            }
+            $expectedAssets = @(
+              ((Split-Path $env:ARTIFACT_PATH -Leaf) -replace '[\s.]+', '.').Trim('.'),
+              ((Split-Path $env:SIGNATURE_PATH -Leaf) -replace '[\s.]+', '.').Trim('.'),
+              'latest.json'
+            ) | Sort-Object
+            $actualAssets = @($release.assets.name) | Sort-Object
+            if (@(Compare-Object $expectedAssets $actualAssets).Count -ne 0) {
+              throw "Existing draft $env:RELEASE_TAG does not contain exactly the expected three assets."
+            }
+            "RELEASE_RECOVERY=true" >> $env:GITHUB_ENV
+          } elseif ('${{ github.event_name }}' -eq 'workflow_dispatch') {
+            throw "Recovery requires an existing draft release for $env:RELEASE_TAG."
+          } else {
+            "RELEASE_RECOVERY=false" >> $env:GITHUB_ENV
           }
 
       - name: Create draft release and upload assets
@@ -252,16 +284,35 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create $env:RELEASE_TAG `
-            $env:ARTIFACT_PATH `
-            $env:SIGNATURE_PATH `
-            $env:LATEST_JSON_PATH `
-            --verify-tag `
-            --draft `
-            --notes-file $env:RELEASE_NOTES_PATH `
-            --title "H.I.S. Future $env:RELEASE_VERSION"
+          if ($env:RELEASE_RECOVERY -eq 'true') {
+            $assetNames = @(
+              ((Split-Path $env:ARTIFACT_PATH -Leaf) -replace '[\s.]+', '.').Trim('.'),
+              ((Split-Path $env:SIGNATURE_PATH -Leaf) -replace '[\s.]+', '.').Trim('.'),
+              'latest.json'
+            )
+            foreach ($assetName in $assetNames) {
+              gh release delete-asset $env:RELEASE_TAG $assetName --yes
+              if ($LASTEXITCODE -ne 0) {
+                throw "Could not remove the existing draft asset $assetName before recovery."
+              }
+            }
+            gh release upload $env:RELEASE_TAG `
+              $env:ARTIFACT_PATH `
+              $env:SIGNATURE_PATH `
+              $env:LATEST_JSON_PATH `
+              --clobber
+          } else {
+            gh release create $env:RELEASE_TAG `
+              $env:ARTIFACT_PATH `
+              $env:SIGNATURE_PATH `
+              $env:LATEST_JSON_PATH `
+              --verify-tag `
+              --draft `
+              --notes-file $env:RELEASE_NOTES_PATH `
+              --title "H.I.S. Future $env:RELEASE_VERSION"
+          }
           if ($LASTEXITCODE -ne 0) {
-            throw 'Could not create the draft release and upload all assets.'
+            throw 'Could not create or recover the draft release and upload all assets.'
           }
 
       - name: Verify draft release assets
@@ -275,8 +326,8 @@ jobs:
           }
 
           $expectedAssets = @(
-            (Split-Path $env:ARTIFACT_PATH -Leaf),
-            (Split-Path $env:SIGNATURE_PATH -Leaf),
+            ((Split-Path $env:ARTIFACT_PATH -Leaf) -replace '[\s.]+', '.').Trim('.'),
+            ((Split-Path $env:SIGNATURE_PATH -Leaf) -replace '[\s.]+', '.').Trim('.'),
             'latest.json'
           ) | Sort-Object
           $actualAssets = @($release.assets.name) | Sort-Object

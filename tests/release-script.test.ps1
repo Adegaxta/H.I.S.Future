@@ -124,11 +124,23 @@ Assert-Equal $cleanRecoveryChanges.Count 0 'A clean recovery tree must produce a
 $generateLatest = (Resolve-Path (Join-Path $PSScriptRoot '../scripts/generate-latest.ps1')).Path
 $workflowPath = (Resolve-Path (Join-Path $PSScriptRoot '../.github/workflows/release.yml')).Path
 $workflowText = Get-Content -LiteralPath $workflowPath -Raw
-if (-not $workflowText.Contains('$encodedArtifactName = [System.Uri]::EscapeDataString($artifactName)')) {
+if (-not $workflowText.Contains('$encodedArtifactName = [System.Uri]::EscapeDataString($githubAssetName)')) {
   throw 'Release workflow must URL-encode the asset name before validating latest.json.'
+}
+if (-not $workflowText.Contains('$githubAssetName = ($artifactName -replace ''[\s.]+'', ''.'').Trim(''.'')')) {
+  throw 'Release workflow must normalize the asset name before validating latest.json.'
 }
 if (-not $workflowText.Contains('/$encodedArtifactName"')) {
   throw 'Release workflow must validate latest.json against the encoded asset URL.'
+}
+if (-not $workflowText.Contains("-replace '[\s.]+', '.'")) {
+  throw 'Release workflow must validate GitHub-normalized asset names.'
+}
+if (-not $workflowText.Contains('workflow_dispatch:') -or -not $workflowText.Contains('release_tag:')) {
+  throw 'Release workflow must expose explicit draft recovery by tag.'
+}
+if (-not $workflowText.Contains('gh release delete-asset $env:RELEASE_TAG $assetName --yes') -or -not $workflowText.Contains('gh release upload $env:RELEASE_TAG') -or -not $workflowText.Contains('--clobber')) {
+  throw 'Release workflow must overwrite the three assets when recovering a draft.'
 }
 
 $temporaryDirectory = Join-Path ([System.IO.Path]::GetTempPath()) "hisfuture-release-test-$([guid]::NewGuid().ToString('N'))"
@@ -151,8 +163,8 @@ try {
   $manifest = Get-Content -LiteralPath ($latestPath | Select-Object -Last 1) -Raw | ConvertFrom-Json
   Assert-Equal `
     $manifest.platforms.'windows-x86_64'.url `
-    'https://github.com/Adegaxta/H.I.S.Future/releases/download/v0.1.6/H.I.S.%20Future_0.1.6_x64-setup.exe' `
-    'latest.json must encode spaces in the GitHub release asset URL.'
+    'https://github.com/Adegaxta/H.I.S.Future/releases/download/v0.1.6/H.I.S.Future_0.1.6_x64-setup.exe' `
+    'latest.json must use GitHub-normalized asset names in the release URL.'
 } finally {
   if (Test-Path -LiteralPath $temporaryDirectory) {
     Remove-Item -LiteralPath $temporaryDirectory -Recurse -Force
