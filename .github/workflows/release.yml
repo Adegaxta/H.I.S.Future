@@ -213,7 +213,9 @@ jobs:
           }
 
           $expectedSignature = (Get-Content -LiteralPath $env:SIGNATURE_PATH -Raw).Trim()
-          $expectedUrl = "https://github.com/$env:RELEASE_REPOSITORY/releases/download/$env:RELEASE_TAG/$(Split-Path $env:ARTIFACT_PATH -Leaf)"
+          $artifactName = Split-Path $env:ARTIFACT_PATH -Leaf
+          $encodedArtifactName = [System.Uri]::EscapeDataString($artifactName)
+          $expectedUrl = "https://github.com/$env:RELEASE_REPOSITORY/releases/download/$env:RELEASE_TAG/$encodedArtifactName"
           $windows = $manifest.platforms.'windows-x86_64'
 
           if ($manifest.version -ne $env:RELEASE_VERSION) {

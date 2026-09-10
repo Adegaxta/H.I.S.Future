@@ -121,4 +121,42 @@ $cleanRecoveryChanges = @(Get-UnexpectedInitialChanges `
     -IsRecovery $true)
 Assert-Equal $cleanRecoveryChanges.Count 0 'A clean recovery tree must produce an empty array, not null.'
 
-Write-Output 'PASS: release tag arguments and post-commit recovery states.'
+$generateLatest = (Resolve-Path (Join-Path $PSScriptRoot '../scripts/generate-latest.ps1')).Path
+$workflowPath = (Resolve-Path (Join-Path $PSScriptRoot '../.github/workflows/release.yml')).Path
+$workflowText = Get-Content -LiteralPath $workflowPath -Raw
+if (-not $workflowText.Contains('$encodedArtifactName = [System.Uri]::EscapeDataString($artifactName)')) {
+  throw 'Release workflow must URL-encode the asset name before validating latest.json.'
+}
+if (-not $workflowText.Contains('/$encodedArtifactName"')) {
+  throw 'Release workflow must validate latest.json against the encoded asset URL.'
+}
+
+$temporaryDirectory = Join-Path ([System.IO.Path]::GetTempPath()) "hisfuture-release-test-$([guid]::NewGuid().ToString('N'))"
+try {
+  $null = New-Item -ItemType Directory -Path $temporaryDirectory
+  $artifactPath = Join-Path $temporaryDirectory 'H.I.S. Future_0.1.6_x64-setup.exe'
+  $signaturePath = "$artifactPath.sig"
+  [System.IO.File]::WriteAllText($artifactPath, 'test artifact')
+  [System.IO.File]::WriteAllText($signaturePath, 'test signature')
+
+  $latestPath = & $generateLatest `
+    -Version '0.1.6' `
+    -ArtifactPath $artifactPath `
+    -Tag 'v0.1.6' `
+    -Repository 'Adegaxta/H.I.S.Future'
+  if ($LASTEXITCODE -ne 0) {
+    throw 'generate-latest.ps1 failed in the release URL encoding regression test.'
+  }
+
+  $manifest = Get-Content -LiteralPath ($latestPath | Select-Object -Last 1) -Raw | ConvertFrom-Json
+  Assert-Equal `
+    $manifest.platforms.'windows-x86_64'.url `
+    'https://github.com/Adegaxta/H.I.S.Future/releases/download/v0.1.6/H.I.S.%20Future_0.1.6_x64-setup.exe' `
+    'latest.json must encode spaces in the GitHub release asset URL.'
+} finally {
+  if (Test-Path -LiteralPath $temporaryDirectory) {
+    Remove-Item -LiteralPath $temporaryDirectory -Recurse -Force
+  }
+}
+
+Write-Output 'PASS: release tag arguments, recovery states, and encoded latest.json asset URLs.'
