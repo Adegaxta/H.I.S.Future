@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import type { BaseNodeType } from "../types/nodes";
 import type { NodeItem } from "../types/nodes";
 import { asErrorMessage } from "./runtime";
 import type { PersistedNode } from "./types";
@@ -40,10 +41,10 @@ function toRecord(node: NodeItem): PersistedNode {
   };
 }
 
-export async function listNodes(): Promise<NodeItem[]> {
+export async function listNodes(defaultNodeType: BaseNodeType = "pagina"): Promise<NodeItem[]> {
   try {
     const [rows, hiddenSetting] = await measureLifecyclePhase("project.load-nodes", () => Promise.all([
-      invoke<PersistedNode[]>("list_nodes"), getProjectSetting("loreHiddenIds"),
+      invoke<PersistedNode[]>("list_nodes", { defaultNodeType }), getProjectSetting("loreHiddenIds"),
     ]));
     const hidden = new Set<string>(JSON.parse(hiddenSetting || "[]"));
     return rows.map((row) => ({ ...toNodeItem(row), loreHidden: hidden.has(row.id) }));

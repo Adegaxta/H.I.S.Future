@@ -4,10 +4,23 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>H.I.S. Future</title>
+    <link rel="icon" type="image/png" href="/src/assets/original/HISFuture_ICONS/HISFUTURE_ICON.png" />
+    <style>
+      html, body, #root { width: 100%; height: 100%; margin: 0; background: #121417; }
+      body { overflow: hidden; }
+      #boot-screen { display: grid; width: 100%; height: 100%; place-items: center; background: #121417; }
+      #boot-screen img {
+        width: 44px;
+        height: 44px;
+        animation: boot-screen-spin 1s linear infinite;
+        filter: brightness(0) saturate(100%) invert(78%) sepia(36%) saturate(682%) hue-rotate(119deg) brightness(93%) contrast(88%);
+      }
+      @keyframes boot-screen-spin { to { transform: rotate(360deg); } }
+    </style>
   </head>
 
   <body>
-    <div id="root"></div>
+    <div id="root"><div id="boot-screen" role="status" aria-label="Cargando H.I.S. Future"><img src="/src/assets/third-party/google-material/icons/progress_activity.svg" alt="" /></div></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

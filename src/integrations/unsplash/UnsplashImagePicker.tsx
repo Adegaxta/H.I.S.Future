@@ -4,6 +4,7 @@ import { useLocale } from "../../i18n/LocaleContext";
 import { openWebUrl } from "../../nodes/viewPrimitives";
 import { safeLocalStorageSet } from "../../workspace/safeStorage";
 import { createUnsplashClient } from "./client";
+import type { UnsplashRateLimit } from "./client";
 import { toUnsplashImageSelection } from "./normalize";
 import type { UnsplashImageSelection } from "./types";
 
@@ -29,16 +30,19 @@ interface PersistedPickerState {
   totalPages: number;
   hasMore: boolean;
   results: UnsplashImageSelection[];
+  rateLimit?: UnsplashRateLimit | null;
 }
 
 const sessionCache: {
   random: UnsplashImageSelection[];
   searches: Map<string, SearchCacheEntry>;
   trackedDownloads: Set<string>;
+  rateLimit: UnsplashRateLimit | null;
 } = {
   random: [],
   searches: new Map(),
   trackedDownloads: new Set(),
+  rateLimit: null,
 };
 
 function mergeSelections(current: UnsplashImageSelection[], incoming: UnsplashImageSelection[]) {
@@ -58,6 +62,13 @@ function isImageSelection(value: unknown): value is UnsplashImageSelection {
     typeof selection.provenance.resourceId === "string";
 }
 
+function isRateLimit(value: unknown): value is UnsplashRateLimit {
+  if (!value || typeof value !== "object") return false;
+  const rateLimit = value as UnsplashRateLimit;
+  return Number.isFinite(rateLimit.limit) && rateLimit.limit > 0 &&
+    Number.isFinite(rateLimit.remaining) && rateLimit.remaining >= 0;
+}
+
 function readPersistedPickerState(): PersistedPickerState | null {
   if (typeof window === "undefined") return null;
   try {
@@ -75,6 +86,7 @@ function readPersistedPickerState(): PersistedPickerState | null {
       totalPages: typeof parsed.totalPages === "number" && parsed.totalPages >= page ? parsed.totalPages : page + (hasMore ? 1 : 0),
       hasMore,
       results,
+      rateLimit: isRateLimit(parsed.rateLimit) ? parsed.rateLimit : null,
     };
   } catch {
     return null;
@@ -97,7 +109,9 @@ export default function UnsplashImagePicker({ onSelect }: UnsplashImagePickerPro
   const [mode, setMode] = useState<"random" | "search">(persistedState?.mode || "random");
   const [page, setPage] = useState(persistedState?.page || 1);
   const [hasMore, setHasMore] = useState(persistedState?.hasMore ?? true);
-  const [rateLimit, setRateLimit] = useState(() => clientRef.current.getRateLimit());
+  const [rateLimit, setRateLimit] = useState<UnsplashRateLimit | null>(
+    () => persistedState?.rateLimit || sessionCache.rateLimit || clientRef.current.getRateLimit(),
+  );
 
   const appName = import.meta.env.VITE_UNSPLASH_APP_NAME || "hisfuture";
 
@@ -117,6 +131,12 @@ export default function UnsplashImagePicker({ onSelect }: UnsplashImagePickerPro
     setLoading(false);
   };
 
+  const rememberRateLimit = (next: UnsplashRateLimit | null) => {
+    if (!next) return;
+    sessionCache.rateLimit = next;
+    setRateLimit(next);
+  };
+
   const loadRandom = async (replace = true, force = false) => {
     if (!startRequest()) return;
     setError(null);
@@ -125,7 +145,7 @@ export default function UnsplashImagePicker({ onSelect }: UnsplashImagePickerPro
         setResults(sessionCache.random);
       } else {
         const photos = await clientRef.current.getRandomPhotos(RANDOM_BATCH_SIZE);
-        setRateLimit(clientRef.current.getRateLimit());
+        rememberRateLimit(clientRef.current.getRateLimit());
         const selections = photos.map((photo) => toUnsplashImageSelection(photo, appName));
         sessionCache.random = replace ? selections : mergeSelections(sessionCache.random, selections);
         if (replace) setResults(selections);
@@ -157,7 +177,7 @@ export default function UnsplashImagePicker({ onSelect }: UnsplashImagePickerPro
         setHasMore(cached.page < cached.totalPages);
       } else {
         const response = await clientRef.current.searchPhotos(normalizedQuery, 1, SEARCH_PAGE_SIZE);
-        setRateLimit(clientRef.current.getRateLimit());
+        rememberRateLimit(clientRef.current.getRateLimit());
         const selections = response.results.map((photo) => toUnsplashImageSelection(photo, appName));
         const entry = { results: selections, page: 1, totalPages: response.total_pages };
         sessionCache.searches.set(cacheKey, entry);
@@ -181,7 +201,7 @@ export default function UnsplashImagePicker({ onSelect }: UnsplashImagePickerPro
     try {
       if (mode === "random") {
         const photos = await clientRef.current.getRandomPhotos(RANDOM_BATCH_SIZE);
-        setRateLimit(clientRef.current.getRateLimit());
+        rememberRateLimit(clientRef.current.getRateLimit());
         const selections = photos.map((photo) => toUnsplashImageSelection(photo, appName));
         sessionCache.random = mergeSelections(sessionCache.random, selections);
         appendSelections(selections);
@@ -189,7 +209,7 @@ export default function UnsplashImagePicker({ onSelect }: UnsplashImagePickerPro
         const normalizedQuery = loadedQuery || query.trim();
         const nextPage = page + 1;
         const response = await clientRef.current.searchPhotos(normalizedQuery, nextPage, SEARCH_PAGE_SIZE);
-        setRateLimit(clientRef.current.getRateLimit());
+        rememberRateLimit(clientRef.current.getRateLimit());
         const selections = response.results.map((photo) => toUnsplashImageSelection(photo, appName));
         const cacheKey = normalizedQuery.toLocaleLowerCase();
         const cached = sessionCache.searches.get(cacheKey);
@@ -230,9 +250,10 @@ export default function UnsplashImagePicker({ onSelect }: UnsplashImagePickerPro
       totalPages: mode === "search" ? page + (hasMore ? 1 : 0) : page,
       hasMore,
       results: results.slice(0, PERSISTED_RESULT_LIMIT),
+      rateLimit,
     };
     safeLocalStorageSet(PERSISTED_PICKER_KEY, JSON.stringify(snapshot));
-  }, [hasMore, loadedQuery, mode, page, results]);
+  }, [hasMore, loadedQuery, mode, page, rateLimit, results]);
 
   const handleResultsScroll = (event: React.UIEvent<HTMLDivElement>) => {
     const element = event.currentTarget;
@@ -247,7 +268,7 @@ export default function UnsplashImagePicker({ onSelect }: UnsplashImagePickerPro
       sessionCache.trackedDownloads.add(downloadLocation);
       void clientRef.current.trackDownload(downloadLocation).catch(() => {
         sessionCache.trackedDownloads.delete(downloadLocation);
-      }).finally(() => setRateLimit(clientRef.current.getRateLimit()));
+      }).finally(() => rememberRateLimit(clientRef.current.getRateLimit()));
     }
     try {
       await onSelect(selection);

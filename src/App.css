@@ -7,11 +7,37 @@ body,
   height: 100vh;
   width: 100vw;
   overflow: hidden;
+  background: #121417;
+  color: #e8e9ea;
+}
+
+.app-loading-screen {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+  background: #121417;
+}
+
+.app-loading-screen__icon {
+  width: 44px;
+  height: 44px;
+  animation: app-loading-spin 1s linear infinite;
+  filter: brightness(0) saturate(100%) invert(78%) sepia(36%) saturate(682%) hue-rotate(119deg) brightness(93%) contrast(88%);
+}
+
+@keyframes app-loading-spin {
+  to { transform: rotate(360deg); }
 }
 
 /* Hace que padding y border formen parte del tamano total de cada elemento. */
 * {
   box-sizing: border-box;
+}
+
+img {
+  user-select: none;
+  -webkit-user-drag: none;
 }
 
 /* Contenedor principal de la pantalla de inicio. */

@@ -38,6 +38,15 @@ try {
   loreItems.find((item) => item.id === "remove-lore").onSelect();
   assert.deepEqual(calls, [["remove-lore", "folder"]], "Lore removal does not invoke entity deletion");
 
+  const multiSelectedItems = buildNodeContextMenuItems({
+    ...callbacks,
+    t,
+    canSetPrimary: false,
+    menu: { context: "lore", nodeId: "folder", x: 0, y: 0 },
+    removeCount: 2,
+  });
+  assert.equal(multiSelectedItems.some((item) => item.id === "set-primary"), false, "Primary action is hidden for multiple selection");
+
   calls.length = 0;
   const typeItems = buildNodeContextMenuItems({
     ...callbacks,

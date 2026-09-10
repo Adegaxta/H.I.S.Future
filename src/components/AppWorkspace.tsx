@@ -39,11 +39,42 @@ import { TrashPanel } from "../workspace/panels/TrashPanel";
 import { TrashNodeView } from "../workspace/panels/TrashNodeView";
 import { finishLifecycleFlow } from "../lifecycle/metrics";
 import { getActiveCloseProjectTraceId, recordCloseProjectPhase } from "../lifecycle/metrics";
+import { readDefaultNodeType } from "../workspace/defaultNodeType";
 
 interface AppWorkspaceProps {
   projectKey: string;
   projectName: string;
   onExitProject: () => Promise<void>;
+}
+
+interface WorkspaceLocation {
+  selectedId: string | null;
+  view: "list" | "graph";
+  projectTab: "workspace" | "settings";
+  settingsPanel: "general" | "trash" | "changelog";
+  sidebarPanel: "lore" | "recent" | "types";
+  sidebarVisible: boolean;
+}
+
+function readWorkspaceLocation(key: string): WorkspaceLocation | null {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(key) || "null") as Partial<WorkspaceLocation> | null;
+    if (!parsed || (parsed.view !== "list" && parsed.view !== "graph") ||
+      (parsed.projectTab !== "workspace" && parsed.projectTab !== "settings") ||
+      !["general", "trash", "changelog"].includes(parsed.settingsPanel || "") ||
+      !["lore", "recent", "types"].includes(parsed.sidebarPanel || "") ||
+      typeof parsed.sidebarVisible !== "boolean") return null;
+    return {
+      selectedId: typeof parsed.selectedId === "string" ? parsed.selectedId : null,
+      view: parsed.view,
+      projectTab: parsed.projectTab,
+      settingsPanel: parsed.settingsPanel as WorkspaceLocation["settingsPanel"],
+      sidebarPanel: parsed.sidebarPanel as WorkspaceLocation["sidebarPanel"],
+      sidebarVisible: parsed.sidebarVisible,
+    };
+  } catch {
+    return null;
+  }
 }
 
 export default function AppWorkspace({
@@ -53,13 +84,17 @@ export default function AppWorkspace({
   }: AppWorkspaceProps) {
   const { t } = useLocale();
   const colorStorageKey = `hisfuture.project.color.${projectKey}`;
+  const locationStorageKey = `hisfuture.project.location.${projectKey}`;
   const timeFormatStorageKey = "hisfuture.settings.time-format";
   const trashViewStorageKey = `hisfuture.settings.trash-view.${projectKey}`;
-  const [defaultNodeType, setDefaultNodeType] = useState<BaseNodeType>("pagina");
+  const [defaultNodeType, setDefaultNodeType] = useState<BaseNodeType>(() => readDefaultNodeType(projectKey));
   const [timeFormat, setTimeFormat] = useState<TimeFormat>(() =>
     localStorage.getItem(timeFormatStorageKey) === "24h" ? "24h" : "12h",
   );
   const workspace = useTreeController(defaultNodeType, projectKey, projectName);
+  useEffect(() => {
+    safeLocalStorageSet(`hisfuture.settings.default-node-type.${projectKey}`, defaultNodeType);
+  }, [defaultNodeType, projectKey]);
   useEffect(() => () => {
     const started = performance.now();
     const traceId = getActiveCloseProjectTraceId();
@@ -79,9 +114,9 @@ export default function AppWorkspace({
     };
   }, [projectKey, workspace.hydrated]);
   const { width, startResize } = useSidebarResize();
-  const [sidebarVisible, setSidebarVisible] = useState(true);
+  const [sidebarVisible, setSidebarVisible] = useState(() => readWorkspaceLocation(locationStorageKey)?.sidebarVisible ?? true);
   const [sidebarPanel, setSidebarPanel] = useState<"lore" | "recent" | "types">(
-    "lore",
+    () => readWorkspaceLocation(locationStorageKey)?.sidebarPanel ?? "lore",
   );
   const [sidebarSearchOpen, setSidebarSearchOpen] = useState(false);
   const [sidebarQuery, setSidebarQuery] = useState("");
@@ -96,12 +131,12 @@ export default function AppWorkspace({
   const [loreAddOpen, setLoreAddOpen] = useState(false);
   const sidebarSearchRef = useRef<HTMLInputElement | null>(null);
   const sidebarImageInputRef = useRef<HTMLInputElement | null>(null);
-  const [view, setView] = useState("list");
+  const [view, setView] = useState<"list" | "graph">(() => readWorkspaceLocation(locationStorageKey)?.view ?? "list");
   const [projectTab, setProjectTab] = useState<"workspace" | "settings">(
-    "workspace",
+    () => readWorkspaceLocation(locationStorageKey)?.projectTab ?? "workspace",
   );
   const [settingsPanel, setSettingsPanel] = useState<"general" | "trash" | "changelog">(
-    "general",
+    () => readWorkspaceLocation(locationStorageKey)?.settingsPanel ?? "general",
   );
   const [appVersion, setAppVersion] = useState<string | null>(null);
   const [trashView, setTrashView] = useState<"gallery" | "list">(() =>
@@ -116,6 +151,29 @@ export default function AppWorkspace({
       localStorage.getItem(colorStorageKey) ||
       AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)],
   );
+  const locationRestoredRef = useRef(false);
+
+  useEffect(() => {
+    if (!workspace.hydrated || locationRestoredRef.current) return;
+    locationRestoredRef.current = true;
+    const location = readWorkspaceLocation(locationStorageKey);
+    if (location?.selectedId && workspace.nodes.some((node) => node.id === location.selectedId)) {
+      workspace.setSelectedId(location.selectedId);
+      setSelectedLoreIds([location.selectedId]);
+    }
+  }, [locationStorageKey, workspace.hydrated, workspace.nodes, workspace.setSelectedId]);
+
+  useEffect(() => {
+    if (!workspace.hydrated || !locationRestoredRef.current) return;
+    safeLocalStorageSet(locationStorageKey, JSON.stringify({
+      selectedId: workspace.selectedId,
+      view,
+      projectTab,
+      settingsPanel,
+      sidebarPanel,
+      sidebarVisible,
+    } satisfies WorkspaceLocation));
+  }, [locationStorageKey, projectTab, settingsPanel, sidebarPanel, sidebarVisible, view, workspace.hydrated, workspace.selectedId]);
 
   useEffect(() => {
     safeLocalStorageSet(colorStorageKey, avatarColor);
@@ -251,7 +309,7 @@ export default function AppWorkspace({
     if (existing) return existing;
     const parentId = selectedNode?.parentId ?? null;
     const defaultContent = getNodeDefinition(defaultNodeType).defaultContent;
-    const id = workspace.createNode(name, defaultNodeType, parentId, defaultContent, false);
+    const id = workspace.createNode(name, defaultNodeType, parentId, undefined, false);
     return {
       id,
       name,
@@ -341,7 +399,7 @@ export default function AppWorkspace({
       >
         <div className="workspace-header__left">
           <div className="workspace-header__views">
-            {["list", "graph"].map((option) => (
+            {(["list", "graph"] as const).map((option) => (
               <button
                 key={option}
                 type="button"
@@ -569,10 +627,16 @@ export default function AppWorkspace({
           }}
           onSetPrimary={(id) => workspace.mutateNodes((nodes) => assignVaultPrimaryNode(nodes, id))}
           removeCount={selectedLoreIds.includes(contextMenu.nodeId ?? "") ? selectedLoreIds.length : 1}
-          canDelete={!contextMenu.nodeId || workspace.canDeleteNode(contextMenu.nodeId)}
+          canSetPrimary={contextMenu.context !== "lore" || selectedLoreIds.length <= 1}
+          canDelete={!contextMenu.nodeId || (contextMenu.context === "lore" && selectedLoreIds.includes(contextMenu.nodeId)
+            ? selectedLoreIds.some((id) => workspace.canDeleteNode(id))
+            : workspace.canDeleteNode(contextMenu.nodeId))}
           onDelete={(id) => {
-            workspace.deleteNode(id);
-            setSelectedLoreIds((current) => current.filter((selectedId) => selectedId !== id));
+            const ids = contextMenu.context === "lore" && selectedLoreIds.includes(id)
+              ? selectedLoreIds
+              : [id];
+            workspace.deleteNodes(ids);
+            setSelectedLoreIds((current) => current.filter((selectedId) => !ids.includes(selectedId)));
           }}
           onRemoveFromLore={(id) => {
             workspace.removeFromLore(selectedLoreIds.includes(id) ? selectedLoreIds : [id]);

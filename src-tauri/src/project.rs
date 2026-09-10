@@ -23,6 +23,7 @@ pub const MANIFEST_FILE: &str = "hisfuture.project.json";
 pub const DATABASE_FILE: &str = "lore.sqlite";
 const ARCHIVE_DIRTY_FILE: &str = ".hisfuture-archive-dirty";
 const ARCHIVE_STAMP_FILE: &str = ".hisfuture-source-stamp";
+const LEGACY_NODE_TYPE_IDS_KEY: &str = "legacy_node_type_ids";
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectInfo {
@@ -322,6 +323,55 @@ fn repair_links_foreign_key(db: &mut Connection) -> Result<(), String> {
     result
 }
 
+fn node_type_column_is_required(db: &Connection) -> Result<bool, String> {
+    db.query_row(
+        "SELECT EXISTS(SELECT 1 FROM pragma_table_info('nodes') WHERE name = 'type' AND \"notnull\" = 1)",
+        [],
+        |row| row.get(0),
+    )
+    .map_err(|err| format!("No se pudo comprobar la columna de tipo de nodos: {err}"))
+}
+
+fn legacy_node_ids_without_type(db: &Connection) -> Result<Vec<String>, String> {
+    let has_type: bool = db
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM pragma_table_info('nodes') WHERE name = 'type')",
+            [],
+            |row| row.get(0),
+        )
+        .map_err(|err| format!("No se pudo comprobar la columna de tipo de nodos: {err}"))?;
+    let query = if has_type {
+        "SELECT id FROM nodes WHERE type IS NULL OR trim(type) = ''"
+    } else {
+        "SELECT id FROM nodes"
+    };
+    let mut statement = db
+        .prepare(query)
+        .map_err(|err| format!("No se pudieron localizar Nodos antiguos: {err}"))?;
+    let ids = statement
+        .query_map([], |row| row.get(0))
+        .map_err(|err| format!("No se pudieron leer Nodos antiguos: {err}"))?
+        .collect::<Result<Vec<String>, _>>()
+        .map_err(|err| format!("No se pudo leer la identidad de un Nodo antiguo: {err}"))?;
+    Ok(ids)
+}
+
+fn read_legacy_node_type_ids(db: &Connection) -> Result<HashSet<String>, String> {
+    let raw: Option<String> = db
+        .query_row(
+            "SELECT value FROM project_meta WHERE key = ?1",
+            [LEGACY_NODE_TYPE_IDS_KEY],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|err| format!("No se pudo leer la compatibilidad de Nodos antiguos: {err}"))?;
+    Ok(raw
+        .and_then(|value| serde_json::from_str::<Vec<String>>(&value).ok())
+        .unwrap_or_default()
+        .into_iter()
+        .collect())
+}
+
 fn init_database(path: &Path) -> Result<(Connection, bool), String> {
     let mut db = Connection::open(path).map_err(|err| format!("No se pudo abrir SQLite: {err}"))?;
     let changes_before = db.total_changes();
@@ -363,13 +413,26 @@ fn init_database(path: &Path) -> Result<(Connection, bool), String> {
             |row| row.get(0),
         )
         .map_err(|err| format!("No se pudo comprobar el esquema de nodos: {err}"))?;
-    if !schema_matches_registry(&schema) {
+    let legacy_ids = legacy_node_ids_without_type(&db)?;
+    if !schema_matches_registry(&schema) || !node_type_column_is_required(&db)? {
+        let has_type: bool = db
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM pragma_table_info('nodes') WHERE name = 'type')",
+                [],
+                |row| row.get(0),
+            )
+            .map_err(|err| format!("No se pudo comprobar la columna de tipo de nodos: {err}"))?;
+        let type_expression = if has_type {
+            "COALESCE(NULLIF(trim(type), ''), 'pagina')"
+        } else {
+            "'pagina'"
+        };
         let migration = format!(
             "PRAGMA foreign_keys = OFF;
              BEGIN;
              {}
              INSERT INTO nodes_new (id, name, type, parent_id, sort_order, content)
-                 SELECT id, name, type, parent_id, sort_order, content FROM nodes;
+                 SELECT id, name, {type_expression}, parent_id, sort_order, content FROM nodes;
              DROP TABLE nodes;
              ALTER TABLE nodes_new RENAME TO nodes;
              COMMIT;
@@ -378,6 +441,17 @@ fn init_database(path: &Path) -> Result<(Connection, bool), String> {
         );
         db.execute_batch(&migration)
             .map_err(|err| format!("No se pudo actualizar el esquema de nodos: {err}"))?;
+    }
+    if !legacy_ids.is_empty() {
+        db.execute(
+            "INSERT INTO project_meta (key, value) VALUES (?1, ?2)
+             ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+            params![
+                LEGACY_NODE_TYPE_IDS_KEY,
+                serde_json::to_string(&legacy_ids).expect("string IDs")
+            ],
+        )
+        .map_err(|err| format!("No se pudo guardar la compatibilidad de Nodos antiguos: {err}"))?;
     }
     repair_links_foreign_key(&mut db)?;
     let broken: bool = db
@@ -1144,10 +1218,42 @@ pub fn close_project(state: &ProjectState) -> Result<(), String> {
 }
 
 pub fn list_nodes(state: &ProjectState) -> Result<Vec<NodeRecord>, String> {
-    let guard = state
+    list_nodes_with_default(state, None)
+}
+
+pub fn list_nodes_with_default(
+    state: &ProjectState,
+    default_node_type: Option<&str>,
+) -> Result<Vec<NodeRecord>, String> {
+    let mut guard = state
         .lock()
         .map_err(|_| "No se pudo bloquear el estado del proyecto.".to_string())?;
-    let project = guard.as_ref().ok_or("No hay un proyecto abierto.")?;
+    let project = guard.as_mut().ok_or("No hay un proyecto abierto.")?;
+    let legacy_ids = read_legacy_node_type_ids(&project.db)?;
+    if !legacy_ids.is_empty() {
+        let fallback = default_node_type
+            .filter(|node_type| is_persisted_node_type(node_type))
+            .unwrap_or("pagina");
+        let tx = project.db.transaction().map_err(|err| {
+            format!("No se pudo iniciar la compatibilidad de Nodos antiguos: {err}")
+        })?;
+        for id in &legacy_ids {
+            tx.execute(
+                "UPDATE nodes SET type = ?1 WHERE id = ?2",
+                params![fallback, id],
+            )
+            .map_err(|err| format!("No se pudo asignar tipo al Nodo antiguo {id}: {err}"))?;
+        }
+        tx.execute(
+            "DELETE FROM project_meta WHERE key = ?1",
+            [LEGACY_NODE_TYPE_IDS_KEY],
+        )
+        .map_err(|err| format!("No se pudo cerrar la compatibilidad de Nodos antiguos: {err}"))?;
+        tx.commit().map_err(|err| {
+            format!("No se pudo confirmar la compatibilidad de Nodos antiguos: {err}")
+        })?;
+        project.archive_dirty = true;
+    }
     let mut stmt = project
         .db
         .prepare(
@@ -2208,6 +2314,59 @@ mod tests {
             .expect("count nodes");
         assert_eq!(count, 5);
         drop(migrated);
+        fs::remove_dir_all(root).expect("test cleanup");
+    }
+
+    #[test]
+    fn assigns_configured_default_type_to_legacy_nodes_without_type() {
+        let root = test_root("legacy-node-type");
+        fs::create_dir_all(&root).expect("test root");
+        write_manifest(&root, "Legacy nodes").expect("manifest");
+        let database = root.join(DATABASE_FILE);
+        let legacy = Connection::open(&database).expect("legacy database");
+        legacy
+            .execute_batch(
+                "CREATE TABLE project_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+                 CREATE TABLE nodes (
+                   id TEXT PRIMARY KEY,
+                   name TEXT NOT NULL,
+                   parent_id TEXT,
+                   sort_order INTEGER NOT NULL DEFAULT 0,
+                   content TEXT NOT NULL DEFAULT '<p><br></p>'
+                 );
+                 CREATE TABLE links (
+                   from_node_id TEXT NOT NULL,
+                   to_node_id TEXT NOT NULL,
+                   PRIMARY KEY (from_node_id, to_node_id)
+                 );
+                 INSERT INTO nodes (id, name, content) VALUES ('old-page', 'Old page', '<p>Keep me</p>');",
+            )
+            .expect("create legacy schema without type");
+        drop(legacy);
+
+        let opened = open_folder(&root).expect("open legacy project");
+        let state = Mutex::new(Some(opened));
+        let loaded = list_nodes_with_default(&state, Some("curso")).expect("load legacy nodes");
+        let old_page = loaded
+            .iter()
+            .find(|node| node.id == "old-page")
+            .expect("old page");
+        assert_eq!(old_page.node_type, "curso");
+        assert_eq!(old_page.content, "<p>Keep me</p>");
+        close_project(&state).expect("close legacy project");
+
+        let reopened = open_folder(&root).expect("reopen legacy project");
+        let reopened_state = Mutex::new(Some(reopened));
+        let persisted = list_nodes(&reopened_state).expect("read assigned type");
+        assert_eq!(
+            persisted
+                .iter()
+                .find(|node| node.id == "old-page")
+                .unwrap()
+                .node_type,
+            "curso"
+        );
+        close_project(&reopened_state).expect("close reopened legacy project");
         fs::remove_dir_all(root).expect("test cleanup");
     }
 

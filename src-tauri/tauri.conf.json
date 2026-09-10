@@ -14,6 +14,7 @@
     "windows": [
       {
         "title": "H.I.S. Future",
+        "backgroundColor": "#121417",
         "width": 1100,
         "height": 720,
         "minWidth": 960,

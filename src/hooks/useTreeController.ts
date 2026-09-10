@@ -14,7 +14,7 @@ export function useTreeController(
   projectKey?: string,
   projectName = "",
 ) {
-  const store = useNodeStore(projectKey, projectName);
+  const store = useNodeStore(projectKey, projectName, defaultNodeType);
   const [creating, setCreating] = useState<CreatingState | null>(null);
   const [draftName, setDraftName] = useState("");
   const [draftType, setDraftType] = useState<BaseNodeType>("pagina");
@@ -110,6 +110,7 @@ export function useTreeController(
   };
 
   const deleteNode = (id: string) => store.deleteNode(id);
+  const deleteNodes = (ids: string[]) => store.deleteNodes(ids);
 
   const handleDrop = (
     targetId: string | null,
@@ -153,6 +154,7 @@ export function useTreeController(
     startRename,
     confirmRename,
     deleteNode,
+    deleteNodes,
     handleDrop,
     resetDrag,
     dropTargetRef,

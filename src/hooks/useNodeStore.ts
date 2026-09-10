@@ -30,7 +30,7 @@ interface NodePersistenceRequest {
   version: number;
 }
 
-export function useNodeStore(projectKey?: string, projectName = "") {
+export function useNodeStore(projectKey?: string, projectName = "", defaultNodeType: BaseNodeType = "pagina") {
   const { t } = useLocale();
   const trashKey = projectKey ? `hisfuture.project.trash.${projectKey}` : null;
   const recentKey = projectKey ? `hisfuture.project.recent-nodes.${projectKey}` : null;
@@ -66,6 +66,7 @@ export function useNodeStore(projectKey?: string, projectName = "") {
   const persistedVersionRef = useRef(0);
   const enqueuedVersionRef = useRef(0);
   const persistenceQueueRef = useRef<PersistenceQueue<NodePersistenceRequest> | null>(null);
+  const initialDefaultNodeTypeRef = useRef(defaultNodeType);
   if (!persistenceQueueRef.current) {
     persistenceQueueRef.current = new PersistenceQueue(async (request) => {
       const toSave = sortNodesForPersistence(sanitizeParentIds(request.nodes));
@@ -109,7 +110,7 @@ export function useNodeStore(projectKey?: string, projectName = "") {
     let cancelled = false;
     const load = async () => {
       try {
-        const [stored, trash] = await Promise.all([listNodes(), loadDeletedNodes()]);
+        const [stored, trash] = await Promise.all([listNodes(initialDefaultNodeTypeRef.current), loadDeletedNodes()]);
         if (cancelled) return;
         persistedVersionRef.current = changeVersionRef.current;
         const previousTrash = trash ?? deletedNodesRef.current.filter((node) => !stored.some((active) => active.id === node.id));
@@ -277,11 +278,9 @@ export function useNodeStore(projectKey?: string, projectName = "") {
         item.id === id ? applyNodeRename(item, nextName) : item,
       ));
     });
-  const deleteNode = (id: string) => {
+  const deleteNodes = (selectedIds: string[]) => {
     setNodes((current) => {
-      const target = current.find((node) => node.id === id);
-      if (target && isVaultPrimaryNode(target)) return current;
-      const ids = courseAwareDeletionIds(current, [id]);
+      const ids = courseAwareDeletionIds(current, selectedIds);
       for (const node of current) if (ids.has(node.id) && isVaultPrimaryNode(node)) ids.delete(node.id);
       const removed = current.filter((node) => ids.has(node.id));
       if (!removed.length) return current;
@@ -297,6 +296,7 @@ export function useNodeStore(projectKey?: string, projectName = "") {
       return current.filter((node) => !ids.has(node.id)).map((node) => node.parentId && ids.has(node.parentId) ? { ...node, parentId: null } : node);
     });
   };
+  const deleteNode = (id: string) => deleteNodes([id]);
   const changeLoreMembership = (ids: string[], visible: boolean) => {
     setNodes((current) => {
       const next = setLoreMembership(current, ids, visible);
@@ -415,6 +415,7 @@ export function useNodeStore(projectKey?: string, projectName = "") {
     createNode,
     renameNode,
     deleteNode,
+    deleteNodes,
     canDeleteNode: (id: string) => {
       const node = nodes.find((item) => item.id === id);
       return Boolean(node && !isVaultPrimaryNode(node) && courseAwareDeletionIds(nodes, [id]).has(id));

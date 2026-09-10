@@ -16,6 +16,15 @@ import { APP_WINDOW_TITLE } from "./utils/appEnvironment";
 import { isDesktopRuntime } from "./project/runtime";
 import { AppLifecycleProvider, useAppLifecycle } from "./lifecycle/AppLifecycle";
 import { invoke } from "@tauri-apps/api/core";
+import progressActivityAsset from "./assets/third-party/google-material/icons/progress_activity.svg";
+
+function AppLoadingScreen() {
+  return (
+    <div className="app-loading-screen" role="status" aria-label="Cargando H.I.S. Future">
+      <img className="app-loading-screen__icon" src={progressActivityAsset} alt="" />
+    </div>
+  );
+}
 
 function AppContent() {
   const session = useProjectSession();
@@ -54,6 +63,8 @@ function AppContent() {
       clearPresence();
     };
   }, [session.project]);
+
+  if (session.initializing) return <AppLoadingScreen />;
 
   return (
     <>

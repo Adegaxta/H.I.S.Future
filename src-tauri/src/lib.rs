@@ -180,8 +180,14 @@ fn archive_sync_status(
 }
 
 #[tauri::command]
-fn list_nodes(state: tauri::State<ProjectState>) -> Result<Vec<NodeRecord>, String> {
-    project::list_nodes(&state)
+fn list_nodes(
+    default_node_type: Option<String>,
+    state: tauri::State<ProjectState>,
+) -> Result<Vec<NodeRecord>, String> {
+    match default_node_type.as_deref() {
+        Some(node_type) => project::list_nodes_with_default(&state, Some(node_type)),
+        None => project::list_nodes(&state),
+    }
 }
 
 #[tauri::command]
