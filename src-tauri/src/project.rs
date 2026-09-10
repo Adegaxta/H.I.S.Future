@@ -1,3 +1,4 @@
+use crate::archive_sync::{ArchiveSyncJob, ArchiveSyncManager};
 use crate::persistence::{
     is_persisted_node_type, nodes_table_sql, project_resource_definition, resource_id_from_content,
     schema_matches_registry, validate_project_resource, CURRENT_NODAL_SCHEMA_VERSION, LINKS_SCHEMA,
@@ -5,9 +6,10 @@ use crate::persistence::{
 };
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
+use std::collections::{hash_map::DefaultHasher, HashSet};
 use std::fs;
-use std::io::Write;
+use std::hash::{Hash, Hasher};
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
@@ -19,6 +21,8 @@ const PROJECT_ICON_NAME: &str = "his-file.ico";
 
 pub const MANIFEST_FILE: &str = "hisfuture.project.json";
 pub const DATABASE_FILE: &str = "lore.sqlite";
+const ARCHIVE_DIRTY_FILE: &str = ".hisfuture-archive-dirty";
+const ARCHIVE_STAMP_FILE: &str = ".hisfuture-source-stamp";
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectInfo {
@@ -58,6 +62,145 @@ pub struct OpenProject {
 
 pub type ProjectState = Mutex<Option<OpenProject>>;
 
+fn content_has_vault_primary_role(content: &str) -> bool {
+    const PREFIX: &str = "<!--hisfuture-nodal-meta:";
+    let Some(start) = content.find(PREFIX).map(|index| index + PREFIX.len()) else {
+        return false;
+    };
+    let Some(end) = content[start..].find("-->").map(|index| start + index) else {
+        return false;
+    };
+    serde_json::from_str::<serde_json::Value>(&content[start..end])
+        .ok()
+        .and_then(|value| {
+            value
+                .get("role")
+                .and_then(|role| role.as_str())
+                .map(str::to_owned)
+        })
+        .as_deref()
+        == Some("vault-primary")
+}
+
+fn is_vault_primary_node(node: &NodeRecord) -> bool {
+    node.node_type == "proyecto" && content_has_vault_primary_role(&node.content)
+}
+
+fn database_has_vault_primary(db: &Connection) -> Result<bool, String> {
+    let mut statement = db
+        .prepare("SELECT content FROM nodes WHERE type = 'proyecto'")
+        .map_err(|err| format!("No se pudo comprobar el Proyecto principal: {err}"))?;
+    let rows = statement
+        .query_map([], |row| row.get::<_, String>(0))
+        .map_err(|err| format!("No se pudo leer el Proyecto principal: {err}"))?;
+    for content in rows {
+        if content_has_vault_primary_role(&content.map_err(|err| err.to_string())?) {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
+fn reconcile_vault_primary(db: &mut Connection, vault_name: &str) -> Result<bool, String> {
+    let tx = db.transaction().map_err(|err| {
+        format!("No se pudo iniciar la reconciliación del Proyecto principal: {err}")
+    })?;
+    let mut statement = tx
+        .prepare("SELECT id, name, type, parent_id, sort_order, content FROM nodes ORDER BY sort_order, id")
+        .map_err(|err| format!("No se pudo comprobar el Proyecto principal: {err}"))?;
+    let rows = statement
+        .query_map([], |row| {
+            Ok(NodeRecord {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                node_type: row.get(2)?,
+                parent_id: row.get(3)?,
+                order: row.get(4)?,
+                content: row.get(5)?,
+            })
+        })
+        .map_err(|err| format!("No se pudo leer el Proyecto principal: {err}"))?;
+    let nodes = rows
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|err| err.to_string())?;
+    drop(statement);
+    let primaries = nodes
+        .iter()
+        .filter(|node| is_vault_primary_node(node))
+        .collect::<Vec<_>>();
+    if primaries.is_empty() {
+        let existing_ids = nodes
+            .iter()
+            .map(|node| node.id.as_str())
+            .collect::<HashSet<_>>();
+        let mut suffix = 0usize;
+        let id = loop {
+            let candidate = if suffix == 0 {
+                "vault-primary".to_string()
+            } else {
+                format!("vault-primary-{suffix}")
+            };
+            if !existing_ids.contains(candidate.as_str()) {
+                break candidate;
+            }
+            suffix += 1;
+        };
+        let order = nodes
+            .iter()
+            .filter(|node| node.parent_id.is_none())
+            .map(|node| node.order)
+            .max()
+            .unwrap_or(-1)
+            + 1;
+        let content =
+            "<!--hisfuture-nodal-meta:{\"version\":1,\"role\":\"vault-primary\"}--><p><br></p>";
+        let primary_name = if vault_name.trim().is_empty() {
+            "Principal"
+        } else {
+            vault_name.trim()
+        };
+        tx.execute(
+            "INSERT INTO nodes (id, name, type, parent_id, sort_order, content) VALUES (?1, ?2, 'proyecto', NULL, ?3, ?4)",
+            params![id, primary_name, order, content],
+        ).map_err(|err| format!("No se pudo crear el Proyecto principal: {err}"))?;
+        tx.commit()
+            .map_err(|err| format!("No se pudo confirmar el Proyecto principal: {err}"))?;
+        return Ok(true);
+    }
+    let mut changed = false;
+    for duplicate in primaries.iter().skip(1) {
+        const PREFIX: &str = "<!--hisfuture-nodal-meta:";
+        let start = duplicate.content.find(PREFIX).unwrap() + PREFIX.len();
+        let end = duplicate.content[start..].find("-->").unwrap() + start;
+        let mut metadata =
+            serde_json::from_str::<serde_json::Value>(&duplicate.content[start..end])
+                .unwrap_or_default();
+        if let Some(object) = metadata.as_object_mut() {
+            object.insert("role".into(), serde_json::Value::Null);
+        }
+        let replacement = format!(
+            "{PREFIX}{}-->",
+            serde_json::to_string(&metadata).map_err(|err| err.to_string())?
+        );
+        let content = format!(
+            "{}{}{}",
+            &duplicate.content[..start - PREFIX.len()],
+            replacement,
+            &duplicate.content[end + 3..]
+        );
+        tx.execute(
+            "UPDATE nodes SET content = ?1 WHERE id = ?2",
+            params![content, duplicate.id],
+        )
+        .map_err(|err| format!("No se pudo reconciliar el Proyecto principal: {err}"))?;
+        changed = true;
+    }
+    tx.commit().map_err(|err| {
+        format!("No se pudo confirmar la reconciliación del Proyecto principal: {err}")
+    })?;
+    Ok(changed)
+}
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SaveWorkspaceTimings {
@@ -76,6 +219,7 @@ pub struct CloseProjectTimings {
     pub working_directory_cleanup_ms: f64,
     pub total_ms: f64,
     pub packaged: bool,
+    pub archive_queued: bool,
 }
 
 fn now_iso() -> String {
@@ -308,7 +452,146 @@ fn temporary_project_folder() -> Result<PathBuf, String> {
     }
 }
 
-fn zip_directory(folder: &Path, archive_path: &Path) -> Result<(), String> {
+fn working_state_root(archive_path: &Path) -> PathBuf {
+    #[cfg(test)]
+    {
+        archive_path
+            .parent()
+            .unwrap_or_else(|| Path::new("."))
+            .join(".hisfuture-working")
+    }
+    #[cfg(not(test))]
+    {
+        if let Some(root) = std::env::var_os("LOCALAPPDATA") {
+            return PathBuf::from(root).join("H.I.S. Future").join("working-v1");
+        }
+        if let Some(root) = std::env::var_os("XDG_DATA_HOME") {
+            return PathBuf::from(root).join("hisfuture").join("working-v1");
+        }
+        if let Some(root) = std::env::var_os("HOME") {
+            return PathBuf::from(root)
+                .join(".local")
+                .join("share")
+                .join("hisfuture")
+                .join("working-v1");
+        }
+        archive_path
+            .parent()
+            .unwrap_or_else(|| Path::new("."))
+            .join(".hisfuture-working")
+    }
+}
+
+fn durable_working_folder(archive_path: &Path) -> PathBuf {
+    let key = archive_path
+        .canonicalize()
+        .unwrap_or_else(|_| archive_path.to_path_buf())
+        .to_string_lossy()
+        .to_ascii_lowercase();
+    let mut hasher = DefaultHasher::new();
+    key.hash(&mut hasher);
+    let stem = archive_path
+        .file_stem()
+        .and_then(|value| value.to_str())
+        .unwrap_or("vault")
+        .chars()
+        .map(|character| {
+            if character.is_ascii_alphanumeric() || matches!(character, '-' | '_') {
+                character
+            } else {
+                '_'
+            }
+        })
+        .take(48)
+        .collect::<String>();
+    working_state_root(archive_path).join(format!("{stem}-{:016x}", hasher.finish()))
+}
+
+fn archive_stamp(archive_path: &Path) -> Result<String, String> {
+    let metadata = fs::metadata(archive_path)
+        .map_err(|error| format!("No se pudo inspeccionar el archivo .his: {error}"))?;
+    let modified = metadata
+        .modified()
+        .ok()
+        .and_then(|time| time.duration_since(UNIX_EPOCH).ok())
+        .map(|duration| duration.as_nanos())
+        .unwrap_or_default();
+    Ok(format!("{}:{modified}", metadata.len()))
+}
+
+fn write_synced_file(path: &Path, bytes: &[u8]) -> Result<(), String> {
+    let parent = path.parent().ok_or("Ruta durable inválida.")?;
+    fs::create_dir_all(parent)
+        .map_err(|error| format!("No se pudo crear el estado durable: {error}"))?;
+    let temporary = parent.join(format!(
+        ".{}.tmp",
+        path.file_name()
+            .and_then(|value| value.to_str())
+            .unwrap_or("state")
+    ));
+    let mut file = fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .open(&temporary)
+        .map_err(|error| format!("No se pudo preparar el estado durable: {error}"))?;
+    file.write_all(bytes)
+        .and_then(|_| file.sync_all())
+        .map_err(|error| format!("No se pudo sincronizar el estado durable: {error}"))?;
+    if path.exists() {
+        fs::remove_file(path)
+            .map_err(|error| format!("No se pudo actualizar el estado durable: {error}"))?;
+    }
+    fs::rename(&temporary, path)
+        .map_err(|error| format!("No se pudo confirmar el estado durable: {error}"))
+}
+
+fn mark_archive_dirty(project: &mut OpenProject) -> Result<(), String> {
+    if project.archive_path.is_some() {
+        let marker = project.working_folder.join(ARCHIVE_DIRTY_FILE);
+        if !marker.is_file() {
+            write_synced_file(&marker, b"dirty\n")?;
+        }
+    }
+    project.archive_dirty = true;
+    Ok(())
+}
+
+fn clear_speculative_archive_dirty(project: &mut OpenProject) -> Result<(), String> {
+    let marker = project.working_folder.join(ARCHIVE_DIRTY_FILE);
+    if marker.exists() {
+        fs::remove_file(marker)
+            .map_err(|error| format!("No se pudo restaurar el estado limpio del .his: {error}"))?;
+    }
+    project.archive_dirty = false;
+    Ok(())
+}
+
+fn mark_working_folder_clean(working_folder: &Path, archive_path: &Path) -> Result<(), String> {
+    let stamp = archive_stamp(archive_path)?;
+    write_synced_file(&working_folder.join(ARCHIVE_STAMP_FILE), stamp.as_bytes())?;
+    let dirty = working_folder.join(ARCHIVE_DIRTY_FILE);
+    if dirty.exists() {
+        fs::remove_file(dirty).map_err(|error| {
+            format!("El .his se actualizó, pero no se pudo marcar limpio: {error}")
+        })?;
+    }
+    Ok(())
+}
+
+fn reusable_working_folder(archive_path: &Path, folder: &Path) -> bool {
+    if !folder.join(MANIFEST_FILE).is_file() || !folder.join(DATABASE_FILE).is_file() {
+        return false;
+    }
+    if folder.join(ARCHIVE_DIRTY_FILE).is_file() {
+        return true;
+    }
+    let stored = fs::read_to_string(folder.join(ARCHIVE_STAMP_FILE)).ok();
+    let current = archive_stamp(archive_path).ok();
+    stored.as_deref() == current.as_deref() && current.is_some()
+}
+
+pub(crate) fn zip_directory(folder: &Path, archive_path: &Path) -> Result<(), String> {
     let suffix = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
@@ -321,13 +604,77 @@ fn zip_directory(folder: &Path, archive_path: &Path) -> Result<(), String> {
             .open(&temporary)
             .map_err(|err| format!("No se pudo preparar el archivo .his: {err}"))?;
         write_archive(folder, file)?;
-        fs::rename(&temporary, archive_path)
-            .map_err(|err| format!("No se pudo reemplazar el .his; se conserva el original: {err}"))
+        validate_archive_file(&temporary)?;
+        replace_archive(&temporary, archive_path)?;
+        mark_working_folder_clean(folder, archive_path)
     })();
     if result.is_err() {
         let _ = fs::remove_file(&temporary);
     }
     result
+}
+
+fn validate_archive_file(path: &Path) -> Result<(), String> {
+    let file = fs::File::open(path)
+        .map_err(|error| format!("No se pudo validar el nuevo .his: {error}"))?;
+    let mut archive = ZipArchive::new(file)
+        .map_err(|error| format!("El nuevo .his no es un ZIP válido: {error}"))?;
+    for required in [MANIFEST_FILE, DATABASE_FILE] {
+        let mut entry = archive
+            .by_name(required)
+            .map_err(|_| format!("El nuevo .his no contiene {required}."))?;
+        let mut buffer = [0u8; 8192];
+        while entry
+            .read(&mut buffer)
+            .map_err(|error| format!("No se pudo validar {required}: {error}"))?
+            > 0
+        {}
+    }
+    Ok(())
+}
+
+#[cfg(not(windows))]
+fn replace_archive(temporary: &Path, archive_path: &Path) -> Result<(), String> {
+    fs::rename(temporary, archive_path)
+        .map_err(|error| format!("No se pudo reemplazar el .his; se conserva el original: {error}"))
+}
+
+#[cfg(windows)]
+fn replace_archive(temporary: &Path, archive_path: &Path) -> Result<(), String> {
+    if !archive_path.exists() {
+        return fs::rename(temporary, archive_path)
+            .map_err(|error| format!("No se pudo confirmar el nuevo .his: {error}"));
+    }
+    use std::os::windows::ffi::OsStrExt;
+    use windows_sys::Win32::Storage::FileSystem::ReplaceFileW;
+    let replaced = archive_path
+        .as_os_str()
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect::<Vec<_>>();
+    let replacement = temporary
+        .as_os_str()
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect::<Vec<_>>();
+    let result = unsafe {
+        ReplaceFileW(
+            replaced.as_ptr(),
+            replacement.as_ptr(),
+            std::ptr::null(),
+            0,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+        )
+    };
+    if result == 0 {
+        Err(format!(
+            "No se pudo reemplazar el .his; se conserva el original: {}",
+            std::io::Error::last_os_error()
+        ))
+    } else {
+        Ok(())
+    }
 }
 
 fn write_archive(folder: &Path, file: fs::File) -> Result<(), String> {
@@ -349,6 +696,12 @@ fn write_archive(folder: &Path, file: fs::File) -> Result<(), String> {
                 .strip_prefix(folder)
                 .map_err(|err| format!("Ruta de proyecto inválida: {err}"))?;
             let name = relative.to_string_lossy().replace('\\', "/");
+            if matches!(name.as_str(), ARCHIVE_DIRTY_FILE | ARCHIVE_STAMP_FILE)
+                || name == format!("{DATABASE_FILE}-wal")
+                || name == format!("{DATABASE_FILE}-shm")
+            {
+                continue;
+            }
             if !written_entries.insert(name.clone()) {
                 continue;
             }
@@ -482,12 +835,13 @@ pub fn convert_project_folder(
     Ok(archive.to_string_lossy().into_owned())
 }
 
-fn extract_archive(archive_path: &Path) -> Result<PathBuf, String> {
+fn extract_archive_into(archive_path: &Path, folder: &Path) -> Result<(), String> {
     let file = fs::File::open(archive_path)
         .map_err(|err| format!("No se pudo abrir el proyecto .his: {err}"))?;
     let mut archive = ZipArchive::new(file)
         .map_err(|err| format!("El archivo .his no es un contenedor válido: {err}"))?;
-    let folder = temporary_project_folder()?;
+    fs::create_dir_all(folder)
+        .map_err(|error| format!("No se pudo crear el estado de trabajo durable: {error}"))?;
     for index in 0..archive.len() {
         let mut entry = archive
             .by_index(index)
@@ -516,6 +870,26 @@ fn extract_archive(archive_path: &Path) -> Result<PathBuf, String> {
             .map_err(|err| format!("No se pudo crear un archivo extraído del .his: {err}"))?;
         std::io::copy(&mut entry, &mut target)
             .map_err(|err| format!("No se pudo extraer un archivo del .his: {err}"))?;
+    }
+    write_synced_file(
+        &folder.join(ARCHIVE_STAMP_FILE),
+        archive_stamp(archive_path)?.as_bytes(),
+    )?;
+    Ok(())
+}
+
+fn prepare_archive_working_folder(archive_path: &Path) -> Result<PathBuf, String> {
+    let folder = durable_working_folder(archive_path);
+    if reusable_working_folder(archive_path, &folder) {
+        return Ok(folder);
+    }
+    if folder.exists() {
+        fs::remove_dir_all(&folder)
+            .map_err(|error| format!("No se pudo renovar la copia de trabajo obsoleta: {error}"))?;
+    }
+    if let Err(error) = extract_archive_into(archive_path, &folder) {
+        let _ = fs::remove_dir_all(&folder);
+        return Err(error);
     }
     Ok(folder)
 }
@@ -555,13 +929,14 @@ fn open_folder(folder: &Path) -> Result<OpenProject, String> {
             .map(|value| value.to_string_lossy().into_owned())
             .unwrap_or_else(|| "Proyecto".into())
     });
-    let (db, archive_dirty) = init_database(&db_path)?;
+    let (mut db, schema_dirty) = init_database(&db_path)?;
+    let primary_dirty = reconcile_vault_primary(&mut db, &name)?;
     Ok(OpenProject {
         info: project_info(name, folder),
         db,
         archive_path: None,
         working_folder: folder.to_path_buf(),
-        archive_dirty,
+        archive_dirty: schema_dirty || primary_dirty,
     })
 }
 
@@ -580,12 +955,13 @@ pub fn create_project(parent_dir: String, name: String) -> Result<OpenProject, S
     fs::create_dir_all(&folder).map_err(|err| format!("No se pudo crear la carpeta: {err}"))?;
     write_manifest(&folder, name.trim())?;
     let db_path = database_path(&folder);
-    let (db, _) = init_database(&db_path)?;
+    let (mut db, _) = init_database(&db_path)?;
     db.execute(
         "INSERT OR REPLACE INTO project_meta (key, value) VALUES ('name', ?1)",
         params![name.trim()],
     )
     .map_err(|err| format!("No se pudo guardar el nombre en SQLite: {err}"))?;
+    reconcile_vault_primary(&mut db, name.trim())?;
     Ok(OpenProject {
         info: project_info(name.trim().to_string(), &folder),
         db,
@@ -636,7 +1012,7 @@ pub fn create_project_file(archive_path: String, name: String) -> Result<OpenPro
     }
     drop(created);
     remove_temporary_folder(&temporary_root);
-    let working_folder = extract_archive(&archive)?;
+    let working_folder = prepare_archive_working_folder(&archive)?;
     let (db, archive_dirty) = init_database(&working_folder.join(DATABASE_FILE))?;
     Ok(OpenProject {
         info: archive_project_info(project_name, &archive, &working_folder),
@@ -660,7 +1036,7 @@ pub fn open_project_from_path(path: String) -> Result<OpenProject, String> {
             == Some("his")
     {
         let extraction_started = Instant::now();
-        let extracted_root = extract_archive(&selected)?;
+        let extracted_root = prepare_archive_working_folder(&selected)?;
         let extraction_ms = extraction_started.elapsed().as_secs_f64() * 1000.0;
         let sqlite_started = Instant::now();
         let opened = open_folder(&extracted_root)?;
@@ -670,13 +1046,18 @@ pub fn open_project_from_path(path: String) -> Result<OpenProject, String> {
             "[lifecycle] project.open archive_extract={extraction_ms:.2}ms sqlite_init={sqlite_ms:.2}ms total={:.2}ms",
             total_started.elapsed().as_secs_f64() * 1000.0
         );
-        return Ok(OpenProject {
+        let working_dirty = extracted_root.join(ARCHIVE_DIRTY_FILE).is_file();
+        let mut project = OpenProject {
             info: archive_project_info(name, &selected, &extracted_root),
             db: opened.db,
             archive_path: Some(selected),
             working_folder: extracted_root,
-            archive_dirty: opened.archive_dirty,
-        });
+            archive_dirty: opened.archive_dirty || working_dirty,
+        };
+        if opened.archive_dirty {
+            mark_archive_dirty(&mut project)?;
+        }
+        return Ok(project);
     }
     let folder = resolve_project_folder(&selected)?;
     open_folder(&folder)
@@ -694,73 +1075,72 @@ pub fn set_open_project(state: &ProjectState, project: OpenProject) -> Result<Pr
     Ok(info)
 }
 
-pub fn close_project_traced(
+pub fn close_project_background_traced(
     state: &ProjectState,
+    archive_sync: &ArchiveSyncManager,
     trace_id: Option<&str>,
 ) -> Result<CloseProjectTimings, String> {
     let total_started = Instant::now();
     let mut checkpoint_ms = 0.0;
-    let mut archive_ms = 0.0;
-    let mut cleanup_ms = 0.0;
-    let mut packaged = false;
     let mut guard = state
         .lock()
         .map_err(|_| "No se pudo bloquear el estado del proyecto.".to_string())?;
     if let Some(project) = guard.as_ref() {
-        if project.archive_dirty {
-            if let Some(archive_path) = project.archive_path.as_ref() {
-                let checkpoint_started = Instant::now();
-                let (busy, _, _): (i64, i64, i64) = project
-                    .db
-                    .query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |row| {
-                        Ok((row.get(0)?, row.get(1)?, row.get(2)?))
-                    })
-                    .map_err(|err| format!("No se pudo preparar SQLite para empaquetar: {err}"))?;
-                if busy != 0 {
-                    return Err("SQLite está ocupado; el proyecto sigue abierto.".into());
-                }
-                checkpoint_ms = checkpoint_started.elapsed().as_secs_f64() * 1000.0;
-                let archive_started = Instant::now();
-                zip_directory(&project.working_folder, archive_path).map_err(|err| {
-                    format!(
-                        "{err} Copia de trabajo conservada en {}",
-                        project.working_folder.display()
-                    )
-                })?;
-                archive_ms = archive_started.elapsed().as_secs_f64() * 1000.0;
-                packaged = true;
+        if project.archive_dirty && project.archive_path.is_some() {
+            let checkpoint_started = Instant::now();
+            let (busy, _, _): (i64, i64, i64) = project
+                .db
+                .query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |row| {
+                    Ok((row.get(0)?, row.get(1)?, row.get(2)?))
+                })
+                .map_err(|err| format!("No se pudo preparar SQLite para empaquetar: {err}"))?;
+            if busy != 0 {
+                return Err("SQLite está ocupado; el proyecto sigue abierto.".into());
             }
+            checkpoint_ms = checkpoint_started.elapsed().as_secs_f64() * 1000.0;
         }
     }
-    if let Some(project) = guard.take() {
-        let temporary = project
-            .archive_path
-            .is_some()
-            .then(|| project.working_folder.clone());
-        drop(project);
-        if let Some(folder) = temporary {
-            let cleanup_started = Instant::now();
-            remove_temporary_folder(&folder);
-            cleanup_ms = cleanup_started.elapsed().as_secs_f64() * 1000.0;
-        }
+    let project = guard.take();
+    drop(guard);
+    let job = project.as_ref().and_then(|project| {
+        (project.archive_dirty)
+            .then_some(project.archive_path.as_ref())
+            .flatten()
+            .map(|archive_path| ArchiveSyncJob {
+                archive_path: archive_path.clone(),
+                working_folder: project.working_folder.clone(),
+            })
+    });
+    drop(project);
+    let archive_queued = job.is_some();
+    if let Some(job) = job {
+        archive_sync.enqueue(job)?;
     }
     let total_ms = total_started.elapsed().as_secs_f64() * 1000.0;
     eprintln!(
-        "[lifecycle][{}] project.close checkpoint={checkpoint_ms:.2}ms archive={archive_ms:.2}ms working_directory_cleanup={cleanup_ms:.2}ms packaged={packaged} total={total_ms:.2}ms",
+        "[lifecycle][{}] project.close durable_checkpoint={checkpoint_ms:.2}ms archive_queued={archive_queued} home_ready={total_ms:.2}ms",
         trace_id.unwrap_or("no-trace")
     );
     Ok(CloseProjectTimings {
         sqlite_checkpoint_ms: checkpoint_ms,
-        archive_packaging_ms: archive_ms,
-        working_directory_cleanup_ms: cleanup_ms,
+        archive_packaging_ms: 0.0,
+        working_directory_cleanup_ms: 0.0,
         total_ms,
-        packaged,
+        packaged: false,
+        archive_queued,
     })
 }
 
 #[cfg(test)]
 pub fn close_project(state: &ProjectState) -> Result<(), String> {
-    close_project_traced(state, None).map(|_| ())
+    let queue = ArchiveSyncManager::new(
+        std::sync::Arc::new(|job: &ArchiveSyncJob| {
+            zip_directory(&job.working_folder, &job.archive_path)
+        }),
+        std::sync::Arc::new(|_| {}),
+    );
+    close_project_background_traced(state, &queue, None)?;
+    queue.drain()
 }
 
 pub fn list_nodes(state: &ProjectState) -> Result<Vec<NodeRecord>, String> {
@@ -821,6 +1201,14 @@ pub fn save_workspace_traced(
     if ids.len() != nodes.len() || ids.contains("") {
         return Err("El proyecto contiene identidades vacías o duplicadas.".into());
     }
+    if nodes
+        .iter()
+        .filter(|node| is_vault_primary_node(node))
+        .count()
+        > 1
+    {
+        return Err("El proyecto no puede contener más de un Nodo Proyecto principal.".into());
+    }
     if let Some(ref hidden) = hidden_ids {
         if hidden.iter().any(|id| !ids.contains(id.as_str())) {
             return Err("Lore contiene un ID inexistente.".into());
@@ -847,6 +1235,11 @@ pub fn save_workspace_traced(
         }) {
             return Err("La papelera contiene identidades duplicadas o activas.".into());
         }
+        if trash.iter().any(is_vault_primary_node) {
+            return Err(
+                "El Nodo Proyecto principal no puede enviarse a la papelera ni eliminarse.".into(),
+            );
+        }
     }
     // Hierarchy validation deliberately does not reinterpret semantic references.
     let by_id: std::collections::HashMap<_, _> =
@@ -869,6 +1262,10 @@ pub fn save_workspace_traced(
         .lock()
         .map_err(|_| "No se pudo bloquear el estado del proyecto.".to_string())?;
     let project = guard.as_mut().ok_or("No hay un proyecto abierto.")?;
+    let had_primary = database_has_vault_primary(&project.db)?;
+    if has_complete_trash_snapshot && had_primary && !nodes.iter().any(is_vault_primary_node) {
+        return Err("El Nodo Proyecto principal no puede eliminarse.".into());
+    }
     let resources_started = Instant::now();
     let previous_resources = persisted_resource_references(project)?;
     let mut current_resources = resource_references(
@@ -881,6 +1278,12 @@ pub fn save_workspace_traced(
         current_resources.extend(previous_resources.iter().cloned());
     }
     let resources_ms = resources_started.elapsed().as_secs_f64() * 1000.0;
+    // Persist intent before SQLite/resource mutation. A crash can leave an
+    // unnecessary retry marker, never an unmarked newer working state.
+    let was_archive_dirty = project.archive_dirty;
+    if project.archive_path.is_some() {
+        mark_archive_dirty(project)?;
+    }
     let sqlite_started = Instant::now();
     let tx = project
         .db
@@ -934,6 +1337,8 @@ pub fn save_workspace_traced(
     let cleanup_ms = cleanup_started.elapsed().as_secs_f64() * 1000.0;
     if changed_rows > 0 || removed_resources {
         project.archive_dirty = true;
+    } else if !was_archive_dirty && project.archive_path.is_some() {
+        clear_speculative_archive_dirty(project)?;
     }
     let total_ms = total_started.elapsed().as_secs_f64() * 1000.0;
     eprintln!(
@@ -952,10 +1357,15 @@ pub fn save_workspace_traced(
 #[cfg(test)]
 pub fn save_workspace(
     state: &ProjectState,
-    nodes: Vec<NodeRecord>,
+    mut nodes: Vec<NodeRecord>,
     hidden_ids: Option<Vec<String>>,
     deleted_nodes: Option<String>,
 ) -> Result<(), String> {
+    if !nodes.iter().any(is_vault_primary_node) {
+        if let Some(primary) = list_nodes(state)?.into_iter().find(is_vault_primary_node) {
+            nodes.push(primary);
+        }
+    }
     save_workspace_traced(state, nodes, hidden_ids, deleted_nodes, None).map(|_| ())
 }
 
@@ -1063,6 +1473,7 @@ pub fn store_project_resource(
         .lock()
         .map_err(|_| "No se pudo bloquear el estado del proyecto.".to_string())?;
     let project = guard.as_mut().ok_or("No hay un proyecto abierto.")?;
+    mark_archive_dirty(project)?;
     let target = resource_path(project, &kind, &resource_id)?;
     let parent = target
         .parent()
@@ -1070,8 +1481,19 @@ pub fn store_project_resource(
     fs::create_dir_all(parent)
         .map_err(|error| format!("No se pudo preparar la carpeta de recursos: {error}"))?;
     let temporary = parent.join(format!(".{resource_id}.tmp"));
-    fs::write(&temporary, data)
-        .map_err(|error| format!("No se pudo escribir el recurso: {error}"))?;
+    if temporary.exists() {
+        fs::remove_file(&temporary)
+            .map_err(|error| format!("No se pudo limpiar un recurso temporal anterior: {error}"))?;
+    }
+    let mut file = fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&temporary)
+        .map_err(|error| format!("No se pudo preparar el recurso: {error}"))?;
+    file.write_all(&data)
+        .and_then(|_| file.sync_all())
+        .map_err(|error| format!("No se pudo sincronizar el recurso: {error}"))?;
+    drop(file);
     if target.exists() {
         let _ = fs::remove_file(&temporary);
         return Err("Ya existe un recurso con ese identificador.".into());
@@ -1080,8 +1502,7 @@ pub fn store_project_resource(
         let _ = fs::remove_file(&temporary);
         format!("No se pudo confirmar el recurso importado: {error}")
     })?;
-    project.archive_dirty = true;
-    Ok(())
+    mark_archive_dirty(project)
 }
 
 pub fn read_project_resource(
@@ -1119,8 +1540,8 @@ pub fn delete_project_resource(
     if !path.exists() {
         return Ok(());
     }
+    mark_archive_dirty(project)?;
     fs::remove_file(path).map_err(|error| format!("No se pudo eliminar el recurso: {error}"))?;
-    project.archive_dirty = true;
     Ok(())
 }
 
@@ -1156,6 +1577,10 @@ pub fn set_project_setting(state: &ProjectState, key: String, value: String) -> 
         .lock()
         .map_err(|_| "No se pudo bloquear el estado del proyecto.".to_string())?;
     let project = guard.as_mut().ok_or("No hay un proyecto abierto.")?;
+    let was_archive_dirty = project.archive_dirty;
+    if project.archive_path.is_some() {
+        mark_archive_dirty(project)?;
+    }
     let changed = project
         .db
         .execute(
@@ -1167,6 +1592,8 @@ pub fn set_project_setting(state: &ProjectState, key: String, value: String) -> 
         .map_err(|error| format!("No se pudo guardar la configuración del proyecto: {error}"))?;
     if changed > 0 {
         project.archive_dirty = true;
+    } else if !was_archive_dirty && project.archive_path.is_some() {
+        clear_speculative_archive_dirty(project)?;
     }
     Ok(())
 }
@@ -1216,6 +1643,13 @@ mod tests {
             order: 0,
             content: format!("<p>{id}</p>"),
         }
+    }
+
+    fn without_primary(nodes: Vec<NodeRecord>) -> Vec<NodeRecord> {
+        nodes
+            .into_iter()
+            .filter(|node| !is_vault_primary_node(node))
+            .collect()
     }
 
     #[test]
@@ -1293,7 +1727,7 @@ mod tests {
         let mut moved = nodes[0].clone();
         moved.parent_id = None;
         save_nodes(&state, vec![moved.clone()]).unwrap();
-        assert_eq!(list_nodes(&state).unwrap(), vec![moved]);
+        assert_eq!(without_primary(list_nodes(&state).unwrap()), vec![moved]);
         close_project(&state).unwrap();
         fs::remove_dir_all(root).unwrap();
     }
@@ -1308,6 +1742,7 @@ mod tests {
         let definitions = [
             include_str!("../../src/nodes/category/definition.ts"),
             include_str!("../../src/nodes/page/definition.ts"),
+            include_str!("../../src/nodes/project/definition.ts"),
             include_str!("../../src/nodes/image/definition.ts"),
             include_str!("../../src/nodes/calendar/definition.ts"),
             include_str!("../../src/nodes/tempo/definition.ts"),
@@ -1320,6 +1755,7 @@ mod tests {
         let types = [
             "categoria",
             "pagina",
+            "proyecto",
             "imagen",
             "calendario",
             "tempo",
@@ -1338,10 +1774,10 @@ mod tests {
                 node
             })
             .collect();
-        nodes[7].content = "<!--hisfuture-nodal-meta:{\"version\":1,\"relations\":[{\"role\":\"course\",\"targetId\":\"curso\"},{\"role\":\"tempo\",\"targetId\":\"tempo\"}]}--><p>Task</p>".into();
+        nodes[8].content = "<!--hisfuture-nodal-meta:{\"version\":1,\"relations\":[{\"role\":\"course\",\"targetId\":\"curso\"},{\"role\":\"tempo\",\"targetId\":\"tempo\"}]}--><p>Task</p>".into();
         let pdf = b"%PDF-1.4 archive resource".to_vec();
         store_project_resource(&state, "pdf".into(), "resource".into(), pdf.clone()).unwrap();
-        let deleted = nodes.remove(7);
+        let deleted = nodes.remove(8);
         let trash = serde_json::to_string(&vec![deleted.clone()]).unwrap();
         save_workspace(
             &state,
@@ -1354,7 +1790,7 @@ mod tests {
         let reopened = Mutex::new(Some(
             open_project_from_path(path.to_string_lossy().into()).unwrap(),
         ));
-        assert_eq!(list_nodes(&reopened).unwrap(), nodes);
+        assert_eq!(without_primary(list_nodes(&reopened).unwrap()), nodes);
         assert_eq!(
             get_project_setting(&reopened, "deletedNodes".into()).unwrap(),
             Some(trash)
@@ -1381,26 +1817,94 @@ mod tests {
     }
 
     #[test]
-    fn failed_pack_keeps_original_and_open_session_for_retry() {
+    fn failed_pack_keeps_original_and_durable_working_state_for_retry() {
         let root = test_root("failed-pack");
         let path = root.join("Safe.his");
         let project = create_project_file(path.to_string_lossy().into(), "Safe".into()).unwrap();
         let folder = project.working_folder.clone();
         let original = fs::read(&path).unwrap();
-        let missing = folder.with_extension("missing");
         let state = Mutex::new(Some(project));
-        {
-            let mut guard = state.lock().unwrap();
-            let project = guard.as_mut().unwrap();
-            project.archive_dirty = true;
-            project.working_folder = missing;
-        }
-        assert!(close_project(&state).is_err());
-        assert!(state.lock().unwrap().is_some());
+        save_nodes(&state, vec![test_node("durable", "pagina", None)]).unwrap();
+        let failing = ArchiveSyncManager::new(
+            std::sync::Arc::new(|_| Err("simulated replace failure".into())),
+            std::sync::Arc::new(|_| {}),
+        );
+        close_project_background_traced(&state, &failing, None).unwrap();
+        assert!(failing.drain().is_err());
+        assert!(state.lock().unwrap().is_none());
         assert_eq!(fs::read(&path).unwrap(), original);
-        state.lock().unwrap().as_mut().unwrap().working_folder = folder.clone();
-        close_project(&state).unwrap();
-        assert!(!folder.exists());
+        assert!(folder.join(ARCHIVE_DIRTY_FILE).is_file());
+
+        let reopened = Mutex::new(Some(
+            open_project_from_path(path.to_string_lossy().into()).unwrap(),
+        ));
+        assert!(list_nodes(&reopened)
+            .unwrap()
+            .iter()
+            .any(|node| node.id == "durable"));
+        close_project(&reopened).unwrap();
+        assert!(
+            folder.exists(),
+            "working state remains durable after archive sync"
+        );
+        assert!(!folder.join(ARCHIVE_DIRTY_FILE).exists());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn close_returns_after_durable_flush_while_another_vault_opens() {
+        use std::sync::mpsc;
+        use std::time::Duration;
+
+        let root = test_root("background-close-switch");
+        let a_path = root.join("A.his");
+        let b_path = root.join("B.his");
+        let a = Mutex::new(Some(
+            create_project_file(a_path.to_string_lossy().into_owned(), "A".into()).unwrap(),
+        ));
+        save_nodes(&a, vec![test_node("a-change", "pagina", None)]).unwrap();
+        let b = create_project_file(b_path.to_string_lossy().into_owned(), "B".into()).unwrap();
+        drop(b);
+
+        let (started_tx, started_rx) = mpsc::channel();
+        let (release_tx, release_rx) = mpsc::channel();
+        let release_rx = std::sync::Arc::new(Mutex::new(release_rx));
+        let queue = ArchiveSyncManager::new(
+            std::sync::Arc::new(move |_| {
+                started_tx.send(()).unwrap();
+                release_rx.lock().unwrap().recv().unwrap();
+                Ok(())
+            }),
+            std::sync::Arc::new(|_| {}),
+        );
+
+        let timings = close_project_background_traced(&a, &queue, Some("test-switch")).unwrap();
+        assert!(timings.archive_queued);
+        assert!(!timings.packaged);
+        started_rx.recv_timeout(Duration::from_secs(1)).unwrap();
+        assert!(
+            a.lock().unwrap().is_none(),
+            "A is logically closed before packaging finishes"
+        );
+
+        let b = Mutex::new(Some(
+            open_project_from_path(b_path.to_string_lossy().into_owned()).unwrap(),
+        ));
+        assert!(list_nodes(&b).is_ok(), "B is usable while A packages");
+        release_tx.send(()).unwrap();
+        queue.drain().unwrap();
+        close_project(&b).unwrap();
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn failed_package_never_replaces_the_previous_archive() {
+        let root = test_root("atomic-package-failure");
+        let archive = root.join("Previous.his");
+        fs::write(&archive, b"previous-valid-bytes").unwrap();
+        let missing = root.join("missing-working-folder");
+        assert!(zip_directory(&missing, &archive).is_err());
+        assert_eq!(fs::read(&archive).unwrap(), b"previous-valid-bytes");
         fs::remove_dir_all(root).unwrap();
     }
 
@@ -1484,12 +1988,15 @@ mod tests {
         ];
 
         save_nodes(&state, expected.clone()).expect("save temporal nodes");
-        assert_eq!(list_nodes(&state).expect("list temporal nodes"), expected);
+        assert_eq!(
+            without_primary(list_nodes(&state).expect("list temporal nodes")),
+            expected
+        );
         close_project(&state).expect("close project");
         let reopened = open_project_from_path(project_path).expect("reopen temporal project");
         let reopened_state = Mutex::new(Some(reopened));
         assert_eq!(
-            list_nodes(&reopened_state).expect("list reopened temporal nodes"),
+            without_primary(list_nodes(&reopened_state).expect("list reopened temporal nodes")),
             expected
         );
         save_nodes(&reopened_state, vec![expected[0].clone()]).expect("persist tempo deletion");
@@ -1499,7 +2006,9 @@ mod tests {
                 .expect("reopen project after tempo deletion");
         let after_delete_state = Mutex::new(Some(after_delete));
         assert_eq!(
-            list_nodes(&after_delete_state).expect("list nodes after tempo deletion"),
+            without_primary(
+                list_nodes(&after_delete_state).expect("list nodes after tempo deletion")
+            ),
             vec![expected[0].clone()]
         );
         close_project(&after_delete_state).expect("close project after deletion check");
@@ -1558,7 +2067,7 @@ mod tests {
         assert_eq!(reopened.info.name, "Proyecto");
         let reopened_state = Mutex::new(Some(reopened));
         assert_eq!(
-            list_nodes(&reopened_state).expect("read saved content"),
+            without_primary(list_nodes(&reopened_state).expect("read saved content")),
             expected
         );
         close_project(&reopened_state).expect("close reopened archive");
@@ -1608,7 +2117,10 @@ mod tests {
         let reopened = open_project_from_path(archive_path.to_string_lossy().into_owned())
             .expect("reopen archive");
         let reopened_state = Mutex::new(Some(reopened));
-        assert_eq!(list_nodes(&reopened_state).expect("read pdf node"), nodes);
+        assert_eq!(
+            without_primary(list_nodes(&reopened_state).expect("read pdf node")),
+            nodes
+        );
         assert_eq!(
             get_project_setting(&reopened_state, "loreHiddenIds".into())
                 .expect("read Lore membership"),
@@ -1719,12 +2231,15 @@ mod tests {
             NodeRecord { id: "video".into(), name: "Video".into(), node_type: "video".into(), parent_id: None, order: 2, content: "<!--hisfuture-nodal-meta:{\"version\":1,\"url\":\"https://example.com/video.mp4\"}--><p><br></p>".into() },
         ];
         save_nodes(&state, nodes.clone()).expect("save new nodal types");
-        assert_eq!(list_nodes(&state).expect("list new nodal types"), nodes);
+        assert_eq!(
+            without_primary(list_nodes(&state).expect("list new nodal types")),
+            nodes
+        );
         close_project(&state).expect("close project");
         let reopened = open_project_from_path(project_path).expect("reopen Nodal project");
         let reopened_state = Mutex::new(Some(reopened));
         assert_eq!(
-            list_nodes(&reopened_state).expect("list reopened Nodal types"),
+            without_primary(list_nodes(&reopened_state).expect("list reopened Nodal types")),
             nodes
         );
         close_project(&reopened_state).expect("close reopened project");
@@ -1861,7 +2376,7 @@ mod tests {
         let reopened = open_project_from_path(result).expect("open converted project");
         let state = Mutex::new(Some(reopened));
         let nodes = list_nodes(&state).expect("read converted sqlite");
-        assert!(nodes.is_empty());
+        assert!(without_primary(nodes).is_empty());
         close_project(&state).expect("close converted project");
         assert!(source.is_dir());
         fs::remove_dir_all(root).expect("test cleanup");
@@ -1888,6 +2403,85 @@ mod tests {
         assert!(state.lock().unwrap().as_ref().unwrap().archive_dirty);
         close_project(&state).expect("package changed archive");
         assert!(archive.is_file());
+        fs::remove_dir_all(root).expect("test cleanup");
+    }
+
+    #[test]
+    fn project_primary_is_created_once_and_protected_from_complete_workspace_deletion() {
+        let root = test_root("project-primary");
+        let opened = create_project(root.to_string_lossy().into_owned(), "My Vault".into())
+            .expect("create project with primary");
+        let state = Mutex::new(Some(opened));
+        let nodes = list_nodes(&state).expect("list initial nodes");
+        let primaries = nodes
+            .iter()
+            .filter(|node| is_vault_primary_node(node))
+            .collect::<Vec<_>>();
+        assert_eq!(primaries.len(), 1);
+        assert_eq!(primaries[0].name, "My Vault");
+        assert!(
+            save_workspace_traced(&state, vec![], Some(vec![]), Some("[]".into()), None).is_err()
+        );
+        assert_eq!(
+            list_nodes(&state)
+                .unwrap()
+                .iter()
+                .filter(|node| is_vault_primary_node(node))
+                .count(),
+            1
+        );
+        {
+            let guard = state.lock().unwrap();
+            let db = &guard.as_ref().unwrap().db;
+            db.execute("DELETE FROM nodes WHERE type = 'proyecto'", [])
+                .unwrap();
+            db.execute("INSERT INTO nodes (id, name, type, parent_id, sort_order, content) VALUES ('secondary-project', 'Secondary', 'proyecto', NULL, 0, '<p>secondary body</p>')", []).unwrap();
+        }
+        close_project(&state).expect("close project");
+
+        let folder = root.join("My Vault");
+        let reopened =
+            open_project_from_path(folder.to_string_lossy().into_owned()).expect("reopen project");
+        let state = Mutex::new(Some(reopened));
+        let migrated = list_nodes(&state).unwrap();
+        assert_eq!(
+            migrated
+                .iter()
+                .filter(|node| is_vault_primary_node(node))
+                .count(),
+            1
+        );
+        assert_eq!(
+            migrated
+                .iter()
+                .filter(|node| node.node_type == "proyecto")
+                .count(),
+            2,
+            "a normal Project does not become primary"
+        );
+        {
+            let guard = state.lock().unwrap();
+            guard.as_ref().unwrap().db.execute("INSERT INTO nodes (id, name, type, parent_id, sort_order, content) VALUES ('duplicate-primary', 'Duplicate', 'proyecto', NULL, 9, '<!--hisfuture-nodal-meta:{\"version\":1,\"role\":\"vault-primary\"}--><p>preserve me</p>')", []).unwrap();
+        }
+        close_project(&state).expect("close reopened project");
+        let reopened_again = open_project_from_path(folder.to_string_lossy().into_owned())
+            .expect("reopen project twice");
+        let state = Mutex::new(Some(reopened_again));
+        let reconciled = list_nodes(&state).unwrap();
+        assert_eq!(
+            reconciled
+                .iter()
+                .filter(|node| is_vault_primary_node(node))
+                .count(),
+            1
+        );
+        let duplicate = reconciled
+            .iter()
+            .find(|node| node.id == "duplicate-primary")
+            .unwrap();
+        assert!(!is_vault_primary_node(duplicate));
+        assert!(duplicate.content.ends_with("<p>preserve me</p>"));
+        close_project(&state).expect("close project twice");
         fs::remove_dir_all(root).expect("test cleanup");
     }
 
@@ -1930,8 +2524,19 @@ mod tests {
         let save_small_ms = started.elapsed().as_secs_f64() * 1000.0;
 
         let started = Instant::now();
-        close_project(&state).expect("close dirty project");
-        let close_dirty_ms = started.elapsed().as_secs_f64() * 1000.0;
+        let queue = ArchiveSyncManager::new(
+            std::sync::Arc::new(|job: &ArchiveSyncJob| {
+                zip_directory(&job.working_folder, &job.archive_path)
+            }),
+            std::sync::Arc::new(|_| {}),
+        );
+        close_project_background_traced(&state, &queue, Some("benchmark"))
+            .expect("durable close dirty project");
+        let durable_close_dirty_ms = started.elapsed().as_secs_f64() * 1000.0;
+        let started = Instant::now();
+        queue.drain().expect("background archive sync");
+        let background_archive_ms = started.elapsed().as_secs_f64() * 1000.0;
+        let old_synchronous_perceived_ms = durable_close_dirty_ms + background_archive_ms;
 
         let opened = open_project_from_path(archive.to_string_lossy().into_owned())
             .expect("open for clean close");
@@ -1941,7 +2546,7 @@ mod tests {
         let close_clean_ms = started.elapsed().as_secs_f64() * 1000.0;
 
         println!(
-            "LIFECYCLE_BENCHMARK_MS create={create_ms:.2} open={open_ms:.2} save_unchanged={save_unchanged_ms:.2} save_small={save_small_ms:.2} close_dirty={close_dirty_ms:.2} close_clean={close_clean_ms:.2}"
+            "LIFECYCLE_BENCHMARK_MS fixture_mib=12 create={create_ms:.2} open={open_ms:.2} save_unchanged={save_unchanged_ms:.2} sqlite_dirty_save={save_small_ms:.2} old_sync_perceived={old_synchronous_perceived_ms:.2} new_durable_close={durable_close_dirty_ms:.2} background_archive={background_archive_ms:.2} close_clean={close_clean_ms:.2}"
         );
         fs::remove_dir_all(root).expect("test cleanup");
     }

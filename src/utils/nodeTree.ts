@@ -1,5 +1,5 @@
 import type { NodeItem, RenderNodeType } from "../types/nodes";
-import { hasNodeCapability } from "../defs/nodeTypes";
+import { hasNodeCapability } from "../nodes/registry";
 
 export function getChildren(
   nodes: NodeItem[],

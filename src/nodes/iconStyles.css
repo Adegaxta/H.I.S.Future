@@ -5,6 +5,7 @@
 .node-type-icon--categoria.is-open,
 .node-type-icon--pagina-carpeta.is-open { --icon-url: url("../assets/third-party/google-material/icons/folder_active.svg"); }
 .node-type-icon--pagina { --icon-url: url("../assets/third-party/google-material/icons/nodes/node_page.svg"); }
+.node-type-icon--proyecto { --icon-url: url("../assets/third-party/google-material/icons/nodes/node_project.svg"); }
 .node-type-icon--imagen { --icon-url: url("../assets/third-party/google-material/icons/nodes/node_image.svg"); }
 .node-type-icon--calendario { --icon-url: url("../assets/third-party/google-material/icons/nodes/node_calendar.svg"); }
 .node-type-icon--tempo { --icon-url: url("../assets/third-party/google-material/icons/nodes/node_tempo.svg"); }

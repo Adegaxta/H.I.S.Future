@@ -8,6 +8,7 @@ pub const CURRENT_NODAL_SCHEMA_VERSION: &str = "1";
 pub const PERSISTED_NODE_TYPES: &[&str] = &[
     "categoria",
     "pagina",
+    "proyecto",
     "imagen",
     "calendario",
     "tempo",
@@ -146,6 +147,7 @@ mod tests {
         let schema = nodes_table_sql("nodes", true);
         assert!(schema_matches_registry(&schema));
         assert!(is_persisted_node_type("pagina"));
+        assert!(is_persisted_node_type("proyecto"));
         assert!(!is_persisted_node_type("unknown"));
     }
 

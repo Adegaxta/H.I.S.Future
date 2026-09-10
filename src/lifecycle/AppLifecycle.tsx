@@ -16,12 +16,19 @@ import { measureLifecyclePhase } from "./metrics";
 
 type FlushWorkspace = () => Promise<void>;
 
+interface ArchiveSyncStatus {
+  archivePath: string;
+  phase: "pending" | "syncing" | "clean" | "failed";
+  error?: string | null;
+}
+
 interface AppLifecycleValue {
   hideApplication: () => Promise<void>;
   registerWorkspaceFlush: (flush: FlushWorkspace) => () => void;
   exitApplication: () => Promise<void>;
   exitError: string | null;
   dismissExitError: () => void;
+  archiveSync: ArchiveSyncStatus[];
 }
 
 const AppLifecycleContext = createContext<AppLifecycleValue | null>(null);
@@ -30,6 +37,7 @@ export function AppLifecycleProvider({ children }: { children: ReactNode }) {
   const flushRef = useRef<FlushWorkspace | null>(null);
   const exitingRef = useRef(false);
   const [exitError, setExitError] = useState<string | null>(null);
+  const [archiveSync, setArchiveSync] = useState<ArchiveSyncStatus[]>([]);
 
   const showApplication = useCallback(async () => {
     if (!isDesktopRuntime()) return;
@@ -96,10 +104,34 @@ export function AppLifecycleProvider({ children }: { children: ReactNode }) {
     };
   }, [hideApplication]);
 
+  useEffect(() => {
+    if (!isDesktopRuntime()) return;
+    let disposed = false;
+    let stopStatus: (() => void) | undefined;
+    const update = (status: ArchiveSyncStatus) => {
+      setArchiveSync((current) => [
+        status,
+        ...current.filter((item) => item.archivePath !== status.archivePath),
+      ]);
+    };
+    void invoke<ArchiveSyncStatus[]>("archive_sync_status").then((statuses) => {
+      if (!disposed) setArchiveSync(statuses);
+    }).catch((error) => console.error("No se pudo leer el estado de sincronización", error));
+    void listen<ArchiveSyncStatus>("archive-sync-status", (event) => update(event.payload)).then((stop) => {
+      if (disposed) stop();
+      else stopStatus = stop;
+    });
+    return () => {
+      disposed = true;
+      stopStatus?.();
+    };
+  }, []);
+
   const value = useMemo<AppLifecycleValue>(() => ({
     hideApplication,
     exitApplication,
     exitError,
+    archiveSync,
     dismissExitError: () => setExitError(null),
     registerWorkspaceFlush: (flush) => {
       flushRef.current = flush;
@@ -107,7 +139,7 @@ export function AppLifecycleProvider({ children }: { children: ReactNode }) {
         if (flushRef.current === flush) flushRef.current = null;
       };
     },
-  }), [exitApplication, exitError, hideApplication]);
+  }), [archiveSync, exitApplication, exitError, hideApplication]);
 
   return <AppLifecycleContext.Provider value={value}>{children}</AppLifecycleContext.Provider>;
 }

@@ -65,5 +65,15 @@ export function useWorkspaceLifecycle({
     return registerWorkspaceFlush(saveCurrentWorkspace);
   }, [registerWorkspaceFlush, saveCurrentWorkspace]);
 
+  useEffect(() => {
+    const handleSaveShortcut = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== "s") return;
+      event.preventDefault();
+      void saveCurrentWorkspace().catch((error) => reportError(String(error)));
+    };
+    window.addEventListener("keydown", handleSaveShortcut);
+    return () => window.removeEventListener("keydown", handleSaveShortcut);
+  }, [reportError, saveCurrentWorkspace]);
+
   return { exitWorkspace, hideApplication, saveCurrentWorkspace };
 }

@@ -4,12 +4,12 @@ import path from "node:path";
 import { createServer } from "vite";
 
 const root = path.resolve(import.meta.dirname, "..");
-const server = await createServer({ root, optimizeDeps: { noDiscovery: true, include: [] }, server: { middlewareMode: true }, appType: "custom" });
+const server = await createServer({ root, configFile: false, optimizeDeps: { noDiscovery: true, include: [] }, server: { middlewareMode: true, hmr: false, watch: null }, appType: "custom" });
 try {
   const registry = await server.ssrLoadModule("/src/nodes/registry.ts");
   const catalogs = await server.ssrLoadModule("/src/i18n/translations.ts");
   const definitions = registry.NODE_REGISTRY.all();
-  const persistedTypes = ["categoria", "pagina", "imagen", "calendario", "tempo", "pdf", "curso", "tarea", "video"];
+  const persistedTypes = ["categoria", "pagina", "proyecto", "imagen", "calendario", "tempo", "pdf", "curso", "tarea", "video"];
 
   assert.deepEqual(definitions.map(({ type }) => type), persistedTypes, "persisted Node IDs and order stay stable");
   assert.equal(new Set(definitions.map(({ type }) => type)).size, definitions.length);
@@ -27,7 +27,7 @@ try {
   }
 
   assert.deepEqual(Object.fromEntries(persistedTypes.map((type) => [type, registry.getNodeRenderer(type)])), {
-    categoria: "folder", pagina: "page", imagen: "image", calendario: "calendar", tempo: "tempo",
+    categoria: "folder", pagina: "page", proyecto: "project", imagen: "image", calendario: "calendar", tempo: "tempo",
     pdf: "pdf", curso: "course", tarea: "task", video: "video",
   });
   assert.equal(registry.getNodeRenderer("pagina-carpeta"), "page");
@@ -37,6 +37,11 @@ try {
   assert.equal(registry.hasNodeCapability("categoria", "openOnPrimaryAction"), false);
   assert.equal(registry.hasNodeCapability("calendario", "navigateWithinView"), true);
   assert.equal(registry.hasNodeCapability("curso", "navigateWithinView"), true);
+  assert.equal(registry.getNodeDefinition("proyecto").color, "#FFFFFF", "Project Node is white");
+  assert.deepEqual(registry.getNodeDefinition("proyecto").composition.capabilities.map(({ id }) => id), ["rich-text"], "v1 declares only behavior with a real reusable implementation");
+  assert.equal(registry.hasComposableNodeCapability("proyecto", "rich-text"), true);
+  assert.equal(registry.getComposableNodeCapability("proyecto", "rich-text").id, "rich-text");
+  assert.equal(registry.getComposableNodeCapability("pagina", "rich-text"), null, "Page has not been migrated to capability declarations");
   assert.deepEqual(registry.getNodeRelationPolicy("curso").syllabus, { cardinality: "one", targetTypes: ["pdf"] });
   assert.deepEqual(registry.getNodeRelationPolicy("curso").class, { cardinality: "many", targetTypes: ["video"] });
   assert.deepEqual(registry.getNodeRelationPolicy("tarea").tempo, { cardinality: "one", targetTypes: ["tempo"] });
@@ -55,6 +60,8 @@ try {
   const calendarView = fs.readFileSync(path.join(root, "src/nodes/calendar/view.tsx"), "utf8");
   const pageHeader = fs.readFileSync(path.join(root, "src/nodes/page/header.tsx"), "utf8");
   const richTextEditor = fs.readFileSync(path.join(root, "src/editor/RichTextEditor.tsx"), "utf8");
+  const projectRenderer = fs.readFileSync(path.join(root, "src/nodes/project/renderer.tsx"), "utf8");
+  const composableContent = fs.readFileSync(path.join(root, "src/nodes/capabilities/ComposableNodeContent.tsx"), "utf8");
   const editorBlocks = fs.readFileSync(path.join(root, "src/editor/useEditorBlocks.ts"), "utf8");
   const editorPersistence = fs.readFileSync(path.join(root, "src/editor/persistence.ts"), "utf8");
   const editorStyles = fs.readFileSync(path.join(root, "src/editor/styles.css"), "utf8");
@@ -161,6 +168,9 @@ try {
   assert.ok(uiStyles.includes(".sidebar-icon--search"), "shared UI owns action icon assets");
   assert.equal(appCss.includes(".node-type-icon--"), false, "Node icon assets stay out of App.css");
   assert.ok(nodeIconStyles.includes(".node-type-icon--pagina"), "the Node system owns persisted type icons");
+  assert.ok(nodeIconStyles.includes('nodes/node_project.svg'), "Project uses the official Node icon through the shared catalogue");
+  assert.ok(projectRenderer.includes("<ComposableNodeContent"), "Project content is resolved through the capability composition host");
+  assert.equal(composableContent.includes('=== "proyecto"'), false, "the capability host does not know its consumer Node type");
   assert.equal(fs.existsSync(path.join(root, "src/components/GraphView.tsx")), false, "Graph view stays out of shared components");
   for (const file of ["view.tsx", "projection.ts", "preferences.ts", "runtime.ts", "scene.ts", "PixiGraphRenderer.ts", "iconSource.ts", "styles.css"]) {
     assert.equal(fs.existsSync(path.join(root, "src/graph", file)), true, `Graph owns ${file}`);
@@ -206,7 +216,7 @@ try {
   assert.equal(/node\.type\s*===\s*["'](?:imagen|tempo)["']/.test(graphView), false, "GraphView consumes owner runtime contributions");
   assert.equal(/item\.type\s*===\s*["']curso["']/.test(nodeStore), false, "Course rename behavior stays in its owner");
   assert.ok(nodeStore.includes('hasNodeCapability(node.type, "openOnPrimaryAction")'), "Recent Nodes reuse the declarative capability");
-  for (const type of ["category", "page", "image", "calendar", "tempo", "pdf", "course", "task", "video"]) {
+  for (const type of ["category", "page", "project", "image", "calendar", "tempo", "pdf", "course", "task", "video"]) {
     assert.equal(fs.existsSync(path.join(root, `src/nodes/${type}/renderer.tsx`)), true, `${type} owns a renderer adapter`);
   }
   for (const file of ["category/view.tsx", "image/view.tsx", "calendar/view.tsx", "tempo/view.tsx", "pdf/view.tsx", "course/view.tsx", "task/view.tsx", "video/view.tsx", "page/header.tsx"]) {

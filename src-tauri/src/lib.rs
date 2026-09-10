@@ -1,8 +1,10 @@
+mod archive_sync;
 mod persistence;
 mod project;
 
+use archive_sync::{ArchiveSyncManager, ArchiveSyncStatus};
 use project::{CloseProjectTimings, NodeRecord, ProjectInfo, ProjectState, SaveWorkspaceTimings};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use tauri::{Emitter, Manager};
 
 #[cfg(windows)]
@@ -93,7 +95,19 @@ fn convert_project_folder(source_folder: String, archive_path: String) -> Result
 }
 
 #[tauri::command]
-fn open_project(path: String, state: tauri::State<ProjectState>) -> Result<ProjectInfo, String> {
+fn open_project(
+    path: String,
+    state: tauri::State<ProjectState>,
+    archive_sync: tauri::State<ArchiveSyncManager>,
+) -> Result<ProjectInfo, String> {
+    let selected = std::path::PathBuf::from(path.trim());
+    if selected
+        .extension()
+        .and_then(|extension| extension.to_str())
+        == Some("his")
+    {
+        archive_sync.wait_for_vault(&selected)?;
+    }
     let opened = project::open_project_from_path(path)?;
     project::set_open_project(&state, opened)
 }
@@ -102,19 +116,42 @@ fn open_project(path: String, state: tauri::State<ProjectState>) -> Result<Proje
 fn close_project(
     trace_id: Option<String>,
     state: tauri::State<ProjectState>,
+    archive_sync: tauri::State<ArchiveSyncManager>,
 ) -> Result<CloseProjectTimings, String> {
-    project::close_project_traced(&state, trace_id.as_deref())
+    project::close_project_background_traced(&state, &archive_sync, trace_id.as_deref())
 }
 
 #[tauri::command]
 fn exit_application(
     app: tauri::AppHandle,
     state: tauri::State<ProjectState>,
+    archive_sync: tauri::State<ArchiveSyncManager>,
 ) -> Result<(), String> {
-    project::close_project_traced(&state, Some("application-exit"))?;
+    let reopen = project::current_project(&state)?;
+    project::close_project_background_traced(&state, &archive_sync, Some("application-exit"))?;
+    let drain_started = std::time::Instant::now();
+    if let Err(error) = archive_sync.drain() {
+        if let Some(info) = reopen {
+            if let Ok(opened) = project::open_project_from_path(info.folder_path) {
+                let _ = project::set_open_project(&state, opened);
+            }
+        }
+        return Err(error);
+    }
+    eprintln!(
+        "[lifecycle] application.exit archive_queue_drain={:.2}ms exit_ready=true",
+        drain_started.elapsed().as_secs_f64() * 1000.0
+    );
     app.remove_tray_by_id("main-tray");
     app.exit(0);
     Ok(())
+}
+
+#[tauri::command]
+fn archive_sync_status(
+    archive_sync: tauri::State<ArchiveSyncManager>,
+) -> Result<Vec<ArchiveSyncStatus>, String> {
+    archive_sync.statuses()
 }
 
 #[tauri::command]
@@ -130,7 +167,13 @@ fn save_nodes(
     trace_id: Option<String>,
     state: tauri::State<ProjectState>,
 ) -> Result<SaveWorkspaceTimings, String> {
-    project::save_workspace_traced(&state, nodes, hidden_ids, deleted_nodes, trace_id.as_deref())
+    project::save_workspace_traced(
+        &state,
+        nodes,
+        hidden_ids,
+        deleted_nodes,
+        trace_id.as_deref(),
+    )
 }
 
 #[tauri::command]
@@ -261,6 +304,13 @@ pub fn run() {
                 app.handle()
                     .plugin(tauri_plugin_updater::Builder::new().build())?;
             }
+            let event_app = app.handle().clone();
+            app.manage(ArchiveSyncManager::new(
+                Arc::new(|job| project::zip_directory(&job.working_folder, &job.archive_path)),
+                Arc::new(move |status| {
+                    let _ = event_app.emit("archive-sync-status", status);
+                }),
+            ));
             Ok(())
         })
         .manage(Mutex::<Option<project::OpenProject>>::new(None))
@@ -276,6 +326,7 @@ pub fn run() {
             open_project,
             close_project,
             exit_application,
+            archive_sync_status,
             list_nodes,
             save_nodes,
             store_project_resource,

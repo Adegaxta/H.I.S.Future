@@ -19,6 +19,7 @@ import { AppLifecycleProvider, useAppLifecycle } from "./lifecycle/AppLifecycle"
 function AppContent() {
   const session = useProjectSession();
   const lifecycle = useAppLifecycle();
+  const archiveFailure = lifecycle.archiveSync.find((status) => status.phase === "failed");
 
   useEffect(() => {
     document.title = APP_WINDOW_TITLE;
@@ -44,6 +45,11 @@ function AppContent() {
       <div className="workspace-file-import-error app-lifecycle-error" role="alert">
         <span>{lifecycle.exitError}</span>
         <button type="button" onClick={lifecycle.dismissExitError} aria-label="Cerrar aviso">×</button>
+      </div>
+    )}
+    {!lifecycle.exitError && archiveFailure && (
+      <div className="workspace-file-import-error app-lifecycle-error" role="alert">
+        <span>El estado de trabajo está seguro, pero no se pudo actualizar el archivo .his: {archiveFailure.error}</span>
       </div>
     )}
     <LocaleProvider key={session.project?.folderPath ?? "home"} projectKey={session.project?.folderPath}>

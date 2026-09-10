@@ -5,7 +5,7 @@ import { createServer } from "vite";
 const server = await createServer({
   configFile: false,
   optimizeDeps: { noDiscovery: true, include: [] },
-  server: { middlewareMode: true }, appType: "custom",
+  server: { middlewareMode: true, hmr: false, watch: null }, appType: "custom",
   plugins: [{
     name: "import-io-test-boundaries",
     enforce: "pre",

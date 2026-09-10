@@ -45,7 +45,9 @@ async function evaluate(expression) {
     awaitPromise: true,
     returnByValue: true,
   });
-  if (result.exceptionDetails) throw new Error(result.exceptionDetails.exception?.description || result.exceptionDetails.text);
+  if (result.exceptionDetails) throw new Error(
+    `${result.exceptionDetails.exception?.description || result.exceptionDetails.text}\n${JSON.stringify(result.exceptionDetails, null, 2)}`,
+  );
   return result.result.value;
 }
 
@@ -94,8 +96,10 @@ trailer
   await invoke("store_project_resource", { kind: "pdf", resourceId: "qa-pdf-a", data: bytes });
   await invoke("store_project_resource", { kind: "pdf", resourceId: "qa-pdf-b", data: bytes });
   const content = (id, name) => '<!--hisfuture-pdf-resource:' + JSON.stringify({ resourceId: id, fileName: name, fileSize: bytes.length, hash: "qa" }) + '--><p><br></p>';
+  const requiredProjectNodes = await invoke("list_nodes");
   await invoke("save_nodes", {
     nodes: [
+      ...requiredProjectNodes,
       { id: "qa-a", name: "PDF A", type: "pdf", parentId: null, order: 0, content: content("qa-pdf-a", "a.pdf") },
       { id: "qa-b", name: "PDF B", type: "pdf", parentId: null, order: 1, content: content("qa-pdf-b", "b.pdf") },
       { id: "qa-page", name: "Notes", type: "pagina", parentId: null, order: 2, content: "<p>QA</p>" },
@@ -136,22 +140,77 @@ for (let index = 0; index < 25; index += 1) {
 await evaluate(`window.__TAURI_INTERNALS__.invoke("store_project_resource", { kind: "pdf", resourceId: "close-dirty-marker", data: [37,80,68,70,45,49,46,52] })`);
 await clickNode("Notes");
 await waitFor(`Boolean(document.querySelector(".editor-content[contenteditable=true]"))`);
-await evaluate(`(() => { const editor = document.querySelector(".editor-content[contenteditable=true]"); editor.innerHTML = "<p>Close trace edit ${Date.now()}</p>"; editor.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: "trace" })); })()`);
+const closeEditMarker = `Close trace edit ${Date.now()}`;
+await evaluate(`(() => { const editor = document.querySelector(".editor-content[contenteditable=true]"); editor.innerHTML = ${JSON.stringify(`<p>${closeEditMarker}</p>`)}; editor.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: "trace" })); })()`);
+await waitFor(`window.__TAURI_INTERNALS__.invoke("list_nodes").then((nodes) => nodes.some((node) => node.id === "qa-page" && node.content.includes(${JSON.stringify(closeEditMarker)})))`);
 await clickNode("PDF A");
 await waitForPdf();
 const closeClicked = await evaluate(`(() => { const target = document.querySelector(".view-rail__exit"); if (!target) return false; target.click(); return true; })()`);
 if (!closeClicked) throw new Error("Close Project button not found.");
 await waitFor(`Boolean(document.querySelector(".home-screen"))`, 15_000);
-await waitFor(`Boolean(${JSON.stringify(true)}) && performance.now() > 0`, 100);
-await new Promise((resolve) => setTimeout(resolve, 100));
+await waitFor(`window.__TAURI_INTERNALS__.invoke("archive_sync_status").then((statuses) => statuses.some((status) => status.archivePath === ${archiveLiteral} && status.phase === "clean"))`, 15_000);
+
+await evaluate(`document.querySelector(".home-recent-card__name").click()`);
+await waitFor(`Boolean(document.querySelector(".app-workspace"))`);
+await waitFor(`[...document.querySelectorAll(".lore-node__name")].some((element) => element.textContent?.trim() === "Notes")`);
+await clickNode("Notes");
+await waitFor(`document.querySelector(".editor-content[contenteditable=true]")?.innerHTML.includes(${JSON.stringify(closeEditMarker)})`);
+const ctrlSMarker = `Ctrl+S durable ${Date.now()}`;
+await evaluate(`(() => {
+  const editor = document.querySelector(".editor-content[contenteditable=true]");
+  editor.innerHTML = ${JSON.stringify("<p>CTRL_S_MARKER</p>")}.replace("CTRL_S_MARKER", ${JSON.stringify(ctrlSMarker)});
+  editor.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: "save" }));
+  window.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "s", ctrlKey: true }));
+})()`);
+await waitFor(`window.__TAURI_INTERNALS__.invoke("list_nodes").then((nodes) => nodes.some((node) => node.id === "qa-page" && node.content.includes(${JSON.stringify(ctrlSMarker)})))`);
+
+await evaluate(`document.querySelector(".view-rail__exit").click()`);
+await waitFor(`Boolean(document.querySelector(".home-screen"))`, 15_000);
+await waitFor(`window.__TAURI_INTERNALS__.invoke("archive_sync_status").then((statuses) => statuses.some((status) => status.archivePath === ${archiveLiteral} && status.phase === "clean"))`, 15_000);
+const finalArchiveStatus = await evaluate(`window.__TAURI_INTERNALS__.invoke("archive_sync_status")`);
+
+await evaluate(`document.querySelector(".home-recent-card__name").click()`);
+await waitFor(`Boolean(document.querySelector(".app-workspace"))`);
+const xPreservedWorkspace = await evaluate(`(async () => {
+  const controls = [...document.querySelectorAll(".workspace-header__window-controls button")];
+  controls.at(-1).click();
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  const nodes = await window.__TAURI_INTERNALS__.invoke("list_nodes");
+  await window.__TAURI_INTERNALS__.invoke("plugin:window|show", { label: "main" });
+  return nodes.some((node) => node.id === "qa-page") && Boolean(document.querySelector(".app-workspace"));
+})()`);
+if (!xPreservedWorkspace) throw new Error("Window X did not preserve the mounted Vault.");
 
 const closeTrace = lifecycleLogs.findLast((line) => line.includes("close-project trace"));
+const exitQa = process.env.HIS_QA_EXIT === "1";
 console.log(JSON.stringify({
   archivePath,
   reopenCycles: 50,
   switchCycles: 25,
+  ctrlSSaved: true,
+  roundtripEditRestored: true,
+  xPreservedWorkspace,
+  finalArchiveStatus,
   pdfErrors,
   closeTrace,
+  exitTriggeredWithDirtyArchive: exitQa,
   lifecycleLogs: lifecycleLogs.filter((line) => line.includes("close-") || line.includes("PDF cleanup")),
 }, null, 2));
-socket.close();
+if (exitQa) {
+  await evaluate(`(() => {
+    const bytes = new Uint8Array(1024 * 1024);
+    bytes.set([37, 80, 68, 70, 45, 49, 46, 52]);
+    return window.__TAURI_INTERNALS__.invoke("store_project_resource", {
+      kind: "pdf", resourceId: "qa-exit-pending", data: Array.from(bytes),
+    });
+  })()`);
+  const closed = new Promise((resolve) => socket.addEventListener("close", resolve, { once: true }));
+  await send("Runtime.evaluate", {
+    expression: `window.__TAURI_INTERNALS__.invoke("exit_application")`,
+    awaitPromise: false,
+    returnByValue: false,
+  });
+  await Promise.race([closed, new Promise((_, reject) => setTimeout(() => reject(new Error("Exit did not close the native process.")), 15_000))]);
+} else {
+  socket.close();
+}

@@ -5,6 +5,7 @@
 @import "./image/styles.css";
 @import "./pdf/styles.css";
 @import "./page/styles.css";
+@import "./project/styles.css";
 @import "./calendar/styles.css";
 @import "./tempo/styles.css";
 /* Course consumes Calendar/Tempo/PDF surfaces, so its contextual overrides load last. */

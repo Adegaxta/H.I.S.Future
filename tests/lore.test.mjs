@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createServer } from "vite";
 
-const server = await createServer({ server: { middlewareMode: true }, appType: "custom" });
+const server = await createServer({ configFile: false, optimizeDeps: { noDiscovery: true, include: [] }, server: { middlewareMode: true, hmr: false, watch: null }, appType: "custom" });
 try {
   const { getLoreNodes, setLoreMembership, selectLoreRange } = await server.ssrLoadModule("/src/utils/loreTree.ts");
   const nodes = [

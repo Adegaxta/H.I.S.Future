@@ -1,4 +1,7 @@
 export const EN_NODES_TRANSLATIONS = {
+  "nodes.project.label": "Project",
+  "nodes.project.nodeName": "Project Node",
+  "project.primary": "Primary",
   "nodes.course.label": "Course",
   "nodes.course.nodeName": "Course Node",
   "nodes.task.label": "Task",

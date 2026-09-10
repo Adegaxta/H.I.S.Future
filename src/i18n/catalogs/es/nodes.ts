@@ -1,4 +1,7 @@
 export const ES_NODES_TRANSLATIONS = {
+  "nodes.project.label": "Proyecto",
+  "nodes.project.nodeName": "Nodo Proyecto",
+  "project.primary": "Principal",
   "nodes.course.label": "Curso",
   "nodes.course.nodeName": "Nodo Curso",
   "nodes.task.label": "Tarea",

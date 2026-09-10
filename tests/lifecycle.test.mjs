@@ -5,8 +5,9 @@ import { createServer } from "vite";
 const root = new URL("..", import.meta.url);
 const read = (path) => fs.readFileSync(new URL(path, root), "utf8");
 const server = await createServer({
+  configFile: false,
   optimizeDeps: { noDiscovery: true, include: [] },
-  server: { middlewareMode: true },
+  server: { middlewareMode: true, hmr: false, watch: null },
   appType: "custom",
 });
 
@@ -102,13 +103,18 @@ try {
   assert.equal(workspaceLifecycle.includes("onCloseRequested"), false, "window listener has one app-level owner");
   assert.ok(app.includes("<AppLifecycleProvider><AppContent /></AppLifecycleProvider>"), "hide/show keeps the mounted workspace owner");
   assert.ok(workspaceLifecycle.includes('measureActiveCloseProjectPhase("frontend save"') && workspaceLifecycle.includes("await exitProject();"), "Close Project flushes before dispose/Home");
+  assert.ok(workspaceLifecycle.includes('event.key.toLowerCase() !== "s"') && workspaceLifecycle.includes("saveCurrentWorkspace()"), "Ctrl+S is a durable workspace flush, not archive packaging");
   assert.ok(appLifecycle.includes("await flushRef.current?.();\n      await invoke(\"exit_application\")"), "real Exit flushes before backend shutdown");
   assert.ok(appLifecycle.includes("showApplication()"), "an Exit failure restores the window for a visible error");
   assert.ok(backend.includes('"Abrir H.I.S. Future"') && backend.includes('"Salir"'), "tray exposes restore and real Exit");
   assert.ok(backend.includes('app.emit("app-exit-requested"'), "tray Exit enters the safe frontend flush path");
   assert.ok(nodeStore.includes("persistedVersionRef.current === changeVersionRef.current"), "no-change flush skips redundant persistence");
   assert.ok(nodeStore.includes("PersistenceQueue"), "workspace persistence has an explicit queue");
-  assert.ok(project.includes("if project.archive_dirty"), "clean archive close skips packaging");
+  assert.ok(project.includes("if project.archive_dirty") && project.includes("archive_sync.enqueue(job)"), "clean archive close skips packaging and dirty archives enter the background queue");
+  assert.ok(project.includes("ARCHIVE_DIRTY_FILE") && project.includes("durable_working_folder"), "archive dirty state and extracted working state are durable");
+  assert.ok(project.includes("validate_archive_file(&temporary)") && project.includes("replace_archive(&temporary, archive_path)"), "archive replacement follows package, validation, replace order");
+  assert.ok(backend.includes("archive_sync.wait_for_vault(&selected)"), "reopening the same Vault coordinates with its own archive job");
+  assert.ok(backend.includes("archive_sync.drain()"), "real Exit drains background archive work");
   assert.ok(project.includes("WHERE nodes.name IS NOT excluded.name"), "SQLite avoids rewriting unchanged node rows");
   assert.ok(resourceRepository.includes("ArrayBuffer | Uint8Array"), "resource reads use raw IPC bytes");
   assert.ok(pdfViewer.includes("IntersectionObserver") && pdfViewer.includes("pageNumber === 1"), "PDF renders the first page and lazily activates nearby pages");

@@ -58,7 +58,7 @@ export default function AppWorkspace({
   const [timeFormat, setTimeFormat] = useState<TimeFormat>(() =>
     localStorage.getItem(timeFormatStorageKey) === "24h" ? "24h" : "12h",
   );
-  const workspace = useTreeController(defaultNodeType, projectKey);
+  const workspace = useTreeController(defaultNodeType, projectKey, projectName);
   useEffect(() => () => {
     const started = performance.now();
     const traceId = getActiveCloseProjectTraceId();
@@ -507,9 +507,16 @@ export default function AppWorkspace({
             <GraphView
               nodes={workspace.nodes}
               onSelectNode={workspace.setSelectedId}
+              onClearSelection={() => workspace.setSelectedId(null)}
               onOpenNode={(id) => {
                 workspace.setSelectedId(id);
                 setView("list");
+              }}
+              onCreateNode={(name, type) => {
+                const id = workspace.createNode(name, type, null);
+                workspace.setSelectedId(id);
+                setSelectedLoreIds([id]);
+                return id;
               }}
               projectKey={projectKey}
             />

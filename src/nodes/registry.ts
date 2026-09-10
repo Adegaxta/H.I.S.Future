@@ -6,11 +6,12 @@ import type { NodeCapability, NodeDefinition, NodeModule } from "./definition";
 import { imageNodeModule } from "./image/definition";
 import { pageFolderNodeModule, pageNodeModule } from "./page/definition";
 import { pdfNodeModule } from "./pdf/definition";
+import { projectNodeModule } from "./project/definition";
 import { taskNodeModule } from "./task/definition";
 import { tempoNodeModule } from "./tempo/definition";
 import { videoNodeModule } from "./video/definition";
 
-const BASE_MODULES = [categoryNodeModule, pageNodeModule, imageNodeModule, calendarNodeModule, tempoNodeModule, pdfNodeModule, courseNodeModule, taskNodeModule, videoNodeModule] as const;
+const BASE_MODULES = [categoryNodeModule, pageNodeModule, projectNodeModule, imageNodeModule, calendarNodeModule, tempoNodeModule, pdfNodeModule, courseNodeModule, taskNodeModule, videoNodeModule] as const;
 const RENDER_MODULES = [...BASE_MODULES, pageFolderNodeModule] as const;
 export type BaseNodeType = (typeof BASE_MODULES)[number]["definition"]["type"];
 export type RenderNodeType = (typeof RENDER_MODULES)[number]["definition"]["type"];
@@ -45,5 +46,7 @@ export const getNodeDefinition = (type: RenderNodeType) => NODE_REGISTRY.get(typ
 export const getNodeRenderer = (type: RenderNodeType) => renderRegistry.get(type).renderer;
 export const getNodeRelationPolicy = (type: BaseNodeType) => renderRegistry.get(type).relations;
 export const hasNodeCapability = (type: RenderNodeType, capability: NodeCapability) => getNodeDefinition(type).capabilities[capability] === true;
+export const getComposableNodeCapability = (type: RenderNodeType, capability: import("./definition").ComposableNodeCapabilityId) => getNodeDefinition(type).composition?.capabilities.find((item) => item.id === capability) ?? null;
+export const hasComposableNodeCapability = (type: RenderNodeType, capability: import("./definition").ComposableNodeCapabilityId) => getComposableNodeCapability(type, capability) !== null;
 export const getNodeDisplayLabel = (type: RenderNodeType, translate: (key: TranslationKey) => string) => translate(getNodeDefinition(type).nodeNameKey);
-export type { NodeCapability, NodeDefinition, NodeModule, NodeRendererId } from "./definition";
+export type { ComposableNodeCapability, ComposableNodeCapabilityId, NodeCapability, NodeDefinition, NodeModule, NodeRendererId } from "./definition";

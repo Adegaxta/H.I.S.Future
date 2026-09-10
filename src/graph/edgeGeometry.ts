@@ -19,6 +19,15 @@ export interface GraphEdgeEndpoints {
   endY: number;
 }
 
+export interface GraphArrowhead {
+  tipX: number;
+  tipY: number;
+  leftX: number;
+  leftY: number;
+  rightX: number;
+  rightY: number;
+}
+
 const MIN_DISTANCE = 1e-6;
 
 function finitePositive(value: number): number {
@@ -202,4 +211,34 @@ export function resolveGraphVisualGeometry(visual: GraphNodeVisual, radius: numb
   geometry.halfWidth = halfSize;
   geometry.halfHeight = halfSize;
   return geometry;
+}
+
+export function resolveGraphArrowhead(
+  fromX: number,
+  fromY: number,
+  tipX: number,
+  tipY: number,
+  length: number,
+  width: number,
+  arrowhead: GraphArrowhead,
+): boolean {
+  const dx = tipX - fromX;
+  const dy = tipY - fromY;
+  const distance = Math.hypot(dx, dy);
+  if (!Number.isFinite(distance) || distance <= MIN_DISTANCE) return false;
+  const safeLength = Math.max(0, finitePositive(length));
+  const safeWidth = Math.max(0, finitePositive(width));
+  const ux = dx / distance;
+  const uy = dy / distance;
+  const baseX = tipX - ux * safeLength;
+  const baseY = tipY - uy * safeLength;
+  const perpendicularX = -uy * safeWidth / 2;
+  const perpendicularY = ux * safeWidth / 2;
+  arrowhead.tipX = tipX;
+  arrowhead.tipY = tipY;
+  arrowhead.leftX = baseX + perpendicularX;
+  arrowhead.leftY = baseY + perpendicularY;
+  arrowhead.rightX = baseX - perpendicularX;
+  arrowhead.rightY = baseY - perpendicularY;
+  return true;
 }

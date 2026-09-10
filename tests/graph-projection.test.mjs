@@ -3,8 +3,9 @@ import fs from "node:fs";
 import { createServer } from "vite";
 
 const server = await createServer({
+  configFile: false,
   optimizeDeps: { noDiscovery: true, include: [] },
-  server: { middlewareMode: true },
+  server: { middlewareMode: true, hmr: false, watch: null },
   appType: "custom",
 });
 
@@ -64,8 +65,14 @@ try {
   assert.equal(typeOn.edges.filter((edge) => edge.kind === "grouping").length, 1);
   assert.deepEqual(
     registry.NODE_REGISTRY.all().map((definition) => definition.type).sort(),
-    ["calendario", "categoria", "curso", "imagen", "pagina", "pdf", "tarea", "tempo", "video"],
+    ["calendario", "categoria", "curso", "imagen", "pagina", "pdf", "proyecto", "tarea", "tempo", "video"],
   );
+
+  const primaryProject = base("primary", "proyecto", { content: nodal.setNodalMeta("<p></p>", { role: "vault-primary" }) });
+  const projectProjection = project([primaryProject, base("secondary", "proyecto")]);
+  assert.equal(projectProjection.vertices.find((vertex) => vertex.id === "primary").isPrimaryProject, true);
+  assert.equal(projectProjection.vertices.find((vertex) => vertex.id === "secondary").isPrimaryProject, false);
+  assert.equal(projectProjection.edges.length, 0, "primary presentation does not invent semantic edges");
 
   const courseWithRoles = {
     ...base("course", "curso"),

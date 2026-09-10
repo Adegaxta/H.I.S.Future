@@ -32,17 +32,24 @@ import {
 } from "./scene";
 import {
   GRAPH_THUMBNAIL_DIAMETER,
+  resolveGraphArrowhead,
   resolveGraphVisualGeometry,
   resolveVisualEdgeEndpoints,
+  type GraphArrowhead,
   type GraphEdgeEndpoints,
   type GraphEdgeGeometry,
 } from "./edgeGeometry";
 import { GraphSimulation } from "./simulation";
+import { isDirectionalGraphEdge } from "./edgeSemantics";
 
 interface GraphRendererCallbacks {
   onSelectNode: (id: string) => void;
+  onSelectEdge: (edge: GraphRenderEdge, clientX?: number, clientY?: number) => void;
   onOpenNode: (id: string) => void;
+  onClearSelection: () => void;
   onHoverNode: (point: GraphPoint | null, clientX?: number, clientY?: number) => void;
+  onHoverEdge: (edge: GraphRenderEdge | null, clientX?: number, clientY?: number) => void;
+  onBackgroundContextMenu: (clientX: number, clientY: number, worldX: number, worldY: number) => void;
 }
 
 interface NodeDisplay {
@@ -50,10 +57,32 @@ interface NodeDisplay {
   container: Container;
   halo: Graphics;
   body: Graphics;
+  primaryBadge: Graphics;
   label: Text;
   mask: Graphics;
   media: Sprite | null;
   mediaSource: string | null;
+  scale: number;
+  targetScale: number;
+  renderLod: GraphLod;
+  visualAlpha: number;
+  visualScale: number;
+  lodTransition: LodTransition | null;
+  lifeAlpha: number;
+  lifeScale: number;
+  lifecycle: NodeLifecycle | null;
+}
+
+interface LodTransition {
+  from: GraphLod;
+  to: GraphLod;
+  startedAt: number;
+  swapped: boolean;
+}
+
+interface NodeLifecycle {
+  kind: "enter" | "exit";
+  startedAt: number;
 }
 
 export interface GraphRendererDiagnostics {
@@ -83,6 +112,12 @@ interface ActivePointer {
 
 const INITIAL_ZOOM = 0.65;
 const DRAG_THRESHOLD = 3;
+const LOD_TRANSITION_MS = 150;
+const LOD_TRANSITION_MIN_SCALE = 0.97;
+const LOD_TRANSITION_MIN_ALPHA = 0.55;
+const NODE_ENTER_MS = 200;
+const NODE_EXIT_MS = 180;
+const NODE_EXIT_SCALE = 0.35;
 
 function colorNumber(color: string): number {
   return Number.parseInt(color.replace("#", ""), 16);
@@ -100,6 +135,7 @@ export class PixiGraphRenderer {
   private readonly edgeLayer = new Container();
   private readonly nodeLayer = new Container();
   private readonly nodeDisplays = new Map<string, NodeDisplay>();
+  private readonly retiringNodeDisplays = new Map<string, NodeDisplay>();
   private readonly edgeDisplays = new Map<string, EdgeDisplay>();
   private readonly texturePromises = new Map<string, Promise<Texture>>();
   private readonly loadedTextureSources = new Set<string>();
@@ -107,20 +143,26 @@ export class PixiGraphRenderer {
   private readonly fromEdgeGeometry: GraphEdgeGeometry = { kind: "circle", radius: 0, halfWidth: 0, halfHeight: 0 };
   private readonly toEdgeGeometry: GraphEdgeGeometry = { kind: "circle", radius: 0, halfWidth: 0, halfHeight: 0 };
   private readonly edgeEndpoints: GraphEdgeEndpoints = { startX: 0, startY: 0, endX: 0, endY: 0 };
+  private readonly arrowhead: GraphArrowhead = { tipX: 0, tipY: 0, leftX: 0, leftY: 0, rightX: 0, rightY: 0 };
   private readonly resizeObserver: ResizeObserver;
   private scene: GraphScene | null = null;
   private positionCache = new Map<string, GraphPosition>();
   private callbacks: GraphRendererCallbacks;
   private lod: GraphLod = graphLodForZoom(INITIAL_ZOOM);
   private zoom = INITIAL_ZOOM;
+  private hasMountedNodes = false;
   private selectedId: string | null = null;
   private hoveredId: string | null = null;
+  private hoveredEdgeId: string | null = null;
+  private selectedEdgeId: string | null = null;
   private activePointer: ActivePointer | null = null;
   private readonly hoveredConnectionIds = new Set<string>();
+  private readonly focusedConnectionIds = new Set<string>();
   private pendingPointer: { x: number; y: number } | null = null;
   private pendingWheel: { deltaY: number; x: number; y: number } | null = null;
   private interactionFrame: number | null = null;
   private renderFrame: number | null = null;
+  private hoverAnimationFrame: number | null = null;
   private simulationFrame: number | null = null;
   private simulationTimestamp = 0;
   private destroyed = false;
@@ -165,15 +207,17 @@ export class PixiGraphRenderer {
     this.app.canvas.setAttribute("aria-label", "Graph canvas");
     this.host.appendChild(this.app.canvas);
     this.viewport.eventMode = "passive";
-    this.edgeLayer.eventMode = "none";
+    this.edgeLayer.eventMode = "passive";
     this.nodeLayer.eventMode = "passive";
     this.viewport.addChild(this.edgeLayer, this.nodeLayer);
     this.app.stage.addChild(this.viewport);
     this.app.stage.eventMode = "static";
     this.app.stage.on("pointerdown", this.onStagePointerDown);
+    window.addEventListener("keydown", this.onKeyDown);
     this.app.canvas.addEventListener("pointermove", this.onPointerMove);
     this.app.canvas.addEventListener("pointerup", this.onPointerUp);
     this.app.canvas.addEventListener("pointercancel", this.onPointerCancel);
+    this.app.canvas.addEventListener("contextmenu", this.onCanvasContextMenu);
     this.app.canvas.addEventListener("wheel", this.onWheel, { passive: false });
     this.resizeObserver.observe(this.host);
     this.resize(true);
@@ -231,28 +275,36 @@ export class PixiGraphRenderer {
     const liveIds = new Set(this.scene.runtime.points.map((point) => point.id));
     for (const [id, display] of this.nodeDisplays) {
       if (liveIds.has(id)) continue;
-      this.releaseDisplayTexture(display);
-      display.container.destroy({ children: true });
+      display.container.eventMode = "none";
+      display.lifecycle = { kind: "exit", startedAt: performance.now() };
+      display.lifeAlpha = 1;
+      display.lifeScale = 1;
       this.nodeDisplays.delete(id);
+      this.retiringNodeDisplays.set(id, display);
+      this.scheduleHoverAnimation();
     }
+    const animateEntrance = this.hasMountedNodes;
     for (const point of this.scene.runtime.points) {
       let display = this.nodeDisplays.get(point.id);
       if (!display) {
-        display = this.createNodeDisplay(point);
+        display = this.createNodeDisplay(point, animateEntrance);
         this.nodeDisplays.set(point.id, display);
         this.nodeLayer.addChild(display.container);
+        if (animateEntrance) this.scheduleHoverAnimation();
       }
       display.point = point;
       display.container.position.set(point.x, point.y);
       display.label.text = point.label;
       display.label.style.fill = point.color;
     }
+    this.hasMountedNodes = true;
   }
 
-  private createNodeDisplay(point: GraphPoint): NodeDisplay {
+  private createNodeDisplay(point: GraphPoint, animateEntrance = false): NodeDisplay {
     const container = new Container();
     const halo = new Graphics();
     const body = new Graphics();
+    const primaryBadge = new Graphics();
     const mask = new Graphics();
     const label = new Text({
       text: point.label,
@@ -263,7 +315,7 @@ export class PixiGraphRenderer {
     halo.eventMode = "none";
     body.eventMode = "none";
     mask.eventMode = "none";
-    container.addChild(halo, body, mask, label);
+    container.addChild(halo, body, mask, primaryBadge, label);
     container.eventMode = "static";
     container.cursor = "pointer";
     container.on("pointerover", (event: FederatedPointerEvent) => {
@@ -271,7 +323,26 @@ export class PixiGraphRenderer {
     });
     container.on("pointerout", () => this.setHovered(null));
     container.on("pointerdown", (event: FederatedPointerEvent) => this.onNodePointerDown(event, point.id));
-    return { point, container, halo, body, label, mask, media: null, mediaSource: null };
+    return {
+      point,
+      container,
+      halo,
+      body,
+      primaryBadge,
+      label,
+      mask,
+      media: null,
+      mediaSource: null,
+      scale: 1,
+      targetScale: 1,
+      renderLod: this.lod,
+      visualAlpha: 1,
+      visualScale: 1,
+      lodTransition: null,
+      lifeAlpha: animateEntrance ? 0.28 : 1,
+      lifeScale: animateEntrance ? NODE_EXIT_SCALE : 1,
+      lifecycle: animateEntrance ? { kind: "enter", startedAt: performance.now() } : null,
+    };
   }
 
   private reconcileEdges() {
@@ -286,7 +357,13 @@ export class PixiGraphRenderer {
       let display = this.edgeDisplays.get(rendered.id);
       if (!display) {
         display = { rendered, graphics: new Graphics() };
-        display.graphics.eventMode = "none";
+        display.graphics.eventMode = "static";
+        display.graphics.cursor = "pointer";
+        display.graphics.on("pointerover", (event: FederatedPointerEvent) => {
+          this.setHoveredEdge(rendered.id, event.nativeEvent as PointerEvent);
+        });
+        display.graphics.on("pointerout", () => this.setHoveredEdge(null));
+        display.graphics.on("pointerdown", (event: FederatedPointerEvent) => this.onEdgePointerDown(event, rendered.id));
         this.edgeDisplays.set(rendered.id, display);
         this.edgeLayer.addChild(display.graphics);
       }
@@ -298,17 +375,37 @@ export class PixiGraphRenderer {
   private drawEdge(display?: EdgeDisplay) {
     if (!display || !this.scene) return;
     const { rendered, graphics } = display;
+    const reciprocal = this.scene.runtime.edges.find((candidate) => candidate.from.id === rendered.to.id && candidate.to.id === rendered.from.id);
+    const forwardArrow = rendered.facts.some(isDirectionalGraphEdge);
+    const reverseArrow = reciprocal?.facts.some(isDirectionalGraphEdge) ?? false;
+    const reciprocalDirectional = reciprocal && forwardArrow && reverseArrow ? reciprocal : undefined;
+    if (reciprocalDirectional && rendered.id > reciprocalDirectional.id) {
+      graphics.clear();
+      return;
+    }
     const grouping = rendered.facts.every((fact) => fact.kind === "grouping");
-    const highlighted = this.hoveredId !== null && (rendered.from.id === this.hoveredId || rendered.to.id === this.hoveredId);
-    const dimmed = this.hoveredId !== null && !highlighted;
-    const alpha = highlighted
+    const edgeHovered = this.hoveredEdgeId === rendered.id;
+    const edgeFocused = this.selectedEdgeId === rendered.id;
+    const nodeHighlighted = this.hoveredId !== null && (rendered.from.id === this.hoveredId || rendered.to.id === this.hoveredId);
+    const focused = this.selectedId !== null && (rendered.from.id === this.selectedId || rendered.to.id === this.selectedId);
+    const highlighted = edgeHovered || edgeFocused || nodeHighlighted;
+    const dimmed = this.hoveredId !== null && !nodeHighlighted;
+    const focusDimmed = this.hoveredId === null && this.selectedId !== null && !focused;
+    const edgeFocusDimmed = this.hoveredId === null && this.selectedEdgeId !== null && !edgeFocused;
+    const alpha = edgeHovered
+      ? 0.98
+      : edgeFocused
+        ? 0.98
+      : nodeHighlighted
       ? 0.95
-      : dimmed
+      : dimmed || focusDimmed || edgeFocusDimmed
         ? 0.045
+        : focused
+          ? 0.72
         : grouping
       ? (this.lod === "distant" ? 0.05 : this.lod === "far" ? 0.12 : 0.24)
       : (this.lod === "distant" ? 0.12 : this.lod === "far" ? 0.24 : 0.4);
-    const width = highlighted ? 2.35 : this.lod === "detail" ? 1.45 : this.lod === "medium" ? 1.2 : 0.85;
+    const width = edgeHovered || edgeFocused ? 2.7 : nodeHighlighted ? 2.35 : focused ? 1.8 : this.lod === "detail" ? 1.45 : this.lod === "medium" ? 1.2 : 0.85;
     const fromEmphasized = rendered.from.id === this.selectedId || rendered.from.id === this.hoveredId;
     const toEmphasized = rendered.to.id === this.selectedId || rendered.to.id === this.hoveredId;
     resolveGraphVisualGeometry(
@@ -340,7 +437,28 @@ export class PixiGraphRenderer {
       }
     }
     const highlightColor = this.hoveredId ? colorNumber(this.scene?.runtime.pointsById.get(this.hoveredId)?.color ?? "#ffffff") : 0xffffff;
-    if (hasSegment) graphics.stroke({ color: highlighted ? highlightColor : grouping ? 0x4dd8c0 : 0x8d969b, width, alpha });
+    const edgeColor = highlighted ? highlightColor : grouping ? 0x4dd8c0 : 0x8d969b;
+    if (hasSegment) {
+      graphics.stroke({ color: edgeColor, width, alpha });
+      if (!grouping && this.lod !== "distant") {
+        const arrowSize = this.lod === "detail" ? 8 : this.lod === "medium" ? 6.5 : 5;
+        const arrowWidth = arrowSize * 0.82;
+        if (forwardArrow && resolveGraphArrowhead(this.edgeEndpoints.startX, this.edgeEndpoints.startY, this.edgeEndpoints.endX, this.edgeEndpoints.endY, arrowSize, arrowWidth, this.arrowhead)) {
+          this.drawArrowhead(graphics, this.arrowhead, edgeColor, alpha);
+        }
+        if (reciprocalDirectional && reverseArrow && resolveGraphArrowhead(this.edgeEndpoints.endX, this.edgeEndpoints.endY, this.edgeEndpoints.startX, this.edgeEndpoints.startY, arrowSize, arrowWidth, this.arrowhead)) {
+          this.drawArrowhead(graphics, this.arrowhead, edgeColor, alpha);
+        }
+      }
+    }
+  }
+
+  private drawArrowhead(graphics: Graphics, arrowhead: GraphArrowhead, color: number, alpha: number) {
+    graphics.moveTo(arrowhead.tipX, arrowhead.tipY)
+      .lineTo(arrowhead.leftX, arrowhead.leftY)
+      .lineTo(arrowhead.rightX, arrowhead.rightY)
+      .closePath()
+      .fill({ color, alpha });
   }
 
   private drawDashedLine(graphics: Graphics, x1: number, y1: number, x2: number, y2: number, dash: number, gap: number) {
@@ -357,21 +475,40 @@ export class PixiGraphRenderer {
 
   private applyLod() {
     if (!this.scene) return;
-    for (const display of this.nodeDisplays.values()) this.applyNodeVisual(display);
+    for (const display of this.nodeDisplays.values()) {
+      if (display.lodTransition?.to === this.lod) continue;
+      if (display.renderLod !== this.lod) {
+        display.lodTransition = {
+          from: display.renderLod,
+          to: this.lod,
+          startedAt: performance.now(),
+          swapped: false,
+        };
+        this.scheduleHoverAnimation();
+      } else {
+        this.applyNodeVisual(display, display.renderLod);
+      }
+    }
     for (const display of this.edgeDisplays.values()) this.drawEdge(display);
   }
 
-  private applyNodeVisual(display: NodeDisplay) {
+  private applyNodeVisual(display: NodeDisplay, lod = display.renderLod) {
     if (!this.scene) return;
     const emphasized = display.point.id === this.selectedId || display.point.id === this.hoveredId;
-    const dimmed = this.hoveredId !== null
+    const hoverDimmed = this.hoveredId !== null
       && display.point.id !== this.hoveredId
       && !this.hoveredConnectionIds.has(display.point.id);
-    const radius = graphNodeRadius(display.point, this.lod, emphasized);
-    const visual = graphNodeVisual(display.point, this.lod, this.scene.preferences);
+    const focusDimmed = this.hoveredId === null
+      && this.selectedId !== null
+      && display.point.id !== this.selectedId
+      && !this.focusedConnectionIds.has(display.point.id);
+    const dimmed = hoverDimmed || focusDimmed;
+    const radius = graphNodeRadius(display.point, lod, emphasized);
+    const visual = graphNodeVisual(display.point, lod, this.scene.preferences);
     const color = colorNumber(display.point.color);
     const square = visual === "thumbnail" || visual === "image";
-    display.container.alpha = dimmed ? 0.16 : 1;
+    const squareDiameter = visual === "thumbnail" ? GRAPH_THUMBNAIL_DIAMETER : 2;
+    display.container.alpha = this.nodeBaseAlpha(display, dimmed) * display.visualAlpha * display.lifeAlpha;
     display.body.mask = null;
     display.mask.visible = false;
     if (display.media && visual !== "thumbnail" && visual !== "icon") {
@@ -379,22 +516,35 @@ export class PixiGraphRenderer {
       display.media.visible = false;
     }
     if (square) {
-      display.body.clear().rect(-radius, -radius, radius * 2, radius * 2).fill({ color, alpha: 0.96 });
+      const halfSize = radius * squareDiameter / 2;
+      display.body.clear().rect(-halfSize, -halfSize, halfSize * 2, halfSize * 2).fill({ color, alpha: 0.96 });
     } else {
       display.body.clear().circle(0, 0, radius).fill({ color, alpha: visual === "point" ? 0.78 : 0.96 });
     }
     display.halo.clear();
+    display.primaryBadge.clear();
+    display.primaryBadge.visible = Boolean(display.point.isPrimaryProject && (lod === "detail" || lod === "medium"));
+    if (display.primaryBadge.visible) this.drawPrimaryBadge(display.primaryBadge, radius);
     if (display.point.id === this.selectedId) {
-      display.halo.circle(0, 0, radius + 5).stroke({ color: 0xffffff, width: 2, alpha: 0.9 });
+      if (square) {
+        const halfSize = radius * squareDiameter / 2;
+        display.halo.rect(-halfSize - 5, -halfSize - 5, (halfSize + 5) * 2, (halfSize + 5) * 2).stroke({ color: 0xffffff, width: 2, alpha: 0.9 });
+      } else display.halo.circle(0, 0, radius + 5).stroke({ color: 0xffffff, width: 2, alpha: 0.9 });
     } else if (display.point.id === this.hoveredId) {
-      display.halo.circle(0, 0, radius + 3).stroke({ color: 0xffffff, width: 1.25, alpha: 0.72 });
+      if (square) {
+        const halfSize = radius * squareDiameter / 2;
+        display.halo.rect(-halfSize - 3, -halfSize - 3, (halfSize + 3) * 2, (halfSize + 3) * 2).stroke({ color: 0xffffff, width: 1.25, alpha: 0.72 });
+      } else display.halo.circle(0, 0, radius + 3).stroke({ color: 0xffffff, width: 1.25, alpha: 0.72 });
     }
+    display.container.scale.set(display.scale * display.visualScale);
     display.container.hitArea = square
       ? new Rectangle(-Math.max(11, radius + 5), -Math.max(11, radius + 5), Math.max(22, (radius + 5) * 2), Math.max(22, (radius + 5) * 2))
       : new Circle(0, 0, Math.max(11, radius + 5));
-    display.label.visible = graphLabelVisible(this.lod, emphasized);
+    display.label.visible = graphLabelVisible(lod, emphasized);
+    if (!display.lodTransition) display.label.alpha = 1;
     display.label.position.set(0, radius + 7);
     display.label.style.fontSize = display.point.kind === "type-hub" ? 13 : 11;
+    display.label.style.fontWeight = display.point.isPrimaryProject ? "700" : "500";
     const source = mediaSourceFor(display.point, visual);
     if (!source) {
       display.body.mask = null;
@@ -404,10 +554,38 @@ export class PixiGraphRenderer {
       }
       return;
     }
-    void this.ensureMedia(display, source);
+    void this.ensureMedia(display, source, lod);
   }
 
-  private async ensureMedia(display: NodeDisplay, source: string) {
+  private drawPrimaryBadge(badge: Graphics, radius: number) {
+    const x = radius * 0.72;
+    const y = -radius * 0.72;
+    badge.circle(x, y, 7).fill({ color: 0x111418, alpha: 0.98 }).stroke({ color: 0xffffff, width: 1.25, alpha: 0.95 });
+    const outer = 4.1;
+    const inner = 1.8;
+    for (let index = 0; index < 10; index += 1) {
+      const angle = -Math.PI / 2 + index * Math.PI / 5;
+      const distance = index % 2 === 0 ? outer : inner;
+      const px = x + Math.cos(angle) * distance;
+      const py = y + Math.sin(angle) * distance;
+      if (index === 0) badge.moveTo(px, py);
+      else badge.lineTo(px, py);
+    }
+    badge.closePath().fill({ color: 0xffffff, alpha: 1 });
+  }
+
+  private nodeBaseAlpha(display: NodeDisplay, dimmed = this.hoveredId !== null
+    && display.point.id !== this.hoveredId
+    && !this.hoveredConnectionIds.has(display.point.id)): number {
+    return dimmed ? 0.16 : 1;
+  }
+
+  private applyDisplayTransform(display: NodeDisplay) {
+    display.container.alpha = this.nodeBaseAlpha(display) * display.visualAlpha * display.lifeAlpha;
+    display.container.scale.set(display.scale * display.visualScale * display.lifeScale);
+  }
+
+  private async ensureMedia(display: NodeDisplay, source: string, lod: GraphLod) {
     if (display.mediaSource !== source) {
       this.releaseDisplayTexture(display);
       display.mediaSource = source;
@@ -439,8 +617,8 @@ export class PixiGraphRenderer {
         display.media.texture = texture;
       }
       const emphasized = display.point.id === this.selectedId || display.point.id === this.hoveredId;
-      const currentVisual = graphNodeVisual(display.point, this.lod, this.scene!.preferences);
-      const currentRadius = graphNodeRadius(display.point, this.lod, emphasized);
+      const currentVisual = graphNodeVisual(display.point, lod, this.scene!.preferences);
+      const currentRadius = graphNodeRadius(display.point, lod, emphasized);
       display.media.visible = mediaSourceFor(display.point, currentVisual) === source;
       const diameter = currentRadius * (currentVisual === "thumbnail" ? GRAPH_THUMBNAIL_DIAMETER : 1.45);
       display.media.width = diameter;
@@ -496,6 +674,9 @@ export class PixiGraphRenderer {
   private setHovered(id: string | null, nativeEvent?: PointerEvent) {
     if (this.hoveredId === id) return;
     this.hoveredId = id;
+    if (id) this.setHoveredEdge(null);
+    for (const display of this.nodeDisplays.values()) display.targetScale = display.point.id === id ? 1.1 : 1;
+    this.scheduleHoverAnimation();
     this.hoveredConnectionIds.clear();
     if (id && this.scene) {
       for (const edge of this.scene.runtime.edgesByPointId.get(id) ?? []) {
@@ -514,6 +695,36 @@ export class PixiGraphRenderer {
     this.requestRender();
   }
 
+  private setHoveredEdge(id: string | null, nativeEvent?: PointerEvent) {
+    if (this.hoveredEdgeId === id) return;
+    this.hoveredEdgeId = id;
+    const edge = id ? this.edgeDisplays.get(id)?.rendered ?? null : null;
+    this.callbacks.onHoverEdge(edge, nativeEvent?.clientX, nativeEvent?.clientY);
+    for (const display of this.edgeDisplays.values()) this.drawEdge(display);
+    this.requestRender();
+  }
+
+  private onEdgePointerDown = (event: FederatedPointerEvent, id: string) => {
+    if (event.button !== 0) return;
+    event.stopPropagation();
+    const display = this.edgeDisplays.get(id);
+    if (!display) return;
+    this.activateEdge(display.rendered, event.nativeEvent as PointerEvent);
+  };
+
+  private activateEdge(edge: GraphRenderEdge, nativeEvent: PointerEvent) {
+    if (this.selectedId !== null || this.focusedConnectionIds.size > 0) {
+      this.selectedId = null;
+      this.focusedConnectionIds.clear();
+      this.callbacks.onClearSelection();
+    }
+    this.selectedEdgeId = edge.id;
+    this.callbacks.onSelectEdge(edge, nativeEvent.clientX, nativeEvent.clientY);
+    for (const display of this.nodeDisplays.values()) this.applyNodeVisual(display);
+    for (const display of this.edgeDisplays.values()) this.drawEdge(display);
+    this.requestRender();
+  }
+
   private onNodePointerDown = (event: FederatedPointerEvent, id: string) => {
     if (event.button !== 0) return;
     event.stopPropagation();
@@ -526,13 +737,36 @@ export class PixiGraphRenderer {
   };
 
   private onStagePointerDown = (event: FederatedPointerEvent) => {
+    if (event.button === 2 && event.target === this.app.stage) {
+      this.clearFocus();
+      const native = event.nativeEvent as PointerEvent;
+      native.preventDefault();
+      const rect = this.app.canvas.getBoundingClientRect();
+      const x = native.clientX - rect.left;
+      const y = native.clientY - rect.top;
+      this.callbacks.onBackgroundContextMenu(native.clientX, native.clientY, (x - this.viewport.position.x) / this.zoom, (y - this.viewport.position.y) / this.zoom);
+      return;
+    }
     if (event.button !== 0 || event.target !== this.app.stage) return;
+    this.clearFocus();
     const native = event.nativeEvent as PointerEvent;
     this.activePointer = {
       kind: "pan", pointerId: event.pointerId,
       startX: native.clientX, startY: native.clientY, lastX: native.clientX, lastY: native.clientY, moved: false,
     };
     this.app.canvas.setPointerCapture?.(event.pointerId);
+  };
+
+  private onKeyDown = (event: KeyboardEvent) => {
+    if (event.key === "Escape") this.clearFocus();
+  };
+
+  private onCanvasContextMenu = (event: MouseEvent) => {
+    event.preventDefault();
+    const rect = this.app.canvas.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    this.callbacks.onBackgroundContextMenu(event.clientX, event.clientY, (x - this.viewport.position.x) / this.zoom, (y - this.viewport.position.y) / this.zoom);
   };
 
   private onPointerMove = (event: PointerEvent) => {
@@ -613,12 +847,18 @@ export class PixiGraphRenderer {
 
   private activateNode(id: string) {
     if (this.scene?.runtime.pointsById.get(id)?.kind !== "node") return;
-    const previous = this.selectedId;
     this.selectedId = id;
-    const previousDisplay = previous ? this.nodeDisplays.get(previous) : null;
-    const display = this.nodeDisplays.get(id);
-    if (previousDisplay) this.applyNodeVisual(previousDisplay);
-    if (display) this.applyNodeVisual(display);
+    if (this.selectedEdgeId !== null) {
+      this.selectedEdgeId = null;
+      this.callbacks.onClearSelection();
+    }
+    this.focusedConnectionIds.clear();
+    for (const edge of this.scene?.runtime.edgesByPointId.get(id) ?? []) {
+      this.focusedConnectionIds.add(edge.from.id);
+      this.focusedConnectionIds.add(edge.to.id);
+    }
+    for (const nodeDisplay of this.nodeDisplays.values()) this.applyNodeVisual(nodeDisplay);
+    for (const edgeDisplay of this.edgeDisplays.values()) this.drawEdge(edgeDisplay);
     const now = performance.now();
     if (this.lastTap?.id === id && now - this.lastTap.time < 320) {
       this.lastTap = null;
@@ -627,6 +867,18 @@ export class PixiGraphRenderer {
       this.lastTap = { id, time: now };
       this.callbacks.onSelectNode(id);
     }
+    this.requestRender();
+  }
+
+  private clearFocus() {
+    this.setHoveredEdge(null);
+    if (this.selectedId === null && this.focusedConnectionIds.size === 0 && this.selectedEdgeId === null) return;
+    this.selectedId = null;
+    this.selectedEdgeId = null;
+    this.focusedConnectionIds.clear();
+    this.callbacks.onClearSelection();
+    for (const display of this.nodeDisplays.values()) this.applyNodeVisual(display);
+    for (const display of this.edgeDisplays.values()) this.drawEdge(display);
     this.requestRender();
   }
 
@@ -691,6 +943,89 @@ export class PixiGraphRenderer {
     });
   }
 
+  private scheduleHoverAnimation() {
+    if (this.destroyed || this.hoverAnimationFrame !== null) return;
+    this.hoverAnimationFrame = requestAnimationFrame(() => {
+      this.hoverAnimationFrame = null;
+      let active = false;
+      const animatedDisplays = [...this.nodeDisplays.values(), ...this.retiringNodeDisplays.values()];
+      for (const display of animatedDisplays) {
+        const delta = display.targetScale - display.scale;
+        if (Math.abs(delta) <= 0.001) display.scale = display.targetScale;
+        else {
+          display.scale += delta * 0.22;
+          active = true;
+        }
+        const transition = display.lodTransition;
+        if (transition) {
+          const progress = Math.min(1, (performance.now() - transition.startedAt) / LOD_TRANSITION_MS);
+          if (!transition.swapped && progress >= 0.5) {
+            transition.swapped = true;
+            display.visualAlpha = 0;
+            display.visualScale = LOD_TRANSITION_MIN_SCALE;
+            display.renderLod = transition.to;
+            this.applyNodeVisual(display, transition.to);
+          }
+          if (progress < 0.5) {
+            display.visualAlpha = LOD_TRANSITION_MIN_ALPHA + (1 - progress * 2) * (1 - LOD_TRANSITION_MIN_ALPHA);
+            display.visualScale = 1 - (1 - LOD_TRANSITION_MIN_SCALE) * progress * 2;
+          } else {
+            display.visualAlpha = LOD_TRANSITION_MIN_ALPHA + (progress - 0.5) * 2 * (1 - LOD_TRANSITION_MIN_ALPHA);
+            display.visualScale = LOD_TRANSITION_MIN_SCALE + (1 - LOD_TRANSITION_MIN_SCALE) * (progress - 0.5) * 2;
+          }
+          const emphasized = display.point.id === this.selectedId || display.point.id === this.hoveredId;
+          const fromLabelVisible = graphLabelVisible(transition.from, emphasized);
+          const toLabelVisible = graphLabelVisible(transition.to, emphasized);
+          display.label.visible = fromLabelVisible || toLabelVisible;
+          display.label.alpha = progress < 0.5
+            ? fromLabelVisible ? (toLabelVisible ? 1 : 1 - progress * 2) : 0
+            : toLabelVisible ? (fromLabelVisible ? 1 : (progress - 0.5) * 2) : 0;
+          this.applyDisplayTransform(display);
+          active = true;
+          if (progress >= 1) {
+            display.lodTransition = null;
+            display.visualAlpha = 1;
+            display.visualScale = 1;
+            display.label.alpha = 1;
+            this.applyNodeVisual(display, display.renderLod);
+          }
+        } else if (display.lifecycle) {
+          const lifecycle = display.lifecycle;
+          const progress = Math.min(1, (performance.now() - lifecycle.startedAt) / (lifecycle.kind === "enter" ? NODE_ENTER_MS : NODE_EXIT_MS));
+          const eased = 1 - Math.pow(1 - progress, 3);
+          if (lifecycle.kind === "enter") {
+            display.lifeAlpha = 0.28 + eased * 0.72;
+            display.lifeScale = NODE_EXIT_SCALE + eased * (1 - NODE_EXIT_SCALE);
+          } else {
+            display.lifeAlpha = 1 - eased * 0.75;
+            display.lifeScale = 1 - eased * (1 - NODE_EXIT_SCALE);
+          }
+          this.applyDisplayTransform(display);
+          active = true;
+          if (progress >= 1) {
+            if (lifecycle.kind === "exit") this.finalizeRetiringNode(display);
+            else {
+              display.lifecycle = null;
+              display.lifeAlpha = 1;
+              display.lifeScale = 1;
+            }
+          }
+        } else {
+          this.applyDisplayTransform(display);
+        }
+      }
+      this.requestRender();
+      if (active) this.scheduleHoverAnimation();
+    });
+  }
+
+  private finalizeRetiringNode(display: NodeDisplay) {
+    const id = display.point.id;
+    this.releaseDisplayTexture(display);
+    display.container.destroy({ children: true });
+    this.retiringNodeDisplays.delete(id);
+  }
+
   private scheduleSimulation() {
     if (this.destroyed || this.simulationFrame !== null || !this.simulation || this.simulation.isSleeping()) return;
     this.simulationFrame = requestAnimationFrame((timestamp) => {
@@ -710,19 +1045,27 @@ export class PixiGraphRenderer {
     this.resizeObserver.disconnect();
     if (this.interactionFrame !== null) cancelAnimationFrame(this.interactionFrame);
     if (this.renderFrame !== null) cancelAnimationFrame(this.renderFrame);
+    if (this.hoverAnimationFrame !== null) cancelAnimationFrame(this.hoverAnimationFrame);
     if (this.simulationFrame !== null) cancelAnimationFrame(this.simulationFrame);
     this.simulation?.sleep();
     this.app.stage.off("pointerdown", this.onStagePointerDown);
+    window.removeEventListener("keydown", this.onKeyDown);
     this.app.canvas.removeEventListener("pointermove", this.onPointerMove);
     this.app.canvas.removeEventListener("pointerup", this.onPointerUp);
     this.app.canvas.removeEventListener("pointercancel", this.onPointerCancel);
     this.app.canvas.removeEventListener("wheel", this.onWheel);
+    this.app.canvas.removeEventListener("contextmenu", this.onCanvasContextMenu);
     this.app.destroy({ removeView: true }, { children: true, texture: false, textureSource: false, context: true });
     for (const source of this.loadedTextureSources) void Assets.unload(source);
     this.loadedTextureSources.clear();
     this.texturePromises.clear();
     this.textureReferences.clear();
     this.nodeDisplays.clear();
+    for (const display of this.retiringNodeDisplays.values()) {
+      this.releaseDisplayTexture(display);
+      display.container.destroy({ children: true });
+    }
+    this.retiringNodeDisplays.clear();
     this.edgeDisplays.clear();
   }
 }

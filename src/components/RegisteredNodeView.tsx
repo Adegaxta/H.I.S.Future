@@ -7,12 +7,14 @@ import { CourseNodeRenderer } from "../nodes/course/renderer";
 import { ImageNodeRenderer } from "../nodes/image/renderer";
 import { PageNodeRenderer } from "../nodes/page/renderer";
 import { PdfNodeRenderer } from "../nodes/pdf/renderer";
+import { ProjectNodeRenderer } from "../nodes/project/renderer";
 import { TaskNodeRenderer } from "../nodes/task/renderer";
 import { TempoNodeRenderer } from "../nodes/tempo/renderer";
 import { VideoNodeRenderer } from "../nodes/video/renderer";
 
 const NODE_RENDERERS: Record<NodeRendererId, (props: NodeRendererProps) => ReactNode> = {
   page: PageNodeRenderer,
+  project: ProjectNodeRenderer,
   folder: CategoryNodeRenderer,
   calendar: CalendarNodeRenderer,
   tempo: TempoNodeRenderer,

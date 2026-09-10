@@ -12,8 +12,9 @@ import { useNodeStore } from "./useNodeStore";
 export function useTreeController(
   defaultNodeType: BaseNodeType = "pagina",
   projectKey?: string,
+  projectName = "",
 ) {
-  const store = useNodeStore(projectKey);
+  const store = useNodeStore(projectKey, projectName);
   const [creating, setCreating] = useState<CreatingState | null>(null);
   const [draftName, setDraftName] = useState("");
   const [draftType, setDraftType] = useState<BaseNodeType>("pagina");

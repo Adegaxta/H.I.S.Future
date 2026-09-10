@@ -2,8 +2,9 @@ import assert from "node:assert/strict";
 import { createServer } from "vite";
 
 const server = await createServer({
+  configFile: false,
   optimizeDeps: { noDiscovery: true, include: [] },
-  server: { middlewareMode: true },
+  server: { middlewareMode: true, hmr: false, watch: null },
   appType: "custom",
 });
 

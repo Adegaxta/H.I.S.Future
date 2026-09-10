@@ -4,7 +4,7 @@ import path from "node:path";
 import { createServer } from "vite";
 
 const root = path.resolve(import.meta.dirname, "..");
-const server = await createServer({ root, server: { middlewareMode: true }, appType: "custom" });
+const server = await createServer({ root, configFile: false, optimizeDeps: { noDiscovery: true, include: [] }, server: { middlewareMode: true, hmr: false, watch: null }, appType: "custom" });
 
 try {
   const core = await server.ssrLoadModule("/src/i18n/core.ts");

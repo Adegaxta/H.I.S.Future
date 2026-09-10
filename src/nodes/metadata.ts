@@ -16,6 +16,7 @@ export interface NodalMeta {
   duration: number | null;
   size: number | null;
   mediaType: string;
+  role: "vault-primary" | null;
 }
 
 const PATTERN = /<!--hisfuture-nodal-meta:([\s\S]*?)-->/;
@@ -44,6 +45,7 @@ export function getNodalMeta(content: string): NodalMeta {
     roomLinks: Array.isArray(raw.roomLinks) ? raw.roomLinks.filter((value) => value && typeof value.id === "string" && typeof value.url === "string").map((value) => ({ id: value.id, url: value.url, label: text(value.label) })) : [],
     evaluation: raw.evaluation === true, status: raw.status === "progress" || raw.status === "done" ? raw.status : "pending",
     transcript: text(raw.transcript), duration: positive(raw.duration), size: positive(raw.size), mediaType: text(raw.mediaType),
+    role: raw.role === "vault-primary" ? "vault-primary" : null,
   };
 }
 

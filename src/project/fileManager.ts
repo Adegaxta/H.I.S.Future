@@ -15,6 +15,7 @@ interface CloseProjectTimings {
   workingDirectoryCleanupMs: number;
   totalMs: number;
   packaged: boolean;
+  archiveQueued: boolean;
 }
 
 export async function createProject(name: string, t: Translate): Promise<ProjectInfo | null> {
@@ -91,10 +92,9 @@ export async function closeProject(): Promise<void> {
     const timings = await measureActiveCloseProjectPhase("backend close", () =>
       invoke<CloseProjectTimings>("close_project", { traceId }),
     );
-    recordCloseProjectPhase(traceId, "SQLite checkpoint", timings.sqliteCheckpointMs);
-    recordCloseProjectPhase(traceId, "archive packaging", timings.archivePackagingMs);
-    recordCloseProjectPhase(traceId, "working directory cleanup", timings.workingDirectoryCleanupMs);
-    console.info(`[lifecycle][${traceId}] archive packaged=${timings.packaged}`);
+    recordCloseProjectPhase(traceId, "durable SQLite checkpoint", timings.sqliteCheckpointMs);
+    recordCloseProjectPhase(traceId, "archive queue handoff", Math.max(0, timings.totalMs - timings.sqliteCheckpointMs));
+    console.info(`[lifecycle][${traceId}] archive queued=${timings.archiveQueued}`);
   } catch (error) {
     throw new Error(asErrorMessage(error));
   }

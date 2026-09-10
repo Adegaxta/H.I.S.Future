@@ -4,6 +4,7 @@ import { getNodeGraphImageSource, getNodeGraphRelationIds } from "../nodes/runti
 import { NODE_REGISTRY, getNodeDefinition } from "../defs/nodeTypes";
 import type { BaseNodeType, NodeItem } from "../types/nodes";
 import type { RelationRole } from "../nodes/relationTypes";
+import { isVaultPrimaryNode } from "../nodes/project/domain";
 
 export type GraphVertexKind = "node" | "type-hub";
 export type GraphVertexProvenance = "nodal-node" | "node-registry";
@@ -17,6 +18,7 @@ export interface GraphVertex {
   nodeType?: BaseNodeType;
   typeId?: BaseNodeType;
   imageSrc?: string;
+  isPrimaryProject?: boolean;
 }
 
 export type GraphEdgeKind =
@@ -82,6 +84,7 @@ export function buildGraphProjection(
     color: getNodeDefinition(node.type).color,
     nodeType: node.type,
     imageSrc: getNodeGraphImageSource(node),
+    isPrimaryProject: isVaultPrimaryNode(node),
   }));
   const edges: GraphEdge[] = [];
   const diagnostics: GraphDiagnostic[] = [];

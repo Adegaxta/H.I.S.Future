@@ -60,6 +60,6 @@ export function graphLabelVisible(lod: GraphLod, emphasized: boolean): boolean {
 export function graphNodeRadius(point: GraphPoint, lod: GraphLod, emphasized: boolean): number {
   if (lod === "distant") return emphasized ? 5 : 3.5;
   if (lod === "far") return emphasized ? 10 : 8;
-  const base = point.kind === "type-hub" ? 17 : 12;
+  const base = point.kind === "type-hub" ? 17 : point.isPrimaryProject ? 16 : 12;
   return emphasized ? base + 2.5 : base;
 }

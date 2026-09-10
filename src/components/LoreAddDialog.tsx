@@ -3,15 +3,17 @@ import type { BaseNodeType, NodeItem } from "../types/nodes";
 import { NODE_REGISTRY, getNodeDisplayLabel } from "../defs/nodeTypes";
 import { useLocale } from "../i18n/LocaleContext";
 
-export default function LoreAddDialog({ nodes, onAdd, onCreate, onClose }: {
+export default function LoreAddDialog({ nodes, onAdd, onCreate, onClose, initialMode = null, title }: {
   nodes: NodeItem[];
   onAdd: (ids: string[]) => void;
   onCreate: (name: string, type: BaseNodeType) => void;
   onClose: () => void;
+  initialMode?: "existing" | "new" | null;
+  title?: string;
 }) {
   const { t } = useLocale();
   const dialogRef = useRef<HTMLDialogElement>(null);
-  const [mode, setMode] = useState<"existing" | "new" | null>(null);
+  const [mode, setMode] = useState<"existing" | "new" | null>(initialMode);
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
   const [name, setName] = useState("");
@@ -25,7 +27,7 @@ export default function LoreAddDialog({ nodes, onAdd, onCreate, onClose }: {
   const filtered = available.filter((node) => node.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()));
   return <dialog ref={dialogRef} className="lore-add-dialog" onCancel={onClose} onClick={(event) => { if (event.target === event.currentTarget) onClose(); }} aria-labelledby="lore-add-title">
     <div className="lore-add-dialog__content">
-      <header><h2 id="lore-add-title">{t("lore.dialog.title")}</h2><button type="button" onClick={onClose} aria-label={t("common.actions.close")}>×</button></header>
+      <header><h2 id="lore-add-title">{title ?? t("lore.dialog.title")}</h2><button type="button" onClick={onClose} aria-label={t("common.actions.close")}>×</button></header>
       <div className="lore-add-dialog__choices">
         <button type="button" aria-pressed={mode === "existing"} onClick={() => setMode("existing")}>{t("lore.dialog.existing")}</button>
         <button type="button" aria-pressed={mode === "new"} onClick={() => setMode("new")}>{t("lore.dialog.new")}</button>

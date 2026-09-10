@@ -3,14 +3,17 @@ import fs from "node:fs";
 import { createServer } from "vite";
 
 const server = await createServer({
+  configFile: false,
   optimizeDeps: { noDiscovery: true, include: [] },
-  server: { middlewareMode: true },
+  server: { middlewareMode: true, hmr: false, watch: null },
   appType: "custom",
 });
 
 try {
   const scene = await server.ssrLoadModule("/src/graph/scene.ts");
   const edgeGeometry = await server.ssrLoadModule("/src/graph/edgeGeometry.ts");
+  const edgeSemantics = await server.ssrLoadModule("/src/graph/edgeSemantics.ts");
+  const edgeFacts = await server.ssrLoadModule("/src/graph/edgeFacts.ts");
   const node = { id: "image", label: "Image", kind: "node", provenance: "nodal-node", color: "#4dd8c0", nodeType: "imagen", imageSrc: "data:image/png;base64,AA==", x: 1, y: 1 };
   const hub = { id: "type-hub-imagen", label: "Image", kind: "type-hub", provenance: "node-registry", color: "#4dd8c0", nodeType: "imagen", typeId: "imagen", x: 1, y: 1 };
   const plain = { ...node, id: "page", nodeType: "pagina", imageSrc: undefined };
@@ -108,6 +111,26 @@ try {
   const overlapping = endpoints();
   assert.equal(edgeGeometry.resolveVisualEdgeEndpoints(0, 0, 15, 0, circle(10), circle(10), 1, overlapping), false, "overlapping geometry omits an impossible visible segment");
 
+  const arrowhead = { tipX: 0, tipY: 0, leftX: 0, leftY: 0, rightX: 0, rightY: 0 };
+  assert.equal(edgeGeometry.resolveGraphArrowhead(0, 0, circleToCircle.endX, circleToCircle.endY, 8, 6, arrowhead), true);
+  assert.equal(arrowhead.tipX, circleToCircle.endX, "arrow tip stays on the trimmed target boundary");
+  assert.equal(arrowhead.tipY, circleToCircle.endY, "arrow tip stays on the trimmed target boundary");
+  assert.ok(arrowhead.leftX < arrowhead.tipX && arrowhead.rightX < arrowhead.tipX, "arrow base extends inward from the target");
+  assert.equal(edgeSemantics.isDirectionalGraphEdge({ kind: "nodal-relation" }), true);
+  assert.equal(edgeSemantics.isDirectionalGraphEdge({ kind: "mention-reference" }), true);
+  assert.equal(edgeSemantics.isDirectionalGraphEdge({ kind: "grouping" }), false);
+  assert.equal(edgeSemantics.isDirectionalGraphEdge({ kind: "legacy-runtime-derived" }), false);
+  const repeatedMention = { kind: "mention-reference", provenance: "editor-content", role: undefined };
+  const relationFact = { kind: "nodal-relation", provenance: "nodal-metadata", role: "relatedWork" };
+  const summaries = edgeFacts.aggregateGraphEdgeFacts([
+    repeatedMention,
+    repeatedMention,
+    repeatedMention,
+    relationFact,
+  ]);
+  assert.equal(summaries.find(({ fact }) => fact.kind === "mention-reference").count, 3, "repeated mentions collapse into xN");
+  assert.equal(summaries.find(({ fact }) => fact.kind === "nodal-relation").count, 1, "different role/provenance facts stay separate");
+
   const rendererSource = fs.readFileSync(new URL("../src/graph/PixiGraphRenderer.ts", import.meta.url), "utf8");
   const viewSource = fs.readFileSync(new URL("../src/graph/view.tsx", import.meta.url), "utf8");
   const iconSource = fs.readFileSync(new URL("../src/graph/iconSource.ts", import.meta.url), "utf8");
@@ -120,6 +143,23 @@ try {
   assert.ok(rendererSource.includes("releaseDisplayTexture"), "removed nodes release their Pixi texture ownership");
   assert.ok(rendererSource.includes("edgesByPointId"), "node movement updates only incident edges");
   assert.ok(rendererSource.includes("onHoverNode"), "hover state is delegated to the React overlay");
+  assert.ok(rendererSource.includes("onBackgroundContextMenu"), "background context menu is delegated from Pixi");
+  assert.ok(rendererSource.includes("onHoverEdge"), "edge hover is delegated with semantic facts");
+  assert.ok(rendererSource.includes("onSelectEdge"), "edge click can persist semantic focus");
+  assert.ok(rendererSource.includes("onEdgePointerDown"), "edge click is handled independently from canvas pan");
+  assert.ok(rendererSource.includes("setHoveredEdge"), "edges own their hover state independently");
+  assert.ok(rendererSource.includes("focusedConnectionIds"), "node click focus persists independently from hover");
+  assert.ok(rendererSource.includes("onKeyDown"), "Escape can release persistent graph focus");
+  assert.ok(rendererSource.includes('display.graphics.eventMode = "static"'), "edge graphics receive pointer hover events");
+  assert.ok(rendererSource.includes("scheduleHoverAnimation"), "hover scale uses a bounded animation frame");
+  assert.ok(rendererSource.includes("LOD_TRANSITION_MS = 150"), "LOD transitions stay within the requested 100-180 ms range");
+  assert.ok(rendererSource.includes("LOD_TRANSITION_MIN_ALPHA = 0.55"), "LOD transitions preserve a visible silhouette at midpoint");
+  assert.ok(rendererSource.includes("visualAlpha"), "LOD transitions fade visual presentation without touching physics");
+  assert.ok(rendererSource.includes("visualScale"), "LOD transitions scale visual presentation without touching physics");
+  assert.ok(rendererSource.includes("display.renderLod = transition.to"), "LOD geometry changes at the transition midpoint");
+  assert.ok(rendererSource.includes("NODE_ENTER_MS = 200"), "new nodes enter within the requested presentation window");
+  assert.ok(rendererSource.includes("NODE_EXIT_MS = 180"), "removed nodes exit within the requested presentation window");
+  assert.ok(rendererSource.includes("retiringNodeDisplays"), "removed nodes remain available for their exit animation");
   const applyVisualStart = rendererSource.indexOf("private applyNodeVisual");
   const ensureMediaStart = rendererSource.indexOf("private async ensureMedia");
   const thumbnailMaskStart = rendererSource.indexOf("display.mask.visible = true", ensureMediaStart);

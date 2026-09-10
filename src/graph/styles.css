@@ -182,6 +182,45 @@
   flex-basis: 18px;
 }
 
+.graph-view__edge-hover-stack {
+  position: fixed;
+  z-index: 7;
+  width: 300px;
+  pointer-events: none;
+}
+
+.graph-view__edge-hover-card {
+  padding: 11px 12px;
+  border: 1px solid #3d6e68;
+  border-radius: 5px;
+  background: #171a1e;
+  box-shadow: 0 14px 34px rgb(0 0 0 / 45%);
+}
+
+.graph-view__edge-hover-path {
+  overflow: hidden;
+  margin-bottom: 8px;
+  color: #f2f3f4;
+  font-size: 12px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.graph-view__edge-fact {
+  display: grid;
+  gap: 3px;
+  margin-top: 7px;
+  padding-top: 7px;
+  border-top: 1px solid #2a3032;
+  color: #9ea6aa;
+  font-family: ui-monospace, "SF Mono", "Cascadia Code", monospace;
+  font-size: 10px;
+}
+
+.graph-view__edge-fact strong { color: #78d9ca; font-family: inherit; font-size: 10px; font-weight: 600; }
+.graph-view__edge-fact-count { margin-left: 5px; color: #f2f3f4; font-weight: 700; }
+
 @media (max-width: 700px) {
   .graph-view { padding: 24px 18px; }
 }

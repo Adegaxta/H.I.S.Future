@@ -1,6 +1,7 @@
 import { useLocale } from "../i18n/LocaleContext";
 import { courseAwareDeletionIds, hasMissingCourseCalendar, reconcileCourseCalendars, synchronizedNodeIds } from "../nodes/course/domain";
 import { applyNodeRename } from "../nodes/runtime";
+import { isVaultPrimaryNode, reconcileVaultPrimary } from "../nodes/project/domain";
 import { useDebouncedPersistence } from "./useDebouncedPersistence";
 import { useEffect, useRef, useState } from "react";
 import { listNodes, saveNodes, loadDeletedNodes } from "../project/nodeRepository";
@@ -29,7 +30,7 @@ interface NodePersistenceRequest {
   version: number;
 }
 
-export function useNodeStore(projectKey?: string) {
+export function useNodeStore(projectKey?: string, projectName = "") {
   const { t } = useLocale();
   const trashKey = projectKey ? `hisfuture.project.trash.${projectKey}` : null;
   const recentKey = projectKey ? `hisfuture.project.recent-nodes.${projectKey}` : null;
@@ -113,10 +114,11 @@ export function useNodeStore(projectKey?: string) {
         persistedVersionRef.current = changeVersionRef.current;
         const previousTrash = trash ?? deletedNodesRef.current.filter((node) => !stored.some((active) => active.id === node.id));
         const repaired = reconcileCourseCalendars(stored, previousTrash, t("nodes.calendar.label"));
-        setNodes(repaired.nodes);
+        const reconciledNodes = reconcileVaultPrimary(repaired.nodes, projectName);
+        setNodes(reconciledNodes);
         setDeletedNodes(repaired.deletedNodes);
         deletedNodesRef.current = repaired.deletedNodes;
-        if (trash === null || repaired.nodes !== stored || repaired.deletedNodes !== previousTrash) markDirty();
+        if (trash === null || reconciledNodes !== stored || repaired.deletedNodes !== previousTrash) markDirty();
         setHydrated(true);
       } catch (error) {
         console.error(error);
@@ -199,7 +201,7 @@ export function useNodeStore(projectKey?: string) {
       deletedNodesRef.current = repaired.deletedNodes;
       setDeletedNodes(repaired.deletedNodes);
     }
-    return repaired.nodes;
+    return reconcileVaultPrimary(repaired.nodes, projectName);
   };
   const mutateNodes = (update: (current: NodeItem[]) => NodeItem[]) => {
     setNodes((current) => {
@@ -277,7 +279,10 @@ export function useNodeStore(projectKey?: string) {
     });
   const deleteNode = (id: string) => {
     setNodes((current) => {
+      const target = current.find((node) => node.id === id);
+      if (target && isVaultPrimaryNode(target)) return current;
       const ids = courseAwareDeletionIds(current, [id]);
+      for (const node of current) if (ids.has(node.id) && isVaultPrimaryNode(node)) ids.delete(node.id);
       const removed = current.filter((node) => ids.has(node.id));
       if (!removed.length) return current;
       markDirty();
@@ -315,6 +320,7 @@ export function useNodeStore(projectKey?: string) {
   };
   const permanentlyDeleteNodes = () => {
     const ids = synchronizedNodeIds(deletedNodes, selectedDeletedIds);
+    for (const node of deletedNodes) if (ids.has(node.id) && isVaultPrimaryNode(node)) ids.delete(node.id);
     if (!ids.size) return;
     markDirty();
     setDeletedNodes((current) => current.filter((node) => !ids.has(node.id)));
@@ -409,7 +415,10 @@ export function useNodeStore(projectKey?: string) {
     createNode,
     renameNode,
     deleteNode,
-    canDeleteNode: (id: string) => courseAwareDeletionIds(nodes, [id]).has(id),
+    canDeleteNode: (id: string) => {
+      const node = nodes.find((item) => item.id === id);
+      return Boolean(node && !isVaultPrimaryNode(node) && courseAwareDeletionIds(nodes, [id]).has(id));
+    },
     removeFromLore: (ids: string[]) => changeLoreMembership(ids, false),
     addToLore: (ids: string[]) => changeLoreMembership(ids, true),
     deletedNodes,

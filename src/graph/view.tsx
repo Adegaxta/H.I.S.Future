@@ -4,11 +4,14 @@ import { readGraphBooleanPreference, writeGraphBooleanPreference } from "./prefe
 import { buildGraphRuntime, type GraphPosition } from "./runtime";
 import { buildGraphScene } from "./scene";
 import type { PixiGraphRenderer } from "./PixiGraphRenderer";
-import type { GraphPoint } from "./runtime";
-import type { NodeItem } from "../types/nodes";
+import type { GraphPoint, GraphRenderEdge } from "./runtime";
+import type { BaseNodeType, NodeItem } from "../types/nodes";
 import { useLocale } from "../i18n/LocaleContext";
 import { getNodeDisplayLabel } from "../nodes/registry";
 import { NodeIcon } from "../nodes/NodeIcon";
+import HisContextMenu, { type HisContextMenuItem } from "../components/HisContextMenu";
+import LoreAddDialog from "../components/LoreAddDialog";
+import { aggregateGraphEdgeFacts } from "./edgeFacts";
 
 interface HoveredGraphNode {
   point: GraphPoint;
@@ -16,14 +19,22 @@ interface HoveredGraphNode {
   clientY: number;
 }
 
+interface HoveredGraphEdge {
+  edge: GraphRenderEdge;
+  clientX: number;
+  clientY: number;
+}
+
 interface GraphViewProps {
   nodes: NodeItem[];
   onSelectNode: (id: string) => void;
+  onClearSelection: () => void;
   onOpenNode: (id: string) => void;
+  onCreateNode: (name: string, type: BaseNodeType, position: GraphPosition) => string;
   projectKey: string;
 }
 
-export default function GraphView({ nodes, onSelectNode, onOpenNode, projectKey }: GraphViewProps) {
+export default function GraphView({ nodes, onSelectNode, onClearSelection, onOpenNode, onCreateNode, projectKey }: GraphViewProps) {
   const { t } = useLocale();
   const typesPreferenceKey = `hisfuture:graph:types:${projectKey}`;
   const iconsPreferenceKey = `hisfuture:graph:icons:${projectKey}`;
@@ -35,10 +46,14 @@ export default function GraphView({ nodes, onSelectNode, onOpenNode, projectKey 
   const [showIntro, setShowIntro] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
   const [hoveredNode, setHoveredNode] = useState<HoveredGraphNode | null>(null);
+  const [hoveredEdge, setHoveredEdge] = useState<HoveredGraphEdge | null>(null);
+  const [focusedEdge, setFocusedEdge] = useState<HoveredGraphEdge | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; worldX: number; worldY: number } | null>(null);
+  const [createPosition, setCreatePosition] = useState<GraphPosition | null>(null);
   const rendererHostRef = useRef<HTMLDivElement | null>(null);
   const rendererRef = useRef<PixiGraphRenderer | null>(null);
-  const callbacksRef = useRef({ onSelectNode, onOpenNode });
-  callbacksRef.current = { onSelectNode, onOpenNode };
+  const callbacksRef = useRef({ onSelectNode, onClearSelection, onOpenNode });
+  callbacksRef.current = { onSelectNode, onClearSelection, onOpenNode };
   const positionCacheRef = useRef(new Map<string, GraphPosition>());
   const positionCacheProjectRef = useRef(projectKey);
   if (positionCacheProjectRef.current !== projectKey) {
@@ -64,9 +79,19 @@ export default function GraphView({ nodes, onSelectNode, onOpenNode, projectKey 
     if (!host) return;
     let cancelled = false;
     void import("./PixiGraphRenderer").then(({ PixiGraphRenderer }) => PixiGraphRenderer.create(host, {
-      onSelectNode: (id) => callbacksRef.current.onSelectNode(id),
+      onSelectNode: (id) => {
+        setFocusedEdge(null);
+        callbacksRef.current.onSelectNode(id);
+      },
+      onSelectEdge: (edge, clientX = 0, clientY = 0) => setFocusedEdge({ edge, clientX, clientY }),
+      onClearSelection: () => {
+        setFocusedEdge(null);
+        callbacksRef.current.onClearSelection();
+      },
       onOpenNode: (id) => callbacksRef.current.onOpenNode(id),
       onHoverNode: (point, clientX = 0, clientY = 0) => setHoveredNode(point ? { point, clientX, clientY } : null),
+      onHoverEdge: (edge, clientX = 0, clientY = 0) => setHoveredEdge(edge ? { edge, clientX, clientY } : null),
+      onBackgroundContextMenu: (clientX, clientY, worldX, worldY) => setContextMenu({ x: clientX, y: clientY, worldX, worldY }),
     })).then((renderer) => {
       if (cancelled) {
         renderer.destroy();
@@ -132,6 +157,57 @@ export default function GraphView({ nodes, onSelectNode, onOpenNode, projectKey 
       </div>
       {showIntro && <div className="graph-view__intro" role="status">{t("graph.intro")}</div>}
       <div ref={rendererHostRef} className="graph-view__renderer" />
+      {(hoveredEdge ?? focusedEdge) && (
+        <div
+          className="graph-view__edge-hover-stack"
+          role="status"
+          style={{
+            left: Math.min((hoveredEdge ?? focusedEdge)!.clientX + 18, Math.max(12, window.innerWidth - 320)),
+            top: Math.min((hoveredEdge ?? focusedEdge)!.clientY + 18, Math.max(12, window.innerHeight - 220)),
+          }}
+        >
+          <div className="graph-view__edge-hover-card">
+            <div className="graph-view__edge-hover-path">{(hoveredEdge ?? focusedEdge)!.edge.from.label} → {(hoveredEdge ?? focusedEdge)!.edge.to.label}</div>
+            {aggregateGraphEdgeFacts((hoveredEdge ?? focusedEdge)!.edge.facts).map(({ fact, count }, index) => (
+              <div className="graph-view__edge-fact" key={`${fact.kind}-${fact.role ?? "none"}-${index}`}>
+                <strong>{fact.kind === "mention-reference" ? t("graph.edge.mention") : fact.kind === "nodal-relation" ? t("graph.edge.relation") : fact.kind === "grouping" ? t("graph.edge.grouping") : t("graph.edge.derived")}</strong>
+                {count > 1 && <span className="graph-view__edge-fact-count">x{count}</span>}
+                {fact.role && <span>role: {fact.role}</span>}
+                <span>{fact.provenance === "nodal-metadata" ? t("graph.edge.provenance.metadata") : fact.provenance === "editor-content" ? t("graph.edge.provenance.editor") : fact.provenance === "node-registry" ? t("graph.edge.provenance.registry") : t("graph.edge.provenance.runtime")}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {contextMenu && (
+        <HisContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          items={[{
+            id: "create-node",
+            label: t("nodal.create"),
+            onSelect: () => {
+              setCreatePosition({ x: contextMenu.worldX, y: contextMenu.worldY });
+              setContextMenu(null);
+            },
+          } satisfies HisContextMenuItem]}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
+      {createPosition && (
+        <LoreAddDialog
+          nodes={nodes}
+          initialMode="new"
+          title={t("graph.createNode")}
+          onAdd={() => undefined}
+          onCreate={(name, type) => {
+            const id = onCreateNode(name, type, createPosition);
+            positionCacheRef.current.set(id, createPosition);
+            setCreatePosition(null);
+          }}
+          onClose={() => setCreatePosition(null)}
+        />
+      )}
       {hoveredNode && (
         <div
           className="graph-view__hover-stack"
