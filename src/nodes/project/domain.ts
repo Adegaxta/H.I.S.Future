@@ -5,8 +5,17 @@ import { VAULT_PRIMARY_ROLE } from "./identity";
 
 const PROJECT_NODE_TYPE = projectNodeModule.definition.type;
 
-export const isVaultPrimaryNode = (node: Pick<NodeItem, "type" | "content">): boolean =>
-  node.type === PROJECT_NODE_TYPE && getNodalMeta(node.content).role === VAULT_PRIMARY_ROLE;
+export const isVaultPrimaryNode = (node: Pick<NodeItem, "content">): boolean =>
+  getNodalMeta(node.content).role === VAULT_PRIMARY_ROLE;
+
+export function assignVaultPrimaryNode(nodes: readonly NodeItem[], primaryId: string): NodeItem[] {
+  return nodes.map((node) => {
+    const role = node.id === primaryId ? VAULT_PRIMARY_ROLE : null;
+    return getNodalMeta(node.content).role === role
+      ? node
+      : { ...node, content: setNodalMeta(node.content, { role }) };
+  });
+}
 
 export function createVaultPrimaryNode(nodes: readonly NodeItem[], vaultName: string, id = crypto.randomUUID()): NodeItem {
   return {

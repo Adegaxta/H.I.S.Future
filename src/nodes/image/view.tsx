@@ -11,6 +11,7 @@ import {
 } from "../../utils/imageResource";
 import { isDesktopRuntime } from "../../project/runtime";
 import NodeTypeLabel from "../../components/NodeTypeLabel";
+import { openWebUrl } from "../viewPrimitives";
 import { useLocale } from "../../i18n/LocaleContext";
 
 interface ImageNodeViewProps {
@@ -143,7 +144,7 @@ export default function ImageNodeView({
       if (typeof reader.result !== "string") return;
       onContentChange(
         node.id,
-        createImageContent(reader.result, file.name, file.size, hash, editingDescription)
+        createImageContent(reader.result, file.name, file.size, hash, editingDescription, null)
       );
       setMessage(t("image.replace.success"));
     };
@@ -216,7 +217,7 @@ export default function ImageNodeView({
         <img src={resource.src} alt={resource.fileName} />
       </div>
       <div className="image-node-view__panel">
-        <NodeTypeLabel type="imagen" />
+        <NodeTypeLabel type="imagen" node={node} />
         <input
           className="image-node-view__title"
           value={editingName}
@@ -236,9 +237,10 @@ export default function ImageNodeView({
               const updated = createImageContent(
                 resource?.src || "",
                 resource?.fileName || node.name,
-                resource?.fileSize || 0,
-                resource?.hash || "",
-                editingDescription
+                resource?.fileSize ?? null,
+                resource?.hash ?? null,
+                editingDescription,
+                resource?.provenance || null,
               );
               onContentChange(node.id, updated);
             }
@@ -314,6 +316,16 @@ export default function ImageNodeView({
           <dt>{t("image.hash")}</dt>
           <dd title={resource.hash || undefined}>{resource.hash || t("image.unavailable")}</dd>
         </dl>
+        {resource.provenance && (
+          <section className="image-node-view__provenance" aria-label={t("image.provenance")}>
+            <h3>{t("image.provenance")}</h3>
+            <p>{t("image.photographer")} <button type="button" onClick={() => void openWebUrl(resource.provenance?.creatorUrl || "")}>{resource.provenance.creatorName}</button></p>
+            <p><button type="button" onClick={() => void openWebUrl(resource.provenance?.resourceUrl || "")}>{resource.provenance.provider === "unsplash" ? t("image.unsplash") : resource.provenance.provider}</button></p>
+            {resource.provenance.creatorPortfolioUrl && <p><button type="button" onClick={() => void openWebUrl(resource.provenance?.creatorPortfolioUrl || "")}>{t("image.portfolio")}</button></p>}
+            {resource.provenance.creatorInstagramUrl && <p><button type="button" onClick={() => void openWebUrl(resource.provenance?.creatorInstagramUrl || "")}>{t("image.instagram")}</button></p>}
+            {resource.provenance.creatorTwitterUrl && <p><button type="button" onClick={() => void openWebUrl(resource.provenance?.creatorTwitterUrl || "")}>{t("image.twitter")}</button></p>}
+          </section>
+        )}
       </div>
     </div>
   );

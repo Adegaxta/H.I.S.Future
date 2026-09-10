@@ -3,6 +3,7 @@ export const EN_WORKSPACE_TRANSLATIONS = {
   "context.createRoot": "Create root Node",
   "context.rename": "Rename",
   "context.view": "View",
+  "context.setPrimary": "Set as primary Node",
   "context.removeFromLore": "Remove from Lore",
   "context.removeManyFromLore": "Remove {count} Nodes from Lore",
   "context.deleteNode": "Delete Node",

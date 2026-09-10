@@ -8,6 +8,7 @@ interface ContextMenuProps {
   onCreate?: (parentId: string | null) => void;
   onRename: (nodeId: string) => void;
   onView: (nodeId: string) => void;
+  onSetPrimary: (nodeId: string) => void;
   onRemoveFromLore: (nodeId: string) => void;
   onDelete: (nodeId: string) => void;
   onClose: () => void;
@@ -22,6 +23,7 @@ export function buildNodeContextMenuItems({
   onCreate,
   onRename,
   onView,
+  onSetPrimary,
   onRemoveFromLore,
   onDelete,
   removeCount = 1,
@@ -38,6 +40,7 @@ export function buildNodeContextMenuItems({
     const id = menu.nodeId;
     items.push({ id: "rename", label: t("context.rename"), onSelect: () => onRename(id) });
     items.push({ id: "view", label: t("context.view"), onSelect: () => onView(id) });
+    items.push({ id: "set-primary", label: t("context.setPrimary"), onSelect: () => onSetPrimary(id) });
     if (menu.context === "lore") {
       items.push({ id: "remove-lore", label: t(removeCount > 1 ? "context.removeManyFromLore" : "context.removeFromLore", { count: removeCount }), onSelect: () => onRemoveFromLore(id) });
       if (menu.extended) items.push({ id: "delete", label: t("context.deleteNode"), danger: true, disabled: !canDelete, onSelect: () => onDelete(id) });

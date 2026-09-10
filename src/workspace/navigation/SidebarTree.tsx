@@ -16,6 +16,7 @@ import { getChildren, getEffectiveNodeType, opensNodeViewOnClick } from "../../u
 import { useLocale } from "../../i18n/LocaleContext";
 import { findImportableFile, isImportableDragItem } from "../../project/fileNodeImporter";
 import { NodeIcon } from "../../nodes/NodeIcon";
+import { PrimaryNodeName } from "../../nodes/PrimaryNodeName";
 import { useSearchReveal } from "../../hooks/useSearchReveal";
 import { useEffect, useRef } from "react";
 import { getLoreNodes, selectLoreRange } from "../../utils/loreTree";
@@ -339,7 +340,7 @@ export default function SidebarTree(props: SidebarTreeProps) {
                 }}
               />
             ) : (
-              node.name
+              <PrimaryNodeName node={node}>{node.name}</PrimaryNodeName>
             )}
           </span>
           <span

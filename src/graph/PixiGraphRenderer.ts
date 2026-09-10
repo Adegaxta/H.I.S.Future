@@ -41,11 +41,13 @@ import {
 } from "./edgeGeometry";
 import { GraphSimulation } from "./simulation";
 import { isDirectionalGraphEdge } from "./edgeSemantics";
+import starIcon from "../assets/third-party/google-material/icons/star.svg";
 
 interface GraphRendererCallbacks {
   onSelectNode: (id: string) => void;
   onSelectEdge: (edge: GraphRenderEdge, clientX?: number, clientY?: number) => void;
   onOpenNode: (id: string) => void;
+  onNodeContextMenu: (id: string, clientX: number, clientY: number) => void;
   onClearSelection: () => void;
   onHoverNode: (point: GraphPoint | null, clientX?: number, clientY?: number) => void;
   onHoverEdge: (edge: GraphRenderEdge | null, clientX?: number, clientY?: number) => void;
@@ -57,7 +59,7 @@ interface NodeDisplay {
   container: Container;
   halo: Graphics;
   body: Graphics;
-  primaryBadge: Graphics;
+  primaryBadge: Sprite;
   label: Text;
   mask: Graphics;
   media: Sprite | null;
@@ -118,6 +120,7 @@ const LOD_TRANSITION_MIN_ALPHA = 0.55;
 const NODE_ENTER_MS = 200;
 const NODE_EXIT_MS = 180;
 const NODE_EXIT_SCALE = 0.35;
+let primaryIconTexturePromise: Promise<Texture> | null = null;
 
 function colorNumber(color: string): number {
   return Number.parseInt(color.replace("#", ""), 16);
@@ -127,6 +130,11 @@ function mediaSourceFor(point: GraphPoint, visual: ReturnType<typeof graphNodeVi
   if (visual === "thumbnail") return point.imageSrc ?? null;
   if (visual === "icon" && point.nodeType) return resolveNodeTypeIconSource(point.nodeType as BaseNodeType);
   return null;
+}
+
+function loadPrimaryIconTexture(): Promise<Texture> {
+  primaryIconTexturePromise ??= Assets.load<Texture>(starIcon);
+  return primaryIconTexturePromise;
 }
 
 export class PixiGraphRenderer {
@@ -166,6 +174,7 @@ export class PixiGraphRenderer {
   private simulationFrame: number | null = null;
   private simulationTimestamp = 0;
   private destroyed = false;
+  private suppressNextCanvasContextMenu = false;
   // GraphSimulation owns velocities and sleep state; Pixi owns scheduling and visual application.
   private simulation: GraphSimulation | null = null;
   private lastTap: { id: string; time: number } | null = null;
@@ -177,6 +186,7 @@ export class PixiGraphRenderer {
     textureLoads: 0,
     renders: 0,
   };
+  private primaryIconTexture: Texture = Texture.EMPTY;
 
   private constructor(private readonly host: HTMLDivElement, callbacks: GraphRendererCallbacks) {
     this.callbacks = callbacks;
@@ -221,6 +231,14 @@ export class PixiGraphRenderer {
     this.app.canvas.addEventListener("wheel", this.onWheel, { passive: false });
     this.resizeObserver.observe(this.host);
     this.resize(true);
+    void loadPrimaryIconTexture().then((texture) => {
+      if (this.destroyed) return;
+      this.primaryIconTexture = texture;
+      for (const display of this.nodeDisplays.values()) display.primaryBadge.texture = texture;
+      this.requestRender();
+    }).catch((error) => {
+      console.warn("Graph primary icon could not be loaded", error);
+    });
   }
 
   setCallbacks(callbacks: GraphRendererCallbacks) {
@@ -304,7 +322,7 @@ export class PixiGraphRenderer {
     const container = new Container();
     const halo = new Graphics();
     const body = new Graphics();
-    const primaryBadge = new Graphics();
+    const primaryBadge = new Sprite(this.primaryIconTexture);
     const mask = new Graphics();
     const label = new Text({
       text: point.label,
@@ -314,6 +332,8 @@ export class PixiGraphRenderer {
     label.eventMode = "none";
     halo.eventMode = "none";
     body.eventMode = "none";
+    primaryBadge.anchor.set(0.5);
+    primaryBadge.eventMode = "none";
     mask.eventMode = "none";
     container.addChild(halo, body, mask, primaryBadge, label);
     container.eventMode = "static";
@@ -522,9 +542,18 @@ export class PixiGraphRenderer {
       display.body.clear().circle(0, 0, radius).fill({ color, alpha: visual === "point" ? 0.78 : 0.96 });
     }
     display.halo.clear();
-    display.primaryBadge.clear();
-    display.primaryBadge.visible = Boolean(display.point.isPrimaryProject && (lod === "detail" || lod === "medium"));
-    if (display.primaryBadge.visible) this.drawPrimaryBadge(display.primaryBadge, radius);
+    const labelVisible = graphLabelVisible(lod, emphasized);
+    display.primaryBadge.visible = Boolean(display.point.isPrimaryProject && labelVisible);
+    display.label.style.fontSize = display.point.kind === "type-hub" ? 13 : 11;
+    display.label.style.fontWeight = display.point.isPrimaryProject ? "700" : "500";
+    const labelY = radius + 7;
+    const badgeOffset = display.primaryBadge.visible ? 19 : 0;
+    const labelStartX = -(display.label.width + badgeOffset) / 2;
+    if (display.primaryBadge.visible) {
+      display.primaryBadge.position.set(labelStartX + 7, labelY + display.label.height / 2);
+      display.primaryBadge.width = 14;
+      display.primaryBadge.height = 14;
+    }
     if (display.point.id === this.selectedId) {
       if (square) {
         const halfSize = radius * squareDiameter / 2;
@@ -540,11 +569,9 @@ export class PixiGraphRenderer {
     display.container.hitArea = square
       ? new Rectangle(-Math.max(11, radius + 5), -Math.max(11, radius + 5), Math.max(22, (radius + 5) * 2), Math.max(22, (radius + 5) * 2))
       : new Circle(0, 0, Math.max(11, radius + 5));
-    display.label.visible = graphLabelVisible(lod, emphasized);
+    display.label.visible = labelVisible;
     if (!display.lodTransition) display.label.alpha = 1;
-    display.label.position.set(0, radius + 7);
-    display.label.style.fontSize = display.point.kind === "type-hub" ? 13 : 11;
-    display.label.style.fontWeight = display.point.isPrimaryProject ? "700" : "500";
+    display.label.position.set(labelStartX + badgeOffset + display.label.width / 2, labelY);
     const source = mediaSourceFor(display.point, visual);
     if (!source) {
       display.body.mask = null;
@@ -555,23 +582,6 @@ export class PixiGraphRenderer {
       return;
     }
     void this.ensureMedia(display, source, lod);
-  }
-
-  private drawPrimaryBadge(badge: Graphics, radius: number) {
-    const x = radius * 0.72;
-    const y = -radius * 0.72;
-    badge.circle(x, y, 7).fill({ color: 0x111418, alpha: 0.98 }).stroke({ color: 0xffffff, width: 1.25, alpha: 0.95 });
-    const outer = 4.1;
-    const inner = 1.8;
-    for (let index = 0; index < 10; index += 1) {
-      const angle = -Math.PI / 2 + index * Math.PI / 5;
-      const distance = index % 2 === 0 ? outer : inner;
-      const px = x + Math.cos(angle) * distance;
-      const py = y + Math.sin(angle) * distance;
-      if (index === 0) badge.moveTo(px, py);
-      else badge.lineTo(px, py);
-    }
-    badge.closePath().fill({ color: 0xffffff, alpha: 1 });
   }
 
   private nodeBaseAlpha(display: NodeDisplay, dimmed = this.hoveredId !== null
@@ -726,9 +736,16 @@ export class PixiGraphRenderer {
   }
 
   private onNodePointerDown = (event: FederatedPointerEvent, id: string) => {
+    const native = event.nativeEvent as PointerEvent;
+    if (event.button === 2) {
+      event.stopPropagation();
+      native.preventDefault();
+      this.suppressNextCanvasContextMenu = true;
+      this.callbacks.onNodeContextMenu(id, native.clientX, native.clientY);
+      return;
+    }
     if (event.button !== 0) return;
     event.stopPropagation();
-    const native = event.nativeEvent as PointerEvent;
     this.activePointer = {
       kind: "node", id, pointerId: event.pointerId,
       startX: native.clientX, startY: native.clientY, lastX: native.clientX, lastY: native.clientY, moved: false,
@@ -763,6 +780,10 @@ export class PixiGraphRenderer {
 
   private onCanvasContextMenu = (event: MouseEvent) => {
     event.preventDefault();
+    if (this.suppressNextCanvasContextMenu) {
+      this.suppressNextCanvasContextMenu = false;
+      return;
+    }
     const rect = this.app.canvas.getBoundingClientRect();
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;

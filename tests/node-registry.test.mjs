@@ -63,6 +63,7 @@ try {
   const projectRenderer = fs.readFileSync(path.join(root, "src/nodes/project/renderer.tsx"), "utf8");
   const composableContent = fs.readFileSync(path.join(root, "src/nodes/capabilities/ComposableNodeContent.tsx"), "utf8");
   const editorBlocks = fs.readFileSync(path.join(root, "src/editor/useEditorBlocks.ts"), "utf8");
+  const imageResize = fs.readFileSync(path.join(root, "src/editor/imageResize.ts"), "utf8");
   const editorPersistence = fs.readFileSync(path.join(root, "src/editor/persistence.ts"), "utf8");
   const editorStyles = fs.readFileSync(path.join(root, "src/editor/styles.css"), "utf8");
   const workspacePanelStyles = fs.readFileSync(path.join(root, "src/workspace/panels/styles.css"), "utf8");
@@ -207,6 +208,8 @@ try {
   assert.equal(calendarView.includes('toLocaleDateString("es-ES"'), false, "Calendar must use the active locale");
   assert.equal(calendarView.includes("meta.currentDate === today"), false, "opening Calendar must preserve its persisted date");
   assert.ok(richTextEditor.includes("controller.toggleLineSelection(clickedBlock)"), "Ctrl/Cmd click remains wired to block multi-selection");
+  assert.ok(richTextEditor.includes("isResizableEditorImage"), "image actions use the shared resize guard");
+  assert.ok(imageResize.includes('mention.dataset.mentionMode === "full"'), "Node image mentions resize only in full mode");
   assert.ok(editorBlocks.includes("{ captureUndo: false, sync: false }"), "batch block deletion stays atomic");
   assert.ok(editorPersistence.includes("EDITOR_TRANSIENT_BLOCK_ATTRIBUTES"), "temporary block selection state must not persist in Node HTML");
   assert.equal(editorBlocks.includes("if (!hasTextLineAfter(block)) removeLine(block)"), false, "opening options must not delete an empty block");

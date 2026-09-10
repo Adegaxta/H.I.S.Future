@@ -20,6 +20,7 @@ import { useRichTextEditor } from "./useRichTextEditor";
 import draftAsset from "../assets/third-party/google-material/icons/draft.svg";
 import { createEmptyEditorPickerSession, getEditorPickerTrigger, isSameMentionTriggerRange, type MentionTriggerRange } from "./pickerSession";
 import { EDITOR_NON_EDITABLE_BLOCK_SELECTOR, EDITOR_SELECTABLE_BLOCK_SELECTOR, EDITOR_STRUCTURAL_BLOCK_SELECTOR } from "./blockModel";
+import { isResizableEditorImage } from "./imageResize";
 
 interface EditorControllerOptions {
   node: NodeItem;
@@ -75,6 +76,7 @@ export function useEditorController({
   const scrollFrameRef = useRef<number | null>(null);
   const blockSelectionRef = useRef<{ x: number; y: number } | null>(null);
   const generatedLinesRef = useRef<HTMLElement[]>([]);
+  const lineCommandsOpenRef = useRef(false);
   const structuralHistory = useNodeScopedEditorHistory<string>(node.id, 20);
   const editorHistory = useNodeScopedEditorHistory<string>(node.id, 50);
   const [blockSelection, setBlockSelection] = useState<{
@@ -384,6 +386,7 @@ export function useEditorController({
     mentionTriggerRangeRef.current = empty.mentionTriggerRange;
   };
   const dismissEditorMenus = () => {
+    lineCommandsOpenRef.current = false;
     resetEditorPickers();
     clearLineSelection();
     setSelectedLineBlocks([]);
@@ -614,6 +617,7 @@ export function useEditorController({
     setSelectionToolbar,
     controls,
     imageResizeRef,
+    lineCommandsOpenRef,
     lastPointerRef,
     pickers,
     getEditorBlock,
@@ -681,15 +685,6 @@ export function useEditorController({
     alignImage,
   } = mentionController;
 
-  const isMentionImageLegacy = (element: HTMLElement | null) => {
-    if (!element) return false;
-    const mention = element.closest<HTMLElement>("[data-mention-id]");
-    if (mention) return mention.dataset.mentionMode !== "full";
-    return Boolean(
-      element.closest(".editor-mention") ||
-      element.classList.contains("editor-mention__icon"),
-    );
-  };
   useEffect(() => {
     const handlePointerMove = (event: globalThis.PointerEvent) => {
       lastPointerRef.current = { x: event.clientX, y: event.clientY };
@@ -1500,6 +1495,7 @@ export function useEditorController({
     }
   };
   const updatePickers = () => {
+    if (lineCommandsOpenRef.current) return;
     const selection = window.getSelection();
     if (
       !selection?.rangeCount ||
@@ -1663,7 +1659,7 @@ export function useEditorController({
   const onEditorPointerUp = () => {
     finalizeBlockSelectionBox();
     if (!imageResizeRef.current) return;
-    if (isMentionImageLegacy(imageResizeRef.current.image)) {
+    if (!isResizableEditorImage(imageResizeRef.current.image)) {
       imageResizeRef.current = null;
       document.body.style.cursor = "default";
       return;

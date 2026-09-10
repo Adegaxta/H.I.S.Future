@@ -59,6 +59,30 @@
 .page-image-picker__upload input { display: none; }
 .page-image-picker__delete { margin: 16px 0 0 8px; border: 1px solid #713f45; border-radius: 3px; padding: 8px 10px; color: #d88f98; background: transparent; cursor: pointer; font-size: 11px; }
 .page-image-picker__empty { margin-top: 12px; color: #777d84; font-size: 11px; }
+.page-image-picker__tabs { display: flex; gap: 6px; margin-bottom: 12px; border-bottom: 1px solid #2a2e33; }
+.page-image-picker__tabs button { border: 0; border-bottom: 2px solid transparent; padding: 7px 8px; color: #9ca1a7; background: transparent; cursor: pointer; font: inherit; font-size: 11px; }
+.page-image-picker__tabs button.is-active { border-bottom-color: #4dd8c0; color: #4dd8c0; }
+.unsplash-picker__quota { margin: -4px 0 10px; color: #777d84; font-size: 10px; }
+.unsplash-picker__search { display: flex; gap: 6px; margin-bottom: 12px; }
+.unsplash-picker__search input { min-width: 0; flex: 1; border: 1px solid #343940; border-radius: 3px; padding: 8px; color: #e8e9ea; background: #202429; font: inherit; font-size: 12px; }
+.unsplash-picker__search button { border: 1px solid #4dd8c0; border-radius: 3px; padding: 8px 10px; color: #4dd8c0; background: transparent; cursor: pointer; font-size: 11px; }
+.unsplash-picker__search button:disabled { cursor: default; opacity: 0.5; }
+.unsplash-picker__search .unsplash-picker__randomize { display: inline-grid; width: 32px; flex: 0 0 32px; place-items: center; padding: 6px; }
+.unsplash-picker__randomize img { width: 16px; height: 16px; }
+.unsplash-picker__results { max-height: min(420px, calc(100vh - 280px)); overflow-y: auto; padding-right: 4px; }
+.unsplash-picker__hint { margin: 2px 0 8px; color: #9ca1a7; font-size: 10px; }
+.unsplash-picker__gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 10px; }
+.unsplash-picker__card { min-width: 0; border: 1px solid #2a2e33; border-radius: 3px; padding: 6px; background: #202429; }
+.unsplash-picker__card > button:first-child { display: block; width: 100%; border: 0; padding: 0; background: transparent; cursor: pointer; }
+.unsplash-picker__card > button:first-child:hover { outline: 1px solid #4dd8c0; }
+.unsplash-picker__card > button:first-child:disabled { cursor: wait; opacity: 0.65; }
+.unsplash-picker__gallery img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; }
+.unsplash-picker__attribution { display: block; width: 100%; overflow: hidden; margin-top: 6px; border: 0; padding: 0; color: #c7c9cc; background: transparent; cursor: pointer; font: inherit; font-size: 10px; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
+.unsplash-picker__attribution:hover { color: #4dd8c0; }
+.unsplash-picker__error { margin: 10px 0; color: #d87878; font-size: 11px; }
+.unsplash-picker__more { display: flex; justify-content: center; padding: 14px 0 4px; color: #777d84; font-size: 10px; }
+.unsplash-picker__more button { border: 1px solid #4dd8c0; border-radius: 3px; padding: 7px 10px; color: #4dd8c0; background: transparent; cursor: pointer; font-size: 11px; }
+.unsplash-picker__more button:disabled { cursor: wait; opacity: 0.5; }
 
 .page-node-settings { position: absolute; top: calc(100% + 8px); right: 0; z-index: 45; width: min(300px, calc(100vw - 32px)); margin-top: 0; padding: 12px; border: 1px solid #30353b; border-radius: 4px; background: #171a1e; box-shadow: 0 14px 34px rgba(0, 0, 0, 0.45); }
 .page-node-settings button,

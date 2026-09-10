@@ -11,7 +11,7 @@ export default function FolderNodeView({ node, nodes, onSelect, onContextMenu }:
   const children = getChildren(nodes, node.id);
   return (
     <section className="folder-node-view">
-      <NodeTypeLabel type="categoria" />
+      <NodeTypeLabel type="categoria" node={node} />
       <h1 className="editor-page__title">{node.name}</h1>
       <h2>{t("folder.children")}</h2>
       {children.length === 0 ? <p>{t("folder.empty")}</p> : (

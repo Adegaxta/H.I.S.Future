@@ -78,6 +78,10 @@
 .image-node-view__metadata { display: grid; grid-template-columns: minmax(120px, 0.8fr) minmax(0, 1.2fr); gap: 8px 14px; margin: 0; font-size: 12px; }
 .image-node-view__metadata dt { color: #7a7f87; }
 .image-node-view__metadata dd { margin: 0; color: #c7c9cc; overflow-wrap: anywhere; }
+.image-node-view__provenance { margin-top: 8px; border-top: 1px solid #343940; padding-top: 10px; color: #c7c9cc; font-size: 12px; }
+.image-node-view__provenance h3 { margin: 0 0 8px; color: #7a7f87; font: 10px ui-monospace, "SF Mono", "Cascadia Code", monospace; letter-spacing: 0.08em; text-transform: uppercase; }
+.image-node-view__provenance p { margin: 5px 0; }
+.image-node-view__provenance button { border: 0; padding: 0; color: #4dd8c0; background: transparent; cursor: pointer; font: inherit; text-decoration: underline; }
 .image-node-view__empty { color: #d87878; }
 
 @media (max-width: 760px) {

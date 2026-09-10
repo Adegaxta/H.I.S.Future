@@ -5,7 +5,7 @@ import { buildGraphRuntime, type GraphPosition } from "./runtime";
 import { buildGraphScene } from "./scene";
 import type { PixiGraphRenderer } from "./PixiGraphRenderer";
 import type { GraphPoint, GraphRenderEdge } from "./runtime";
-import type { BaseNodeType, NodeItem } from "../types/nodes";
+import type { BaseNodeType, ContextMenuState, NodeItem } from "../types/nodes";
 import { useLocale } from "../i18n/LocaleContext";
 import { getNodeDisplayLabel } from "../nodes/registry";
 import { NodeIcon } from "../nodes/NodeIcon";
@@ -31,10 +31,11 @@ interface GraphViewProps {
   onClearSelection: () => void;
   onOpenNode: (id: string) => void;
   onCreateNode: (name: string, type: BaseNodeType, position: GraphPosition) => string;
+  onOpenNodeMenu: (menu: ContextMenuState) => void;
   projectKey: string;
 }
 
-export default function GraphView({ nodes, onSelectNode, onClearSelection, onOpenNode, onCreateNode, projectKey }: GraphViewProps) {
+export default function GraphView({ nodes, onSelectNode, onClearSelection, onOpenNode, onCreateNode, onOpenNodeMenu, projectKey }: GraphViewProps) {
   const { t } = useLocale();
   const typesPreferenceKey = `hisfuture:graph:types:${projectKey}`;
   const iconsPreferenceKey = `hisfuture:graph:icons:${projectKey}`;
@@ -89,6 +90,7 @@ export default function GraphView({ nodes, onSelectNode, onClearSelection, onOpe
         callbacksRef.current.onClearSelection();
       },
       onOpenNode: (id) => callbacksRef.current.onOpenNode(id),
+      onNodeContextMenu: (id, clientX, clientY) => onOpenNodeMenu({ context: "types", nodeId: id, x: clientX, y: clientY }),
       onHoverNode: (point, clientX = 0, clientY = 0) => setHoveredNode(point ? { point, clientX, clientY } : null),
       onHoverEdge: (edge, clientX = 0, clientY = 0) => setHoveredEdge(edge ? { edge, clientX, clientY } : null),
       onBackgroundContextMenu: (clientX, clientY, worldX, worldY) => setContextMenu({ x: clientX, y: clientY, worldX, worldY }),

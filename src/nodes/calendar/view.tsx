@@ -436,7 +436,7 @@ export default function CalendarNodeView({
 
   return (
     <section className={`calendar-node calendar-node--${meta.view}`}>
-      {showTypeLabel && <NodeTypeLabel type="calendario" />}
+      {showTypeLabel && <NodeTypeLabel type="calendario" node={node} />}
       <header className="calendar-node__header">
         <div className="calendar-node__navigation"><button type="button" onClick={() => move(-1)}>‹</button><button type="button" onClick={() => updateMeta({ ...meta, currentDate: localIsoDate() })}>{t("calendar.today")}</button><button type="button" onClick={() => move(1)}>›</button></div>
         <div className={`calendar-node__identity${meta.view === "day" && localIsoDate(currentDate) === localIsoDate() ? " is-today" : ""}`}><h1>{calendarHeading(currentDate, meta.view, locale)}</h1><p>{node.name}</p></div>

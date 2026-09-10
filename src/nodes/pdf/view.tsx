@@ -32,7 +32,7 @@ export default function PdfNodeView({ node }: { node: NodeItem }) {
   }, [node.id, resource?.resourceId, t]);
 
   return <>
-    <header className="pdf-node-view__header"><NodeTypeLabel type="pdf" /><h1 className="editor-page__title">{node.name}</h1></header>
+    <header className="pdf-node-view__header"><NodeTypeLabel type="pdf" node={node} /><h1 className="editor-page__title">{node.name}</h1></header>
     {error ? <div className="pdf-node-view__error">{error}</div> : !data ? <div className="pdf-node-view__loading">{t("pdf.loading")}</div> : <PdfViewer data={data} resourceId={resource?.resourceId} />}
   </>;
 }

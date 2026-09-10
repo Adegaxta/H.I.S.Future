@@ -5,6 +5,48 @@ export interface ImageResourceInfo {
   hash: string | null;
   extension: string;
   description: string;
+  provenance: ImageProvenance | null;
+}
+
+export interface ImageProvenance {
+  provider: string;
+  resourceId: string;
+  resourceUrl: string;
+  providerUrl: string;
+  creatorName: string;
+  creatorUrl: string;
+  creatorPortfolioUrl?: string;
+  creatorInstagramUrl?: string;
+  creatorTwitterUrl?: string;
+  downloadLocation?: string;
+}
+
+function parseImageProvenance(value: string | undefined): ImageProvenance | null {
+  if (!value) return null;
+  try {
+    const parsed = JSON.parse(value) as Partial<ImageProvenance>;
+    if (!parsed || typeof parsed !== "object" ||
+      typeof parsed.provider !== "string" ||
+      typeof parsed.resourceId !== "string" ||
+      typeof parsed.resourceUrl !== "string" ||
+      typeof parsed.providerUrl !== "string" ||
+      typeof parsed.creatorName !== "string" ||
+      typeof parsed.creatorUrl !== "string") return null;
+    return {
+      provider: parsed.provider,
+      resourceId: parsed.resourceId,
+      resourceUrl: parsed.resourceUrl,
+      providerUrl: parsed.providerUrl,
+      creatorName: parsed.creatorName,
+      creatorUrl: parsed.creatorUrl,
+      ...(typeof parsed.creatorPortfolioUrl === "string" ? { creatorPortfolioUrl: parsed.creatorPortfolioUrl } : {}),
+      ...(typeof parsed.creatorInstagramUrl === "string" ? { creatorInstagramUrl: parsed.creatorInstagramUrl } : {}),
+      ...(typeof parsed.creatorTwitterUrl === "string" ? { creatorTwitterUrl: parsed.creatorTwitterUrl } : {}),
+      ...(typeof parsed.downloadLocation === "string" ? { downloadLocation: parsed.downloadLocation } : {}),
+    };
+  } catch {
+    return null;
+  }
 }
 
 export function getImageMimeType(src: string): string | null {
@@ -52,23 +94,26 @@ export function getImageResourceInfo(content: string, fallbackName: string): Ima
     hash: image.dataset.imageHash || null,
     extension,
     description: image.dataset.imageDescription || "",
+    provenance: parseImageProvenance(image.dataset.imageProvenance),
   };
 }
 
 export function createImageContent(
   src: string,
   fileName: string,
-  fileSize: number,
-  hash: string,
+  fileSize: number | null,
+  hash: string | null,
   description: string = "",
+  provenance: ImageProvenance | null = null,
 ): string {
   const image = document.createElement("img");
   image.src = src;
   image.alt = fileName;
   image.dataset.imageFileName = fileName;
-  image.dataset.imageSize = String(fileSize);
-  image.dataset.imageHash = hash;
+  if (fileSize !== null) image.dataset.imageSize = String(fileSize);
+  if (hash) image.dataset.imageHash = hash;
   image.dataset.imageDescription = description;
+  if (provenance) image.dataset.imageProvenance = JSON.stringify(provenance);
   return `<p>${image.outerHTML}</p>`;
 }
 

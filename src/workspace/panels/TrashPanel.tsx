@@ -3,6 +3,7 @@ import { getNodeDefinition, getNodeDisplayLabel } from "../../defs/nodeTypes";
 import { useLocale } from "../../i18n/LocaleContext";
 import type { NodeItem } from "../../types/nodes";
 import { getImageResourceInfo } from "../../utils/imageResource";
+import { PrimaryNodeName } from "../../nodes/PrimaryNodeName";
 
 export type TrashViewMode = "gallery" | "list";
 
@@ -106,7 +107,7 @@ export function TrashPanel({
           />
           <button type="button" title={node.name} onClick={(event) => { event.stopPropagation(); selectOrOpen(event, node); }}>
             <span className="trash-view__type-dot" style={{ backgroundColor: getNodeDefinition(node.type).color }} />
-            {node.name}
+            <PrimaryNodeName node={node}>{node.name}</PrimaryNodeName>
           </button>
           <small>{getNodeDisplayLabel(node.type, t)}</small>
         </div>)}
@@ -124,7 +125,7 @@ export function TrashPanel({
             <small>{getNodeDisplayLabel(node.type, t)}</small>
           </div>
           <div className="trash-view__card-meta">
-            <span className="trash-view__card-name" title={node.name}>{node.name}</span>
+            <span className="trash-view__card-name" title={node.name}><PrimaryNodeName node={node}>{node.name}</PrimaryNodeName></span>
           </div>
         </article>)}
       </div>

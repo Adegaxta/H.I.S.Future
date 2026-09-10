@@ -23,6 +23,7 @@ try {
   const callbacks = {
     onCreate: (id) => calls.push(["create", id]),
     onView: (id) => calls.push(["view", id]),
+    onSetPrimary: (id) => calls.push(["set-primary", id]),
     onRemoveFromLore: (id) => calls.push(["remove-lore", id]),
     onDelete: (id) => calls.push(["delete", id]),
   };
@@ -33,7 +34,7 @@ try {
     menu: { context: "lore", nodeId: "folder", x: 0, y: 0 },
     removeCount: 1,
   });
-  assert.deepEqual(loreItems.map((item) => item.id), ["create", "rename", "view", "remove-lore"]);
+  assert.deepEqual(loreItems.map((item) => item.id), ["create", "rename", "view", "set-primary", "remove-lore"]);
   loreItems.find((item) => item.id === "remove-lore").onSelect();
   assert.deepEqual(calls, [["remove-lore", "folder"]], "Lore removal does not invoke entity deletion");
 
@@ -43,7 +44,7 @@ try {
     t,
     menu: { context: "types", nodeId: "page", x: 0, y: 0 },
   });
-  assert.deepEqual(typeItems.map((item) => item.id), ["rename", "view", "delete"]);
+  assert.deepEqual(typeItems.map((item) => item.id), ["rename", "view", "set-primary", "delete"]);
   typeItems.find((item) => item.id === "delete").onSelect();
   assert.deepEqual(calls, [["delete", "page"]]);
 

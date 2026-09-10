@@ -1,5 +1,6 @@
 import type { NodeItem, RenderNodeType } from "../types/nodes";
 import { getNodeDefinition } from "../defs/nodeTypes";
+import { PrimaryNodeName } from "../nodes/PrimaryNodeName";
 
 interface DragPreviewProps {
   node: NodeItem | undefined;
@@ -43,7 +44,7 @@ export default function DragPreview({
           background: color,
         }}
       />
-      {node.name}
+      <PrimaryNodeName node={node}>{node.name}</PrimaryNodeName>
     </div>
   );
 }

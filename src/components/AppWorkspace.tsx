@@ -3,6 +3,7 @@ import { useWorkspaceNavigation, type NavigationHandler } from "../hooks/useWork
 import { AVATAR_COLORS } from "../defs/palette";
 import { useEffect, useRef, useState } from "react";
 import { getNodeDefinition, getNodeDisplayLabel, hasNodeCapability } from "../defs/nodeTypes";
+import { assignVaultPrimaryNode } from "../nodes/project/domain";
 import type { BaseNodeType, NodeItem } from "../types/nodes";
 import { getEffectiveNodeType } from "../utils/nodeTree";
 import { useTreeController } from "../hooks/useTreeController";
@@ -518,6 +519,7 @@ export default function AppWorkspace({
                 setSelectedLoreIds([id]);
                 return id;
               }}
+              onOpenNodeMenu={(menu) => setContextMenu(menu)}
               projectKey={projectKey}
             />
           ) : !selectedNode ? (
@@ -565,6 +567,7 @@ export default function AppWorkspace({
             setSelectedLoreIds([id]);
             workspace.setSelectedId(id);
           }}
+          onSetPrimary={(id) => workspace.mutateNodes((nodes) => assignVaultPrimaryNode(nodes, id))}
           removeCount={selectedLoreIds.includes(contextMenu.nodeId ?? "") ? selectedLoreIds.length : 1}
           canDelete={!contextMenu.nodeId || workspace.canDeleteNode(contextMenu.nodeId)}
           onDelete={(id) => {

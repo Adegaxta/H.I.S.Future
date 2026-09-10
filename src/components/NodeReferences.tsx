@@ -7,6 +7,7 @@ import { getNodalMeta } from "../nodes/metadata";
 import type { RelationRole } from "../nodes/relationTypes";
 import { normalizeSearchText } from "../utils/searchText";
 import { NodeIcon } from "../nodes/NodeIcon";
+import { PrimaryNodeName } from "../nodes/PrimaryNodeName";
 import { UiIcon } from "../ui/Icon";
 import { fileImportAccept } from "../project/fileImportRegistry";
 
@@ -25,7 +26,7 @@ export interface NodalViewProps {
 }
 export function NodeReference({ node, nodes, onOpen, label }: { node: NodeItem; nodes: NodeItem[]; onOpen: (id: string) => void; label?: ReactNode }) {
   const type = getEffectiveNodeType(nodes, node);
-  return <button type="button" className="node-reference" data-mention-id={node.id} style={{ "--node-color": getNodeDefinition(type).color } as CSSProperties} title={node.name} onClick={() => onOpen(node.id)}><NodeIcon type={type} /><span>{label ?? node.name}</span></button>;
+  return <button type="button" className="node-reference" data-mention-id={node.id} style={{ "--node-color": getNodeDefinition(type).color } as CSSProperties} title={node.name} onClick={() => onOpen(node.id)}><NodeIcon type={type} /><PrimaryNodeName node={node}>{label ?? node.name}</PrimaryNodeName></button>;
 }
 export function NodeReferenceList({ source, role, nodes, onOpen, onRemove, query = "" }: {
   source: NodeItem; role: RelationRole; nodes: NodeItem[]; onOpen: (id: string) => void;

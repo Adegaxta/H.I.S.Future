@@ -1,17 +1,15 @@
-import { getNodeDefinition, getNodeDisplayLabel } from "../../defs/nodeTypes";
 import RichTextEditor from "../../editor/RichTextEditor";
 import { useLocale } from "../../i18n/LocaleContext";
 import type { NodeViewHost } from "../../nodes/rendering";
 import type { NodeItem } from "../../types/nodes";
+import NodeTypeLabel from "../../components/NodeTypeLabel";
 
 export function TrashNodeView({ node, host, onBack }: { node: NodeItem; host: NodeViewHost; onBack: () => void }) {
   const { t } = useLocale();
   return <div className="editor-page editor-page--trash">
     <button type="button" className="trash-node-back" onClick={onBack}>{t("trash.back")}</button>
     <div className="trash-node-warning">{t("trash.readOnly")}</div>
-    <div className="editor-page__type" style={{ color: getNodeDefinition(node.type).color }}>
-      {getNodeDisplayLabel(node.type, t)}
-    </div>
+    <NodeTypeLabel type={node.type} node={node} />
     <h1 className="editor-page__title">{node.name}</h1>
     <RichTextEditor
       node={node}

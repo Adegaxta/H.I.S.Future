@@ -100,7 +100,7 @@ export default function TempoInspector({
   return (
     <section className={`tempo-inspector tempo-inspector--${variant}`}>
       <div className="tempo-inspector__properties">
-        <NodeTypeLabel type="tempo" />
+        <NodeTypeLabel type="tempo" node={tempo} />
         <input className="tempo-inspector__title" value={title} onChange={(event) => setTitle(event.target.value)} onBlur={commitTitle} onKeyDown={(event) => {
           if (event.key === "Enter") event.currentTarget.blur();
           if (event.key === "Escape") setTitle(tempo.name);

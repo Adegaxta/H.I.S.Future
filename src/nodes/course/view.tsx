@@ -55,7 +55,7 @@ export function CourseNodeView(props: NodalViewProps & { renderCalendar: (calend
   };
   const classRelations = meta.relations.filter((relation) => relation.role === "class");
   return <section className="course-node-view">
-    <div className="course-node-view__identity"><NodeTypeLabel type="curso" />
+    <div className="course-node-view__identity"><NodeTypeLabel type="curso" node={node} />
       <div className="course-identity-fields"><input value={meta.code} placeholder={t("course.code")} aria-label={t("course.code")} onChange={(event) => updateIdentity({ code: event.target.value })} /><input value={courseTitle} placeholder={t("course.name")} aria-label={t("course.name")} onChange={(event) => setCourseTitle(event.target.value)} onBlur={() => updateIdentity({ courseTitle })} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); if (event.key === "Escape") setCourseTitle(meta.courseTitle || node.name); }} /><input value={meta.modality} placeholder={t("course.modality")} aria-label={t("course.modality")} onChange={(event) => updateIdentity({ modality: event.target.value })} /></div>
       <label className="course-link-field"><span><NodeIcon type="curso" />{t("course.link")}</span><span className="course-link-input"><NodalIcon name="link_2" /><input type="url" value={meta.url} aria-label={t("course.link")} onChange={(event) => patch({ url: event.target.value })} /></span></label>
       <button className="course-section-title" type="button" onClick={() => setCoverOpen((current) => !current)} aria-expanded={coverOpen} aria-controls={`course-cover-${node.id}`}><span className={`course-caret${coverOpen ? "" : " is-collapsed"}`} />{t("course.cover")}</button>

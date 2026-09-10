@@ -5,6 +5,7 @@ import { getEffectiveNodeType, opensNodeViewOnClick } from "../../utils/nodeTree
 import { useLocale } from "../../i18n/LocaleContext";
 import { UiIcon } from "../../ui/Icon";
 import { NodeIcon } from "../../nodes/NodeIcon";
+import { PrimaryNodeName } from "../../nodes/PrimaryNodeName";
 import { useSearchReveal } from "../../hooks/useSearchReveal";
 import {
   nodeTypePanelStorageKey,
@@ -110,7 +111,7 @@ function NodeRow({ node, nodes, selected, onSelect, context, onContextMenu, comp
   return (
     <button type="button" data-search-match={searchMatch} className={`context-node-row ${selected ? "is-selected" : ""} ${compact ? "is-compact" : ""} ${searchMatch === false ? "is-search-dimmed" : ""}`} style={{ "--node-color": getNodeDefinition(type).color } as CSSProperties} onClick={() => { if (opensNodeViewOnClick(node)) onSelect(node.id); }} onContextMenu={(event) => { event.preventDefault(); event.stopPropagation(); onContextMenu({ context, nodeId: node.id, x: event.clientX, y: event.clientY, extended: event.shiftKey }); }} title={node.name}>
       <NodeIcon type={type} />
-      <span className="context-node-row__name">{node.name}</span>
+      <PrimaryNodeName node={node} className="context-node-row__name" />
     </button>
   );
 }

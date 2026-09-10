@@ -18,15 +18,11 @@ import {
 } from "./menuTree";
 import draftAsset from "../assets/third-party/google-material/icons/draft.svg";
 import { useDismissibleLayer } from "../hooks/useDismissibleLayer";
+import { isResizableEditorImage } from "./imageResize";
 
 function hasAlignableImage(block: Element | null): boolean {
   if (!block) return false;
-  return Array.from(block.querySelectorAll("img")).some((image) => {
-    if (image.closest("[data-globe-icon]")) return false;
-    if (image.closest(".editor-mention") || image.closest("[data-mention-id]") || image.closest("[data-no-resize='true']")) return false;
-    const mention = image.closest<HTMLElement>("[data-mention-id]");
-    return !mention || mention.dataset.mentionMode === "full";
-  });
+  return Array.from(block.querySelectorAll<HTMLImageElement>("img")).some(isResizableEditorImage);
 }
 
 interface RichTextEditorProps {
@@ -445,17 +441,7 @@ export default function RichTextEditor({
           type="button"
           data-line-control="true"
           title={t("editor.line.options")}
-          onWheel={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-          }}
-          onPointerDown={(event) => {
-            controller.startLineDrag(controller.lineControl!.block, event);
-          }}
-          onPointerMove={controller.moveLineDrag}
-          onPointerUp={(event) =>
-            controller.finishLineDrag(controller.lineControl!.block, event)
-          }
+          onMouseDown={(event) => event.preventDefault()}
           onClick={(event) =>
             controller.openLineCommands(
               controller.lineControl!.block,

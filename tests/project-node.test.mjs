@@ -19,6 +19,10 @@ try {
   const secondary = node("secondary", "Secondary", "proyecto");
   assert.equal(domain.isVaultPrimaryNode(secondary), false);
 
+  const reassigned = domain.assignVaultPrimaryNode([renamed, secondary], secondary.id);
+  assert.equal(domain.isVaultPrimaryNode(reassigned.find((item) => item.id === secondary.id)), true, "any Node can become primary");
+  assert.equal(domain.isVaultPrimaryNode(reassigned.find((item) => item.id === renamed.id)), false, "assigning primary demotes the previous Node");
+
   const duplicate = node("duplicate", "Duplicate", "proyecto", metadata.setNodalMeta("<p></p>", { role: "vault-primary" }), 2);
   const repaired = domain.reconcileVaultPrimary([renamed, secondary, duplicate], "My Vault");
   assert.equal(repaired.filter(domain.isVaultPrimaryNode).length, 1);

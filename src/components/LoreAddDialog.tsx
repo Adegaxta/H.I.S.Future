@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { BaseNodeType, NodeItem } from "../types/nodes";
 import { NODE_REGISTRY, getNodeDisplayLabel } from "../defs/nodeTypes";
 import { useLocale } from "../i18n/LocaleContext";
+import { PrimaryNodeName } from "../nodes/PrimaryNodeName";
 
 export default function LoreAddDialog({ nodes, onAdd, onCreate, onClose, initialMode = null, title }: {
   nodes: NodeItem[];
@@ -38,7 +39,7 @@ export default function LoreAddDialog({ nodes, onAdd, onCreate, onClose, initial
         <div className="lore-add-dialog__list">
           {filtered.map((node) => <label key={node.id}>
             <input type="checkbox" checked={selected.includes(node.id)} onChange={(event) => setSelected((current) => event.target.checked ? [...current, node.id] : current.filter((id) => id !== node.id))} />
-            <span>{node.name}<small>{getNodeDisplayLabel(node.type, t)}</small></span>
+            <span><PrimaryNodeName node={node}>{node.name}</PrimaryNodeName><small>{getNodeDisplayLabel(node.type, t)}</small></span>
           </label>)}
           {!filtered.length && <p>{t(available.length ? "lore.dialog.noMatches" : "lore.dialog.allAdded")}</p>}
         </div>

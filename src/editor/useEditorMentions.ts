@@ -8,6 +8,7 @@ import type {
 import type { NodeItem } from "../types/nodes";
 import { getPageMeta } from "../utils/pageMeta";
 import { getNodeDefinition } from "../defs/nodeTypes";
+import { isResizableEditorImage } from "./imageResize";
 
 interface UseEditorMentionsOptions {
   editorRef: RefObject<HTMLDivElement | null>;
@@ -46,16 +47,6 @@ export function useEditorMentions({
   controls,
   captureStructuralUndo,
 }: UseEditorMentionsOptions) {
-  const isMentionImage = useCallback((element: HTMLElement | null) => {
-    if (!element) return false;
-    const mention = element.closest<HTMLElement>("[data-mention-id]");
-    if (mention) return mention.dataset.mentionMode !== "full";
-    return Boolean(
-      element.closest(".editor-mention") ||
-      element.classList.contains("editor-mention__icon"),
-    );
-  }, []);
-
   const createMention = useCallback((target: NodeItem, imageMode: "inserted" | "full" = "inserted") => {
     const mention = document.createElement("span");
     mention.contentEditable = "false";
@@ -216,10 +207,7 @@ export function useEditorMentions({
   const onEditorPointerDown = useCallback((event: PointerEvent<HTMLDivElement>) => {
     const target = event.target as HTMLElement;
     const image = target.closest<HTMLImageElement>("img");
-    const fullImageMention = image?.closest<HTMLElement>(
-      '[data-mention-id][data-mention-mode="full"]',
-    );
-    if (event.button !== 2 && image && fullImageMention && editorRef.current?.contains(image)) {
+    if (event.button !== 2 && image && isResizableEditorImage(image) && editorRef.current?.contains(image)) {
       event.preventDefault();
       event.stopPropagation();
       imageResizeRef.current = {
@@ -252,28 +240,16 @@ export function useEditorMentions({
       event.stopPropagation();
     }
 
-    const isMentionResizeDisabled = isMentionImage(image);
-    if (isMentionResizeDisabled) {
+    if (image && !isResizableEditorImage(image)) {
       if (imageResizeRef.current && imageResizeRef.current.image === image) {
         imageResizeRef.current = null;
         document.body.style.cursor = "default";
       }
       return;
     }
-    if (event.button !== 2 && image && editorRef.current?.contains(image)) {
-      event.preventDefault();
-      event.stopPropagation();
-      imageResizeRef.current = {
-        image,
-        startX: event.clientX,
-        startWidth: image.getBoundingClientRect().width,
-      };
-      document.body.style.cursor = "ew-resize";
-      return;
-    }
 
     onMentionPointerDown(event);
-  }, [editorRef, imageResizeRef, isMentionImage, onMentionPointerDown]);
+  }, [editorRef, imageResizeRef, onMentionPointerDown]);
 
   const alignImage = useCallback((alignment: "left" | "center" | "right") => {
     const selected = selectedLineBlocks.filter((line) => line.isConnected);
@@ -283,11 +259,7 @@ export function useEditorMentions({
         ? [lineActionBlock]
         : [];
     const imageBlocks = blocks.filter((block) =>
-      Array.from(block.querySelectorAll("img")).some((image) => {
-        if (image.closest("[data-globe-icon]")) return false;
-        const mention = image.closest<HTMLElement>("[data-mention-id]");
-        return !mention || mention.dataset.mentionMode === "full";
-      }),
+      Array.from(block.querySelectorAll<HTMLImageElement>("img")).some(isResizableEditorImage),
     );
     if (!imageBlocks.length) return;
     captureStructuralUndo();
@@ -313,7 +285,7 @@ export function useEditorMentions({
   const onEditorPointerMove = useCallback((event: PointerEvent<HTMLDivElement>) => {
     const resize = imageResizeRef.current;
     if (!resize) return;
-    if (isMentionImage(resize.image)) {
+    if (!isResizableEditorImage(resize.image)) {
       imageResizeRef.current = null;
       document.body.style.cursor = "default";
       return;
@@ -323,11 +295,11 @@ export function useEditorMentions({
     resize.image.style.width = `${width}px`;
     resize.image.style.maxWidth = "none";
     return;
-  }, [imageResizeRef, isMentionImage]);
+  }, [imageResizeRef]);
 
   const onEditorPointerUp = useCallback(() => {
     if (!imageResizeRef.current) return;
-    if (isMentionImage(imageResizeRef.current.image)) {
+    if (!isResizableEditorImage(imageResizeRef.current.image)) {
       imageResizeRef.current = null;
       document.body.style.cursor = "default";
       return;
@@ -335,7 +307,7 @@ export function useEditorMentions({
     imageResizeRef.current = null;
     document.body.style.cursor = "default";
     syncContent();
-  }, [imageResizeRef, isMentionImage, syncContent]);
+  }, [imageResizeRef, syncContent]);
 
   return {
     createMention,
@@ -347,6 +319,5 @@ export function useEditorMentions({
     onEditorPointerMove,
     onEditorPointerUp,
     alignImage,
-    isMentionImage,
   };
 }

@@ -28,6 +28,7 @@ interface UseEditorBlocksOptions {
     startX: number;
     startWidth: number;
   } | null>;
+  lineCommandsOpenRef: React.MutableRefObject<boolean>;
   lastPointerRef: React.MutableRefObject<{ x: number; y: number }>;
   pickers: {
     setSlashPicker: Dispatch<SetStateAction<PickerState | null>>;
@@ -57,6 +58,7 @@ export function useEditorBlocks({
   setSelectionToolbar,
   controls,
   imageResizeRef,
+  lineCommandsOpenRef,
   lastPointerRef,
   pickers,
   getEditorBlock,
@@ -194,6 +196,7 @@ export function useEditorBlocks({
   }, [captureStructuralUndo, lineActionBlock, pickers, removeLine, selectedLineBlocks, setLineActionBlock, syncContent]);
 
   const openLineCommands = useCallback((block: HTMLElement, anchor?: HTMLElement) => {
+    lineCommandsOpenRef.current = true;
     imageResizeRef.current = null;
     document.body.style.cursor = "default";
     const range = document.createRange();
@@ -226,7 +229,7 @@ export function useEditorBlocks({
       top: Math.min(window.innerHeight - 236, anchorRect.bottom + 8),
       left: Math.min(window.innerWidth - 236, Math.max(8, anchorRect.left)),
     });
-  }, [clearLineSelection, editorRef, imageResizeRef, pickers, selectedLineBlocks, setLineActionBlock, setSelectedLineBlocks, setSelectionToolbar]);
+  }, [clearLineSelection, editorRef, imageResizeRef, lineCommandsOpenRef, pickers, selectedLineBlocks, setLineActionBlock, setSelectedLineBlocks, setSelectionToolbar]);
 
   const duplicateLine = useCallback((target: HTMLElement, before: boolean, inside = false) => {
     const dragged = controls.draggedLineRef.current;

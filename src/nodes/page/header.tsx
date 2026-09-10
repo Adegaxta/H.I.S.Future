@@ -6,6 +6,8 @@ import { DEFAULT_PAGE_META, getPageBlockWidthPercent, getPageMeta, setPageMeta, 
 import { useNodeScopedEditorHistory } from "../../editor/useEditorHistory";
 import { isEditableElement } from "../../utils/dom";
 import { useLocale } from "../../i18n/LocaleContext";
+import UnsplashImagePicker from "../../integrations/unsplash/UnsplashImagePicker";
+import type { UnsplashImageSelection } from "../../integrations/unsplash/types";
 
 interface PageNodeHeaderProps {
   node: NodeItem;
@@ -13,6 +15,7 @@ interface PageNodeHeaderProps {
   onContentChange: (id: string, content: string) => void;
   onRename: (id: string, name: string) => void;
   onImageFileUpload: (file: File) => Promise<string | null>;
+  onUnsplashImageSelect: (selection: UnsplashImageSelection) => Promise<string | null>;
 }
 
 type ImageChoice = "iconNodeId" | "coverNodeId";
@@ -23,10 +26,12 @@ export default function PageNodeHeader({
   onContentChange,
   onRename,
   onImageFileUpload,
+  onUnsplashImageSelect,
 }: PageNodeHeaderProps) {
   const { t } = useLocale();
   const [meta, setMeta] = useState<PageMeta>(() => getPageMeta(node.content));
   const [choice, setChoice] = useState<ImageChoice | null>(null);
+  const [choiceTab, setChoiceTab] = useState<"local" | "unsplash">("local");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [headerPositionOpen, setHeaderPositionOpen] = useState(false);
   const [textPositionOpen, setTextPositionOpen] = useState(false);
@@ -50,6 +55,7 @@ export default function PageNodeHeader({
 
   useEffect(() => {
     setChoice(null);
+    setChoiceTab("local");
     setSettingsOpen(false);
     setHeaderPositionOpen(false);
     setTextPositionOpen(false);
@@ -119,6 +125,11 @@ export default function PageNodeHeader({
     setChoice(null);
   };
 
+  const chooseUnsplashImage = async (selection: UnsplashImageSelection) => {
+    const id = await onUnsplashImageSelect(selection);
+    if (id) chooseImage(id);
+  };
+
   const uploadImage = async (file: File) => {
     const id = await onImageFileUpload(file);
     if (id) chooseImage(id);
@@ -157,7 +168,7 @@ export default function PageNodeHeader({
             {iconResource && <img className="page-node-header__icon" src={iconResource.src} alt="" />}
             <div className="page-node-header__title-content">
               <div className="page-node-header__type-row">
-                <NodeTypeLabel type="pagina" />
+                <NodeTypeLabel type="pagina" node={node} />
                 <div className="page-node-header__actions">
                   <button type="button" onClick={() => setChoice("iconNodeId")} title={t("page.chooseIcon")}>{t("page.icon")}</button>
                   <button type="button" onClick={() => setChoice("coverNodeId")} title={t("page.chooseCover")}>{t("page.cover")}</button>
@@ -275,30 +286,40 @@ export default function PageNodeHeader({
               <strong>{t(choice === "coverNodeId" ? "page.chooseCover" : "page.chooseIcon")}</strong>
               <button type="button" onClick={() => setChoice(null)} aria-label={t("common.actions.close")}>X</button>
             </div>
-            <div className="page-image-picker__gallery">
-              {imageNodes.map((imageNode) => {
-                const resource = getImageResourceInfo(imageNode.content, imageNode.name);
-                if (!resource) return null;
-                return (
-                  <button type="button" key={imageNode.id} onClick={() => chooseImage(imageNode.id)} title={imageNode.name}>
-                    <img src={resource.src} alt={imageNode.name} />
-                    <span>{imageNode.name}</span>
-                  </button>
-                );
-              })}
+            <div className="page-image-picker__tabs" role="tablist">
+              <button type="button" className={choiceTab === "local" ? "is-active" : ""} onClick={() => setChoiceTab("local")}>{t("page.localImages")}</button>
+              <button type="button" className={choiceTab === "unsplash" ? "is-active" : ""} onClick={() => setChoiceTab("unsplash")}>{t("page.unsplash.tab")}</button>
             </div>
-            <label className="page-image-picker__upload">
-              {t("page.uploadImage")}
-              <input type="file" accept="image/*" onChange={(event) => {
-                const file = event.target.files?.[0];
-                if (file) void uploadImage(file);
-                event.currentTarget.value = "";
-              }} />
-            </label>
+            {choiceTab === "local" ? (
+              <>
+                <div className="page-image-picker__gallery">
+                  {imageNodes.map((imageNode) => {
+                    const resource = getImageResourceInfo(imageNode.content, imageNode.name);
+                    if (!resource) return null;
+                    return (
+                      <button type="button" key={imageNode.id} onClick={() => chooseImage(imageNode.id)} title={imageNode.name}>
+                        <img src={resource.src} alt={imageNode.name} />
+                        <span>{imageNode.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <label className="page-image-picker__upload">
+                  {t("page.uploadImage")}
+                  <input type="file" accept="image/*" onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (file) void uploadImage(file);
+                    event.currentTarget.value = "";
+                  }} />
+                </label>
+                {imageNodes.length === 0 && <div className="page-image-picker__empty">{t("page.noImages")}</div>}
+              </>
+            ) : (
+              <UnsplashImagePicker onSelect={chooseUnsplashImage} />
+            )}
             <button type="button" className="page-image-picker__delete" onClick={clearImage}>
               {t(choice === "coverNodeId" ? "page.removeCover" : "page.removeIcon")}
             </button>
-            {imageNodes.length === 0 && <div className="page-image-picker__empty">{t("page.noImages")}</div>}
           </div>
         </div>
       )}

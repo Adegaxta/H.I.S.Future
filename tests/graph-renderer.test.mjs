@@ -140,6 +140,10 @@ try {
   assert.ok(rendererSource.includes("preference: \"webgl\""));
   assert.ok(rendererSource.includes("texturePromises"), "textures are cached rather than resolved per frame");
   assert.ok(rendererSource.includes("textureReferences"), "textures are reference-counted while nodes enter and leave the scene");
+  assert.ok(rendererSource.includes('starIcon from "../assets/third-party/google-material/icons/star.svg"'), "primary nodes use the shared star SVG asset");
+  assert.ok(rendererSource.includes("loadPrimaryIconTexture"), "primary star loading stays asynchronous and isolated from renderer mounting");
+  assert.ok(rendererSource.includes("labelStartX"), "the primary star is positioned before the node label");
+  assert.equal(rendererSource.includes("drawPrimaryBadge"), false, "primary stars are not redrawn as custom geometry");
   assert.ok(rendererSource.includes("releaseDisplayTexture"), "removed nodes release their Pixi texture ownership");
   assert.ok(rendererSource.includes("edgesByPointId"), "node movement updates only incident edges");
   assert.ok(rendererSource.includes("onHoverNode"), "hover state is delegated to the React overlay");
