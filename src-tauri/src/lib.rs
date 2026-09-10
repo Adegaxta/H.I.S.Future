@@ -7,6 +7,31 @@ use project::{CloseProjectTimings, NodeRecord, ProjectInfo, ProjectState, SaveWo
 use std::sync::{Arc, Mutex};
 use tauri::{Emitter, Manager};
 
+struct LaunchProjectPath(Mutex<Option<String>>);
+
+fn initial_his_path<I>(arguments: I) -> Option<String>
+where
+    I: IntoIterator<Item = std::ffi::OsString>,
+{
+    arguments.into_iter().find_map(|argument| {
+        let path = std::path::PathBuf::from(argument);
+        let is_his = path
+            .extension()
+            .and_then(|extension| extension.to_str())
+            .is_some_and(|extension| extension.eq_ignore_ascii_case("his"));
+        is_his.then(|| path.to_string_lossy().into_owned())
+    })
+}
+
+fn launch_project_path() -> Option<String> {
+    initial_his_path(std::env::args_os().skip(1))
+}
+
+#[tauri::command]
+fn take_launch_project_path(state: tauri::State<LaunchProjectPath>) -> Option<String> {
+    state.0.lock().ok()?.take()
+}
+
 #[cfg(windows)]
 const PROJECT_FILE_ICON: &[u8] = include_bytes!("../icons/his-file.ico");
 
@@ -314,12 +339,14 @@ pub fn run() {
             Ok(())
         })
         .manage(Mutex::<Option<project::OpenProject>>::new(None))
+        .manage(LaunchProjectPath(Mutex::new(launch_project_path())))
         .plugin(tauri_plugin_sql::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             set_discord_presence,
             clear_discord_presence,
+            take_launch_project_path,
             create_project,
             create_project_file,
             convert_project_folder,
@@ -338,4 +365,22 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::initial_his_path;
+    use std::ffi::OsString;
+
+    #[test]
+    fn selects_a_his_argument_case_insensitively() {
+        let arguments = ["--some-flag", r"C:\Vaults\MiVault.HIS", "notes.txt"]
+            .into_iter()
+            .map(OsString::from);
+
+        assert_eq!(
+            initial_his_path(arguments),
+            Some(r"C:\Vaults\MiVault.HIS".to_owned())
+        );
+    }
 }

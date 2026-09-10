@@ -108,6 +108,8 @@ try {
   assert.ok(appLifecycle.includes("showApplication()"), "an Exit failure restores the window for a visible error");
   assert.ok(backend.includes('"Abrir H.I.S. Future"') && backend.includes('"Salir"'), "tray exposes restore and real Exit");
   assert.ok(backend.includes('app.emit("app-exit-requested"'), "tray Exit enters the safe frontend flush path");
+  assert.ok(backend.includes("take_launch_project_path") && backend.includes("initial_his_path"), "startup consumes a direct .his launch path");
+  assert.ok(app.includes('invoke<string | null>("take_launch_project_path")') && app.includes("session.openDirect(path)"), "frontend opens the .his path received at startup");
   assert.ok(nodeStore.includes("persistedVersionRef.current === changeVersionRef.current"), "no-change flush skips redundant persistence");
   assert.ok(nodeStore.includes("PersistenceQueue"), "workspace persistence has an explicit queue");
   assert.ok(project.includes("if project.archive_dirty") && project.includes("archive_sync.enqueue(job)"), "clean archive close skips packaging and dirty archives enter the background queue");

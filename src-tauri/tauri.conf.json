@@ -3,6 +3,7 @@
   "productName": "H.I.S. Future",
   "version": "0.1.6",
   "identifier": "com.terce.hisfuture",
+  "mainBinaryName": "H.I.S. Future",
   "build": {  
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",

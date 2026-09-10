@@ -15,6 +15,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { APP_WINDOW_TITLE } from "./utils/appEnvironment";
 import { isDesktopRuntime } from "./project/runtime";
 import { AppLifecycleProvider, useAppLifecycle } from "./lifecycle/AppLifecycle";
+import { invoke } from "@tauri-apps/api/core";
 
 function AppContent() {
   const session = useProjectSession();
@@ -24,6 +25,21 @@ function AppContent() {
   useEffect(() => {
     document.title = APP_WINDOW_TITLE;
     if (isDesktopRuntime()) void getCurrentWindow().setTitle(APP_WINDOW_TITLE);
+  }, []);
+
+  useEffect(() => {
+    if (!isDesktopRuntime()) return;
+    let disposed = false;
+    void invoke<string | null>("take_launch_project_path")
+      .then((path) => {
+        if (!disposed && path) void session.openDirect(path);
+      })
+      .catch((error) => {
+        if (!disposed) console.error("No se pudo abrir el proyecto recibido al iniciar", error);
+      });
+    return () => {
+      disposed = true;
+    };
   }, []);
 
   useEffect(() => {

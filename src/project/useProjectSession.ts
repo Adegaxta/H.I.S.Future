@@ -75,6 +75,7 @@ export function useProjectSession() {
       }
     },
     openRecent: (path: string) => run("open-recent", () => openProject(path)),
+    openDirect: (path: string) => run("open-direct", () => openProject(path)),
     close: async () => {
       setBusy(true);
       setError(null);
