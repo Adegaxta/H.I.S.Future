@@ -26,7 +26,7 @@ interface LocalizedChangelogEntry extends ChangelogEntryBase {
 
 export type ChangelogEntry = LegacyChangelogEntry | LocalizedChangelogEntry;
 
-export const CURRENT_VERSION = "0.5.3";
+export const CURRENT_VERSION = "0.6.0";
 
 // All new releases use the 0.5.0 layout with complete Spanish/English keys.
 // Keep legacy entries readable without rewriting their historical content.
@@ -37,28 +37,36 @@ interface ReleaseChangelogEntry extends LocalizedChangelogEntry {
 
 const CURRENT_RELEASE: ReleaseChangelogEntry = {
   version: CURRENT_VERSION,
-  date: "2026-09-06",
-  category: "Editor",
-  titleKey: "changelog.0_5_3.title",
-  summaryKey: "changelog.0_5_3.summary",
+  date: "2026-09-15",
+  category: "Sistema",
+  titleKey: "changelog.0_6_0.title",
+  summaryKey: "changelog.0_6_0.summary",
   changeKeys: [],
   sections: [
     {
-      titleKey: "changelog.0_5_3.course",
-      changeKeys: ["changelog.0_5_3.horizontal", "changelog.0_5_3.cover", "changelog.0_5_3.link"],
+      titleKey: "changelog.0_6_0.editor",
+      changeKeys: ["changelog.0_6_0.context", "changelog.0_6_0.blocks", "changelog.0_6_0.selection", "changelog.0_6_0.mentions"],
     },
     {
-      titleKey: "changelog.0_5_3.calendar",
-      changeKeys: ["changelog.0_5_3.embedded", "changelog.0_5_3.scroll", "changelog.0_5_3.month"],
+      titleKey: "changelog.0_6_0.tables",
+      changeKeys: ["changelog.0_6_0.compact", "changelog.0_6_0.controls", "changelog.0_6_0.resize", "changelog.0_6_0.shift"],
     },
     {
-      titleKey: "changelog.0_5_3.syllabus",
-      changeKeys: ["changelog.0_5_3.pdf", "changelog.0_5_3.tempo", "changelog.0_5_3.responsive"],
+      titleKey: "changelog.0_6_0.workspace",
+      changeKeys: ["changelog.0_6_0.navigation", "changelog.0_6_0.header", "changelog.0_6_0.imports", "changelog.0_6_0.layers"],
     },
     {
-      titleKey: "changelog.0_5_3.polish",
+      titleKey: "changelog.0_6_0.nodal",
+      changeKeys: ["changelog.0_6_0.visuals", "changelog.0_6_0.graph", "changelog.0_6_0.capabilities", "changelog.0_6_0.catalogs"],
+    },
+    {
+      titleKey: "changelog.0_6_0.persistence",
+      changeKeys: ["changelog.0_6_0.repositories", "changelog.0_6_0.lifecycle", "changelog.0_6_0.presence", "changelog.0_6_0.performance"],
+    },
+    {
+      titleKey: "changelog.0_6_0.fixes",
       kind: "fix",
-      changeKeys: ["changelog.0_5_3.label", "changelog.0_5_3.standalone", "changelog.0_5_3.viewport"],
+      changeKeys: ["changelog.0_6_0.focus", "changelog.0_6_0.images", "changelog.0_6_0.graphFixes", "changelog.0_6_0.compatibility"],
     },
   ],
 };
