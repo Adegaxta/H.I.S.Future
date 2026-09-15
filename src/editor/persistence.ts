@@ -24,7 +24,10 @@ export function readEditorContent(editor: HTMLElement, node: NodeItem): string {
       persistableEditor.querySelectorAll(EDITOR_TRANSIENT_BLOCK_SELECTOR).forEach((block) => {
         EDITOR_TRANSIENT_BLOCK_ATTRIBUTES.forEach((attribute) => block.removeAttribute(attribute));
       });
-      persistableEditor.querySelectorAll(EDITOR_UI_SELECTOR).forEach((element) => element.remove());
+      persistableEditor.querySelectorAll(EDITOR_UI_SELECTOR).forEach((element) => {
+        if (typeof element.remove === "function") element.remove();
+        else element.parentNode?.removeChild(element);
+      });
       html = persistableEditor.innerHTML;
     } else {
       // Avoid cloning the entire page (and large inline image strings) merely
