@@ -13,6 +13,19 @@
   letter-spacing: -0.018em;
 }
 
+.editor-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+}
+.editor-content th,
+.editor-content td {
+  padding: 6px 8px;
+  border: 1px solid #343940;
+  text-align: left;
+  vertical-align: top;
+}
+.editor-content th { color: #f2f3f4; background: #1a1d21; }
 /* Tamano del encabezado de nivel 1. */
 .editor-content h1 { font-size: 1.9em; }
 /* Tamano del encabezado de nivel 2. */
@@ -262,22 +275,6 @@
   white-space: pre-wrap;
 }
 
-/* Tabla insertada en el contenido. */
-.editor-content table {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 12px 0;
-}
-/* Celdas y encabezados de la tabla. */
-.editor-content th,
-.editor-content td {
-  padding: 6px 8px;
-  border: 1px solid #343940;
-  text-align: left;
-  vertical-align: top;
-}
-/* Encabezado de tabla. */
-.editor-content th { color: #f2f3f4; background: #1a1d21; }
 /* Menciones dentro del editor. */
 .editor-content .editor-mention {
   display: inline-flex;

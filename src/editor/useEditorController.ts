@@ -19,11 +19,12 @@ import { useEditorPickers } from "./useEditorPickers";
 import { useRichTextEditor } from "./useRichTextEditor";
 import draftAsset from "../assets/third-party/google-material/icons/draft.svg";
 import { createEmptyEditorPickerSession, getEditorPickerTrigger, isSameMentionTriggerRange, type MentionTriggerRange } from "./pickerSession";
-import { EDITOR_NON_EDITABLE_BLOCK_SELECTOR, EDITOR_SELECTABLE_BLOCK_SELECTOR, EDITOR_STRUCTURAL_BLOCK_SELECTOR } from "./blockModel";
+import { EDITOR_NON_EDITABLE_BLOCK_SELECTOR, EDITOR_SELECTABLE_BLOCK_SELECTOR, EDITOR_STRUCTURAL_BLOCK_SELECTOR, EDITOR_UI_SELECTOR } from "./blockModel";
 import { applyEditorImageLayouts, isResizableEditorImage } from "./imageResize";
 import { focusPageHeading } from "./pageIndexNavigation";
 import { loadEditorImageLayouts, saveEditorImageLayout } from "../project/editorLayoutRepository";
 import { getImageResourceInfo } from "../utils/imageResource";
+import { insertTableIntoBlock, isTableEditingTarget } from "./table";
 
 interface EditorControllerOptions {
   node: NodeItem;
@@ -1164,6 +1165,7 @@ export function useEditorController({
     if (!editor || !onFileImport) return false;
     const candidates = Array.from(editor.querySelectorAll<HTMLImageElement>("img")).filter((image) =>
       !image.closest("[data-mention-id], [data-globe-icon]") &&
+      !image.closest(EDITOR_UI_SELECTOR) &&
       image.dataset.noResize !== "true" &&
       image.dataset.imageRepair !== "pending",
     );
@@ -1422,6 +1424,11 @@ export function useEditorController({
           document.execCommand("insertUnorderedList", false);
         });
       }
+    } else if (value === "TABLA") {
+      const blocks = validActionBlocks.length ? validActionBlocks : [currentBlock].filter(Boolean) as HTMLElement[];
+      if (!blocks.length) return;
+      captureStructuralUndo();
+      blocks.forEach((block) => insertTableIntoBlock(block));
     } else if (value === "INDICE") {
       const blocks = validActionBlocks.length ? validActionBlocks : [currentBlock].filter(Boolean) as HTMLElement[];
       if (!blocks.length) return;
@@ -1560,6 +1567,15 @@ export function useEditorController({
       event.preventDefault();
       event.stopPropagation();
       deleteSelectedLine();
+      return;
+    }
+    if (
+      (event.key === "Delete" || event.key === "Backspace") &&
+      isTableEditingTarget(
+        selection?.focusNode || (event.target instanceof Node ? event.target : null),
+      ) &&
+      !selectedBlocks.length
+    ) {
       return;
     }
     if (event.key === "Tab") {

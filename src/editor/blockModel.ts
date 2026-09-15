@@ -19,6 +19,8 @@ export const EDITOR_TRANSIENT_BLOCK_SELECTOR = EDITOR_TRANSIENT_BLOCK_ATTRIBUTES
   .map((attribute) => `[${attribute}]`)
   .join(", ");
 
+export const EDITOR_UI_SELECTOR = "[data-editor-ui]";
+
 export function keepOutermostBlocks<T extends { contains(other: T): boolean }>(
   blocks: readonly T[],
 ): T[] {

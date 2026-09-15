@@ -52,6 +52,7 @@ export const ES_EDITOR_TRANSLATIONS = {
   "editor.commands.color": "Color",
   "editor.commands.divider": "Divisor",
   "editor.commands.index": "Índice",
+  "editor.commands.table": "Tabla",
   "editor.commands.globe": "Globo",
   "editor.commands.individualGlobe": "Globo individual",
   "editor.commands.calendar": "Calendario",

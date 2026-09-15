@@ -10,6 +10,7 @@ export const SLASH_COMMANDS = [
   { id: "color", labelKey: "editor.commands.color", tag: "COLOR", icon: "◉", categoryKey: "editor.commands.text" },
   { id: "divider", labelKey: "editor.commands.divider", tag: "DIVISOR", icon: "—", categoryKey: "editor.commands.other" },
   { id: "index", labelKey: "editor.commands.index", tag: "INDICE", icon: "≡", categoryKey: "editor.commands.other", aliases: ["indice"] },
+  { id: "table", labelKey: "editor.commands.table", tag: "TABLA", icon: "▦", categoryKey: "editor.commands.other", aliases: ["tabla"] },
   { id: "globe", labelKey: "editor.commands.globe", tag: "GLOBO", icon: "◉", categoryKey: "editor.commands.other" },
   { id: "globe-individual", labelKey: "editor.commands.individualGlobe", tag: "GLOBO_INDIVIDUAL", icon: "◎", categoryKey: "editor.commands.other" },
   { id: "calendar", labelKey: "editor.commands.calendar", tag: "CALENDARIO", icon: "▦", categoryKey: "editor.commands.nodes", aliases: ["calendario"] },

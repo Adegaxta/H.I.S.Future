@@ -1,0 +1,61 @@
+/* Tabla insertada en el contenido. */
+.editor-content [data-his-table] {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: var(--his-table-content-width, 360px) 28px;
+  grid-template-rows: auto 28px;
+  gap: 4px;
+  margin: 12px 0;
+  width: min(100%, calc(var(--his-table-content-width, 360px) + 32px));
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+}
+.editor-content [data-his-table-grid] {
+  display: grid;
+  grid-area: 1 / 1;
+  gap: 0;
+  min-width: 0;
+  width: var(--his-table-content-width, 360px);
+}
+.editor-content [data-his-table-row] {
+  display: grid;
+  grid-template-columns: var(--his-table-columns-template, repeat(var(--his-table-columns, 3), minmax(0, 1fr)));
+}
+.editor-content [data-his-table-cell] {
+  display: block;
+  min-height: 1.6em;
+  padding: 6px 8px;
+  border: 1px solid #343940;
+  cursor: text;
+}
+.editor-content [data-his-table-cell]:focus {
+  border-color: var(--his-accent);
+  outline: 0;
+}
+.editor-content [data-his-table-add] {
+  display: grid;
+  place-items: center;
+  padding: 4px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  position: relative;
+  z-index: 1;
+}
+.editor-content [data-his-table-add="column"] {
+  grid-area: 1 / 2;
+}
+.editor-content [data-his-table-add="row"] {
+  grid-area: 2 / 1;
+  justify-self: center;
+}
+.editor-content [data-his-table-add] img {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  filter: brightness(0) saturate(100%) invert(77%) sepia(36%) saturate(706%) hue-rotate(121deg) brightness(93%) contrast(88%);
+}
+.editor-content[data-table-resize="column"] [data-his-table-cell] { cursor: col-resize; }

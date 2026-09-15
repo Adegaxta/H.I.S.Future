@@ -25,6 +25,7 @@ import { isResizableEditorImage } from "./imageResize";
 import type { HisContextMenuItem } from "../components/HisContextMenu";
 import { getPageMeta } from "../utils/pageMeta";
 import PageBlockContextMenu from "./PageBlockContextMenu";
+import { addTableControl, findTableControl } from "./table";
 import {
   resetPageBlockAesthetics,
   setPageBlockColumnCount,
@@ -950,7 +951,18 @@ export default function RichTextEditor({
           }
           controller.dismissEditorMenus();
         }}
-        onPointerDown={readOnly ? undefined : controller.onEditorPointerDown}
+        onPointerDown={readOnly ? undefined : (event) => {
+          const tableControl = findTableControl(event.target as HTMLElement);
+          if (tableControl) {
+            event.preventDefault();
+            event.stopPropagation();
+            controller.captureStructuralUndo();
+            addTableControl(tableControl);
+            controller.syncContent();
+            return;
+          }
+          controller.onEditorPointerDown(event);
+        }}
         onPointerMove={
           readOnly
             ? undefined

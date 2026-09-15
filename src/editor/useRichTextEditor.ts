@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import type { FormEventHandler, FocusEventHandler, RefObject } from "react";
 import type { NodeItem } from "../types/nodes";
 import { readEditorContent } from "./persistence";
+import { ensureTableRuntime, installTableInputGuard, installTableResizeHandlers } from "./table";
 
 interface UseRichTextEditorOptions {
   node: NodeItem | undefined;
@@ -37,11 +38,23 @@ export function useRichTextEditor({
   };
 
   useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    const disposeInputGuard = installTableInputGuard(editor);
+    const disposeResizeHandlers = installTableResizeHandlers(editor);
+    return () => {
+      disposeInputGuard();
+      disposeResizeHandlers();
+    };
+  }, [editorRef]);
+
+  useEffect(() => {
     if (!editorRef.current || !node) return;
     if (editorRef.current.getAttribute("data-active-id") === node.id) return;
     cancelScheduled();
     const content = node.content.trim() ? node.content : "<p><br></p>";
     editorRef.current.innerHTML = content;
+    ensureTableRuntime(editorRef.current);
     const hasRootTextLine = Array.from(editorRef.current.children).some((child) =>
       ["P", "H1", "H2", "H3", "H4", "BLOCKQUOTE", "LI", "UL", "OL"].includes(child.tagName),
     );
