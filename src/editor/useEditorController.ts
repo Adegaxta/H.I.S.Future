@@ -122,7 +122,7 @@ export function useEditorController({
 
     const globeContent = element.closest("[data-globe-content]") as HTMLElement | null;
     const localBlock = globeContent
-      ? (element.closest('p, h1, h2, h3, h4, blockquote, li, [data-divider], [data-page-index], [data-mention-id][data-mention-mode="full"]') as HTMLElement | null)
+      ? (element.closest(textLineSelector) as HTMLElement | null)
       : null;
     if (globeContent && localBlock && globeContent.contains(localBlock)) {
       return localBlock;
@@ -256,8 +256,14 @@ export function useEditorController({
   const captureStructuralUndo = () => {
     const editor = editorRef.current;
     if (!editor) return;
+    const preservedSelection = selectedLineBlocks.filter((line) => line.isConnected);
     clearTransientEditorState();
     structuralHistory.push(editor.innerHTML);
+    preservedSelection.forEach((line) => {
+      if (!line.isConnected) return;
+      line.setAttribute("data-line-selected", "true");
+      line.contentEditable = "false";
+    });
   };
   const restoreStructuralUndo = () => {
     const editor = editorRef.current;
@@ -914,9 +920,7 @@ export function useEditorController({
     block.contentEditable = "false";
     block.style.userSelect = "none";
     block.style.margin = "12px 0";
-    block.style.padding = "8px 0 4px";
-    block.style.borderTop = "1px solid rgba(232, 233, 234, 0.18)";
-    block.style.borderBottom = "1px solid rgba(232, 233, 234, 0.12)";
+    block.style.padding = "4px 0";
     block.setAttribute("aria-hidden", "true");
 
     const entries = getCurrentPageIndexEntries(scopeRoot);
@@ -977,6 +981,20 @@ export function useEditorController({
       replacements.set(index, replacement);
     });
     return replacements;
+  };
+
+  const normalizePageIndices = () => {
+    const editor = editorRef.current;
+    if (!editor) return false;
+    let changed = false;
+    editor.querySelectorAll<HTMLElement>("[data-page-index]").forEach((index) => {
+      ["border-top", "border-bottom"].forEach((property) => {
+        if (!index.style.getPropertyValue(property)) return;
+        index.style.removeProperty(property);
+        changed = true;
+      });
+    });
+    return changed;
   };
 
   const replacePastedMentions = (root: Node) => {
@@ -1920,10 +1938,11 @@ export function useEditorController({
   const repairEditorLines = () => {
     const dividersChanged = normalizeDividers();
     const globesChanged = normalizeGlobes();
+    const indicesChanged = normalizePageIndices();
     // Runtime editability is deliberately not persisted. Reporting it as a
     // document repair would rewrite a large imported page every time it opens.
     normalizeEditableLines();
-    return dividersChanged || globesChanged;
+    return dividersChanged || globesChanged || indicesChanged;
   };
   useEffect(() => {
     if (!focusedNodeId) return;
@@ -1968,6 +1987,7 @@ export function useEditorController({
     insertNodeMention,
     placeholderBlock,
     dismissEditorMenus,
+    resetEditorPickers,
     executePickerAction,
     onKeyDown,
     updatePickers,

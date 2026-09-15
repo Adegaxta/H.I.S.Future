@@ -439,6 +439,22 @@ export default function RichTextEditor({
     setEditorContextMenu(null);
     controller.setLineActionBlock(null);
   };
+  const preserveEditorViewport = (action: () => void) => {
+    const scrollHost = editorRef.current?.closest<HTMLElement>(".workspace-main") ?? null;
+    const scrollTop = scrollHost?.scrollTop ?? 0;
+    const scrollLeft = scrollHost?.scrollLeft ?? 0;
+    action();
+    if (!scrollHost) return;
+    const restore = () => {
+      scrollHost.scrollTop = scrollTop;
+      scrollHost.scrollLeft = scrollLeft;
+    };
+    restore();
+    window.requestAnimationFrame(() => {
+      restore();
+      window.requestAnimationFrame(restore);
+    });
+  };
   const alignImage = (mention: HTMLElement, alignment: "left" | "center" | "right") => {
     if (!mention.isConnected) return;
     const image = mention.querySelector<HTMLImageElement>("img");
@@ -524,10 +540,18 @@ export default function RichTextEditor({
     mutation: (target: HTMLElement) => HTMLElement | void,
   ) => {
     if (!block.isConnected) return;
-    controller.captureStructuralUndo();
-    const next = mutation(block) || block;
-    controller.syncContent();
+    let next = block;
+    preserveEditorViewport(() => {
+      controller.captureStructuralUndo();
+      next = mutation(block) || block;
+      controller.syncContent();
+    });
     setEditorContextMenu((current) => current && current.block === block ? { ...current, block: next } : current);
+  };
+  const deleteContextBlock = (block: HTMLElement) => {
+    const selected = controller.selectedLineBlocks.filter((line) => line.isConnected);
+    if (selected.includes(block)) controller.deleteSelectedLine();
+    else controller.removeLine(block);
   };
   const getAestheticTarget = (block: HTMLElement) => block.matches("[data-globe]")
     ? block.querySelector<HTMLElement>("[data-globe-content] > p, [data-globe-content] > h1, [data-globe-content] > h2, [data-globe-content] > h3, [data-globe-content] > h4, [data-globe-content] > h5, [data-globe-content] > h6, [data-globe-content] > blockquote, [data-globe-content] > li, [data-globe-content] > pre") ?? block
@@ -538,30 +562,34 @@ export default function RichTextEditor({
       if (nativeGlobe) {
         const content = nativeGlobe.querySelector<HTMLElement>(":scope > [data-globe-content]");
         if (!content) return;
-        controller.captureStructuralUndo();
-        nativeGlobe.replaceWith(...Array.from(content.childNodes));
-        controller.syncContent();
+        preserveEditorViewport(() => {
+          controller.captureStructuralUndo();
+          nativeGlobe.replaceWith(...Array.from(content.childNodes));
+          controller.syncContent();
+        });
         closeEditorContextMenu();
         return;
       }
       if (!block.isConnected || block.matches("[data-divider]")) return;
-      controller.captureStructuralUndo();
-      const content = document.createElement("div");
-      content.dataset.globeContent = "true";
-      const globe = document.createElement("div");
-      globe.dataset.globe = "true";
-      const icon = document.createElement("span");
-      icon.dataset.globeIcon = "true";
-      icon.contentEditable = "false";
-      const image = document.createElement("img");
-      image.src = draftAsset;
-      image.alt = "Draft";
-      icon.appendChild(image);
-      block.replaceWith(globe);
-      block.contentEditable = "true";
-      content.appendChild(block);
-      globe.append(icon, content);
-      controller.syncContent();
+      preserveEditorViewport(() => {
+        controller.captureStructuralUndo();
+        const content = document.createElement("div");
+        content.dataset.globeContent = "true";
+        const globe = document.createElement("div");
+        globe.dataset.globe = "true";
+        const icon = document.createElement("span");
+        icon.dataset.globeIcon = "true";
+        icon.contentEditable = "false";
+        const image = document.createElement("img");
+        image.src = draftAsset;
+        image.alt = "Draft";
+        icon.appendChild(image);
+        block.replaceWith(globe);
+        block.contentEditable = "true";
+        content.appendChild(block);
+        globe.append(icon, content);
+        controller.syncContent();
+      });
       closeEditorContextMenu();
       return;
     }
@@ -569,14 +597,16 @@ export default function RichTextEditor({
   };
   const resetContextAesthetics = (block: HTMLElement) => {
     if (!block.isConnected) return;
-    controller.captureStructuralUndo();
-    let target = getAestheticTarget(block);
-    if (target.closest("[data-his-column-layout]")) setPageBlockColumnCount(target, 1);
-    target = resetPageBlockAesthetics(target);
-    const nativeGlobe = target.closest<HTMLElement>("[data-globe]") ?? (block.matches("[data-globe]") ? block : null);
-    const content = nativeGlobe?.querySelector<HTMLElement>(":scope > [data-globe-content]");
-    if (nativeGlobe && content) nativeGlobe.replaceWith(...Array.from(content.childNodes));
-    controller.syncContent();
+    preserveEditorViewport(() => {
+      controller.captureStructuralUndo();
+      let target = getAestheticTarget(block);
+      if (target.closest("[data-his-column-layout]")) setPageBlockColumnCount(target, 1);
+      target = resetPageBlockAesthetics(target);
+      const nativeGlobe = target.closest<HTMLElement>("[data-globe]") ?? (block.matches("[data-globe]") ? block : null);
+      const content = nativeGlobe?.querySelector<HTMLElement>(":scope > [data-globe-content]");
+      if (nativeGlobe && content) nativeGlobe.replaceWith(...Array.from(content.childNodes));
+      controller.syncContent();
+    });
   };
   const openEditorBlockContextMenu = (block: HTMLElement, left: number, top: number, preferredMention?: HTMLElement | null) => {
     const nestedFullMention = hasAlignableImage(block)
@@ -586,7 +616,9 @@ export default function RichTextEditor({
     const id = mention?.dataset.mentionId;
     const target = id ? nodes.find((item) => item.id === id) : null;
     const actionBlock = mention || block;
-    controller.dismissEditorMenus();
+    controller.resetEditorPickers();
+    setBlockColorMenu(null);
+    setBlockTextDevTree(BLOCK_TEXT_DEV_REGISTRY.closeTree());
     controller.setLineActionBlock(actionBlock);
     setEditorContextMenu({
       imageNodeId: target?.type === "imagen" ? target.id : null,
@@ -857,7 +889,7 @@ export default function RichTextEditor({
             controller.setLineActionBlock?.(null);
             return;
           }
-          if (!readOnly && clickedBlock && clickedBlock.matches("p, h1, h2, h3, h4, blockquote, li, [data-page-index]")) {
+          if (!readOnly && clickedBlock && clickedBlock.matches("p, h1, h2, h3, h4, h5, h6, blockquote, li, pre, [data-page-index], [data-mention-id][data-mention-mode='full']")) {
             const currentSelected = controller.selectedLineBlocks.filter((line) => line.isConnected);
             if (currentSelected.length > 0) {
               const isWithinCurrentSelection = currentSelected.includes(clickedBlock);
@@ -1043,11 +1075,11 @@ export default function RichTextEditor({
             window.requestAnimationFrame(() => controller.openLineCommands(block));
           }}
           onCopy={() => copyContextBlock(editorContextMenu.block)}
-          onCut={() => { copyContextBlock(editorContextMenu.block); controller.deleteSelectedLine(); }}
+          onCut={() => { copyContextBlock(editorContextMenu.block); deleteContextBlock(editorContextMenu.block); }}
           onPaste={() => pasteContextBlock(editorContextMenu.block)}
           onDuplicate={() => duplicateContextBlock(editorContextMenu.block)}
           onInsert={(above) => controller.insertLine(editorContextMenu.block, above)}
-          onDelete={controller.deleteSelectedLine}
+          onDelete={() => deleteContextBlock(editorContextMenu.block)}
         />
       )}
       {(blockColorMenu || findBlockTextDevChild("block-text-color-option")) && (

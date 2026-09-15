@@ -97,9 +97,11 @@ try {
     "domain mutations attribute activity only to Nodes whose persisted state changed",
   );
 
-  const [pageChrome, editorController, pageHeader, editorStyles, workspaceImports, workspaceView, sidebarTree] = await Promise.all([
+  const [pageChrome, pageStyles, editorController, editorMentions, pageHeader, editorStyles, workspaceImports, workspaceView, sidebarTree] = await Promise.all([
     readFile(new URL("../src/nodes/page/chrome.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/nodes/page/styles.css", import.meta.url), "utf8"),
     readFile(new URL("../src/editor/useEditorController.ts", import.meta.url), "utf8"),
+    readFile(new URL("../src/editor/useEditorMentions.ts", import.meta.url), "utf8"),
     readFile(new URL("../src/nodes/page/header.tsx", import.meta.url), "utf8"),
     readFile(new URL("../src/editor/styles.css", import.meta.url), "utf8"),
     readFile(new URL("../src/workspace/useFileNodeImports.ts", import.meta.url), "utf8"),
@@ -108,9 +110,12 @@ try {
   ]);
   assert.ok(pageChrome.includes("focusPageHeading(entry.element)") && editorController.includes("focusPageHeading(target)"), "native and inserted indices share navigation feedback");
   assert.ok(pageChrome.includes('icons/more_vert.svg'), "the native Page index keeps its dedicated vertical-more asset");
+  assert.ok(pageStyles.includes("width: 42px; height: 72px; padding: 5px"), "the native Page index icon has a larger hit and visible area");
   assert.ok(pageHeader.includes("previewBlockWidth") && pageHeader.includes("commitBlockWidth") && pageHeader.includes("onPointerUp={commitBlockWidth}"), "page width previews locally and commits once");
   assert.ok(pageHeader.includes("page-node-header__cover-attribution") && pageHeader.includes("provenance?.creatorUrl") && pageHeader.includes("provenance?.resourceUrl"), "Unsplash covers retain direct attribution links");
   assert.ok(editorStyles.includes("article_shortcut.svg") && editorStyles.includes("--mention-color"), "mentions use the requested article marker and semantic hover color");
+  assert.ok(editorMentions.includes("resolveNodeCustomVisual") && editorMentions.includes("dynamicIconImports") && editorMentions.includes("syncMentionVisual"), "Node calls follow image, emoji, Material and Lucide custom visuals");
+  assert.ok(editorStyles.includes(".editor-mention__visual") && editorStyles.includes("box-shadow: 0 1px 0 currentColor"), "the call underline continues beneath its icon");
   assert.ok(workspaceImports.includes("onGlobalImportRef.current?.(node)") && workspaceView.includes("onGlobalImport: (imported) => openNodeView(imported.id)"), "external drops open their imported Node");
   assert.ok(sidebarTree.includes("customVisuals.get(node.id)"), "a Page's typed custom visual propagates to its Lore identity");
 

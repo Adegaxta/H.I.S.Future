@@ -68,6 +68,9 @@ export function isCapabilityActive(block: HTMLElement, capability: PageBlockCapa
   if (capability.tagName) return block.tagName === capability.tagName;
   if (!capability.attribute) return false;
   if (capability.id === "globe") return block.matches("[data-globe]") || Boolean(block.closest("[data-globe]"));
+  // Anytype serializes a code block as PRE while H.I.S. Future stores Code as
+  // a composable capability. Both representations are the same active state.
+  if (capability.id === "code") return block.tagName === "PRE" || block.hasAttribute(capability.attribute);
   if (capability.id === "synced") return block.hasAttribute(capability.attribute);
   return block.getAttribute(capability.attribute) === (capability.value ?? "true");
 }
@@ -81,6 +84,11 @@ function replaceBlockTag(block: HTMLElement, tagName: string): HTMLElement {
   return replacement;
 }
 
+function unwrapDirectCode(block: HTMLElement): void {
+  const code = block.querySelector<HTMLElement>(":scope > code");
+  if (code) code.replaceWith(...Array.from(code.childNodes));
+}
+
 export function togglePageBlockCapability(
   block: HTMLElement,
   capability: PageBlockCapabilityDefinition,
@@ -91,7 +99,12 @@ export function togglePageBlockCapability(
   if (!capability.attribute) return block;
   if (capability.id === "globe") return block;
   const active = isCapabilityActive(block, capability);
-  if (capability.id === "dropdown") {
+  if (capability.id === "code" && block.tagName === "PRE") {
+    const replacement = replaceBlockTag(block, "P");
+    replacement.removeAttribute(capability.attribute);
+    unwrapDirectCode(replacement);
+    return replacement;
+  } else if (capability.id === "dropdown") {
     if (active) {
       block.removeAttribute(capability.attribute);
       block.removeAttribute("data-his-collapsed");
@@ -161,7 +174,8 @@ export function setPageBlockColumnCount(block: HTMLElement, count: number): void
 }
 
 export function resetPageBlockAesthetics(block: HTMLElement): HTMLElement {
-  let target = /^H[1-6]$/.test(block.tagName) ? replaceBlockTag(block, "P") : block;
+  let target = /^(?:H[1-6]|PRE)$/.test(block.tagName) ? replaceBlockTag(block, "P") : block;
+  unwrapDirectCode(target);
   const dropdown = PAGE_BLOCK_CAPABILITIES.find((capability) => capability.id === "dropdown");
   if (dropdown && isCapabilityActive(target, dropdown)) target = togglePageBlockCapability(target, dropdown);
   PAGE_BLOCK_CAPABILITIES.forEach((capability) => {

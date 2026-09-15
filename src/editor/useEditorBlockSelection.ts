@@ -99,6 +99,11 @@ export function useEditorBlockSelection({
   // selection can still start over text while a selection modifier is held.
   const directTextTarget = target.closest(textLineSelector);
   const textBlock = directTextTarget ? getTextEditorBlock(target) : null;
+  // Ctrl/Cmd + clic pertenece a la multiselección discreta que se resuelve en
+  // onClick. No debe convertirse en un cuadro de selección de tamaño cero.
+  if ((event.ctrlKey || event.metaKey) && (textBlock || target.closest("[data-globe]"))) {
+    return false;
+  }
   if (textBlock && selectedLineBlocks.includes(textBlock)) {
     clearLineSelection();
     setSelectedLineBlocks([]);

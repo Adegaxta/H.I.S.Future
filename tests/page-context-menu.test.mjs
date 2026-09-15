@@ -35,6 +35,9 @@ try {
   assert.equal(capabilities.isCapabilityActive(fakeBlock, highlighted), true);
   capabilities.togglePageBlockCapability(fakeBlock, highlighted);
   assert.equal(capabilities.isCapabilityActive(fakeBlock, highlighted), false);
+  const code = capabilities.PAGE_BLOCK_CAPABILITIES.find((item) => item.id === "code");
+  assert.equal(capabilities.isCapabilityActive({ ...fakeBlock, tagName: "PRE" }, code), true,
+    "semantic code blocks imported from Anytype expose Code as active");
 
   const menu = read("src/editor/PageBlockContextMenu.tsx");
   const editor = read("src/editor/RichTextEditor.tsx");
@@ -45,6 +48,9 @@ try {
   for (const action of ["copy", "cut", "paste", "duplicate", "insertAbove", "insertBelow", "delete"]) assert.ok(menu.includes(`editor.context.${action}`));
   assert.ok(editor.includes("captureStructuralUndo") && editor.includes("syncContent"), "capability mutations participate in history and persistence");
   assert.ok(editor.includes("openEditorBlockContextMenu(lineControl.block") && !editor.includes("controller.openLineCommands(lineControl.block, event.currentTarget)"), "the block options button uses the same new context menu");
+  assert.ok(editor.includes("controller.resetEditorPickers()") && !editor.includes("controller.dismissEditorMenus();\n    const selected"), "opening block options closes old pickers without destroying multiselection");
+  assert.ok(editor.includes("deleteContextBlock(editorContextMenu.block)"), "Delete acts on the menu target instead of depending on delayed action state");
+  assert.ok(editor.includes("preserveEditorViewport"), "context mutations retain the current page position");
   assert.ok(!editor.includes('className="editor-line-control-drag"'), "options and dragging share one line control");
   assert.ok(menu.includes("arrowDrop") || (menu.includes("arrowUpIcon") && menu.includes("arrowDownIcon")), "column count uses the supplied arrow assets");
   assert.ok(menu.includes('<div className="page-context-menu__column-row"><img src={columnIcon}') && !menu.includes('page-context-menu__column-row"><img src={uncheckedIcon}'), "columns do not render a checkbox");
@@ -56,6 +62,8 @@ try {
   assert.ok(blocks.includes("sourceScopes.forEach"), "moving the last block out of a column leaves a fresh editable block behind");
   assert.ok(blocks.includes("remainingColumns.length === 1") && blocks.includes("column.remove()"), "deleting the last block removes its column and unwraps a one-column layout");
   assert.ok(blocks.includes("remainingColumns.length === 0") && blocks.includes("layoutParent.insertBefore(line, layout)"), "deleting every column restores one normal editable block");
+  const selection = read("src/editor/useEditorBlockSelection.ts");
+  assert.ok(selection.includes("(event.ctrlKey || event.metaKey) && (textBlock || target.closest(\"[data-globe]\"))"), "Ctrl/Cmd click reaches discrete block multiselection instead of starting a zero-size rectangle");
   const styles = read("src/editor/styles.css");
   assert.ok(blocks.includes("copyContinuingBlockAttributes") && blocks.includes("window.setTimeout") && blocks.includes("activateLineDrag(pending)"), "styles continue and dragging starts only after a held click");
   assert.ok(styles.includes("check_box_outline_blank") && styles.includes("check_box_256dp") && styles.includes("chevron-down.svg"), "Todo and dropdown use the supplied tinted assets");

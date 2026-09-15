@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import type {
   Dispatch,
   PointerEvent,
@@ -6,9 +6,92 @@ import type {
   SetStateAction,
 } from "react";
 import type { NodeItem } from "../types/nodes";
-import { getPageMeta } from "../utils/pageMeta";
 import { getNodeDefinition } from "../defs/nodeTypes";
 import { ensureEditorImageBlockId, isResizableEditorImage } from "./imageResize";
+import { dynamicIconImports } from "lucide-react/dynamic.mjs";
+import { resolveNodeCustomVisual } from "../nodes/nodeIconSource";
+import type { ResolvedNodeVisual } from "../nodes/visuals/types";
+
+type LucideIconData = {
+  size?: number;
+  node?: Array<[string, Record<string, string | number>]>;
+};
+
+const toSvgAttribute = (name: string) => name.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
+const mentionVisualSignatures = new WeakMap<HTMLElement, string>();
+
+function renderLucideVisual(host: HTMLElement, name: string): void {
+  const loader = (dynamicIconImports as Record<string, (() => Promise<unknown>) | undefined>)[name];
+  if (!loader) return;
+  void loader().then((module) => {
+    if (!host.parentElement) return;
+    const data = (module as { __iconData?: LucideIconData }).__iconData;
+    if (!data?.node) return;
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("viewBox", `0 0 ${data.size ?? 24} ${data.size ?? 24}`);
+    svg.setAttribute("fill", "none");
+    svg.setAttribute("stroke", "currentColor");
+    svg.setAttribute("stroke-width", "2");
+    svg.setAttribute("stroke-linecap", "round");
+    svg.setAttribute("stroke-linejoin", "round");
+    svg.setAttribute("aria-hidden", "true");
+    data.node.forEach(([tag, attributes]) => {
+      const child = document.createElementNS("http://www.w3.org/2000/svg", tag);
+      Object.entries(attributes).forEach(([attribute, value]) => {
+        if (attribute !== "key") child.setAttribute(toSvgAttribute(attribute), String(value));
+      });
+      svg.appendChild(child);
+    });
+    host.replaceChildren(svg);
+  }).catch(() => undefined);
+}
+
+function createMentionVisual(visual: ResolvedNodeVisual | undefined, type: NodeItem["type"]): HTMLElement {
+  let icon: HTMLElement;
+  if (visual?.kind === "image") {
+    const image = document.createElement("img");
+    image.src = visual.src;
+    image.alt = "";
+    icon = image;
+  } else {
+    const span = document.createElement("span");
+    if (visual?.kind === "emoji") {
+      span.textContent = visual.value;
+      span.classList.add("node-visual", "node-visual--emoji", `node-visual--${visual.style}`);
+    } else if (visual?.kind === "icon" && visual.provider === "material-symbols") {
+      span.textContent = visual.name;
+      span.classList.add("material-symbols-rounded", "node-visual", "node-visual--material-symbols");
+    } else if (visual?.kind === "icon") {
+      span.classList.add("node-visual", "node-visual--lucide");
+      renderLucideVisual(span, visual.name);
+    } else {
+      span.classList.add("sidebar-icon", "node-type-icon", `node-type-icon--${type}`);
+    }
+    icon = span;
+  }
+  icon.classList.add("editor-mention__visual", "editor-mention__node-icon");
+  icon.dataset.mentionNodeVisual = "true";
+  icon.dataset.noResize = "true";
+  icon.setAttribute("aria-hidden", "true");
+  return icon;
+}
+
+function syncMentionVisual(mention: HTMLElement, target: NodeItem, nodes: readonly NodeItem[]): void {
+  if (target.type === "imagen") return;
+  const visual = resolveNodeCustomVisual(target, nodes);
+  const signature = JSON.stringify([target.type, visual ?? null]);
+  const hasVisual = Boolean(mention.querySelector(":scope > [data-mention-node-visual]"));
+  if (mentionVisualSignatures.get(mention) === signature && (hasVisual || (target.type === "pagina" && !visual))) return;
+  Array.from(mention.children).forEach((child) => {
+    if (child.matches("[data-mention-node-visual], .editor-mention__icon, .editor-mention__node-icon, .node-visual")) child.remove();
+  });
+  // Una Página sin personalización conserva el marcador Article del enlace.
+  // En cuanto tiene un visual propio, este ocupa exactamente ese lugar.
+  if (visual || target.type !== "pagina") {
+    mention.insertBefore(createMentionVisual(visual, target.type), mention.firstChild);
+  }
+  mentionVisualSignatures.set(mention, signature);
+}
 
 interface UseEditorMentionsOptions {
   editorRef: RefObject<HTMLDivElement | null>;
@@ -64,17 +147,7 @@ export function useEditorMentions({
     }
 
     if (target.type === "pagina") {
-      const pageMeta = getPageMeta(target.content);
-      const iconNode = pageMeta.iconNodeId ? nodes.find((item) => item.id === pageMeta.iconNodeId) : null;
-      const source = iconNode ? new DOMParser().parseFromString(iconNode.content, "text/html").querySelector("img")?.getAttribute("src") : null;
-      if (source) {
-        const icon = document.createElement("img");
-        icon.src = source;
-        icon.alt = target.name;
-        icon.className = "editor-mention__icon";
-        icon.dataset.noResize = "true";
-        mention.appendChild(icon);
-      }
+      syncMentionVisual(mention, target, nodes);
       mention.appendChild(document.createTextNode(target.name));
       return mention;
     }
@@ -94,14 +167,19 @@ export function useEditorMentions({
       return mention;
     }
 
-    const icon = document.createElement("span");
-    icon.className = `editor-mention__node-icon sidebar-icon node-type-icon node-type-icon--${target.type}`;
-    icon.style.color = getNodeDefinition(target.type).color;
-    icon.dataset.noResize = "true";
-    mention.appendChild(icon);
+    syncMentionVisual(mention, target, nodes);
     mention.appendChild(document.createTextNode(target.name));
     return mention;
   }, [deletedNodes, nodes]);
+
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    editor.querySelectorAll<HTMLElement>("[data-mention-id]").forEach((mention) => {
+      const target = nodes.find((item) => item.id === mention.dataset.mentionId);
+      if (target && target.type !== "imagen") syncMentionVisual(mention, target, nodes);
+    });
+  }, [editorRef, nodes]);
 
   const getAdjacentRangeCharacter = useCallback((range: Range, side: "left" | "right") => {
     const container = range.startContainer;

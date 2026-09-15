@@ -145,7 +145,7 @@
 .page-chrome__button:hover { background: #15181b; }
 .page-chrome__button:disabled { cursor: default; opacity: 0.25; }
 .page-chrome__button img { width: 100%; height: 100%; filter: brightness(0) saturate(100%) invert(75%) sepia(57%) saturate(468%) hue-rotate(119deg) brightness(94%); }
-.page-chrome__zone--index .page-chrome__button { width: 32px; height: 72px; padding: 7px; transform: translateX(25px); opacity: 0.28; background: transparent; }
+.page-chrome__zone--index .page-chrome__button { width: 42px; height: 72px; padding: 5px; transform: translateX(25px); opacity: 0.28; background: transparent; }
 .page-chrome__zone--index .page-chrome__button:hover { background: transparent; }
 .page-chrome__zone--graph .page-chrome__button { transform: translateX(44px); opacity: 0.15; }
 .page-chrome__zone--index.is-visible .page-chrome__button,
