@@ -4,6 +4,7 @@ export const EN_WORKSPACE_TRANSLATIONS = {
   "context.rename": "Rename",
   "context.view": "View",
   "context.setPrimary": "Set as primary Node",
+  "context.addToLore": "Add to Lore",
   "context.removeFromLore": "Remove from Lore",
   "context.removeManyFromLore": "Remove {count} Nodes from Lore",
   "context.deleteNode": "Delete Node",

@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import type { LineControlState } from "./types";
 
 export function useBlockControls() {
@@ -13,7 +13,7 @@ export function useBlockControls() {
     inside: boolean;
   } | null>(null);
 
-  const clearBlockControls = () => {
+  const clearBlockControls = useCallback(() => {
     setLineControl(null);
     setIsDraggingLine(false);
     draggedLineRef.current?.removeAttribute("data-line-dragging");
@@ -25,7 +25,7 @@ export function useBlockControls() {
     draggedLinesRef.current = [];
     lineDropRef.current = null;
     document.body.style.cursor = "default";
-  };
+  }, []);
 
   return {
     lineControl,

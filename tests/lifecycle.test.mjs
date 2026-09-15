@@ -13,6 +13,8 @@ const server = await createServer({
 
 try {
   const { PersistenceQueue } = await server.ssrLoadModule("/src/lifecycle/PersistenceQueue.ts");
+  const { mergeNodePersistenceRequests } = await server.ssrLoadModule("/src/lifecycle/nodePersistence.ts");
+  const { saveEditorImageLayout, loadEditorImageLayouts, flushEditorLayoutWrites } = await server.ssrLoadModule("/src/project/editorLayoutRepository.ts");
   const { PdfDocumentSession } = await server.ssrLoadModule("/src/pdf/PdfDocumentSession.ts");
   const writes = [];
   let releaseFirst;
@@ -30,6 +32,14 @@ try {
   assert.deepEqual(writes, [1, 3], "writes stay ordered and queued snapshots coalesce to the newest state");
   assert.equal(queue.hasPendingWrites(), false);
 
+  await saveEditorImageLayout({ nodeId: "page", blockId: "image-stable", width: 512 });
+  await flushEditorLayoutWrites();
+  assert.deepEqual(
+    await loadEditorImageLayouts("page"),
+    [{ nodeId: "page", blockId: "image-stable", width: 512 }],
+    "browser and test runtimes preserve the granular image layout contract",
+  );
+
   let shouldFail = true;
   const retryWrites = [];
   const retryQueue = new PersistenceQueue(async (value) => {
@@ -42,6 +52,24 @@ try {
   await retryQueue.flush();
   assert.deepEqual(retryWrites, ["latest", "latest"]);
   assert.equal(retryQueue.hasPendingWrites(), false);
+
+  const page = { id: "page", name: "Page", type: "pagina", parentId: null, order: 0, content: "old" };
+  const mergedContent = mergeNodePersistenceRequests(
+    { kind: "content", changes: [{ id: "page", content: "middle" }, { id: "other", content: "kept" }], version: 2 },
+    { kind: "content", changes: [{ id: "page", content: "latest" }], version: 3 },
+  );
+  assert.deepEqual(mergedContent, {
+    kind: "content",
+    changes: [{ id: "page", content: "latest" }, { id: "other", content: "kept" }],
+    version: 3,
+  }, "incremental writes coalesce independently by Node identity");
+  const mergedCheckpoint = mergeNodePersistenceRequests(
+    { kind: "full", nodes: [page], deletedNodes: [], version: 4 },
+    { kind: "content", changes: [{ id: "page", content: "after-checkpoint" }], version: 5 },
+  );
+  assert.equal(mergedCheckpoint.kind, "full");
+  assert.equal(mergedCheckpoint.nodes[0].content, "after-checkpoint", "new typing is folded into a queued checkpoint");
+  assert.equal(mergedCheckpoint.version, 5);
 
   const transferred = new Uint8Array([37, 80, 68, 70]);
   structuredClone(transferred, { transfer: [transferred.buffer] });
@@ -95,6 +123,10 @@ try {
   const nodeStore = read("src/hooks/useNodeStore.ts");
   const pdfViewer = read("src/components/PdfViewer.tsx");
   const resourceRepository = read("src/project/resourceRepository.ts");
+  const editorPersistence = read("src/editor/persistence.ts");
+  const richTextPersistence = read("src/editor/useRichTextEditor.ts");
+  const editorController = read("src/editor/useEditorController.ts");
+  const imageLayoutRepository = read("src/project/editorLayoutRepository.ts");
   const backend = read("src-tauri/src/lib.rs");
   const project = read("src-tauri/src/project.rs");
 
@@ -110,8 +142,17 @@ try {
   assert.ok(backend.includes('app.emit("app-exit-requested"'), "tray Exit enters the safe frontend flush path");
   assert.ok(backend.includes("take_launch_project_path") && backend.includes("initial_his_path"), "startup consumes a direct .his launch path");
   assert.ok(app.includes('invoke<string | null>("take_launch_project_path")') && app.includes("session.openDirect(path)"), "frontend opens the .his path received at startup");
-  assert.ok(nodeStore.includes("persistedVersionRef.current === changeVersionRef.current"), "no-change flush skips redundant persistence");
+  assert.ok(nodeStore.includes("enqueueFullSave(snapshot, changeVersionRef.current)"), "explicit flush creates a complete validated checkpoint");
   assert.ok(nodeStore.includes("PersistenceQueue"), "workspace persistence has an explicit queue");
+  assert.ok(nodeStore.includes("enqueueContentSave") && backend.includes("save_node_contents"), "typing uses the incremental persistence path");
+  assert.ok(nodeStore.includes("loadWorkspaceSnapshot") && backend.includes("load_workspace_snapshot"), "initial Node, Lore and Trash hydration uses one backend snapshot");
+  assert.ok(project.includes("PRAGMA wal_autocheckpoint = 0"), "interactive saves defer WAL checkpoint work to the durability boundary");
+  assert.ok(editorPersistence.includes("const stripped:") && editorPersistence.includes("element.setAttribute(attribute, value)"), "editor persistence strips transient attributes without cloning large live pages");
+  assert.ok(richTextPersistence.includes("requestIdleCallback"), "editor snapshots can be deferred to an idle main-thread window");
+  assert.ok(editorController.includes("saveEditorImageLayout") && editorController.includes("if (resize.blockIdCreated) syncContent()"), "image resize writes one granular row and snapshots HTML only for one-time legacy identity migration");
+  assert.ok(imageLayoutRepository.includes('invoke("save_editor_image_layout"') && imageLayoutRepository.includes("pendingWrites"), "granular layout writes are tracked until the durability boundary");
+  assert.ok(workspaceLifecycle.includes("flushEditorLayoutWrites"), "Close, Exit and Ctrl+S await granular editor writes");
+  assert.ok(project.includes("editor_image_layouts") && backend.includes("save_editor_image_layout"), "SQLite owns durable block-level image widths");
   assert.ok(project.includes("if project.archive_dirty") && project.includes("archive_sync.enqueue(job)"), "clean archive close skips packaging and dirty archives enter the background queue");
   assert.ok(project.includes("ARCHIVE_DIRTY_FILE") && project.includes("durable_working_folder"), "archive dirty state and extracted working state are durable");
   assert.ok(project.includes("validate_archive_file(&temporary)") && project.includes("replace_archive(&temporary, archive_path)"), "archive replacement follows package, validation, replace order");

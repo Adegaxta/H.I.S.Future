@@ -1,9 +1,14 @@
 mod archive_sync;
+mod discord_presence;
 mod persistence;
 mod project;
 
 use archive_sync::{ArchiveSyncManager, ArchiveSyncStatus};
-use project::{CloseProjectTimings, NodeRecord, ProjectInfo, ProjectState, SaveWorkspaceTimings};
+use discord_presence::{DiscordPresenceManager, PresenceActivity};
+use project::{
+    CloseProjectTimings, EditorImageLayout, NodeContentChange, NodeRecord, ProjectInfo,
+    ProjectState, SaveWorkspaceTimings, WorkspaceSnapshot,
+};
 use std::sync::{Arc, Mutex};
 use tauri::{Emitter, Manager};
 
@@ -83,15 +88,16 @@ fn register_his_file_association(app: &tauri::AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn set_discord_presence(details: String, state: String) -> Result<(), String> {
-    println!("[Discord RPC] details={details} state={state}");
-    Ok(())
+fn set_discord_presence(
+    activity: PresenceActivity,
+    presence: tauri::State<DiscordPresenceManager>,
+) {
+    presence.set(activity);
 }
 
 #[tauri::command]
-fn clear_discord_presence() -> Result<(), String> {
-    println!("[Discord RPC] cleared");
-    Ok(())
+fn clear_discord_presence(presence: tauri::State<DiscordPresenceManager>) {
+    presence.clear();
 }
 
 #[tauri::command]
@@ -112,6 +118,31 @@ fn create_project_file(
 ) -> Result<ProjectInfo, String> {
     let created = project::create_project_file(archive_path, name)?;
     project::set_open_project(&state, created)
+}
+
+#[tauri::command]
+fn create_dev_project(state: tauri::State<ProjectState>) -> Result<ProjectInfo, String> {
+    #[cfg(not(debug_assertions))]
+    {
+        let _ = state;
+        return Err(
+            "Inicio Rápido DEV solo está disponible en compilaciones de desarrollo.".into(),
+        );
+    }
+
+    #[cfg(debug_assertions)]
+    {
+        let parent = std::env::temp_dir().join(format!("hisfuture-dev-{}", std::process::id()));
+        std::fs::create_dir_all(&parent)
+            .map_err(|error| format!("No se pudo preparar el baúl DEV: {error}"))?;
+        let folder = parent.join("DEV");
+        let opened = if folder.exists() {
+            project::open_project_from_path(folder.to_string_lossy().into_owned())?
+        } else {
+            project::create_project(parent.to_string_lossy().into_owned(), "DEV".into())?
+        };
+        project::set_open_project(&state, opened)
+    }
 }
 
 #[tauri::command]
@@ -151,6 +182,7 @@ fn exit_application(
     app: tauri::AppHandle,
     state: tauri::State<ProjectState>,
     archive_sync: tauri::State<ArchiveSyncManager>,
+    presence: tauri::State<DiscordPresenceManager>,
 ) -> Result<(), String> {
     let reopen = project::current_project(&state)?;
     project::close_project_background_traced(&state, &archive_sync, Some("application-exit"))?;
@@ -167,6 +199,7 @@ fn exit_application(
         "[lifecycle] application.exit archive_queue_drain={:.2}ms exit_ready=true",
         drain_started.elapsed().as_secs_f64() * 1000.0
     );
+    presence.shutdown();
     app.remove_tray_by_id("main-tray");
     app.exit(0);
     Ok(())
@@ -191,6 +224,14 @@ fn list_nodes(
 }
 
 #[tauri::command]
+fn load_workspace_snapshot(
+    default_node_type: Option<String>,
+    state: tauri::State<ProjectState>,
+) -> Result<WorkspaceSnapshot, String> {
+    project::load_workspace_snapshot(&state, default_node_type.as_deref())
+}
+
+#[tauri::command]
 fn save_nodes(
     nodes: Vec<NodeRecord>,
     hidden_ids: Option<Vec<String>>,
@@ -204,6 +245,40 @@ fn save_nodes(
         hidden_ids,
         deleted_nodes,
         trace_id.as_deref(),
+    )
+}
+
+#[tauri::command]
+fn save_node_contents(
+    changes: Vec<NodeContentChange>,
+    trace_id: Option<String>,
+    state: tauri::State<ProjectState>,
+) -> Result<SaveWorkspaceTimings, String> {
+    project::save_node_contents_traced(&state, changes, trace_id.as_deref())
+}
+
+#[tauri::command]
+fn list_editor_image_layouts(
+    node_id: String,
+    state: tauri::State<ProjectState>,
+) -> Result<Vec<EditorImageLayout>, String> {
+    project::list_editor_image_layouts(&state, &node_id)
+}
+
+#[tauri::command]
+fn save_editor_image_layout(
+    node_id: String,
+    block_id: String,
+    width: f64,
+    state: tauri::State<ProjectState>,
+) -> Result<(), String> {
+    project::save_editor_image_layout(
+        &state,
+        EditorImageLayout {
+            node_id,
+            block_id,
+            width,
+        },
     )
 }
 
@@ -346,6 +421,7 @@ pub fn run() {
         })
         .manage(Mutex::<Option<project::OpenProject>>::new(None))
         .manage(LaunchProjectPath(Mutex::new(launch_project_path())))
+        .manage(DiscordPresenceManager::new())
         .plugin(tauri_plugin_sql::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
@@ -355,13 +431,18 @@ pub fn run() {
             take_launch_project_path,
             create_project,
             create_project_file,
+            create_dev_project,
             convert_project_folder,
             open_project,
             close_project,
             exit_application,
             archive_sync_status,
             list_nodes,
+            load_workspace_snapshot,
             save_nodes,
+            save_node_contents,
+            list_editor_image_layouts,
+            save_editor_image_layout,
             store_project_resource,
             read_project_resource,
             delete_project_resource,

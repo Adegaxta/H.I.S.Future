@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from "react";
-import type { CSSProperties, RefObject } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { CSSProperties, ReactNode, RefObject, WheelEvent } from "react";
+import { createPortal } from "react-dom";
 import type { NodeItem } from "../types/nodes";
 import { getNodeDefinition } from "../defs/nodeTypes";
 import { getImageResourceInfo } from "../utils/imageResource";
@@ -17,12 +18,67 @@ import {
   type BlockTextDevNodeTree,
 } from "./menuTree";
 import draftAsset from "../assets/third-party/google-material/icons/draft.svg";
+import moreVertAsset from "../assets/third-party/google-material/icons/more_vert.svg";
+import dragIndicatorAsset from "../assets/third-party/google-material/icons/drag_indicator.svg";
 import { useDismissibleLayer } from "../hooks/useDismissibleLayer";
 import { isResizableEditorImage } from "./imageResize";
+import type { HisContextMenuItem } from "../components/HisContextMenu";
+import { getPageMeta } from "../utils/pageMeta";
+import PageBlockContextMenu from "./PageBlockContextMenu";
+import {
+  resetPageBlockAesthetics,
+  setPageBlockColumnCount,
+  togglePageBlockCapability,
+  type PageBlockCapabilityDefinition,
+} from "./blockCapabilities";
+
+let pageBlockClipboardHtml = "";
+
+const mentionResourceIdentities = new WeakMap<NodeItem, number>();
+let nextMentionResourceIdentity = 1;
+
+function getMentionResourceIdentity(node: NodeItem): number {
+  const existing = mentionResourceIdentities.get(node);
+  if (existing !== undefined) return existing;
+  const identity = nextMentionResourceIdentity++;
+  mentionResourceIdentities.set(node, identity);
+  return identity;
+}
 
 function hasAlignableImage(block: Element | null): boolean {
-  if (!block) return false;
-  return Array.from(block.querySelectorAll<HTMLImageElement>("img")).some(isResizableEditorImage);
+  return Boolean(block && Array.from(block.querySelectorAll<HTMLImageElement>("img")).some(isResizableEditorImage));
+}
+
+function LineControlIcon({ kind }: { kind: "more" | "drag" }) {
+  return (
+    <img
+      aria-hidden="true"
+      alt=""
+      className={`editor-line-control-icon editor-line-control-icon--${kind}`}
+      draggable={false}
+      src={kind === "more" ? moreVertAsset : dragIndicatorAsset}
+    />
+  );
+}
+
+function forwardEditorControlWheel(
+  event: WheelEvent<HTMLElement>,
+  editor: HTMLElement | null,
+) {
+  if (!editor) return;
+  let scrollParent = editor.parentElement;
+  while (scrollParent) {
+    const overflowY = getComputedStyle(scrollParent).overflowY;
+    if (
+      (overflowY === "auto" || overflowY === "scroll") &&
+      scrollParent.scrollHeight > scrollParent.clientHeight
+    ) {
+      event.preventDefault();
+      scrollParent.scrollBy({ left: event.deltaX, top: event.deltaY });
+      return;
+    }
+    scrollParent = scrollParent.parentElement;
+  }
 }
 
 interface RichTextEditorProps {
@@ -43,6 +99,7 @@ interface RichTextEditorProps {
   readOnly?: boolean;
   className?: string;
   style: CSSProperties;
+  beforeContent?: ReactNode;
 }
 
 export default function RichTextEditor({
@@ -63,11 +120,20 @@ export default function RichTextEditor({
   readOnly = false,
   className,
   style,
+  beforeContent,
 }: RichTextEditorProps) {
   const { t } = useLocale();
-  const [imageContextMenu, setImageContextMenu] = useState<{
-    id: string;
-    mode: "inserted" | "full";
+  // Editing a page changes the nodes array frequently, but mention labels and
+  // image resources usually do not. Keep that expensive DOM reconciliation
+  // dormant until one of those resources actually changes.
+  const mentionResourceVersion = useMemo(() => nodes.map((item) =>
+    `${item.id}\u0000${item.type}\u0000${item.name}\u0000${item.type === "imagen" ? getMentionResourceIdentity(item) : item.type === "pagina" ? getPageMeta(item.content).iconNodeId ?? "" : ""}`,
+  ).join("\u0001"), [nodes]);
+  const [editorContextMenu, setEditorContextMenu] = useState<{
+    imageNodeId: string | null;
+    mention: HTMLElement | null;
+    block: HTMLElement;
+    mode: "inserted" | "full" | null;
     top: number;
     left: number;
   } | null>(null);
@@ -75,6 +141,7 @@ export default function RichTextEditor({
     top: number;
     left: number;
     block: HTMLElement | null;
+    kind?: "text" | "background" | "border";
   } | null>(null);
   const [blockTextDevTree, setBlockTextDevTree] = useState<BlockTextDevNodeTree>(
     BLOCK_TEXT_DEV_REGISTRY.closeTree(),
@@ -123,12 +190,12 @@ export default function RichTextEditor({
   useEffect(() => {
     const menuOpen = Boolean(blockTextDevTree.root) ||
       Boolean(blockColorMenu) ||
-      Boolean(imageContextMenu) ||
+      Boolean(editorContextMenu) ||
       Boolean(controller.imageMentionChoice) ||
       Boolean((controller.slashPicker || controller.callPicker) && controller.pickerPosition);
     if (!menuOpen) return;
 
-    const popupSelector = "[data-picker], [data-color-picker], [data-image-context-menu], [data-selection-toolbar]";
+    const popupSelector = "[data-picker], [data-color-picker], [data-selection-toolbar], [data-line-control], .his-context-menu";
     const isInsidePopup = (target: EventTarget | null) => target instanceof Element && target.closest(popupSelector) !== null;
     const preventOutsideScroll = (event: Event) => {
       if (isInsidePopup(event.target)) return;
@@ -150,7 +217,7 @@ export default function RichTextEditor({
       window.removeEventListener("touchmove", preventOutsideScroll);
       document.removeEventListener("keydown", preventScrollKeys);
     };
-  }, [blockColorMenu, blockTextDevTree.root, controller.callPicker, controller.imageMentionChoice, controller.pickerPosition, controller.slashPicker, imageContextMenu]);
+  }, [blockColorMenu, blockTextDevTree.root, controller.callPicker, controller.imageMentionChoice, controller.pickerPosition, controller.slashPicker, editorContextMenu]);
 
   useEffect(() => {
     if (!controller.pickerPosition && !blockColorMenu && !blockTextDevTree.root) return;
@@ -163,7 +230,7 @@ export default function RichTextEditor({
     // No incluir blockTextDevTree.root aqui: es el propio estado que este efecto cierra,
     // asi que usarlo como condicion de "sigue visible" lo dejaba atascado para siempre.
     const hasVisiblePopover = Boolean(blockColorMenu) ||
-      Boolean(imageContextMenu) ||
+      Boolean(editorContextMenu) ||
       Boolean(controller.imageMentionChoice) ||
       Boolean(controller.pickerPosition && (controller.slashPicker || controller.callPicker));
     if (hasVisiblePopover) return;
@@ -171,11 +238,18 @@ export default function RichTextEditor({
       if (!current.root && current.children.length === 0) return current;
       return BLOCK_TEXT_DEV_REGISTRY.closeTree();
     });
-  }, [blockColorMenu, controller.callPicker, controller.imageMentionChoice, controller.pickerPosition, controller.slashPicker, imageContextMenu]);
+  }, [blockColorMenu, controller.callPicker, controller.imageMentionChoice, controller.pickerPosition, controller.slashPicker, editorContextMenu]);
   useEffect(() => {
     const frame = requestAnimationFrame(() => controller.updatePlaceholder());
     return () => cancelAnimationFrame(frame);
   }, [node.id]);
+  useEffect(() => {
+    if (readOnly) return;
+    const frame = requestAnimationFrame(() => {
+      void controller.repairUnlinkedEditorImages();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [node.id, readOnly]);
   useEffect(() => {
     const editor = editorRef.current;
     if (!editor) return undefined;
@@ -229,7 +303,7 @@ export default function RichTextEditor({
     editor.querySelectorAll<HTMLElement>("[data-mention-id]").forEach((mention) => {
       const resource = imageNodes.get(mention.dataset.mentionId || "");
       const mentionedNode = nodes.find((item) => item.id === mention.dataset.mentionId);
-      const image = mention.querySelector<HTMLImageElement>("img");
+      let image = mention.querySelector<HTMLImageElement>("img");
       if (mentionedNode && (mention.title !== mentionedNode.name || mention.getAttribute("aria-label") !== mentionedNode.name)) {
         mention.title = mentionedNode.name;
         mention.setAttribute("aria-label", mentionedNode.name);
@@ -240,9 +314,36 @@ export default function RichTextEditor({
         image.alt = resource.fileName;
         changed = true;
       }
+      if (mentionedNode) {
+        mention.style.setProperty("--mention-color", getNodeDefinition(mentionedNode.type).color);
+      }
+      if (mentionedNode?.type === "pagina") {
+        const iconNodeId = getPageMeta(mentionedNode.content).iconNodeId;
+        const iconResource = iconNodeId ? imageNodes.get(iconNodeId) : null;
+        if (iconResource) {
+          if (!image) {
+            image = document.createElement("img");
+            mention.insertBefore(image, mention.firstChild);
+            changed = true;
+          }
+          if (!image.classList.contains("editor-mention__icon") || image.dataset.noResize !== "true") {
+            image.classList.add("editor-mention__icon");
+            image.dataset.noResize = "true";
+            changed = true;
+          }
+          if (image.src !== iconResource.src) {
+            image.src = iconResource.src;
+            image.alt = mentionedNode.name;
+            changed = true;
+          }
+        } else if (image) {
+          image.remove();
+          changed = true;
+        }
+      }
     });
     if (changed) controller.syncContent();
-  }, [deletedNodes, editorRef, node.id, nodes]);
+  }, [editorRef, mentionResourceVersion, node.id]);
   useEffect(() => {
     const editor = editorRef.current;
     if (!editor) return;
@@ -334,20 +435,179 @@ export default function RichTextEditor({
     });
     input.click();
   };
+  const closeEditorContextMenu = () => {
+    setEditorContextMenu(null);
+    controller.setLineActionBlock(null);
+  };
+  const alignImage = (mention: HTMLElement, alignment: "left" | "center" | "right") => {
+    if (!mention.isConnected) return;
+    const image = mention.querySelector<HTMLImageElement>("img");
+    mention.dataset.mentionAlign = alignment;
+    if (image) {
+      image.style.marginLeft = alignment === "right" || alignment === "center" ? "auto" : "0";
+      image.style.marginRight = alignment === "left" || alignment === "center" ? "auto" : "0";
+    }
+    window.requestAnimationFrame(() => {
+      if (mention.isConnected) controller.syncContent();
+    });
+  };
+  const buildImageContextItems = ({
+    imageNodeId,
+    mention,
+    mode,
+    top,
+    left,
+  }: {
+    imageNodeId: string;
+    mention: HTMLElement;
+    mode: "inserted" | "full";
+    top: number;
+    left: number;
+  }): HisContextMenuItem[] => [
+        {
+          id: "image-view",
+          label: t("editor.image.view"),
+          onSelect: () => onOpenNodeView(imageNodeId, left, top),
+        },
+        ...(mode === "full"
+          ? (["left", "center", "right"] as const).map((alignment) => ({
+              id: `image-align-${alignment}`,
+              label: t(`editor.image.${alignment}`),
+              onSelect: () => alignImage(mention, alignment),
+            }))
+          : []),
+        {
+          id: "image-delete",
+          label: t("editor.image.deleteBlock"),
+          danger: true,
+          onSelect: controller.deleteSelectedLine,
+        },
+      ];
+  const editorContextImageItems: HisContextMenuItem[] = editorContextMenu?.imageNodeId && editorContextMenu.mention && editorContextMenu.mode
+    ? buildImageContextItems({
+        imageNodeId: editorContextMenu.imageNodeId,
+        mention: editorContextMenu.mention,
+        mode: editorContextMenu.mode,
+        top: editorContextMenu.top,
+        left: editorContextMenu.left,
+      })
+    : [];
+  const copyContextBlock = (block: HTMLElement) => {
+    const clone = block.cloneNode(true) as HTMLElement;
+    clone.removeAttribute("data-line-selected");
+    clone.removeAttribute("data-line-dragging");
+    clone.removeAttribute("data-line-drop-target");
+    pageBlockClipboardHtml = clone.outerHTML;
+    void navigator.clipboard?.writeText(block.textContent || "").catch(() => {});
+  };
+  const duplicateContextBlock = (block: HTMLElement) => {
+    if (!block.isConnected) return;
+    controller.captureStructuralUndo();
+    const clone = block.cloneNode(true) as HTMLElement;
+    clone.removeAttribute("data-line-selected");
+    clone.querySelectorAll("[id]").forEach((element) => element.removeAttribute("id"));
+    block.parentNode?.insertBefore(clone, block.nextSibling);
+    controller.syncContent();
+  };
+  const pasteContextBlock = (block: HTMLElement) => {
+    if (!block.isConnected || !pageBlockClipboardHtml) return;
+    const template = document.createElement("template");
+    template.innerHTML = pageBlockClipboardHtml;
+    const pasted = template.content.firstElementChild?.cloneNode(true);
+    if (!(pasted instanceof HTMLElement)) return;
+    controller.captureStructuralUndo();
+    block.parentNode?.insertBefore(pasted, block.nextSibling);
+    controller.syncContent();
+  };
+  const mutateContextBlock = (
+    block: HTMLElement,
+    mutation: (target: HTMLElement) => HTMLElement | void,
+  ) => {
+    if (!block.isConnected) return;
+    controller.captureStructuralUndo();
+    const next = mutation(block) || block;
+    controller.syncContent();
+    setEditorContextMenu((current) => current && current.block === block ? { ...current, block: next } : current);
+  };
+  const getAestheticTarget = (block: HTMLElement) => block.matches("[data-globe]")
+    ? block.querySelector<HTMLElement>("[data-globe-content] > p, [data-globe-content] > h1, [data-globe-content] > h2, [data-globe-content] > h3, [data-globe-content] > h4, [data-globe-content] > h5, [data-globe-content] > h6, [data-globe-content] > blockquote, [data-globe-content] > li, [data-globe-content] > pre") ?? block
+    : block;
+  const toggleContextCapability = (block: HTMLElement, capability: PageBlockCapabilityDefinition) => {
+    if (capability.id === "globe") {
+      const nativeGlobe = block.closest<HTMLElement>("[data-globe]");
+      if (nativeGlobe) {
+        const content = nativeGlobe.querySelector<HTMLElement>(":scope > [data-globe-content]");
+        if (!content) return;
+        controller.captureStructuralUndo();
+        nativeGlobe.replaceWith(...Array.from(content.childNodes));
+        controller.syncContent();
+        closeEditorContextMenu();
+        return;
+      }
+      if (!block.isConnected || block.matches("[data-divider]")) return;
+      controller.captureStructuralUndo();
+      const content = document.createElement("div");
+      content.dataset.globeContent = "true";
+      const globe = document.createElement("div");
+      globe.dataset.globe = "true";
+      const icon = document.createElement("span");
+      icon.dataset.globeIcon = "true";
+      icon.contentEditable = "false";
+      const image = document.createElement("img");
+      image.src = draftAsset;
+      image.alt = "Draft";
+      icon.appendChild(image);
+      block.replaceWith(globe);
+      block.contentEditable = "true";
+      content.appendChild(block);
+      globe.append(icon, content);
+      controller.syncContent();
+      closeEditorContextMenu();
+      return;
+    }
+    mutateContextBlock(getAestheticTarget(block), (target) => togglePageBlockCapability(target, capability));
+  };
+  const resetContextAesthetics = (block: HTMLElement) => {
+    if (!block.isConnected) return;
+    controller.captureStructuralUndo();
+    let target = getAestheticTarget(block);
+    if (target.closest("[data-his-column-layout]")) setPageBlockColumnCount(target, 1);
+    target = resetPageBlockAesthetics(target);
+    const nativeGlobe = target.closest<HTMLElement>("[data-globe]") ?? (block.matches("[data-globe]") ? block : null);
+    const content = nativeGlobe?.querySelector<HTMLElement>(":scope > [data-globe-content]");
+    if (nativeGlobe && content) nativeGlobe.replaceWith(...Array.from(content.childNodes));
+    controller.syncContent();
+  };
+  const openEditorBlockContextMenu = (block: HTMLElement, left: number, top: number, preferredMention?: HTMLElement | null) => {
+    const nestedFullMention = hasAlignableImage(block)
+      ? block.querySelector<HTMLElement>('[data-mention-id][data-mention-mode="full"]')
+      : null;
+    const mention = preferredMention ?? (block.matches("[data-mention-id]") ? block : nestedFullMention);
+    const id = mention?.dataset.mentionId;
+    const target = id ? nodes.find((item) => item.id === id) : null;
+    const actionBlock = mention || block;
+    controller.dismissEditorMenus();
+    controller.setLineActionBlock(actionBlock);
+    setEditorContextMenu({
+      imageNodeId: target?.type === "imagen" ? target.id : null,
+      mention,
+      block: actionBlock,
+      mode: target?.type === "imagen" ? mention?.dataset.mentionMode === "full" ? "full" : "inserted" : null,
+      top,
+      left,
+    });
+  };
   return (
     <div
-      className="editor-selection-surface"
+      className={`editor-selection-surface${className ? ` ${className}-surface` : ""}`}
       onPointerDown={(event) => {
-        if (event.target !== event.currentTarget) return;
         controller.onEditorPointerDown(event);
       }}
       onPointerMove={(event) => {
-        if (event.target !== event.currentTarget) return;
         controller.onEditorPointerMove(event);
         controller.onEditorSelectionMove(event);
       }}
-      onPointerUp={(event) => {
-        if (event.target !== event.currentTarget) return;
+      onPointerUp={() => {
         controller.onEditorPointerUp();
       }}
       onClick={(event) => {
@@ -355,69 +615,27 @@ export default function RichTextEditor({
         controller.focusOrCreatePageLine();
       }}
     >
+      {beforeContent}
       <>
-      {!readOnly && controller.lineControl && !controller.isDraggingLine && (
-        <div
-          aria-hidden="true"
-          data-line-gutter="true"
-          onPointerEnter={() =>
-            controller.setLineControl({
-              ...controller.lineControl!,
-              nearLeft: true,
-            })
-          }
-          onPointerMove={() =>
-            controller.setLineControl({
-              ...controller.lineControl!,
-              nearLeft: true,
-            })
-          }
-          onPointerLeave={(event) => {
-            const next = event.relatedTarget as Element | null;
-            if (
-              !next?.closest(
-                ".editor-content, [data-line-control], [data-line-gutter]",
-              )
-            ) {
-              controller.setLineControl(null);
-            }
-          }}
-          style={{
-            position: "fixed",
-            top: controller.lineControl.block.getBoundingClientRect().top,
-            left: Math.max(
-              0,
-              controller.lineControl.block.getBoundingClientRect().left - 112,
-            ),
-            width: "124px",
-            height: `${Math.max(28, controller.lineControl.block.getBoundingClientRect().height)}px`,
-            zIndex: 23,
-            pointerEvents: "none",
-          }}
-        />
-      )}
       {controller.isDraggingLine &&
         controller.lineControl &&
         [controller.draggedLineRef.current || controller.lineControl.block].map((block, index) => {
           const rect = block.getBoundingClientRect();
-          const isDivider = block.matches("[data-divider]");
           return (
             <button
               key={`${block.tagName}-${index}`}
               type="button"
               data-line-control="true"
+              data-line-control-mode="drag"
               title={t("editor.line.move")}
-              onWheel={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-              }}
               onPointerDown={(event) => controller.startLineDrag(block, event)}
               onPointerMove={controller.moveLineDrag}
               onPointerUp={(event) => controller.finishLineDrag(block, event)}
+              onPointerCancel={controller.cancelLineDrag}
               style={{
                 position: "fixed",
                 top: Math.max(0, Math.min(window.innerHeight - Math.max(24, rect.height), rect.top)),
-                left: rect.left - 56,
+                left: controller.lineControl!.left,
                 width: "24px",
                 height: `${Math.max(24, rect.height)}px`,
                 padding: 0,
@@ -432,67 +650,86 @@ export default function RichTextEditor({
                 zIndex: 27,
               }}
             >
-              {isDivider ? "○" : "⋮"}
+              <LineControlIcon kind="drag" />
             </button>
           );
         })}
-      {controller.lineControl && (
-        <button
-          type="button"
-          data-line-control="true"
-          title={t("editor.line.options")}
-          onMouseDown={(event) => event.preventDefault()}
-          onClick={(event) =>
-            controller.openLineCommands(
-              controller.lineControl!.block,
-              event.currentTarget,
-            )
-          }
-          style={{
-            position: "fixed",
-            top: Math.max(
-              0,
-              Math.min(
-                window.innerHeight -
-                  Math.max(24, controller.lineControl.block.getBoundingClientRect().height),
-                controller.lineControl.block.getBoundingClientRect().top,
-              ),
-            ),
-            left: Math.max(8, controller.lineControl.block.getBoundingClientRect().left - 30),
-            width: "24px",
-            height: `${Math.max(24, controller.lineControl.block.getBoundingClientRect().height)}px`,
-            padding: 0,
-            border: "1px solid #343940",
-            borderRadius: "3px",
-            background: "transparent",
-            color: "#7A7F87",
-            fontSize: "16px",
-            cursor: "pointer",
-            zIndex: 25,
-          }}
-        >
-          {controller.lineControl.block.matches("[data-divider]") ? "○" : "⋮"}
-        </button>
-      )}
-      {controller.lineControl?.nearLeft && !controller.isDraggingLine && (
-        <div
-          aria-hidden="true"
-          data-line-preview="true"
-          className="editor-line-preview"
-          style={{
-            top: controller.lineControl.inside
-              ? controller.lineControl.pointerY ?? controller.lineControl.block.getBoundingClientRect().top
-              : controller.lineControl.before
-                ? controller.lineControl.block.getBoundingClientRect().top - 1
-                : controller.lineControl.block.getBoundingClientRect().bottom - 1,
-            left: controller.lineControl.inside
-              ? controller.lineControl.block.getBoundingClientRect().left + 48
-              : controller.lineControl.block.getBoundingClientRect().left,
-            right: 24,
-            boxShadow: controller.lineControl.inside ? "0 0 8px #4DD8C0" : "none",
-          }}
-        />
-      )}
+      {controller.lineControl && !controller.isDraggingLine && (() => {
+        const lineControl = controller.lineControl;
+        const rect = lineControl.block.getBoundingClientRect();
+        const height = Math.max(24, rect.height);
+        return (
+          <div
+            data-line-control="true"
+            className={`editor-line-control-cluster${height <= 32 ? " editor-line-control-cluster--compact" : ""}`}
+            onWheel={(event) => forwardEditorControlWheel(event, editorRef.current)}
+            onPointerLeave={(event) => {
+              const next = event.relatedTarget as Element | null;
+              if (!next?.closest(".editor-content, [data-line-control], [data-picker]")) {
+                controller.setLineControl(null);
+              }
+            }}
+            style={{
+              position: "fixed",
+              top: lineControl.top,
+              left: lineControl.left,
+              width: "28px",
+              height: `${height}px`,
+              zIndex: 4,
+            }}
+          >
+            <button
+              type="button"
+              data-line-control="true"
+              data-line-insert="above"
+              className="editor-line-control-insert editor-line-control-insert--above"
+              title={t("editor.line.insertAbove")}
+              aria-label={t("editor.line.insertAbove")}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={(event) => {
+                event.stopPropagation();
+                controller.insertLine(lineControl.block, true);
+              }}
+            >
+              +
+            </button>
+            <button
+              type="button"
+              data-line-control="true"
+              className="editor-line-control-menu"
+              title={t("editor.line.options")}
+              aria-label={t("editor.line.options")}
+              onPointerDown={(event) => controller.startLineDrag(lineControl.block, event)}
+              onPointerMove={controller.moveLineDrag}
+              onPointerUp={(event) => controller.finishLineDrag(lineControl.block, event)}
+              onPointerCancel={controller.cancelLineDrag}
+              onClick={(event) => {
+                event.stopPropagation();
+                const anchor = event.currentTarget.getBoundingClientRect();
+                openEditorBlockContextMenu(lineControl.block, anchor.right + 8, anchor.top);
+              }}
+            >
+              <LineControlIcon kind="more" />
+              <LineControlIcon kind="drag" />
+            </button>
+            <button
+              type="button"
+              data-line-control="true"
+              data-line-insert="below"
+              className="editor-line-control-insert editor-line-control-insert--below"
+              title={t("editor.line.insertBelow")}
+              aria-label={t("editor.line.insertBelow")}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={(event) => {
+                event.stopPropagation();
+                controller.insertLine(lineControl.block, false);
+              }}
+            >
+              +
+            </button>
+          </div>
+        );
+      })()}
       {controller.isDraggingLine && controller.lineControl && (
         <div
           aria-hidden="true"
@@ -512,41 +749,7 @@ export default function RichTextEditor({
           }}
         />
       )}
-      {controller.lineControl?.nearLeft && !controller.isDraggingLine && (
-        <button
-          type="button"
-          data-line-control="true"
-          title={
-            controller.lineControl.before
-              ? t("editor.line.insertAbove")
-              : t("editor.line.insertBelow")
-          }
-          onMouseDown={(event) => event.preventDefault()}
-          onClick={() =>
-            controller.insertLine(
-              controller.lineControl!.block,
-              controller.lineControl!.before,
-            )
-          }
-          style={{
-            position: "fixed",
-            top: (controller.lineControl.pointerY ??
-              controller.lineControl.block.getBoundingClientRect().top) - 15,
-            left: controller.lineControl.left + 24,
-            width: "30px",
-            height: "30px",
-            border: "none",
-            background: "transparent",
-            color: "#4DD8C0",
-            fontSize: "20px",
-            cursor: "pointer",
-            zIndex: 26,
-          }}
-        >
-          +
-        </button>
-      )}
-      {controller.blockSelection && (
+      {controller.blockSelection && createPortal(
         <div
           aria-hidden="true"
           className="editor-block-selection"
@@ -556,7 +759,8 @@ export default function RichTextEditor({
             width: controller.blockSelection.width,
             height: controller.blockSelection.height,
           }}
-        />
+        />,
+        document.body,
       )}
       {!readOnly && controller.selectionToolbar && (
         <SelectionToolbar controller={controller} />
@@ -569,32 +773,31 @@ export default function RichTextEditor({
         suppressContentEditableWarning
         style={style}
         onFocus={readOnly ? undefined : controller.updatePlaceholder}
-        onInput={() => {
+        onInput={(event) => {
+          const changedSyncBlock = (event.target as HTMLElement).closest<HTMLElement>("[data-his-synced]");
+          const syncId = changedSyncBlock?.dataset.hisSynced;
+          if (changedSyncBlock && syncId) {
+            editorRef.current?.querySelectorAll<HTMLElement>(`[data-his-synced="${CSS.escape(syncId)}"]`).forEach((peer) => {
+              if (peer !== changedSyncBlock && peer.innerHTML !== changedSyncBlock.innerHTML) peer.innerHTML = changedSyncBlock.innerHTML;
+            });
+          }
           controller.clearGeneratedLines();
           controller.clearStructuralUndo();
-          controller.ensureEditorLine();
+          if (event.currentTarget.childElementCount === 0) {
+            controller.ensureEditorLine();
+          }
           controller.scheduleContentSync();
           controller.updatePlaceholder();
           controller.updatePickers();
         }}
         onPaste={readOnly ? undefined : controller.onPaste}
         onContextMenu={(event) => {
-          const mention = (event.target as HTMLElement).closest<HTMLElement>("[data-mention-id]");
-          const id = mention?.dataset.mentionId;
-          const target = id ? nodes.find((item) => item.id === id) : null;
-          if (target?.type === "imagen") {
-            event.preventDefault();
-            event.stopPropagation();
-            if (mention?.dataset.mentionMode === "full") {
-              controller.setLineActionBlock(mention);
-            }
-            setImageContextMenu({
-              id: target.id,
-              mode: mention?.dataset.mentionMode === "full" ? "full" : "inserted",
-              top: event.clientY,
-              left: event.clientX,
-            });
-          }
+          if (readOnly) return;
+          const block = controller.getEditorBlock(event.target as Node);
+          if (!block) return;
+          event.preventDefault();
+          event.stopPropagation();
+          openEditorBlockContextMenu(block, event.clientX, event.clientY, (event.target as HTMLElement).closest<HTMLElement>("[data-mention-id]"));
         }}
         onMouseMove={readOnly ? undefined : controller.updateLineControl}
         onMouseLeave={(event) => {
@@ -602,7 +805,7 @@ export default function RichTextEditor({
           if (
             !(related instanceof Element) ||
             !related.closest(
-              "[data-line-control], [data-line-gutter], [data-picker]",
+              "[data-line-control], [data-picker]",
             )
           ) {
             controller.setLineControl(null);
@@ -618,6 +821,22 @@ export default function RichTextEditor({
         }}
         onClick={(event) => {
           const target = event.target as HTMLElement;
+          const dropdown = target.closest<HTMLElement>("[data-his-dropdown]");
+          const todo = target.closest<HTMLElement>('[data-his-list="todo"]');
+          if (!readOnly && todo && event.clientX <= todo.getBoundingClientRect().left + 28) {
+            event.preventDefault();
+            controller.captureStructuralUndo();
+            todo.toggleAttribute("data-his-todo-checked");
+            controller.syncContent();
+            return;
+          }
+          if (!readOnly && dropdown && event.clientX <= dropdown.getBoundingClientRect().left + 28) {
+            event.preventDefault();
+            controller.captureStructuralUndo();
+            dropdown.toggleAttribute("data-his-collapsed");
+            controller.syncContent();
+            return;
+          }
           const clickedDivider = Boolean(target.closest("[data-divider]"));
           const indexItem = target.closest<HTMLElement>("[data-page-index-item]");
           if (indexItem) {
@@ -686,10 +905,12 @@ export default function RichTextEditor({
                 if (touchesIcon || adjacentIcon) event.preventDefault();
               }
         }
-        onBlur={() => {
-          if (!readOnly && controller.ensureEditorLine()) {
-            controller.syncContent();
+        onBlur={(event) => {
+          const relatedTarget = event.relatedTarget;
+          if (relatedTarget instanceof Element && relatedTarget.closest(".his-context-menu")) {
+            return;
           }
+          if (!readOnly) controller.ensureEditorLine();
           controller.syncContent();
           controller.updatePlaceholder();
           if (document.visibilityState === "hidden" || !document.hasFocus()) {
@@ -710,9 +931,9 @@ export default function RichTextEditor({
       />
       {((blockTextDevTree.root && controller.slashPicker && controller.slashCandidates.length > 0) || (controller.pickerPosition && controller.slashPicker && controller.slashCandidates.length > 0)) && (
             <PickerMenu
-              title={t(hasAlignableImage(controller.lineActionBlock) || controller.selectedLineBlocks.some((block) => hasAlignableImage(block)) ? "editor.commands.imageOptions" : "editor.commands.basic")}
+              title={t("editor.commands.basic")}
               position={blockTextDevTree.root?.position ?? controller.pickerPosition ?? { top: 120, left: 120 }}
-              items={hasAlignableImage(controller.lineActionBlock) || controller.selectedLineBlocks.some((block) => hasAlignableImage(block)) ? [] : controller.slashCandidates.map((item) => ({
+              items={controller.slashCandidates.map((item) => ({
                 id: item.id,
                 label: item.label,
                 icon: item.icon,
@@ -725,8 +946,6 @@ export default function RichTextEditor({
                 controller.deleteSelectedLine();
                 closeBlockTextDevTree();
               }}
-                showImageActions={hasAlignableImage(controller.lineActionBlock) || controller.selectedLineBlocks.some((block) => hasAlignableImage(block))}
-                onAlignImage={controller.alignImage}
               onColorMenuOpen={(position) => {
                 openBlockTextColorOption(position, controller.lineActionBlock ?? null);
                 setBlockColorMenu({
@@ -761,8 +980,6 @@ export default function RichTextEditor({
           <LineActionMenu
             position={controller.pickerPosition}
             onDeleteLine={controller.deleteSelectedLine}
-            showImageActions={hasAlignableImage(controller.lineActionBlock)}
-            onAlignImage={controller.alignImage}
           />
         )}
       {controller.pickerPosition &&
@@ -801,34 +1018,36 @@ export default function RichTextEditor({
           onCancel={controller.dismissEditorMenus}
         />
       )}
-      {imageContextMenu && (
-        <ImageMentionContextMenu
-          menu={imageContextMenu}
-          onView={() => {
-            onOpenNodeView(imageContextMenu.id, imageContextMenu.left, imageContextMenu.top);
-            setImageContextMenu(null);
+      {editorContextMenu && (
+        <PageBlockContextMenu
+          x={editorContextMenu.left}
+          y={editorContextMenu.top}
+          block={editorContextMenu.block}
+          capabilityBlock={getAestheticTarget(editorContextMenu.block)}
+          supportsAesthetics={!editorContextMenu.imageNodeId && editorContextMenu.block.matches("p, h1, h2, h3, h4, h5, h6, blockquote, li, pre, [data-globe]")}
+          imageItems={editorContextImageItems.filter((item) => item.id !== "image-delete")}
+          onClose={closeEditorContextMenu}
+          onCapability={(capability) => toggleContextCapability(editorContextMenu.block, capability)}
+          onColumns={(count) => mutateContextBlock(getAestheticTarget(editorContextMenu.block), (block) => setPageBlockColumnCount(block, count))}
+          onResetAesthetics={() => resetContextAesthetics(editorContextMenu.block)}
+          onOpenColors={(kind) => {
+            setBlockColorMenu({ top: editorContextMenu.top, left: editorContextMenu.left + 274, block: editorContextMenu.block, kind });
           }}
-          onAlign={(alignment) => {
-            const mention = editorRef.current?.querySelector<HTMLElement>(
-              `[data-mention-id="${CSS.escape(imageContextMenu.id)}"]`,
-            );
-            if (mention && imageContextMenu.mode === "full") {
-              const image = mention.querySelector<HTMLImageElement>("img");
-              mention.dataset.mentionAlign = alignment;
-              mention.style.textAlign = alignment;
-              if (image) {
-                image.style.marginLeft = alignment === "right" || alignment === "center" ? "auto" : "0";
-                image.style.marginRight = alignment === "left" || alignment === "center" ? "auto" : "0";
-              }
-              controller.syncContent();
-            }
-            setImageContextMenu(null);
+          onResetColors={() => mutateContextBlock(editorContextMenu.block, (block) => {
+            block.style.removeProperty("color");
+            block.style.removeProperty("background-color");
+            block.style.removeProperty("border-color");
+          })}
+          onConversion={() => {
+            const block = editorContextMenu.block;
+            window.requestAnimationFrame(() => controller.openLineCommands(block));
           }}
-          onDelete={() => {
-            controller.deleteSelectedLine();
-            setImageContextMenu(null);
-          }}
-          onClose={() => setImageContextMenu(null)}
+          onCopy={() => copyContextBlock(editorContextMenu.block)}
+          onCut={() => { copyContextBlock(editorContextMenu.block); controller.deleteSelectedLine(); }}
+          onPaste={() => pasteContextBlock(editorContextMenu.block)}
+          onDuplicate={() => duplicateContextBlock(editorContextMenu.block)}
+          onInsert={(above) => controller.insertLine(editorContextMenu.block, above)}
+          onDelete={controller.deleteSelectedLine}
         />
       )}
       {(blockColorMenu || findBlockTextDevChild("block-text-color-option")) && (
@@ -843,11 +1062,22 @@ export default function RichTextEditor({
             closeBlockTextDevChild("block-text-color-option");
           }}
           onApplyText={(color) => {
-            controller.applyTextColor(color);
+            const target = blockColorMenu?.block ?? findBlockTextDevChild("block-text-color-option")?.block ?? null;
+            if (target?.isConnected) mutateContextBlock(target, (block) => {
+              if (color) block.style.color = color;
+              else block.style.removeProperty("color");
+            });
+            else controller.applyTextColor(color);
             closeBlockTextDevTree();
           }}
           onApplyBackground={(color) => {
-            controller.applyBlockBackgroundColor(color);
+            const target = blockColorMenu?.block ?? findBlockTextDevChild("block-text-color-option")?.block ?? null;
+            if (target && blockColorMenu?.kind === "border") {
+              mutateContextBlock(target, (block) => {
+                if (color) block.style.borderColor = color;
+                else block.style.removeProperty("border-color");
+              });
+            } else controller.applyBlockBackgroundColor(color, target);
             closeBlockTextDevTree();
           }}
         />
@@ -982,9 +1212,9 @@ function ColorPickerMenu({
         overflowX: "hidden",
         padding: "8px",
         background: "#1A1D21",
-        border: "1px solid #2A2E33",
-        borderRadius: "6px",
-        boxShadow: "0 12px 24px rgba(0,0,0,0.4)",
+        border: "none",
+        borderRadius: 0,
+        boxShadow: "none",
         zIndex: 35,
       }}
     >
@@ -1027,24 +1257,22 @@ function ColorPickerMenu({
                 gap: "8px",
                 width: "100%",
                 padding: "5px 6px",
-                border: "1px solid transparent",
-                borderRadius: "6px",
+                border: "none",
+                borderRadius: 0,
                 background: "transparent",
                 color: "#E8E9EA",
                 cursor: "pointer",
                 textAlign: "left",
-                transition: "background 0.12s ease, border-color 0.12s ease, transform 0.12s ease",
+                transition: "background 0.12s ease, transform 0.12s ease",
               }}
               onMouseEnter={(event) => {
                 const target = event.currentTarget;
                 target.style.background = "rgba(255,255,255,0.04)";
-                target.style.borderColor = "rgba(77,216,192,0.45)";
                 target.style.transform = "translateX(1px)";
               }}
               onMouseLeave={(event) => {
                 const target = event.currentTarget;
                 target.style.background = "transparent";
-                target.style.borderColor = "transparent";
                 target.style.transform = "translateX(0)";
               }}
             >
@@ -1065,14 +1293,14 @@ function ColorPickerMenu({
           ))}
         </div>
       </div>
-      <div style={{ borderTop: "1px solid #2A2E33", paddingTop: "8px" }}>
+      <div style={{ paddingTop: "8px" }}>
         <div style={{ fontSize: "9px", color: "#5A5F66", letterSpacing: "0.1em", padding: "0 4px 4px" }}>{t("editor.colors.custom")}</div>
         <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-          <input type="text" value={customTextColor} onChange={(event) => setCustomTextColor(event.target.value)} placeholder="#AABBCC" style={{ flex: 1, minWidth: 0, padding: "6px 8px", border: "1px solid #3A3F45", borderRadius: "4px", background: "#121417", color: "#E8E9EA", fontSize: "11px" }} />
-          <button type="button" onMouseDown={(event) => { event.preventDefault(); applyTextColor(customTextColor); }} style={{ padding: "6px 8px", border: "1px solid #3A3F45", borderRadius: "4px", background: "#20262B", color: "#E8E9EA", cursor: "pointer", fontSize: "11px" }}>OK</button>
+          <input type="text" value={customTextColor} onChange={(event) => setCustomTextColor(event.target.value)} placeholder="#AABBCC" style={{ flex: 1, minWidth: 0, padding: "6px 8px", border: "none", borderRadius: 0, background: "#121417", color: "#E8E9EA", fontSize: "11px" }} />
+          <button type="button" onMouseDown={(event) => { event.preventDefault(); applyTextColor(customTextColor); }} style={{ padding: "6px 8px", border: "none", borderRadius: 0, background: "#20262B", color: "#E8E9EA", cursor: "pointer", fontSize: "11px" }}>OK</button>
         </div>
       </div>
-      <div style={{ borderTop: "1px solid #2A2E33", paddingTop: "8px", marginTop: "8px" }}>
+      <div style={{ paddingTop: "8px", marginTop: "8px" }}>
         <div style={{ fontSize: "9px", color: "#5A5F66", letterSpacing: "0.1em", padding: "0 4px 4px" }}>{t("editor.colors.background")}</div>
         <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
           {BLOCK_BACKGROUND_SWATCHES.map((swatch) => (
@@ -1087,24 +1315,22 @@ function ColorPickerMenu({
                 gap: "8px",
                 width: "100%",
                 padding: "5px 6px",
-                border: "1px solid transparent",
-                borderRadius: "6px",
+                border: "none",
+                borderRadius: 0,
                 background: "transparent",
                 color: "#E8E9EA",
                 cursor: "pointer",
                 textAlign: "left",
-                transition: "background 0.12s ease, border-color 0.12s ease, transform 0.12s ease",
+                transition: "background 0.12s ease, transform 0.12s ease",
               }}
               onMouseEnter={(event) => {
                 const target = event.currentTarget;
                 target.style.background = "rgba(255,255,255,0.04)";
-                target.style.borderColor = "rgba(77,216,192,0.45)";
                 target.style.transform = "translateX(1px)";
               }}
               onMouseLeave={(event) => {
                 const target = event.currentTarget;
                 target.style.background = "transparent";
-                target.style.borderColor = "transparent";
                 target.style.transform = "translateX(0)";
               }}
             >
@@ -1125,8 +1351,8 @@ function ColorPickerMenu({
           ))}
         </div>
         <div style={{ display: "flex", gap: "6px", alignItems: "center", marginTop: "8px" }}>
-          <input type="text" value={customBackgroundColor} onChange={(event) => setCustomBackgroundColor(event.target.value)} placeholder="#D9E8FF" style={{ flex: 1, minWidth: 0, padding: "6px 8px", border: "1px solid #3A3F45", borderRadius: "4px", background: "#121417", color: "#E8E9EA", fontSize: "11px" }} />
-          <button type="button" onMouseDown={(event) => { event.preventDefault(); const cleaned = normalizeHexColor(customBackgroundColor); if (cleaned) onApplyBackground(cleaned); }} style={{ padding: "6px 8px", border: "1px solid #3A3F45", borderRadius: "4px", background: "#20262B", color: "#E8E9EA", cursor: "pointer", fontSize: "11px" }}>OK</button>
+          <input type="text" value={customBackgroundColor} onChange={(event) => setCustomBackgroundColor(event.target.value)} placeholder="#D9E8FF" style={{ flex: 1, minWidth: 0, padding: "6px 8px", border: "none", borderRadius: 0, background: "#121417", color: "#E8E9EA", fontSize: "11px" }} />
+          <button type="button" onMouseDown={(event) => { event.preventDefault(); const cleaned = normalizeHexColor(customBackgroundColor); if (cleaned) onApplyBackground(cleaned); }} style={{ padding: "6px 8px", border: "none", borderRadius: 0, background: "#20262B", color: "#E8E9EA", cursor: "pointer", fontSize: "11px" }}>OK</button>
         </div>
       </div>
     </div>
@@ -1209,8 +1435,8 @@ function SelectionToolbar({
         gap: "2px",
         padding: "4px",
         background: "#1A1D21",
-        border: "1px solid #343940",
-        borderRadius: "5px",
+        border: "none",
+        borderRadius: 0,
         zIndex: 30,
       }}
     >
@@ -1255,7 +1481,7 @@ function SelectionToolbar({
           width: "30px",
           height: "30px",
           border: "none",
-          borderRadius: "4px",
+          borderRadius: 0,
           background: "#111518",
           color: "#E8E9EA",
           fontSize: "15px",
@@ -1288,9 +1514,9 @@ function SelectionToolbar({
             width: "240px",
             padding: "8px",
             background: "#1A1D21",
-            border: "1px solid #2A2E33",
-            borderRadius: "6px",
-            boxShadow: "0 12px 24px rgba(0,0,0,0.4)",
+            border: "none",
+            borderRadius: 0,
+            boxShadow: "none",
             zIndex: 35,
           }}
         >
@@ -1333,7 +1559,7 @@ function SelectionToolbar({
               />
             ))}
           </div>
-          <div style={{ borderTop: "1px solid #2A2E33", margin: "8px 0 6px", paddingTop: "8px" }}>
+          <div style={{ margin: "8px 0 6px", paddingTop: "8px" }}>
             <div style={{ padding: "0 8px 4px", fontSize: "10px", color: "#5A5F66", letterSpacing: "0.12em" }}>{t("editor.colors.custom")}</div>
             <div style={{ display: "flex", alignItems: "center", gap: "6px", padding: "0 4px" }}>
               <input
@@ -1345,8 +1571,8 @@ function SelectionToolbar({
                   flex: 1,
                   minWidth: 0,
                   padding: "7px 8px",
-                  border: "1px solid #3A3F45",
-                  borderRadius: "4px",
+                  border: "none",
+                  borderRadius: 0,
                   background: "#121417",
                   color: "#E8E9EA",
                   fontSize: "11px",
@@ -1360,8 +1586,8 @@ function SelectionToolbar({
                 }}
                 style={{
                   padding: "7px 8px",
-                  border: "1px solid #3A3F45",
-                  borderRadius: "4px",
+                  border: "none",
+                  borderRadius: 0,
                   background: "#20262B",
                   color: "#E8E9EA",
                   cursor: "pointer",
@@ -1372,7 +1598,7 @@ function SelectionToolbar({
               </button>
             </div>
           </div>
-          <div style={{ borderTop: "1px solid #2A2E33", margin: "8px 0 6px", paddingTop: "8px" }}>
+          <div style={{ margin: "8px 0 6px", paddingTop: "8px" }}>
             <div style={{ padding: "0 8px 4px", fontSize: "10px", color: "#5A5F66", letterSpacing: "0.12em" }}>{t("editor.colors.background")}</div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: "6px", padding: "0 4px" }}>
               {BLOCK_BACKGROUND_SWATCHES.map((swatch) => (
@@ -1406,8 +1632,8 @@ function SelectionToolbar({
                   flex: 1,
                   minWidth: 0,
                   padding: "7px 8px",
-                  border: "1px solid #3A3F45",
-                  borderRadius: "4px",
+                  border: "none",
+                  borderRadius: 0,
                   background: "#121417",
                   color: "#E8E9EA",
                   fontSize: "11px",
@@ -1422,8 +1648,8 @@ function SelectionToolbar({
                 }}
                 style={{
                   padding: "7px 8px",
-                  border: "1px solid #3A3F45",
-                  borderRadius: "4px",
+                  border: "none",
+                  borderRadius: 0,
                   background: "#20262B",
                   color: "#E8E9EA",
                   cursor: "pointer",
@@ -1463,9 +1689,9 @@ function ImageMentionModeMenu({
         minWidth: "240px",
         padding: "8px",
         background: "#1A1D21",
-        border: "1px solid #2A2E33",
-        borderRadius: "4px",
-        boxShadow: "0 8px 20px rgba(0,0,0,0.4)",
+        border: "none",
+        borderRadius: 0,
+        boxShadow: "none",
         zIndex: 21,
       }}
     >
@@ -1487,90 +1713,6 @@ function ImageMentionModeMenu({
   );
 }
 
-function ImageMentionContextMenu({
-  menu,
-  onView,
-  onAlign,
-  onDelete,
-  onClose,
-}: {
-  menu: { mode: "inserted" | "full"; top: number; left: number };
-  onView: () => void;
-  onAlign: (alignment: "left" | "center" | "right") => void;
-  onDelete: () => void;
-  onClose: () => void;
-}) {
-  const { t } = useLocale();
-  const menuRef = useRef<HTMLDivElement | null>(null);
-  useDismissibleLayer(menuRef, onClose);
-  return (
-    <div
-      ref={menuRef}
-      data-picker="true"
-      data-image-context-menu="true"
-      onContextMenu={(event) => event.preventDefault()}
-      style={{
-        position: "fixed",
-        top: menu.top,
-        left: menu.left,
-        minWidth: "190px",
-        padding: "4px",
-        background: "#1A1D21",
-        border: "1px solid #2A2E33",
-        borderRadius: "4px",
-        boxShadow: "0 8px 20px rgba(0,0,0,0.4)",
-        zIndex: 22,
-      }}
-    >
-      <button type="button" onMouseDown={(event) => { event.preventDefault(); onView(); }} style={mentionContextButtonStyle}>
-        {t("editor.image.view")}
-      </button>
-      <div style={{ borderTop: "1px solid #2A2E33", margin: "4px 0" }} />
-      <div style={{ padding: "5px 8px 3px", fontSize: "9px", color: "#5A5F66", letterSpacing: "0.1em" }}>
-        {t("editor.image.alignment")}
-      </div>
-      {(["left", "center", "right"] as const).map((alignment) => (
-        <button
-          key={alignment}
-          type="button"
-          disabled={menu.mode !== "full"}
-          title={menu.mode === "full" ? undefined : t("editor.image.fullOnly")}
-          onMouseDown={(event) => { event.preventDefault(); onAlign(alignment); }}
-          style={{ ...mentionContextButtonStyle, opacity: menu.mode === "full" ? 1 : 0.4, cursor: menu.mode === "full" ? "pointer" : "not-allowed" }}
-        >
-          {t(`editor.image.${alignment}`)}
-        </button>
-      ))}
-      <div style={{ borderTop: "1px solid #2A2E33", margin: "4px 0" }} />
-      <button
-        type="button"
-        disabled={menu.mode !== "full"}
-        title={menu.mode === "full" ? undefined : t("editor.image.fullOnly")}
-        onMouseDown={(event) => { event.preventDefault(); onDelete(); }}
-        style={{ ...mentionContextButtonStyle, color: "#D84D4D", opacity: menu.mode === "full" ? 1 : 0.4, cursor: menu.mode === "full" ? "pointer" : "not-allowed" }}
-      >
-        {t("editor.image.deleteBlock")}
-      </button>
-      <button type="button" onMouseDown={(event) => { event.preventDefault(); onClose(); }} style={{ ...mentionContextButtonStyle, color: "#7A7F87" }}>
-        {t("common.actions.close")}
-      </button>
-    </div>
-  );
-}
-
-const mentionContextButtonStyle: React.CSSProperties = {
-  display: "block",
-  width: "100%",
-  padding: "7px 8px",
-  border: "none",
-  borderRadius: "3px",
-  background: "transparent",
-  color: "#E8E9EA",
-  textAlign: "left",
-  cursor: "pointer",
-  fontSize: "11px",
-};
-
 const mentionModeButtonStyle: React.CSSProperties = {
   display: "flex",
   flexDirection: "column",
@@ -1579,7 +1721,7 @@ const mentionModeButtonStyle: React.CSSProperties = {
   width: "100%",
   padding: "8px",
   border: "none",
-  borderRadius: "3px",
+  borderRadius: 0,
   background: "transparent",
   color: "#E8E9EA",
   textAlign: "left",
@@ -1596,8 +1738,6 @@ function PickerMenu({
   colorFor,
   showDeleteLine = false,
   onDeleteLine,
-  showImageActions = false,
-  onAlignImage,
 }: {
   title: string;
   position: { top: number; left: number };
@@ -1608,8 +1748,6 @@ function PickerMenu({
   colorFor?: (id: string) => string;
   showDeleteLine?: boolean;
   onDeleteLine?: () => void;
-  showImageActions?: boolean;
-  onAlignImage?: (alignment: "left" | "center" | "right") => void;
 }) {
   const { t } = useLocale();
   const categories = items.reduce<Record<string, typeof items>>((groups, item) => {
@@ -1631,9 +1769,9 @@ function PickerMenu({
         overflowX: "hidden",
         padding: "4px",
         background: "#1A1D21",
-        border: "1px solid #2A2E33",
-        borderRadius: "4px",
-        boxShadow: "0 8px 20px rgba(0,0,0,0.4)",
+        border: "none",
+        borderRadius: 0,
+        boxShadow: "none",
         zIndex: 20,
       }}
     >
@@ -1667,13 +1805,11 @@ function PickerMenu({
                   }
                   const target = event.currentTarget;
                   target.style.background = "rgba(255,255,255,0.04)";
-                  target.style.borderColor = "rgba(77,216,192,0.45)";
                   target.style.transform = "translateX(1px)";
                 }}
                 onMouseLeave={(event) => {
                   const target = event.currentTarget;
                   target.style.background = itemIndex === activeIndex ? "#252B2D" : "transparent";
-                  target.style.borderColor = "transparent";
                   target.style.transform = "translateX(0)";
                 }}
                 onMouseDown={(event) => {
@@ -1686,8 +1822,8 @@ function PickerMenu({
                   gap: "8px",
                   width: "100%",
                   padding: "7px 8px",
-                  border: "1px solid transparent",
-                  borderRadius: "3px",
+                  border: "none",
+                  borderRadius: 0,
                   background: itemIndex === activeIndex ? "#252B2D" : "transparent",
                   color: "#E8E9EA",
                   textAlign: "left",
@@ -1698,8 +1834,8 @@ function PickerMenu({
                 <span
                   style={{
                     background: "#121417",
-                    border: "1px solid #2A2E33",
-                    borderRadius: "3px",
+                    border: "none",
+                    borderRadius: 0,
                     padding: "2px 6px",
                     fontSize: "10px",
                     color: colorFor ? colorFor(item.id) : "#A7A9AC",
@@ -1713,40 +1849,17 @@ function PickerMenu({
           })}
         </div>
       ))}
-      {showImageActions && onAlignImage && (
-        <div style={{ borderTop: "1px solid #2A2E33", marginTop: "4px", paddingTop: "4px" }}>
-          <div style={{ padding: "7px 8px 3px", fontSize: "9px", color: "#5A5F66", letterSpacing: "0.1em" }}>{t("editor.image.title")}</div>
-          <div style={{ padding: "0 8px 4px", fontSize: "11px", color: "#E8E9EA" }}>{t("editor.image.align")}</div>
-          <div style={{ display: "flex", gap: "4px", padding: "0 4px 4px" }}>
-            {(["left", "center", "right"] as const).map((alignment) => (
-              <button
-                key={alignment}
-                type="button"
-                onMouseDown={(event) => {
-                  event.preventDefault();
-                  onAlignImage(alignment);
-                }}
-                style={{ flex: 1, padding: "5px 3px", border: "1px solid #343940", borderRadius: "3px", background: "transparent", color: "#E8E9EA", cursor: "pointer", fontSize: "11px" }}
-              >
-                {t(`editor.image.${alignment}`)}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
       {showDeleteLine && onDeleteLine && (
         <button
           type="button"
           onMouseEnter={(event) => {
             const target = event.currentTarget;
             target.style.background = "rgba(255,255,255,0.04)";
-            target.style.borderColor = "rgba(77,216,192,0.45)";
             target.style.transform = "translateX(1px)";
           }}
           onMouseLeave={(event) => {
             const target = event.currentTarget;
             target.style.background = "transparent";
-            target.style.borderColor = "transparent";
             target.style.transform = "translateX(0)";
           }}
           onMouseDown={(event) => {
@@ -1757,14 +1870,13 @@ function PickerMenu({
             display: "block",
             width: "100%",
             padding: "7px 8px",
-            border: "1px solid transparent",
-            borderTop: "1px solid #2A2E33",
+            border: "none",
             background: "transparent",
             color: "#D87878",
             textAlign: "left",
             cursor: "pointer",
-            borderRadius: "3px",
-            transition: "background 0.12s ease, border-color 0.12s ease, transform 0.12s ease",
+            borderRadius: 0,
+            transition: "background 0.12s ease, transform 0.12s ease",
           }}
         >
           {t("editor.line.delete")}
@@ -1777,13 +1889,9 @@ function PickerMenu({
 function LineActionMenu({
   position,
   onDeleteLine,
-  showImageActions = false,
-  onAlignImage,
 }: {
   position: { top: number; left: number };
   onDeleteLine: () => void;
-  showImageActions?: boolean;
-  onAlignImage?: (alignment: "left" | "center" | "right") => void;
 }) {
   const { t } = useLocale();
   return (
@@ -1796,58 +1904,22 @@ function LineActionMenu({
         minWidth: "160px",
         padding: "4px",
         background: "#1A1D21",
-        border: "1px solid #2A2E33",
-        borderRadius: "4px",
-        boxShadow: "0 8px 20px rgba(0,0,0,0.4)",
+        border: "none",
+        borderRadius: 0,
+        boxShadow: "none",
         zIndex: 20,
       }}
     >
-      {showImageActions && onAlignImage && (
-        <>
-          <div style={{ padding: "7px 8px 3px", fontSize: "9px", color: "#5A5F66", letterSpacing: "0.1em" }}>{t("editor.image.title")}</div>
-          <div style={{ padding: "0 8px 4px", fontSize: "11px", color: "#E8E9EA" }}>{t("editor.image.align")}</div>
-          <div style={{ display: "flex", gap: "4px", padding: "0 4px 4px" }}>
-            {(["left", "center", "right"] as const).map((alignment) => (
-              <button
-                key={alignment}
-                type="button"
-                onMouseEnter={(event) => {
-                  const target = event.currentTarget;
-                  target.style.background = "rgba(255,255,255,0.04)";
-                  target.style.borderColor = "rgba(77,216,192,0.45)";
-                  target.style.transform = "translateY(-1px)";
-                }}
-                onMouseLeave={(event) => {
-                  const target = event.currentTarget;
-                  target.style.background = "transparent";
-                  target.style.borderColor = "#343940";
-                  target.style.transform = "translateY(0)";
-                }}
-                onMouseDown={(event) => {
-                  event.preventDefault();
-                  onAlignImage(alignment);
-                }}
-                style={{ flex: 1, padding: "5px 3px", border: "1px solid #343940", borderRadius: "3px", background: "transparent", color: "#E8E9EA", cursor: "pointer", fontSize: "11px", transition: "background 0.12s ease, border-color 0.12s ease, transform 0.12s ease" }}
-              >
-                {t(`editor.image.${alignment}`)}
-              </button>
-            ))}
-          </div>
-          <div style={{ borderTop: "1px solid #2A2E33", margin: "4px 0" }} />
-        </>
-      )}
       <button
         type="button"
         onMouseEnter={(event) => {
           const target = event.currentTarget;
           target.style.background = "rgba(255,255,255,0.04)";
-          target.style.borderColor = "rgba(77,216,192,0.45)";
           target.style.transform = "translateX(1px)";
         }}
         onMouseLeave={(event) => {
           const target = event.currentTarget;
           target.style.background = "transparent";
-          target.style.borderColor = "transparent";
           target.style.transform = "translateX(0)";
         }}
         onMouseDown={(event) => {
@@ -1858,13 +1930,13 @@ function LineActionMenu({
           display: "block",
           width: "100%",
           padding: "7px 8px",
-          border: "1px solid transparent",
+          border: "none",
           background: "transparent",
           color: "#D87878",
           textAlign: "left",
           cursor: "pointer",
-          borderRadius: "3px",
-          transition: "background 0.12s ease, border-color 0.12s ease, transform 0.12s ease",
+          borderRadius: 0,
+          transition: "background 0.12s ease, transform 0.12s ease",
         }}
       >
         {t("editor.line.delete")}

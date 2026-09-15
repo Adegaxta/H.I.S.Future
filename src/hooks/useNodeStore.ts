@@ -3,8 +3,13 @@ import { courseAwareDeletionIds, hasMissingCourseCalendar, reconcileCourseCalend
 import { applyNodeRename } from "../nodes/runtime";
 import { isVaultPrimaryNode, reconcileVaultPrimary } from "../nodes/project/domain";
 import { useDebouncedPersistence } from "./useDebouncedPersistence";
-import { useEffect, useRef, useState } from "react";
-import { listNodes, saveNodes, loadDeletedNodes } from "../project/nodeRepository";
+import { startTransition, useEffect, useRef, useState } from "react";
+import {
+  loadWorkspaceSnapshot,
+  saveNodeContents,
+  saveNodes,
+  type NodeContentChange,
+} from "../project/nodeRepository";
 import { getNodeDefinition, hasNodeCapability } from "../defs/nodeTypes";
 import type { BaseNodeType, NodeItem } from "../types/nodes";
 import { setLoreMembership } from "../utils/loreTree";
@@ -23,12 +28,10 @@ import {
 } from "../utils/nodeTree";
 import { PersistenceQueue } from "../lifecycle/PersistenceQueue";
 import { measureActiveCloseProjectPhase } from "../lifecycle/metrics";
-
-interface NodePersistenceRequest {
-  nodes: NodeItem[];
-  deletedNodes: NodeItem[];
-  version: number;
-}
+import {
+  mergeNodePersistenceRequests,
+  type NodePersistenceRequest,
+} from "../lifecycle/nodePersistence";
 
 export function useNodeStore(projectKey?: string, projectName = "", defaultNodeType: BaseNodeType = "pagina") {
   const { t } = useLocale();
@@ -64,35 +67,54 @@ export function useNodeStore(projectKey?: string, projectName = "", defaultNodeT
   const [persistenceError, setPersistenceError] = useState<string | null>(null);
   const changeVersionRef = useRef(0);
   const persistedVersionRef = useRef(0);
-  const enqueuedVersionRef = useRef(0);
+  const requiresFullSaveRef = useRef(false);
+  const pendingContentRef = useRef(new Map<string, string>());
+  const loadRequestRef = useRef<ReturnType<typeof loadWorkspaceSnapshot> | null>(null);
   const persistenceQueueRef = useRef<PersistenceQueue<NodePersistenceRequest> | null>(null);
   const initialDefaultNodeTypeRef = useRef(defaultNodeType);
   if (!persistenceQueueRef.current) {
     persistenceQueueRef.current = new PersistenceQueue(async (request) => {
-      const toSave = sortNodesForPersistence(sanitizeParentIds(request.nodes));
-      await saveNodes(toSave, request.deletedNodes);
+      if (request.kind === "content") {
+        await saveNodeContents(request.changes);
+        console.log(
+          `%c[guardado incremental] ${new Date().toLocaleTimeString()} — ${request.changes.length} nodos actualizados`,
+          "color: #4dd8c0; font-weight: bold;",
+        );
+      } else {
+        const toSave = sortNodesForPersistence(sanitizeParentIds(request.nodes));
+        await saveNodes(toSave, request.deletedNodes);
+        console.log(
+          `%c[checkpoint] ${new Date().toLocaleTimeString()} — ${toSave.length} nodos verificados`,
+          "color: #4dd8c0; font-weight: bold;",
+        );
+      }
       setPersistenceError(null);
-      console.log(
-        `%c[guardado] ${new Date().toLocaleTimeString()} — ${toSave.length} nodos persistidos`,
-        "color: #4dd8c0; font-weight: bold;",
-      );
       persistedVersionRef.current = Math.max(persistedVersionRef.current, request.version);
-    });
+    }, mergeNodePersistenceRequests);
   }
 
   nodesRef.current = nodes;
 
-  const enqueueSave = (snapshot: NodeItem[], version: number) => {
-    enqueuedVersionRef.current = Math.max(enqueuedVersionRef.current, version);
+  const enqueueFullSave = (snapshot: NodeItem[], version: number) => {
     return persistenceQueueRef.current!.enqueue({
+      kind: "full",
       nodes: snapshot,
       deletedNodes: deletedNodesRef.current,
       version,
     });
   };
 
+  const enqueueContentSave = (changes: NodeContentChange[], version: number) =>
+    persistenceQueueRef.current!.enqueue({ kind: "content", changes, version });
+
   const markDirty = () => {
     changeVersionRef.current += 1;
+    requiresFullSaveRef.current = true;
+  };
+
+  const markContentDirty = (nodeId: string, content: string) => {
+    changeVersionRef.current += 1;
+    pendingContentRef.current.set(nodeId, content);
   };
 
   const markRecent = (nodeId: string, kind: RecentActivityKind) => {
@@ -110,7 +132,9 @@ export function useNodeStore(projectKey?: string, projectName = "", defaultNodeT
     let cancelled = false;
     const load = async () => {
       try {
-        const [stored, trash] = await Promise.all([listNodes(initialDefaultNodeTypeRef.current), loadDeletedNodes()]);
+        const request = loadRequestRef.current ?? loadWorkspaceSnapshot(initialDefaultNodeTypeRef.current);
+        loadRequestRef.current = request;
+        const { nodes: stored, deletedNodes: trash } = await request;
         if (cancelled) return;
         persistedVersionRef.current = changeVersionRef.current;
         const previousTrash = trash ?? deletedNodesRef.current.filter((node) => !stored.some((active) => active.id === node.id));
@@ -159,11 +183,25 @@ export function useNodeStore(projectKey?: string, projectName = "", defaultNodeT
     [nodes, deletedNodes],
     isDirty,
     () => {
-      void enqueueSave(nodesRef.current, changeVersionRef.current).catch((error) =>
+      const version = changeVersionRef.current;
+      let save: Promise<void>;
+      if (requiresFullSaveRef.current) {
+        requiresFullSaveRef.current = false;
+        pendingContentRef.current.clear();
+        save = enqueueFullSave(nodesRef.current, version);
+      } else {
+        const changes = [...pendingContentRef.current].map(([id, content]) => ({ id, content }));
+        if (!changes.length) return;
+        pendingContentRef.current.clear();
+        save = enqueueContentSave(changes, version);
+      }
+      void save.catch((error) =>
         setPersistenceError(String(error)),
       );
     },
-    { debounceMs: 500, maxWaitMs: 4000 },
+    // The editor snapshot is already held safely in memory. Give bursts of
+    // typing enough quiet time before sending the complete workspace to SQLite.
+    { debounceMs: 1200, maxWaitMs: 5000 },
   );
 
   const saveNow = (snapshot = nodesRef.current) => {
@@ -176,23 +214,14 @@ export function useNodeStore(projectKey?: string, projectName = "", defaultNodeT
     if (snapshot !== nodesRef.current) {
       nodesRef.current = snapshot;
       setNodes(snapshot);
-      markDirty();
     }
-    if (persistedVersionRef.current === changeVersionRef.current) {
-      return measureActiveCloseProjectPhase("PersistenceQueue.flush", () =>
-        persistenceQueueRef.current!.flush(),
-      );
-    }
-    if (
-      persistenceQueueRef.current!.hasPendingWrites()
-      && enqueuedVersionRef.current >= changeVersionRef.current
-    ) {
-      return measureActiveCloseProjectPhase("PersistenceQueue.flush", () =>
-        persistenceQueueRef.current!.flush(),
-      );
-    }
+    // Ctrl+S and project close are explicit durability boundaries: always fold
+    // every incremental mutation into one complete, validated checkpoint.
+    markDirty();
+    requiresFullSaveRef.current = false;
+    pendingContentRef.current.clear();
     return measureActiveCloseProjectPhase("PersistenceQueue.flush", () =>
-      enqueueSave(snapshot, changeVersionRef.current),
+      enqueueFullSave(snapshot, changeVersionRef.current),
     );
   };
 
@@ -230,14 +259,21 @@ export function useNodeStore(projectKey?: string, projectName = "", defaultNodeT
     if (id) markRecent(id, "navigate");
   };
   const updateContent = (nodeId: string, content: string) => {
-    setNodes((current) => {
-      const node = current.find((item) => item.id === nodeId);
-      if (!node || node.content === content) return current;
-      markDirty();
+    const activeNode = nodesRef.current.find((item) => item.id === nodeId);
+    if (!activeNode || activeNode.content === content) return;
+    // The contenteditable DOM already contains the keystroke. Updating the
+    // project snapshot can therefore be interruptible so a 100+ node workspace
+    // never wins priority over the next character the user types.
+    startTransition(() => {
+      markContentDirty(nodeId, content);
       markRecent(nodeId, "edit");
-      return reconcile(current.map((item) =>
-        item.id === nodeId ? { ...item, content } : item,
-      ));
+      setNodes((current) => {
+        const node = current.find((item) => item.id === nodeId);
+        if (!node || node.content === content) return current;
+        return current.map((item) =>
+          item.id === nodeId ? { ...item, content } : item,
+        );
+      });
     });
   };
   const createNode = (

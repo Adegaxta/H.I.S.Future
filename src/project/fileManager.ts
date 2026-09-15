@@ -4,6 +4,11 @@ import { asErrorMessage, isDesktopRuntime } from "./runtime";
 import type { ProjectInfo } from "./types";
 import type { Translate } from "../i18n/core";
 import {
+  closeBrowserDevProject,
+  createBrowserDevProject,
+  isBrowserDevProjectActive,
+} from "./browserDevBackend";
+import {
   getActiveCloseProjectTraceId,
   measureActiveCloseProjectPhase,
   recordCloseProjectPhase,
@@ -31,6 +36,16 @@ export async function createProject(name: string, t: Translate): Promise<Project
       archivePath,
       name: name.trim(),
     });
+  } catch (error) {
+    throw new Error(asErrorMessage(error));
+  }
+}
+
+export async function createDevProject(t: Translate): Promise<ProjectInfo> {
+  if (!import.meta.env.DEV) throw new Error(t("home.quickDev.unavailable"));
+  if (!isDesktopRuntime()) return createBrowserDevProject();
+  try {
+    return await invoke<ProjectInfo>("create_dev_project");
   } catch (error) {
     throw new Error(asErrorMessage(error));
   }
@@ -86,7 +101,10 @@ export async function openProject(path: string): Promise<ProjectInfo> {
 }
 
 export async function closeProject(): Promise<void> {
-  if (!isDesktopRuntime()) return;
+  if (!isDesktopRuntime()) {
+    if (isBrowserDevProjectActive()) closeBrowserDevProject();
+    return;
+  }
   try {
     const traceId = getActiveCloseProjectTraceId();
     const timings = await measureActiveCloseProjectPhase("backend close", () =>

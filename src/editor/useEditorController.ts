@@ -13,14 +13,17 @@ import { findImportableFile, isImportableDragItem } from "../project/fileNodeImp
 import { formatPastedText, sanitizeEditorHtml, anytypeClipboardToHtml } from "./html";
 import { useBlockControls } from "./useBlockControls";
 import { useEditorBlocks } from "./useEditorBlocks";
-import { useEditorBlockSelection } from "./useEditorBlockSelection";
+import { useEditorBlockSelection, type BlockSelectionOrigin } from "./useEditorBlockSelection";
 import { useEditorMentions } from "./useEditorMentions";
 import { useEditorPickers } from "./useEditorPickers";
 import { useRichTextEditor } from "./useRichTextEditor";
 import draftAsset from "../assets/third-party/google-material/icons/draft.svg";
 import { createEmptyEditorPickerSession, getEditorPickerTrigger, isSameMentionTriggerRange, type MentionTriggerRange } from "./pickerSession";
 import { EDITOR_NON_EDITABLE_BLOCK_SELECTOR, EDITOR_SELECTABLE_BLOCK_SELECTOR, EDITOR_STRUCTURAL_BLOCK_SELECTOR } from "./blockModel";
-import { isResizableEditorImage } from "./imageResize";
+import { applyEditorImageLayouts, isResizableEditorImage } from "./imageResize";
+import { focusPageHeading } from "./pageIndexNavigation";
+import { loadEditorImageLayouts, saveEditorImageLayout } from "../project/editorLayoutRepository";
+import { getImageResourceInfo } from "../utils/imageResource";
 
 interface EditorControllerOptions {
   node: NodeItem;
@@ -71,10 +74,13 @@ export function useEditorController({
     image: HTMLImageElement;
     startX: number;
     startWidth: number;
+    blockId: string;
+    blockIdCreated: boolean;
   } | null>(null);
+  const imageLayoutInteractedRef = useRef(false);
+  const imageRepairInFlightRef = useRef(new Set<string>());
   const lastPointerRef = useRef({ x: 0, y: 0 });
-  const scrollFrameRef = useRef<number | null>(null);
-  const blockSelectionRef = useRef<{ x: number; y: number } | null>(null);
+  const blockSelectionRef = useRef<BlockSelectionOrigin | null>(null);
   const generatedLinesRef = useRef<HTMLElement[]>([]);
   const lineCommandsOpenRef = useRef(false);
   const structuralHistory = useNodeScopedEditorHistory<string>(node.id, 20);
@@ -93,6 +99,17 @@ export function useEditorController({
     onContentChange,
     editorRef,
   });
+
+  useEffect(() => {
+    let disposed = false;
+    imageLayoutInteractedRef.current = false;
+    void loadEditorImageLayouts(node.id).then((layouts) => {
+      const editor = editorRef.current;
+      if (disposed || imageLayoutInteractedRef.current || !editor || editor.dataset.activeId !== node.id) return;
+      applyEditorImageLayouts(editor, layouts);
+    }).catch((error) => console.error("No se pudo restaurar el tamaño de las imágenes", error));
+    return () => { disposed = true; };
+  }, [editorRef, node.id]);
 
   const getEditorBlock = (source: Node | null) => {
     const editor = editorRef.current;
@@ -222,6 +239,7 @@ export function useEditorController({
         line.setAttribute("data-line-selected", "true");
         line.contentEditable = "false";
       });
+      editorRef.current?.focus();
       return finalSelection;
     });
   };
@@ -375,7 +393,32 @@ export function useEditorController({
     });
     return changed;
   };
+  const normalizeEditableLines = () => {
+    const editor = editorRef.current;
+    if (!editor) return false;
+    let changed = false;
+    editor.querySelectorAll<HTMLElement>(textLineSelector).forEach((line) => {
+      const shouldBeEditable = !isNonEditableBlockType(line) &&
+        !line.matches("[data-line-selected], [data-line-dragging]");
+      const expected = shouldBeEditable ? "true" : "false";
+      if (line.contentEditable === expected) return;
+      line.contentEditable = expected;
+      changed = true;
+    });
+    return changed;
+  };
   const resetEditorPickers = () => {
+    if (
+      !pickers.slashPicker &&
+      !pickers.callPicker &&
+      pickers.slashPickerIndex === 0 &&
+      pickers.callPickerIndex === 0 &&
+      !pickers.imageMentionChoice &&
+      !pickers.pickerPosition &&
+      !mentionTriggerRangeRef.current
+    ) {
+      return;
+    }
     const empty = createEmptyEditorPickerSession();
     pickers.setSlashPicker(empty.slashPicker);
     pickers.setCallPicker(empty.callPicker);
@@ -405,7 +448,7 @@ export function useEditorController({
       ) {
         return;
       }
-      if (!target?.closest("[data-picker], [data-line-control]")) {
+      if (!target?.closest("[data-picker], [data-line-control], .his-context-menu")) {
         dismissEditorMenus();
       }
     };
@@ -415,6 +458,25 @@ export function useEditorController({
       }
       const blocks = selectedLineBlocks.filter((line) => line.isConnected);
       const hasSelectionMode = blocks.length > 0;
+      const editor = editorRef.current;
+      const targetIsInsideEditor = Boolean(
+        editor && event.target instanceof Node && editor.contains(event.target),
+      );
+      if ((!targetIsInsideEditor || hasSelectionMode) && (event.ctrlKey || event.metaKey)) {
+        const key = event.key.toLowerCase();
+        const isUndo = key === "z" && !event.shiftKey;
+        const isRedo = key === "y" || (key === "z" && event.shiftKey);
+        if (isUndo && (restoreStructuralUndo() || restoreEditorUndo())) {
+          event.preventDefault();
+          event.stopPropagation();
+          return;
+        }
+        if (isRedo && (restoreStructuralRedo() || restoreEditorRedo())) {
+          event.preventDefault();
+          event.stopPropagation();
+          return;
+        }
+      }
       if (event.key === "Escape") {
         dismissEditorMenus();
         return;
@@ -562,10 +624,21 @@ export function useEditorController({
     syncContent();
     updateSelectionToolbar();
   };
-  const applyBlockBackgroundColor = (color: string) => {
+  const applyBlockBackgroundColor = (color: string, targetBlock?: HTMLElement | null) => {
     pushEditorHistory();
+    const selection = window.getSelection();
+    if (!targetBlock && selection && selection.rangeCount && !selection.isCollapsed) {
+      document.execCommand("backColor", false, color || "transparent");
+      window.requestAnimationFrame(() => {
+        syncContent();
+        updateSelectionToolbar();
+      });
+      return;
+    }
     const selected = selectedLineBlocks.filter((line) => line.isConnected);
-    const blocks = selected.length
+    const blocks = targetBlock?.isConnected
+      ? [targetBlock]
+      : selected.length
       ? selected
       : lineActionBlock && lineActionBlock.isConnected
         ? [lineActionBlock]
@@ -578,8 +651,10 @@ export function useEditorController({
       if (color) block.style.backgroundColor = color;
       else block.style.removeProperty("background-color");
     });
-    syncContent();
-    updateSelectionToolbar();
+    window.requestAnimationFrame(() => {
+      syncContent();
+      updateSelectionToolbar();
+    });
   };
   const isLineEmpty = (block: HTMLElement) =>
     !block.matches("[data-divider]") &&
@@ -632,17 +707,38 @@ export function useEditorController({
 
   const {
     insertLine,
+    splitLineAtSelection,
     ensureEditorLine,
     removeLine,
     deleteSelectedLine,
     openLineCommands,
     moveLine,
-    updateLineControlAt,
     updateLineControl,
     startLineDrag,
     moveLineDrag,
     finishLineDrag,
+    cancelLineDrag,
   } = editorBlocks;
+
+  useEffect(() => {
+    const handleCut = (event: globalThis.ClipboardEvent) => {
+      const blocks = selectedLineBlocks.filter((line) => line.isConnected);
+      if (!blocks.length) return;
+      const container = document.createElement("div");
+      blocks.forEach((block) => {
+        const clone = block.cloneNode(true) as HTMLElement;
+        clone.removeAttribute("data-line-selected");
+        clone.contentEditable = "true";
+        container.appendChild(clone);
+      });
+      event.clipboardData?.setData("text/html", container.innerHTML);
+      event.clipboardData?.setData("text/plain", blocks.map((block) => block.textContent || "").join("\n"));
+      event.preventDefault();
+      deleteSelectedLine();
+    };
+    document.addEventListener("cut", handleCut);
+    return () => document.removeEventListener("cut", handleCut);
+  }, [deleteSelectedLine, selectedLineBlocks]);
 
   const blockSelectionController = useEditorBlockSelection({
     editorRef,
@@ -656,7 +752,55 @@ export function useEditorController({
     selectedLineBlocks,
   });
 
-  const { beginSelection, finalizeSelectionBox: finalizeBlockSelectionBox, onEditorSelectionMove: onBlockSelectionMove } = blockSelectionController;
+  const {
+    beginSelection,
+    clearSelectionBox,
+    finalizeSelectionBox: finalizeBlockSelectionBox,
+    onEditorSelectionMove: onBlockSelectionMove,
+  } = blockSelectionController;
+
+  useEffect(() => {
+    let restoreEditorFocus = false;
+    let restoreFrame = 0;
+    const resetInterruptedInteraction = () => {
+      const editor = editorRef.current;
+      const selection = window.getSelection();
+      restoreEditorFocus = Boolean(
+        editor && (
+          editor.contains(document.activeElement) ||
+          (selection?.anchorNode && editor.contains(selection.anchorNode))
+        ),
+      );
+      clearSelectionBox();
+      cancelLineDrag();
+      imageResizeRef.current = null;
+      controls.clearBlockControls();
+      document.body.style.cursor = "default";
+    };
+    const restoreInteraction = () => {
+      window.cancelAnimationFrame(restoreFrame);
+      restoreFrame = window.requestAnimationFrame(() => {
+        const editor = editorRef.current;
+        if (restoreEditorFocus && editor?.isConnected && !document.querySelector("[data-picker], .his-context-menu")) {
+          editor.focus({ preventScroll: true });
+        }
+        document.body.style.cursor = "default";
+      });
+    };
+    const handleVisibility = () => {
+      if (document.visibilityState === "hidden") resetInterruptedInteraction();
+      else restoreInteraction();
+    };
+    window.addEventListener("blur", resetInterruptedInteraction);
+    window.addEventListener("focus", restoreInteraction);
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => {
+      window.cancelAnimationFrame(restoreFrame);
+      window.removeEventListener("blur", resetInterruptedInteraction);
+      window.removeEventListener("focus", restoreInteraction);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [cancelLineDrag, clearSelectionBox, controls.clearBlockControls, editorRef]);
 
   const mentionController = useEditorMentions({
     editorRef,
@@ -684,31 +828,6 @@ export function useEditorController({
     onEditorPointerMove,
     alignImage,
   } = mentionController;
-
-  useEffect(() => {
-    const handlePointerMove = (event: globalThis.PointerEvent) => {
-      lastPointerRef.current = { x: event.clientX, y: event.clientY };
-    };
-    const handleScroll = () => {
-      if (controls.draggedLineRef.current) return;
-      if (scrollFrameRef.current !== null) return;
-      scrollFrameRef.current = window.requestAnimationFrame(() => {
-        scrollFrameRef.current = null;
-        updateLineControlAt(lastPointerRef.current.x, lastPointerRef.current.y);
-      });
-    };
-    document.addEventListener("pointermove", handlePointerMove, true);
-    document.addEventListener("scroll", handleScroll, true);
-    return () => {
-      document.removeEventListener("pointermove", handlePointerMove, true);
-      document.removeEventListener("scroll", handleScroll, true);
-      if (scrollFrameRef.current !== null) {
-        window.cancelAnimationFrame(scrollFrameRef.current);
-        scrollFrameRef.current = null;
-      }
-    };
-  }, [updateLineControlAt]);
-
 
   const getCurrentPageIndexEntries = (scopeRoot?: HTMLElement | null) => {
     const editor = editorRef.current;
@@ -995,6 +1114,96 @@ export function useEditorController({
     return source.body.innerHTML;
   };
 
+  const imageSourceToFile = async (source: string, fallbackName: string) => {
+    if (source.startsWith("data:image/")) {
+      const separator = source.indexOf(",");
+      if (separator < 0) return null;
+      const metadata = source.slice(5, separator);
+      const mime = metadata.split(";")[0] || "image/png";
+      const encoded = source.slice(separator + 1).replace(/\s+/g, "");
+      const bytes = metadata.toLowerCase().includes(";base64")
+        ? Uint8Array.from(atob(encoded), (character) => character.charCodeAt(0))
+        : new TextEncoder().encode(decodeURIComponent(source.slice(separator + 1)));
+      const extension = mime.split("/")[1]?.replace("jpeg", "jpg") || "png";
+      return new File([bytes], `${fallbackName}.${extension}`, { type: mime });
+    }
+    if (!/^(?:blob:|https?:)/i.test(source)) return null;
+    const response = await fetch(source);
+    if (!response.ok) return null;
+    const blob = await response.blob();
+    if (!blob.type.startsWith("image/")) return null;
+    const urlName = (() => {
+      try { return new URL(source).pathname.split("/").filter(Boolean).pop() || ""; }
+      catch { return ""; }
+    })();
+    const extension = blob.type.split("/")[1]?.replace("jpeg", "jpg") || "png";
+    const name = /\.[a-z0-9]{2,5}$/i.test(urlName) ? urlName : `${fallbackName}.${extension}`;
+    return new File([blob], name, { type: blob.type });
+  };
+
+  const repairUnlinkedEditorImages = async () => {
+    const editor = editorRef.current;
+    if (!editor || !onFileImport) return false;
+    const candidates = Array.from(editor.querySelectorAll<HTMLImageElement>("img")).filter((image) =>
+      !image.closest("[data-mention-id], [data-globe-icon]") &&
+      image.dataset.noResize !== "true" &&
+      image.dataset.imageRepair !== "pending",
+    );
+    if (!candidates.length) return false;
+
+    const existingBySource = new Map<string, NodeItem>();
+    nodes.filter((item) => item.type === "imagen").forEach((item) => {
+      const resource = getImageResourceInfo(item.content, item.name);
+      if (resource?.src) existingBySource.set(resource.src, item);
+    });
+    let changed = false;
+    const groups = new Map<string, HTMLImageElement[]>();
+    candidates.forEach((image) => {
+      const source = image.getAttribute("src")?.trim() || image.src;
+      if (!source) return;
+      groups.set(source, [...(groups.get(source) || []), image]);
+      image.dataset.imageRepair = "pending";
+    });
+
+    for (const [source, images] of groups) {
+      if (imageRepairInFlightRef.current.has(source)) continue;
+      imageRepairInFlightRef.current.add(source);
+      try {
+        let target = existingBySource.get(source) || existingBySource.get(images[0]?.src || "") || null;
+        if (!target) {
+          const fallbackName = images[0]?.alt.trim() || "Imagen importada";
+          const file = await imageSourceToFile(source, fallbackName);
+          if (file) target = await onFileImport(file, node.parentId ?? null);
+        }
+        if (!target) {
+          images.forEach((image) => delete image.dataset.imageRepair);
+          continue;
+        }
+        images.forEach((image) => {
+          if (!image.isConnected || !editor.contains(image)) return;
+          const mention = createMention(target!, "full");
+          const parent = image.parentElement;
+          const parentOnlyContainsImage = Boolean(
+            parent?.matches("p, div") &&
+            !parent.textContent?.trim() &&
+            parent.querySelectorAll("img").length === 1 &&
+            parent.children.length === 1,
+          );
+          if (parentOnlyContainsImage && parent && parent !== editor) parent.replaceWith(mention);
+          else image.replaceWith(mention);
+          changed = true;
+        });
+      } catch (error) {
+        console.warn("No se pudo convertir una imagen pegada en Nodo Imagen.", error);
+        images.forEach((image) => delete image.dataset.imageRepair);
+      } finally {
+        imageRepairInFlightRef.current.delete(source);
+      }
+    }
+    if (changed) syncContent();
+    return changed;
+  };
+
     const focusPageIndexEntry = (id: string) => {
     const editor = editorRef.current;
     if (!editor) return;
@@ -1010,7 +1219,6 @@ export function useEditorController({
     if (!matching) return;
     const target = document.getElementById(id) || matching;
     if (!target.id) target.id = id;
-    target.setAttribute("tabindex", "-1");
     const selection = window.getSelection();
     selection?.removeAllRanges();
     if (document.activeElement instanceof HTMLElement && document.activeElement !== document.body) {
@@ -1018,32 +1226,7 @@ export function useEditorController({
     }
     if (editor instanceof HTMLElement) editor.blur();
     target.blur();
-    const rect = target.getBoundingClientRect();
-    const targetTop = rect.top + window.scrollY - 96;
-    const distance = Math.max(0, targetTop - window.scrollY);
-
-    if (distance > 2600) {
-      window.scrollTo({ top: targetTop, behavior: "auto" });
-    } else if (distance > 900) {
-      const acceleratedTop = window.scrollY + Math.min(
-        distance,
-        200 + Math.pow(distance / 260, 1.9) * 18,
-      );
-      window.scrollTo({ top: acceleratedTop, behavior: "auto" });
-    } else {
-      window.scrollTo({ top: targetTop, behavior: "smooth" });
-    }
-
-    target.scrollIntoView({ block: "start", behavior: "smooth" });
-    const previous = target.style.boxShadow;
-    const previousBg = target.style.background;
-    const highlightMs = Math.min(2200, 500 + Math.pow(Math.max(0, distance) / 260, 1.55) * 90);
-    target.style.boxShadow = "0 0 0 2px rgba(77, 216, 192, 0.7)";
-    target.style.background = "rgba(77, 216, 192, 0.08)";
-    window.setTimeout(() => {
-      target.style.boxShadow = previous;
-      target.style.background = previousBg;
-    }, highlightMs);
+    focusPageHeading(target);
   };
 
 
@@ -1422,7 +1605,11 @@ export function useEditorController({
       (event.key === "Delete" || event.key === "Backspace")
     ) {
       event.preventDefault();
-      removeLine(activeBlock || lineActionBlock, event.key === "Backspace");
+      removeLine(activeBlock || lineActionBlock, event.key === "Backspace", {
+        captureUndo: !event.repeat,
+        sync: false,
+      });
+      scheduleContentSync(180, true);
       pickers.setPickerPosition(null);
       pickers.setSlashPicker(null);
       setLineActionBlock(null);
@@ -1434,7 +1621,11 @@ export function useEditorController({
       isLineEmpty(activeBlock)
     ) {
       event.preventDefault();
-      removeLine(activeBlock, event.key === "Backspace");
+      removeLine(activeBlock, event.key === "Backspace", {
+        captureUndo: !event.repeat,
+        sync: false,
+      });
+      scheduleContentSync(180, true);
       return;
     }
     const picker: PickerState | null =
@@ -1486,6 +1677,7 @@ export function useEditorController({
       if (block?.matches("li")) return;
       if (block) {
         event.preventDefault();
+        if (splitLineAtSelection(block)) return;
         if (globeContent && block.closest("[data-globe-content]") === globeContent) {
           insertLine(block, false);
           return;
@@ -1504,14 +1696,6 @@ export function useEditorController({
       resetEditorPickers();
       return;
     }
-    const rect = selection.getRangeAt(0).getBoundingClientRect();
-    pickers.setPickerPosition({
-      top:
-        rect.bottom + 228 <= window.innerHeight
-          ? rect.bottom + 8
-          : Math.max(8, rect.top - 228),
-      left: Math.min(Math.max(8, rect.left), window.innerWidth - 228),
-    });
     const text =
       selection.focusNode.textContent?.slice(0, selection.focusOffset) || "";
     const inPageIndexContext = Boolean(
@@ -1523,10 +1707,34 @@ export function useEditorController({
       return;
     }
     const trigger = getEditorPickerTrigger(text);
+    if (!trigger) {
+      resetEditorPickers();
+      return;
+    }
+
+    // Reading the caret rectangle forces browser layout. Keep it entirely out of
+    // the normal typing path and only pay that cost while a picker is visible.
+    const rect = selection.getRangeAt(0).getBoundingClientRect();
+    const nextPickerPosition = {
+      top:
+        rect.bottom + 228 <= window.innerHeight
+          ? rect.bottom + 8
+          : Math.max(8, rect.top - 228),
+      left: Math.min(Math.max(8, rect.left), window.innerWidth - 228),
+    };
+    pickers.setPickerPosition((current) =>
+      current?.top === nextPickerPosition.top && current.left === nextPickerPosition.left
+        ? current
+        : nextPickerPosition,
+    );
     if (trigger?.type === "slash") {
       mentionTriggerRangeRef.current = null;
       pickers.setImageMentionChoice(null);
-      pickers.setSlashPicker({ query: trigger.query, hasTrigger: true });
+      pickers.setSlashPicker((current) =>
+        current?.query === trigger.query && current.hasTrigger
+          ? current
+          : { query: trigger.query, hasTrigger: true },
+      );
       pickers.setSlashPickerIndex(0);
       pickers.setCallPicker(null);
       pickers.setCallPickerIndex(0);
@@ -1541,10 +1749,11 @@ export function useEditorController({
         pickers.setCallPickerIndex(0);
       }
       mentionTriggerRangeRef.current = { container: selection.focusNode, triggerOffset };
-      pickers.setCallPicker({ query: trigger.query });
+      pickers.setCallPicker((current) =>
+        current?.query === trigger.query ? current : { query: trigger.query },
+      );
       return;
     }
-    resetEditorPickers();
   };
   useEffect(() => {
     if (!pickers.callPicker && !pickers.imageMentionChoice && !pickers.slashPicker) return;
@@ -1587,7 +1796,10 @@ export function useEditorController({
         const previousIndices = new Set(
           editor ? Array.from(editor.querySelectorAll<HTMLElement>("[data-page-index]")) : [],
         );
-        document.execCommand("insertHTML", false, clean);
+        const pastedContainer = document.createElement("div");
+        pastedContainer.innerHTML = clean;
+        replacePastedMentions(pastedContainer);
+        document.execCommand("insertHTML", false, pastedContainer.innerHTML);
         if (editor) {
           const pastedIndices = Array.from(editor.querySelectorAll<HTMLElement>("[data-page-index]"))
             .filter((index) => !previousIndices.has(index));
@@ -1595,6 +1807,7 @@ export function useEditorController({
         }
       }
       syncContent();
+      void repairUnlinkedEditorImages();
     };
     const image = Array.from(event.clipboardData.items).find((item) =>
       item.type.startsWith("image/"),
@@ -1650,6 +1863,7 @@ export function useEditorController({
       return;
     }
     onMentionEditorPointerDown(event);
+    if (imageResizeRef.current) imageLayoutInteractedRef.current = true;
   };
 
   const onEditorSelectionMove = (event: React.PointerEvent<HTMLDivElement>) => {
@@ -1658,15 +1872,24 @@ export function useEditorController({
 
   const onEditorPointerUp = () => {
     finalizeBlockSelectionBox();
-    if (!imageResizeRef.current) return;
-    if (!isResizableEditorImage(imageResizeRef.current.image)) {
+    const resize = imageResizeRef.current;
+    if (!resize) return;
+    if (!isResizableEditorImage(resize.image)) {
       imageResizeRef.current = null;
       document.body.style.cursor = "default";
       return;
     }
+    const width = Math.max(40, Number.parseFloat(resize.image.style.width) || resize.image.getBoundingClientRect().width);
     imageResizeRef.current = null;
     document.body.style.cursor = "default";
-    syncContent();
+    void saveEditorImageLayout({ nodeId: node.id, blockId: resize.blockId, width })
+      .catch((error) => {
+        console.error("No se pudo guardar el tamaño de la imagen", error);
+        scheduleContentSync(0, true);
+      });
+    // Legacy images need one compatible HTML snapshot to persist their new
+    // stable identity. Every later resize writes only the small layout row.
+    if (resize.blockIdCreated) syncContent();
   };
   const focusOrCreatePageLine = () => {
     const editor = editorRef.current;
@@ -1674,7 +1897,11 @@ export function useEditorController({
     const lines = Array.from(
       editor.querySelectorAll<HTMLElement>(textLineSelector),
     ).filter((line) => isRootEditorBlock(line) && !line.matches("[data-divider]"));
-    let line = lines.find((candidate) => isLineEmpty(candidate));
+    // Clicking the whitespace below a page must continue at the end. Reusing an
+    // unrelated empty block higher in the document makes the caret appear to jump.
+    let line = lines.length > 0 && isLineEmpty(lines[lines.length - 1])
+      ? lines[lines.length - 1]
+      : undefined;
     if (!line) {
       line = document.createElement("p");
       line.appendChild(document.createElement("br"));
@@ -1693,6 +1920,9 @@ export function useEditorController({
   const repairEditorLines = () => {
     const dividersChanged = normalizeDividers();
     const globesChanged = normalizeGlobes();
+    // Runtime editability is deliberately not persisted. Reporting it as a
+    // document repair would rewrite a large imported page every time it opens.
+    normalizeEditableLines();
     return dividersChanged || globesChanged;
   };
   useEffect(() => {
@@ -1727,6 +1957,7 @@ export function useEditorController({
     startLineDrag,
     moveLineDrag,
     finishLineDrag,
+    cancelLineDrag,
     lineActionBlock,
     setLineActionBlock,
     setPlaceholderBlock,
@@ -1755,8 +1986,10 @@ export function useEditorController({
     clearGeneratedLines,
     focusOrCreatePageLine,
     clearStructuralUndo,
+    captureStructuralUndo,
     buildPageIndexBlock,
     focusPageIndexEntry,
+    repairUnlinkedEditorImages,
     
   };
 }

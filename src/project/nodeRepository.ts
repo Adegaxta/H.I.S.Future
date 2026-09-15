@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { BaseNodeType } from "../types/nodes";
 import type { NodeItem } from "../types/nodes";
-import { asErrorMessage } from "./runtime";
+import { asErrorMessage, isDesktopRuntime } from "./runtime";
 import type { PersistedNode } from "./types";
 import { getProjectSetting } from "./settingsRepository";
 import {
@@ -10,6 +10,12 @@ import {
   measureLifecyclePhase,
   recordCloseProjectPhase,
 } from "../lifecycle/metrics";
+import {
+  isBrowserDevProjectActive,
+  listBrowserDevNodes,
+  saveBrowserDevNodeContents,
+  saveBrowserDevWorkspace,
+} from "./browserDevBackend";
 
 interface SaveWorkspaceTimings {
   resourceScanMs: number;
@@ -17,6 +23,22 @@ interface SaveWorkspaceTimings {
   resourceCleanupMs: number;
   totalMs: number;
   changedRows: number;
+}
+
+export interface NodeContentChange {
+  id: string;
+  content: string;
+}
+
+interface PersistedWorkspaceSnapshot {
+  nodes: PersistedNode[];
+  loreHiddenIds: string | null;
+  deletedNodes: string | null;
+}
+
+export interface LoadedWorkspaceSnapshot {
+  nodes: NodeItem[];
+  deletedNodes: NodeItem[] | null;
 }
 
 function toNodeItem(record: PersistedNode): NodeItem {
@@ -43,11 +65,41 @@ function toRecord(node: NodeItem): PersistedNode {
 
 export async function listNodes(defaultNodeType: BaseNodeType = "pagina"): Promise<NodeItem[]> {
   try {
+    if (isBrowserDevProjectActive()) {
+      const [rows, hiddenSetting] = await measureLifecyclePhase("project.load-nodes", async () => [
+        listBrowserDevNodes(), await getProjectSetting("loreHiddenIds"),
+      ] as const);
+      const hidden = new Set<string>(JSON.parse(hiddenSetting || "[]"));
+      return rows.map((row) => ({ ...toNodeItem(row), loreHidden: hidden.has(row.id) }));
+    }
     const [rows, hiddenSetting] = await measureLifecyclePhase("project.load-nodes", () => Promise.all([
       invoke<PersistedNode[]>("list_nodes", { defaultNodeType }), getProjectSetting("loreHiddenIds"),
     ]));
     const hidden = new Set<string>(JSON.parse(hiddenSetting || "[]"));
     return rows.map((row) => ({ ...toNodeItem(row), loreHidden: hidden.has(row.id) }));
+  } catch (error) {
+    throw new Error(asErrorMessage(error));
+  }
+}
+
+export async function loadWorkspaceSnapshot(defaultNodeType: BaseNodeType = "pagina"): Promise<LoadedWorkspaceSnapshot> {
+  if (!isDesktopRuntime()) {
+    const [nodes, deletedNodes] = await Promise.all([listNodes(defaultNodeType), loadDeletedNodes()]);
+    return { nodes, deletedNodes };
+  }
+  try {
+    const snapshot = await measureLifecyclePhase("project.load-workspace", () =>
+      invoke<PersistedWorkspaceSnapshot>("load_workspace_snapshot", { defaultNodeType }),
+    );
+    const hidden = new Set<string>(JSON.parse(snapshot.loreHiddenIds || "[]"));
+    const nodes = snapshot.nodes.map((row) => ({ ...toNodeItem(row), loreHidden: hidden.has(row.id) }));
+    const parsedDeleted: unknown = snapshot.deletedNodes === null ? null : JSON.parse(snapshot.deletedNodes);
+    const deletedNodes = parsedDeleted === null
+      ? null
+      : Array.isArray(parsedDeleted) && parsedDeleted.every((node) => node && typeof node.id === "string" && typeof node.content === "string")
+        ? parsedDeleted as NodeItem[]
+        : (() => { throw new Error("La papelera guardada no tiene un formato válido."); })();
+    return { nodes, deletedNodes };
   } catch (error) {
     throw new Error(asErrorMessage(error));
   }
@@ -63,6 +115,12 @@ export async function saveNodes(nodes: NodeItem[], deletedNodes: NodeItem[]): Pr
       traceId: getActiveCloseProjectTraceId(),
     };
     console.info(`[lifecycle] persistence.serialize: ${(performance.now() - serializeStarted).toFixed(1)} ms`);
+    if (isBrowserDevProjectActive()) {
+      await measureLifecyclePhase("persistence.backend-roundtrip", async () => {
+        saveBrowserDevWorkspace(payload.nodes, payload.hiddenIds, payload.deletedNodes);
+      });
+      return;
+    }
     const traceId = getActiveCloseProjectTraceId();
     const timings = await measureActiveCloseProjectPhase("backend persistence", () =>
       measureLifecyclePhase("persistence.backend-roundtrip", () =>
@@ -71,6 +129,28 @@ export async function saveNodes(nodes: NodeItem[], deletedNodes: NodeItem[]): Pr
     );
     recordCloseProjectPhase(traceId, "SQLite save", timings.sqliteMs);
     recordCloseProjectPhase(traceId, "resource cleanup", timings.resourceCleanupMs);
+  } catch (error) {
+    throw new Error(asErrorMessage(error));
+  }
+}
+
+export async function saveNodeContents(changes: NodeContentChange[]): Promise<void> {
+  if (!changes.length) return;
+  try {
+    const serializeStarted = performance.now();
+    const payload = { changes, traceId: getActiveCloseProjectTraceId() };
+    console.info(`[lifecycle] persistence.incremental.serialize: ${(performance.now() - serializeStarted).toFixed(1)} ms`);
+    if (isBrowserDevProjectActive()) {
+      await measureLifecyclePhase("persistence.incremental.backend-roundtrip", async () => {
+        saveBrowserDevNodeContents(changes);
+      });
+      return;
+    }
+    await measureActiveCloseProjectPhase("backend incremental persistence", () =>
+      measureLifecyclePhase("persistence.incremental.backend-roundtrip", () =>
+        invoke<SaveWorkspaceTimings>("save_node_contents", payload),
+      ),
+    );
   } catch (error) {
     throw new Error(asErrorMessage(error));
   }

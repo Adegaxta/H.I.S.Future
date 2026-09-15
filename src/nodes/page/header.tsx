@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, startTransition, Suspense, useEffect, useRef, useState } from "react";
 import type { NodeItem } from "../../types/nodes";
 import NodeTypeLabel from "../../components/NodeTypeLabel";
 import { getImageResourceInfo } from "../../utils/imageResource";
@@ -8,6 +8,20 @@ import { isEditableElement } from "../../utils/dom";
 import { useLocale } from "../../i18n/LocaleContext";
 import UnsplashImagePicker from "../../integrations/unsplash/UnsplashImagePicker";
 import type { UnsplashImageSelection } from "../../integrations/unsplash/types";
+import imageAsset from "../../assets/third-party/google-material/icons/image.svg";
+import coverAsset from "../../assets/third-party/google-material/icons/image_inset.svg";
+import descriptionAsset from "../../assets/third-party/google-material/icons/text_ad_off.svg";
+import visibilityAsset from "../../assets/third-party/google-material/icons/hide_image.svg";
+import sourceAsset from "../../assets/third-party/google-material/icons/hide_source.svg";
+import moreAsset from "../../assets/third-party/google-material/icons/more_horiz.svg";
+import { openWebUrl } from "../viewPrimitives";
+import { NodeVisualRenderer } from "../visuals/NodeVisualRenderer";
+import type { EmojiVisualStyle, IconVisualProvider, ResolvedNodeVisual } from "../visuals/types";
+import { fileImportAccept } from "../../project/fileImportRegistry";
+
+const EmojiPicker = lazy(() => import("../visuals/EmojiPicker").then((module) => ({ default: module.EmojiPicker })));
+const IconPicker = lazy(() => import("../visuals/IconPicker").then((module) => ({ default: module.IconPicker })));
+const IMAGE_FILE_ACCEPT = fileImportAccept(["imagen"]);
 
 interface PageNodeHeaderProps {
   node: NodeItem;
@@ -19,6 +33,7 @@ interface PageNodeHeaderProps {
 }
 
 type ImageChoice = "iconNodeId" | "coverNodeId";
+type ChoiceTab = "local" | "emoji" | "icon" | "unsplash";
 
 export default function PageNodeHeader({
   node,
@@ -31,8 +46,9 @@ export default function PageNodeHeader({
   const { t } = useLocale();
   const [meta, setMeta] = useState<PageMeta>(() => getPageMeta(node.content));
   const [choice, setChoice] = useState<ImageChoice | null>(null);
-  const [choiceTab, setChoiceTab] = useState<"local" | "unsplash">("local");
+  const [choiceTab, setChoiceTab] = useState<ChoiceTab>("local");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [visibilityOpen, setVisibilityOpen] = useState(false);
   const [headerPositionOpen, setHeaderPositionOpen] = useState(false);
   const [textPositionOpen, setTextPositionOpen] = useState(false);
   const [editingTitle, setEditingTitle] = useState(false);
@@ -40,7 +56,9 @@ export default function PageNodeHeader({
   const history = useNodeScopedEditorHistory<PageMeta>(node.id, 50);
   const metaRef = useRef(meta);
   const descriptionStartRef = useRef<PageMeta | null>(null);
+  const blockWidthStartRef = useRef<PageMeta | null>(null);
   const settingsRef = useRef<HTMLSpanElement>(null);
+  const visibilityRef = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
     const next = getPageMeta(node.content);
@@ -57,6 +75,7 @@ export default function PageNodeHeader({
     setChoice(null);
     setChoiceTab("local");
     setSettingsOpen(false);
+    setVisibilityOpen(false);
     setHeaderPositionOpen(false);
     setTextPositionOpen(false);
     descriptionStartRef.current = null;
@@ -83,10 +102,12 @@ export default function PageNodeHeader({
   }, [history, node.content, node.id, onContentChange]);
 
   useEffect(() => {
-    if (!settingsOpen) return;
+    if (!settingsOpen && !visibilityOpen) return;
     const closeSettings = (event: PointerEvent) => {
-      if (!settingsRef.current?.contains(event.target as Node)) {
+      const target = event.target as Node;
+      if (!settingsRef.current?.contains(target) && !visibilityRef.current?.contains(target)) {
         setSettingsOpen(false);
+        setVisibilityOpen(false);
         setHeaderPositionOpen(false);
         setTextPositionOpen(false);
       }
@@ -94,6 +115,7 @@ export default function PageNodeHeader({
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setSettingsOpen(false);
+        setVisibilityOpen(false);
         setHeaderPositionOpen(false);
         setTextPositionOpen(false);
       }
@@ -104,41 +126,81 @@ export default function PageNodeHeader({
       document.removeEventListener("pointerdown", closeSettings);
       document.removeEventListener("keydown", closeOnEscape);
     };
-  }, [settingsOpen]);
+  }, [settingsOpen, visibilityOpen]);
 
   const imageNodes = nodes.filter((item) => item.type === "imagen");
   const icon = meta.iconNodeId ? nodes.find((item) => item.id === meta.iconNodeId) : null;
   const cover = meta.coverNodeId ? nodes.find((item) => item.id === meta.coverNodeId) : null;
   const iconResource = icon ? getImageResourceInfo(icon.content, icon.name) : null;
   const coverResource = cover ? getImageResourceInfo(cover.content, cover.name) : null;
+  const iconVisual: ResolvedNodeVisual | null = meta.iconVisual?.kind === "image"
+    ? (iconResource ? { kind: "image", src: iconResource.src } : null)
+    : meta.iconVisual;
 
   const updateMeta = (next: PageMeta) => {
     if (JSON.stringify(next) === JSON.stringify(metaRef.current)) return;
     history.push(metaRef.current);
     metaRef.current = next;
     setMeta(next);
-    onContentChange(node.id, setPageMeta(node.content, next));
+    startTransition(() => onContentChange(node.id, setPageMeta(node.content, next)));
   };
 
-  const chooseImage = (id: string) => {
-    updateMeta({ ...meta, [choice || "iconNodeId"]: id });
+  const chooseImage = (id: string, source?: "local" | "unsplash") => {
+    if (choice === "iconNodeId") {
+      const selectedNode = nodes.find((item) => item.id === id);
+      const selectedResource = selectedNode ? getImageResourceInfo(selectedNode.content, selectedNode.name) : null;
+      const imageSource = source ?? (selectedResource?.provenance?.provider === "unsplash" ? "unsplash" : "local");
+      updateMeta({ ...metaRef.current, iconNodeId: id, iconVisual: { kind: "image", nodeId: id, source: imageSource } });
+    } else {
+      updateMeta({ ...metaRef.current, coverNodeId: id });
+    }
+    setChoice(null);
+  };
+
+  const chooseEmoji = (value: string, style: EmojiVisualStyle) => {
+    updateMeta({ ...metaRef.current, iconNodeId: null, iconVisual: { kind: "emoji", value, style } });
+    setChoice(null);
+  };
+
+  const chooseIcon = (provider: IconVisualProvider, name: string) => {
+    updateMeta({ ...metaRef.current, iconNodeId: null, iconVisual: { kind: "icon", provider, name } });
     setChoice(null);
   };
 
   const chooseUnsplashImage = async (selection: UnsplashImageSelection) => {
     const id = await onUnsplashImageSelect(selection);
-    if (id) chooseImage(id);
+    if (id) chooseImage(id, "unsplash");
   };
 
   const uploadImage = async (file: File) => {
     const id = await onImageFileUpload(file);
-    if (id) chooseImage(id);
+    if (id) chooseImage(id, "local");
   };
 
   const clearImage = () => {
     if (!choice) return;
-    updateMeta({ ...meta, [choice]: null });
+    updateMeta(choice === "iconNodeId"
+      ? { ...metaRef.current, iconNodeId: null, iconVisual: null }
+      : { ...metaRef.current, coverNodeId: null });
     setChoice(null);
+  };
+
+  const previewBlockWidth = (value: number, input: HTMLInputElement) => {
+    if (!blockWidthStartRef.current) blockWidthStartRef.current = metaRef.current;
+    const next = { ...metaRef.current, blockWidth: value };
+    metaRef.current = next;
+    setMeta(next);
+    const editor = input.closest(".page-node-editor-surface")?.querySelector<HTMLElement>(".page-node-editor");
+    if (editor) editor.style.width = `${getPageBlockWidthPercent(next)}%`;
+  };
+
+  const commitBlockWidth = () => {
+    const start = blockWidthStartRef.current;
+    blockWidthStartRef.current = null;
+    const current = metaRef.current;
+    if (!start || start.blockWidth === current.blockWidth) return;
+    history.push(start);
+    startTransition(() => onContentChange(node.id, setPageMeta(node.content, current)));
   };
 
   const hasCustomSettings = meta.blockWidth !== DEFAULT_PAGE_META.blockWidth ||
@@ -155,42 +217,80 @@ export default function PageNodeHeader({
   return (
     <>
       <div className="page-node-header">
-        {coverResource && (
+        {coverResource && !meta.hideCover && (
           <div
             className="page-node-header__cover has-image"
             style={{ backgroundImage: `url(${coverResource.src})` }}
-            aria-hidden="true"
-          />
+          >
+            {coverResource.provenance?.provider === "unsplash" && (
+              <div className="page-node-header__cover-attribution">
+                <span>{t("page.unsplash.photoBy")}</span>
+                <button type="button" onClick={() => void openWebUrl(coverResource.provenance?.creatorUrl || "")}>{coverResource.provenance.creatorName}</button>
+                <span>{t("page.unsplash.on")}</span>
+                <button type="button" onClick={() => void openWebUrl(coverResource.provenance?.resourceUrl || "")}>{t("image.unsplash")}</button>
+              </div>
+            )}
+          </div>
         )}
         <div className="page-node-header__content">
           <div className={`page-node-header__block page-node-header__block--${meta.headerPosition}`}>
-            <div className={`page-node-header__title-row${iconResource ? " has-icon" : ""}`}>
-            {iconResource && <img className="page-node-header__icon" src={iconResource.src} alt="" />}
+            <div className={`page-node-header__title-row${iconVisual && !meta.hideIcon ? " has-icon" : ""}`}>
+            {iconVisual && !meta.hideIcon && <NodeVisualRenderer visual={iconVisual} className="page-node-header__icon" />}
             <div className="page-node-header__title-content">
               <div className="page-node-header__type-row">
-                <NodeTypeLabel type="pagina" node={node} />
+                {!meta.hideSource && <NodeTypeLabel type="pagina" node={node} visual={iconVisual ?? undefined} />}
                 <div className="page-node-header__actions">
-                  <button type="button" onClick={() => setChoice("iconNodeId")} title={t("page.chooseIcon")}>{t("page.icon")}</button>
-                  <button type="button" onClick={() => setChoice("coverNodeId")} title={t("page.chooseCover")}>{t("page.cover")}</button>
+                  <span className="page-node-header__separator" aria-hidden="true" />
+                  <button type="button" className="page-node-header__icon-button" onClick={() => { setChoiceTab("local"); setChoice("iconNodeId"); }} title={t("page.chooseIcon")} aria-label={t("page.chooseIcon")}><img src={imageAsset} alt="" /></button>
+                  <button type="button" className="page-node-header__icon-button" onClick={() => { setChoiceTab("local"); setChoice("coverNodeId"); }} title={t("page.chooseCover")} aria-label={t("page.chooseCover")}><img src={coverAsset} alt="" /></button>
                   <button
                     type="button"
-                    onClick={() => updateMeta({ ...meta, hideDescription: !meta.hideDescription })}
+                    className={`page-node-header__icon-button${meta.hideDescription ? " is-active" : ""}`}
+                    onClick={() => updateMeta({ ...metaRef.current, hideDescription: !metaRef.current.hideDescription })}
                     title={t("page.toggleDescription")}
+                    aria-label={t("page.toggleDescription")}
                   >
-                    {t(meta.hideDescription ? "page.showDescription" : "page.hideDescription")}
+                    <img src={descriptionAsset} alt="" />
                   </button>
+                  <span className="page-node-header__separator" aria-hidden="true" />
+                  <span className="page-node-settings-anchor" ref={visibilityRef}>
+                    <button type="button" className={`page-node-header__icon-button${visibilityOpen ? " is-active" : ""}`} onClick={() => { setVisibilityOpen((open) => !open); setSettingsOpen(false); }} title={t("page.visibilityOptions")} aria-label={t("page.visibilityOptions")}><img src={visibilityAsset} alt="" /></button>
+                    {visibilityOpen && (
+                      <div className="page-node-visibility-menu" role="menu">
+                        <button type="button" onClick={() => updateMeta({ ...metaRef.current, hideIcon: !metaRef.current.hideIcon })}>
+                          <img src={imageAsset} alt="" />{t(meta.hideIcon ? "page.showIcon" : "page.hideIcon")}
+                        </button>
+                        <button type="button" onClick={() => updateMeta({ ...metaRef.current, hideCover: !metaRef.current.hideCover })}>
+                          <img src={coverAsset} alt="" />{t(meta.hideCover ? "page.showCover" : "page.hideCover")}
+                        </button>
+                      </div>
+                    )}
+                  </span>
+                  <button type="button" className={`page-node-header__icon-button${meta.hideSource ? " is-active" : ""}`} onClick={() => updateMeta({ ...metaRef.current, hideSource: !metaRef.current.hideSource })} title={t(meta.hideSource ? "page.showSource" : "page.hideSource")} aria-label={t(meta.hideSource ? "page.showSource" : "page.hideSource")}><img src={sourceAsset} alt="" /></button>
                   <span className="page-node-settings-anchor" ref={settingsRef}>
-                    <button type="button" onClick={() => { setSettingsOpen((open) => !open); setHeaderPositionOpen(false); setTextPositionOpen(false); }} title={t("page.moreOptions")}>...</button>
+                    <button type="button" className={`page-node-header__icon-button${settingsOpen ? " is-active" : ""}`} onClick={() => { setSettingsOpen((open) => !open); setVisibilityOpen(false); setHeaderPositionOpen(false); setTextPositionOpen(false); }} title={t("page.moreOptions")} aria-label={t("page.moreOptions")}><img src={moreAsset} alt="" /></button>
                     {settingsOpen && (
                       <div className="page-node-settings">
                         {hasCustomSettings && (
-                      <button type="button" onMouseEnter={() => { setHeaderPositionOpen(false); setTextPositionOpen(false); }} onClick={() => { updateMeta({ ...meta, ...DEFAULT_PAGE_META, description: meta.description, iconNodeId: meta.iconNodeId, coverNodeId: meta.coverNodeId }); setSettingsOpen(false); }}>
+                      <button type="button" onMouseEnter={() => { setHeaderPositionOpen(false); setTextPositionOpen(false); }} onClick={() => { updateMeta({ ...meta, ...DEFAULT_PAGE_META, description: meta.description, iconNodeId: meta.iconNodeId, iconVisual: meta.iconVisual, coverNodeId: meta.coverNodeId }); setSettingsOpen(false); }}>
                             {t("page.resetLayout")}
                           </button>
                         )}
                         <label onMouseEnter={() => { setHeaderPositionOpen(false); setTextPositionOpen(false); }}>
                           {t("page.blockWidth")}
-                          <input type="range" min="100" max="200" value={meta.blockWidth} onChange={(event) => updateMeta({ ...meta, blockWidth: Number(event.target.value) })} />
+                          <input
+                            type="range"
+                            min="100"
+                            max="200"
+                            value={meta.blockWidth}
+                            onPointerDown={() => { blockWidthStartRef.current = metaRef.current; }}
+                            onChange={(event) => previewBlockWidth(Number(event.target.value), event.currentTarget)}
+                            onPointerUp={commitBlockWidth}
+                            onKeyUp={(event) => {
+                              if (["ArrowLeft", "ArrowRight", "Home", "End", "PageUp", "PageDown"].includes(event.key)) commitBlockWidth();
+                            }}
+                            onBlur={commitBlockWidth}
+                          />
                           <span>{getPageBlockWidthPercent(meta)}%</span>
                         </label>
                         <div className="page-node-settings__position">
@@ -288,11 +388,22 @@ export default function PageNodeHeader({
             </div>
             <div className="page-image-picker__tabs" role="tablist">
               <button type="button" className={choiceTab === "local" ? "is-active" : ""} onClick={() => setChoiceTab("local")}>{t("page.localImages")}</button>
+              {choice === "iconNodeId" && <button type="button" className={choiceTab === "emoji" ? "is-active" : ""} onClick={() => setChoiceTab("emoji")}>{t("page.emojis.tab")}</button>}
+              {choice === "iconNodeId" && <button type="button" className={choiceTab === "icon" ? "is-active" : ""} onClick={() => setChoiceTab("icon")}>{t("page.icons.tab")}</button>}
               <button type="button" className={choiceTab === "unsplash" ? "is-active" : ""} onClick={() => setChoiceTab("unsplash")}>{t("page.unsplash.tab")}</button>
             </div>
             {choiceTab === "local" ? (
               <>
                 <div className="page-image-picker__gallery">
+                  <label className="page-image-picker__upload-card">
+                    <span aria-hidden="true">+</span>
+                    <strong>{t("page.uploadImage")}</strong>
+                    <input type="file" accept={IMAGE_FILE_ACCEPT} onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      if (file) void uploadImage(file);
+                      event.currentTarget.value = "";
+                    }} />
+                  </label>
                   {imageNodes.map((imageNode) => {
                     const resource = getImageResourceInfo(imageNode.content, imageNode.name);
                     if (!resource) return null;
@@ -304,16 +415,12 @@ export default function PageNodeHeader({
                     );
                   })}
                 </div>
-                <label className="page-image-picker__upload">
-                  {t("page.uploadImage")}
-                  <input type="file" accept="image/*" onChange={(event) => {
-                    const file = event.target.files?.[0];
-                    if (file) void uploadImage(file);
-                    event.currentTarget.value = "";
-                  }} />
-                </label>
                 {imageNodes.length === 0 && <div className="page-image-picker__empty">{t("page.noImages")}</div>}
               </>
+            ) : choiceTab === "emoji" ? (
+              <Suspense fallback={<div className="page-image-picker__empty">{t("page.visuals.loading")}</div>}><EmojiPicker onSelect={chooseEmoji} /></Suspense>
+            ) : choiceTab === "icon" ? (
+              <Suspense fallback={<div className="page-image-picker__empty">{t("page.visuals.loading")}</div>}><IconPicker onSelect={chooseIcon} /></Suspense>
             ) : (
               <UnsplashImagePicker onSelect={chooseUnsplashImage} />
             )}

@@ -43,9 +43,11 @@
   color: #c7c9cc;
   background: #1a1d21;
   cursor: pointer;
-  font-size: 22px;
-  line-height: 1;
+  padding: 8px;
 }
+
+.graph-view__menu-button img { width: 100%; height: 100%; filter: brightness(0) saturate(100%) invert(77%) sepia(9%) saturate(212%) hue-rotate(169deg) brightness(87%); }
+.graph-view__menu-button:hover img { filter: brightness(0) saturate(100%) invert(75%) sepia(57%) saturate(468%) hue-rotate(119deg) brightness(94%); }
 
 .graph-view__menu-button:hover {
   border-color: #4dd8c0;
@@ -56,21 +58,36 @@
   position: absolute;
   top: 44px;
   right: 0;
-  width: 180px;
-  padding: 12px;
+  width: 300px;
+  max-height: min(680px, calc(100vh - 112px));
+  overflow-y: auto;
+  padding: 14px;
   border: 1px solid #343940;
   border-radius: 5px;
   background: #1a1d21;
   box-shadow: 0 10px 26px rgb(0 0 0 / 35%);
 }
 
+.graph-view__menu-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; color: #e8e9ea; font-size: 13px; }
+.graph-view__menu-heading button { border: 0; padding: 3px 0; color: #4dd8c0; background: transparent; cursor: pointer; font: 10px ui-monospace, "SF Mono", "Cascadia Code", monospace; }
+
 .graph-view__menu-title {
-  margin-bottom: 10px;
+  margin: 16px 0 8px;
   color: #5a5f66;
   font-family: ui-monospace, "SF Mono", "Cascadia Code", monospace;
   font-size: 9px;
   letter-spacing: 0.1em;
 }
+
+.graph-view__menu-title:first-of-type { margin-top: 0; }
+.graph-view__menu-subtitle { margin: 11px 0 5px; color: #8b9298; font-size: 10px; }
+.graph-view__type-filters { display: grid; grid-template-columns: 1fr 1fr; gap: 1px 9px; }
+.graph-view__type-toggle { min-width: 0; }
+.graph-view__type-toggle .sidebar-icon { width: 15px; height: 15px; flex: 0 0 15px; }
+.graph-view__type-toggle > span:last-child { overflow: hidden; color: var(--node-color); text-overflow: ellipsis; white-space: nowrap; }
+
+.graph-view__search { box-sizing: border-box; width: 100%; margin-bottom: 8px; border: 1px solid #343940; border-radius: 3px; padding: 7px 8px; color: #e8e9ea; background: #111417; outline: none; font: 12px inherit; }
+.graph-view__search:focus { border-color: #4dd8c0; }
 
 .graph-view__toggle {
   display: flex;
@@ -79,9 +96,15 @@
   color: #e8e9ea;
   cursor: pointer;
   font-size: 13px;
+  padding: 4px 0;
 }
 
 .graph-view__toggle input { accent-color: #4dd8c0; }
+
+.graph-view__range { display: grid; gap: 4px; margin-top: 9px; color: #c7c9cc; font-size: 11px; }
+.graph-view__range > span { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.graph-view__range output { color: #727980; font: 9px ui-monospace, "SF Mono", "Cascadia Code", monospace; }
+.graph-view__range input { width: 100%; margin: 0; accent-color: #4dd8c0; }
 
 .graph-view__renderer {
   position: absolute;

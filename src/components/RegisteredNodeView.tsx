@@ -1,18 +1,21 @@
-import type { ReactNode } from "react";
+import { lazy, Suspense, type ComponentType, type LazyExoticComponent } from "react";
 import { getNodeRenderer, type NodeRendererId } from "../defs/nodeTypes";
 import type { NodeRendererProps } from "../nodes/rendering";
-import { CalendarNodeRenderer } from "../nodes/calendar/renderer";
-import { CategoryNodeRenderer } from "../nodes/category/renderer";
-import { CourseNodeRenderer } from "../nodes/course/renderer";
-import { ImageNodeRenderer } from "../nodes/image/renderer";
-import { PageNodeRenderer } from "../nodes/page/renderer";
-import { PdfNodeRenderer } from "../nodes/pdf/renderer";
-import { ProjectNodeRenderer } from "../nodes/project/renderer";
-import { TaskNodeRenderer } from "../nodes/task/renderer";
-import { TempoNodeRenderer } from "../nodes/tempo/renderer";
-import { VideoNodeRenderer } from "../nodes/video/renderer";
 
-const NODE_RENDERERS: Record<NodeRendererId, (props: NodeRendererProps) => ReactNode> = {
+type LazyNodeRenderer = LazyExoticComponent<ComponentType<NodeRendererProps>>;
+
+const PageNodeRenderer = lazy(() => import("../nodes/page/renderer").then((module) => ({ default: module.PageNodeRenderer })));
+const ProjectNodeRenderer = lazy(() => import("../nodes/project/renderer").then((module) => ({ default: module.ProjectNodeRenderer })));
+const CategoryNodeRenderer = lazy(() => import("../nodes/category/renderer").then((module) => ({ default: module.CategoryNodeRenderer })));
+const CalendarNodeRenderer = lazy(() => import("../nodes/calendar/renderer").then((module) => ({ default: module.CalendarNodeRenderer })));
+const TempoNodeRenderer = lazy(() => import("../nodes/tempo/renderer").then((module) => ({ default: module.TempoNodeRenderer })));
+const PdfNodeRenderer = lazy(() => import("../nodes/pdf/renderer").then((module) => ({ default: module.PdfNodeRenderer })));
+const ImageNodeRenderer = lazy(() => import("../nodes/image/renderer").then((module) => ({ default: module.ImageNodeRenderer })));
+const CourseNodeRenderer = lazy(() => import("../nodes/course/renderer").then((module) => ({ default: module.CourseNodeRenderer })));
+const TaskNodeRenderer = lazy(() => import("../nodes/task/renderer").then((module) => ({ default: module.TaskNodeRenderer })));
+const VideoNodeRenderer = lazy(() => import("../nodes/video/renderer").then((module) => ({ default: module.VideoNodeRenderer })));
+
+const NODE_RENDERERS: Record<NodeRendererId, LazyNodeRenderer> = {
   page: PageNodeRenderer,
   project: ProjectNodeRenderer,
   folder: CategoryNodeRenderer,
@@ -26,5 +29,10 @@ const NODE_RENDERERS: Record<NodeRendererId, (props: NodeRendererProps) => React
 };
 
 export default function RegisteredNodeView(props: NodeRendererProps) {
-  return NODE_RENDERERS[getNodeRenderer(props.node.type)](props);
+  const Renderer = NODE_RENDERERS[getNodeRenderer(props.node.type)];
+  return (
+    <Suspense fallback={<div role="status" aria-live="polite">Cargando vista…</div>}>
+      <Renderer {...props} />
+    </Suspense>
+  );
 }

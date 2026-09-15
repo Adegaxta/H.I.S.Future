@@ -135,12 +135,12 @@ try {
   assert.ok(workspace.includes("<TrashNodeView"));
   assert.ok(workspace.includes("<ChangelogPanel"));
   assert.ok(workspace.includes("<ProjectSettingsPanel"));
-  assert.ok(app.includes('import "./nodes/styles.css"'), "the application composes Node-owned styles after the shell");
-  assert.ok(app.includes('import "./editor/styles.css"'), "the application composes the shared editor after the shell");
-  assert.ok(app.includes('import "./workspace/panels/styles.css"'), "the application composes workspace panel ownership explicitly");
-  assert.ok(app.includes('import "./workspace/navigation/styles.css"'), "the application composes workspace navigation explicitly");
+  assert.ok(workspace.includes('import "../nodes/styles.css"'), "the lazy workspace composes Node-owned styles");
+  assert.ok(workspace.includes('import "../editor/styles.css"'), "the lazy workspace composes the shared editor");
+  assert.ok(workspace.includes('import "../workspace/panels/styles.css"'), "the lazy workspace composes panel ownership explicitly");
+  assert.ok(workspace.includes('import "../workspace/navigation/styles.css"'), "the lazy workspace composes navigation explicitly");
   assert.ok(app.includes('import "./ui/styles.css"'), "the application composes shared UI primitives explicitly");
-  assert.ok(app.includes('import "./graph/styles.css"'), "the application composes Graph presentation explicitly");
+  assert.ok(workspace.includes('import "../graph/styles.css"'), "the lazy workspace composes Graph presentation explicitly");
   for (const type of ["course", "task", "video", "image", "pdf", "page", "calendar", "tempo"]) {
     assert.ok(nodalStyles.includes(`@import "./${type}/styles.css"`), `the Nodal stylesheet composes ${type} ownership`);
   }

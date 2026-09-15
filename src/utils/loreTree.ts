@@ -16,8 +16,27 @@ export function getLoreNodes(nodes: NodeItem[]): NodeItem[] {
       seen.add(parentId);
       parentId = byId.get(parentId)?.parentId ?? null;
     }
-    return { ...node, parentId: parentId && !seen.has(parentId) && byId.has(parentId) ? parentId : null };
+    const projectedParentId = parentId && !seen.has(parentId) && byId.has(parentId) ? parentId : null;
+    return projectedParentId === node.parentId ? node : { ...node, parentId: projectedParentId };
   });
+}
+
+export function getNodeSidebarLocation(nodes: readonly NodeItem[], id: string): "lore" | "types" {
+  return nodes.find((node) => node.id === id)?.loreHidden ? "types" : "lore";
+}
+
+export function getLoreAncestorIds(nodes: NodeItem[], id: string): string[] {
+  const projected = getLoreNodes(nodes);
+  const byId = new Map(projected.map((node) => [node.id, node]));
+  const ancestors: string[] = [];
+  const seen = new Set([id]);
+  let parentId = byId.get(id)?.parentId ?? null;
+  while (parentId && !seen.has(parentId)) {
+    ancestors.push(parentId);
+    seen.add(parentId);
+    parentId = byId.get(parentId)?.parentId ?? null;
+  }
+  return ancestors;
 }
 
 export function selectLoreRange(order: string[], current: string[], anchor: string | null, id: string, additive: boolean, range: boolean): string[] {

@@ -24,6 +24,14 @@ pub const DATABASE_FILE: &str = "lore.sqlite";
 const ARCHIVE_DIRTY_FILE: &str = ".hisfuture-archive-dirty";
 const ARCHIVE_STAMP_FILE: &str = ".hisfuture-source-stamp";
 const LEGACY_NODE_TYPE_IDS_KEY: &str = "legacy_node_type_ids";
+const EDITOR_IMAGE_LAYOUT_SCHEMA: &str = "CREATE TABLE IF NOT EXISTS editor_image_layouts (
+       node_id TEXT NOT NULL,
+       block_id TEXT NOT NULL,
+       width REAL NOT NULL CHECK(width >= 40 AND width <= 100000),
+       updated_at INTEGER NOT NULL,
+       PRIMARY KEY (node_id, block_id),
+       FOREIGN KEY (node_id) REFERENCES nodes(id) ON DELETE CASCADE
+     ) WITHOUT ROWID;";
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectInfo {
@@ -51,6 +59,29 @@ pub struct NodeRecord {
     pub parent_id: Option<String>,
     pub order: i64,
     pub content: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NodeContentChange {
+    pub id: String,
+    pub content: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EditorImageLayout {
+    pub node_id: String,
+    pub block_id: String,
+    pub width: f64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkspaceSnapshot {
+    pub nodes: Vec<NodeRecord>,
+    pub lore_hidden_ids: Option<String>,
+    pub deleted_nodes: Option<String>,
 }
 
 pub struct OpenProject {
@@ -103,11 +134,10 @@ fn database_has_vault_primary(db: &Connection) -> Result<bool, String> {
 }
 
 fn reconcile_vault_primary(db: &mut Connection, vault_name: &str) -> Result<bool, String> {
-    let tx = db.transaction().map_err(|err| {
-        format!("No se pudo iniciar la reconciliación del Proyecto principal: {err}")
-    })?;
-    let mut statement = tx
-        .prepare("SELECT id, name, type, parent_id, sort_order, content FROM nodes ORDER BY sort_order, id")
+    // The primary role can only belong to Project Nodes. Reading every page
+    // body here made opening time grow with the complete Vault content.
+    let mut statement = db
+        .prepare("SELECT id, name, type, parent_id, sort_order, content FROM nodes WHERE type = 'proyecto' ORDER BY sort_order, id")
         .map_err(|err| format!("No se pudo comprobar el Proyecto principal: {err}"))?;
     let rows = statement
         .query_map([], |row| {
@@ -129,11 +159,10 @@ fn reconcile_vault_primary(db: &mut Connection, vault_name: &str) -> Result<bool
         .iter()
         .filter(|node| is_vault_primary_node(node))
         .collect::<Vec<_>>();
+    if primaries.len() == 1 {
+        return Ok(false);
+    }
     if primaries.is_empty() {
-        let existing_ids = nodes
-            .iter()
-            .map(|node| node.id.as_str())
-            .collect::<HashSet<_>>();
         let mut suffix = 0usize;
         let id = loop {
             let candidate = if suffix == 0 {
@@ -141,18 +170,25 @@ fn reconcile_vault_primary(db: &mut Connection, vault_name: &str) -> Result<bool
             } else {
                 format!("vault-primary-{suffix}")
             };
-            if !existing_ids.contains(candidate.as_str()) {
+            let exists: bool = db
+                .query_row(
+                    "SELECT EXISTS(SELECT 1 FROM nodes WHERE id = ?1)",
+                    [&candidate],
+                    |row| row.get(0),
+                )
+                .map_err(|err| format!("No se pudo reservar la identidad principal: {err}"))?;
+            if !exists {
                 break candidate;
             }
             suffix += 1;
         };
-        let order = nodes
-            .iter()
-            .filter(|node| node.parent_id.is_none())
-            .map(|node| node.order)
-            .max()
-            .unwrap_or(-1)
-            + 1;
+        let order: i64 = db
+            .query_row(
+                "SELECT COALESCE(MAX(sort_order), -1) + 1 FROM nodes WHERE parent_id IS NULL",
+                [],
+                |row| row.get(0),
+            )
+            .map_err(|err| format!("No se pudo ordenar el Proyecto principal: {err}"))?;
         let content =
             "<!--hisfuture-nodal-meta:{\"version\":1,\"role\":\"vault-primary\"}--><p><br></p>";
         let primary_name = if vault_name.trim().is_empty() {
@@ -160,6 +196,9 @@ fn reconcile_vault_primary(db: &mut Connection, vault_name: &str) -> Result<bool
         } else {
             vault_name.trim()
         };
+        let tx = db.transaction().map_err(|err| {
+            format!("No se pudo iniciar la reconciliación del Proyecto principal: {err}")
+        })?;
         tx.execute(
             "INSERT INTO nodes (id, name, type, parent_id, sort_order, content) VALUES (?1, ?2, 'proyecto', NULL, ?3, ?4)",
             params![id, primary_name, order, content],
@@ -168,6 +207,9 @@ fn reconcile_vault_primary(db: &mut Connection, vault_name: &str) -> Result<bool
             .map_err(|err| format!("No se pudo confirmar el Proyecto principal: {err}"))?;
         return Ok(true);
     }
+    let tx = db.transaction().map_err(|err| {
+        format!("No se pudo iniciar la reconciliación del Proyecto principal: {err}")
+    })?;
     let mut changed = false;
     for duplicate in primaries.iter().skip(1) {
         const PREFIX: &str = "<!--hisfuture-nodal-meta:";
@@ -272,13 +314,6 @@ fn write_manifest(folder: &Path, name: &str) -> Result<(), String> {
         .map_err(|err| format!("No se pudo escribir el manifiesto: {err}"))
 }
 
-fn read_manifest_name(folder: &Path) -> Option<String> {
-    let raw = fs::read_to_string(manifest_path(folder)).ok()?;
-    serde_json::from_str::<ProjectManifest>(&raw)
-        .ok()
-        .map(|manifest| manifest.name)
-}
-
 fn repair_links_foreign_key(db: &mut Connection) -> Result<(), String> {
     let links_schema: Option<String> = db
         .query_row(
@@ -374,6 +409,14 @@ fn read_legacy_node_type_ids(db: &Connection) -> Result<HashSet<String>, String>
 
 fn init_database(path: &Path) -> Result<(Connection, bool), String> {
     let mut db = Connection::open(path).map_err(|err| format!("No se pudo abrir SQLite: {err}"))?;
+    db.execute_batch(
+        "PRAGMA journal_mode = WAL;
+         PRAGMA synchronous = NORMAL;
+         PRAGMA wal_autocheckpoint = 0;
+         PRAGMA busy_timeout = 5000;
+         PRAGMA foreign_keys = ON;",
+    )
+    .map_err(|err| format!("No se pudo configurar SQLite para edición incremental: {err}"))?;
     let changes_before = db.total_changes();
     let has_meta: bool = db
         .query_row(
@@ -454,6 +497,10 @@ fn init_database(path: &Path) -> Result<(Connection, bool), String> {
         .map_err(|err| format!("No se pudo guardar la compatibilidad de Nodos antiguos: {err}"))?;
     }
     repair_links_foreign_key(&mut db)?;
+    // Create block-owned tables only after the legacy nodes table has reached
+    // its final identity. This keeps their foreign keys pointed at `nodes`.
+    db.execute_batch(EDITOR_IMAGE_LAYOUT_SCHEMA)
+        .map_err(|err| format!("No se pudo inicializar el layout granular del editor: {err}"))?;
     let broken: bool = db
         .query_row(
             "SELECT EXISTS(SELECT 1 FROM pragma_foreign_key_check)",
@@ -823,7 +870,7 @@ fn write_archive(folder: &Path, file: fs::File) -> Result<(), String> {
     Ok(())
 }
 
-fn validate_project_folder(folder: &Path) -> Result<String, String> {
+fn validate_project_manifest(folder: &Path) -> Result<String, String> {
     if !folder.is_dir() {
         return Err("Selecciona una carpeta de proyecto válida.".into());
     }
@@ -851,6 +898,12 @@ fn validate_project_folder(folder: &Path) -> Result<String, String> {
             "{MANIFEST_FILE} no corresponde a una versión compatible de H.I.S. Future."
         ));
     }
+    Ok(parsed.name)
+}
+
+fn validate_project_folder(folder: &Path) -> Result<String, String> {
+    let name = validate_project_manifest(folder)?;
+    let database = database_path(folder);
     let db = Connection::open_with_flags(&database, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
         .map_err(|err| format!("No se pudo validar {DATABASE_FILE}: {err}"))?;
     for table in ["project_meta", "nodes", "links"] {
@@ -867,7 +920,7 @@ fn validate_project_folder(folder: &Path) -> Result<String, String> {
             ));
         }
     }
-    Ok(parsed.name)
+    Ok(name)
 }
 
 pub fn convert_project_folder(
@@ -994,15 +1047,16 @@ fn open_folder(folder: &Path) -> Result<OpenProject, String> {
             "No se encontró {DATABASE_FILE} en esa carpeta. Elige un proyecto de H.I.S. Future."
         ));
     }
-    if manifest_path(folder).exists() {
-        validate_project_folder(folder)?;
-    }
-    let name = read_manifest_name(folder).unwrap_or_else(|| {
+    let name = if manifest_path(folder).exists() {
+        // init_database below already validates the SQLite schema. Opening a
+        // second read-only connection here doubled cold-start work on Windows.
+        validate_project_manifest(folder)?
+    } else {
         folder
             .file_name()
             .map(|value| value.to_string_lossy().into_owned())
             .unwrap_or_else(|| "Proyecto".into())
-    });
+    };
     let (mut db, schema_dirty) = init_database(&db_path)?;
     let primary_dirty = reconcile_vault_primary(&mut db, &name)?;
     Ok(OpenProject {
@@ -1080,11 +1134,22 @@ pub fn create_project_file(archive_path: String, name: String) -> Result<OpenPro
         }
     };
     let source_folder = created.working_folder.clone();
+    let (busy, _, _): (i64, i64, i64) = created
+        .db
+        .query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |row| {
+            Ok((row.get(0)?, row.get(1)?, row.get(2)?))
+        })
+        .map_err(|err| format!("No se pudo preparar SQLite para crear el .his: {err}"))?;
+    if busy != 0 {
+        drop(created);
+        remove_temporary_folder(&temporary_root);
+        return Err("SQLite está ocupado; no se pudo crear el .his.".into());
+    }
+    drop(created);
     if let Err(error) = zip_directory(&source_folder, &archive) {
         remove_temporary_folder(&temporary_root);
         return Err(error);
     }
-    drop(created);
     remove_temporary_folder(&temporary_root);
     let working_folder = prepare_archive_working_folder(&archive)?;
     let (db, archive_dirty) = init_database(&working_folder.join(DATABASE_FILE))?;
@@ -1229,6 +1294,13 @@ pub fn list_nodes_with_default(
         .lock()
         .map_err(|_| "No se pudo bloquear el estado del proyecto.".to_string())?;
     let project = guard.as_mut().ok_or("No hay un proyecto abierto.")?;
+    list_nodes_from_project(project, default_node_type)
+}
+
+fn list_nodes_from_project(
+    project: &mut OpenProject,
+    default_node_type: Option<&str>,
+) -> Result<Vec<NodeRecord>, String> {
     let legacy_ids = read_legacy_node_type_ids(&project.db)?;
     if !legacy_ids.is_empty() {
         let fallback = default_node_type
@@ -1277,6 +1349,142 @@ pub fn list_nodes_with_default(
         nodes.push(row.map_err(|err| format!("Nodo ilegible: {err}"))?);
     }
     Ok(nodes)
+}
+
+pub fn load_workspace_snapshot(
+    state: &ProjectState,
+    default_node_type: Option<&str>,
+) -> Result<WorkspaceSnapshot, String> {
+    let mut guard = state
+        .lock()
+        .map_err(|_| "No se pudo bloquear el estado del proyecto.".to_string())?;
+    let project = guard.as_mut().ok_or("No hay un proyecto abierto.")?;
+    let nodes = list_nodes_from_project(project, default_node_type)?;
+    let mut statement = project
+        .db
+        .prepare(
+            "SELECT key, value FROM project_meta WHERE key IN ('loreHiddenIds', 'deletedNodes')",
+        )
+        .map_err(|err| format!("No se pudo preparar el estado del espacio: {err}"))?;
+    let rows = statement
+        .query_map([], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })
+        .map_err(|err| format!("No se pudo leer el estado del espacio: {err}"))?;
+    let mut lore_hidden_ids = None;
+    let mut deleted_nodes = None;
+    for row in rows {
+        let (key, value) = row.map_err(|err| format!("Estado del espacio ilegible: {err}"))?;
+        match key.as_str() {
+            "loreHiddenIds" => lore_hidden_ids = Some(value),
+            "deletedNodes" => deleted_nodes = Some(value),
+            _ => {}
+        }
+    }
+    Ok(WorkspaceSnapshot {
+        nodes,
+        lore_hidden_ids,
+        deleted_nodes,
+    })
+}
+
+pub fn list_editor_image_layouts(
+    state: &ProjectState,
+    node_id: &str,
+) -> Result<Vec<EditorImageLayout>, String> {
+    if node_id.is_empty() {
+        return Err("La identidad del Nodo no puede estar vacía.".into());
+    }
+    let guard = state
+        .lock()
+        .map_err(|_| "No se pudo bloquear el estado del proyecto.".to_string())?;
+    let project = guard.as_ref().ok_or("No hay un proyecto abierto.")?;
+    let mut statement = project
+        .db
+        .prepare(
+            "SELECT node_id, block_id, width FROM editor_image_layouts WHERE node_id = ?1 ORDER BY block_id",
+        )
+        .map_err(|err| format!("No se pudo preparar el layout de imágenes: {err}"))?;
+    let rows = statement
+        .query_map([node_id], |row| {
+            Ok(EditorImageLayout {
+                node_id: row.get(0)?,
+                block_id: row.get(1)?,
+                width: row.get(2)?,
+            })
+        })
+        .map_err(|err| format!("No se pudo leer el layout de imágenes: {err}"))?;
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|err| format!("El layout de imágenes no es válido: {err}"))
+}
+
+pub fn save_editor_image_layout(
+    state: &ProjectState,
+    layout: EditorImageLayout,
+) -> Result<(), String> {
+    if layout.node_id.is_empty() {
+        return Err("La identidad del Nodo no puede estar vacía.".into());
+    }
+    if layout.block_id.is_empty()
+        || layout.block_id.len() > 128
+        || !layout
+            .block_id
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_'))
+    {
+        return Err("La identidad del bloque de imagen no es válida.".into());
+    }
+    if !layout.width.is_finite() || !(40.0..=100_000.0).contains(&layout.width) {
+        return Err("El ancho del bloque de imagen no es válido.".into());
+    }
+
+    let mut guard = state
+        .lock()
+        .map_err(|_| "No se pudo bloquear el estado del proyecto.".to_string())?;
+    let project = guard.as_mut().ok_or("No hay un proyecto abierto.")?;
+    let node_exists: bool = project
+        .db
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM nodes WHERE id = ?1)",
+            [&layout.node_id],
+            |row| row.get(0),
+        )
+        .map_err(|err| format!("No se pudo validar el Nodo de la imagen: {err}"))?;
+    if !node_exists {
+        return Err(format!("El Nodo {} ya no existe.", layout.node_id));
+    }
+
+    let was_archive_dirty = project.archive_dirty;
+    if project.archive_path.is_some() {
+        mark_archive_dirty(project)?;
+    }
+    let started = Instant::now();
+    let updated_at = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs() as i64;
+    let changed = project
+        .db
+        .execute(
+            "INSERT INTO editor_image_layouts (node_id, block_id, width, updated_at)
+             VALUES (?1, ?2, ?3, ?4)
+             ON CONFLICT(node_id, block_id) DO UPDATE SET
+               width = excluded.width,
+               updated_at = excluded.updated_at
+             WHERE width IS NOT excluded.width",
+            params![layout.node_id, layout.block_id, layout.width, updated_at],
+        )
+        .map_err(|err| format!("No se pudo guardar el tamaño de la imagen: {err}"))?;
+    if changed > 0 {
+        project.archive_dirty = true;
+    } else if !was_archive_dirty && project.archive_path.is_some() {
+        clear_speculative_archive_dirty(project)?;
+    }
+    eprintln!(
+        "[lifecycle] editor.image-layout.save sqlite={:.2}ms changed_rows={changed}",
+        started.elapsed().as_secs_f64() * 1000.0
+    );
+    Ok(())
 }
 
 #[cfg(test)]
@@ -1455,6 +1663,100 @@ pub fn save_workspace_traced(
         resource_scan_ms: resources_ms,
         sqlite_ms,
         resource_cleanup_ms: cleanup_ms,
+        total_ms,
+        changed_rows,
+    })
+}
+
+pub fn save_node_contents_traced(
+    state: &ProjectState,
+    changes: Vec<NodeContentChange>,
+    trace_id: Option<&str>,
+) -> Result<SaveWorkspaceTimings, String> {
+    let total_started = Instant::now();
+    let mut ids = HashSet::new();
+    if changes
+        .iter()
+        .any(|change| change.id.is_empty() || !ids.insert(change.id.as_str()))
+    {
+        return Err("El guardado incremental contiene identidades vacías o duplicadas.".into());
+    }
+    if changes.is_empty() {
+        return Ok(SaveWorkspaceTimings {
+            resource_scan_ms: 0.0,
+            sqlite_ms: 0.0,
+            resource_cleanup_ms: 0.0,
+            total_ms: total_started.elapsed().as_secs_f64() * 1000.0,
+            changed_rows: 0,
+        });
+    }
+
+    let mut guard = state
+        .lock()
+        .map_err(|_| "No se pudo bloquear el estado del proyecto.".to_string())?;
+    let project = guard.as_mut().ok_or("No hay un proyecto abierto.")?;
+    for change in &changes {
+        let current_content: Option<String> = project
+            .db
+            .query_row(
+                "SELECT content FROM nodes WHERE id = ?1",
+                [&change.id],
+                |row| row.get(0),
+            )
+            .optional()
+            .map_err(|err| format!("No se pudo validar el Nodo {}: {err}", change.id))?;
+        let Some(current_content) = current_content else {
+            return Err(format!("El Nodo {} ya no existe.", change.id));
+        };
+        if content_has_vault_primary_role(&current_content)
+            != content_has_vault_primary_role(&change.content)
+        {
+            return Err(
+                "Cambiar la identidad del Proyecto principal requiere un checkpoint completo."
+                    .into(),
+            );
+        }
+    }
+
+    // Resource collection is intentionally deferred to the next full
+    // checkpoint. Incremental typing must never scan the complete workspace.
+    let was_archive_dirty = project.archive_dirty;
+    if project.archive_path.is_some() {
+        mark_archive_dirty(project)?;
+    }
+    let sqlite_started = Instant::now();
+    let tx = project
+        .db
+        .transaction()
+        .map_err(|err| format!("No se pudo iniciar el guardado incremental: {err}"))?;
+    let mut changed_rows = 0usize;
+    {
+        let mut update = tx
+            .prepare("UPDATE nodes SET content = ?1 WHERE id = ?2 AND content IS NOT ?1")
+            .map_err(|err| format!("No se pudo preparar el guardado incremental: {err}"))?;
+        for change in &changes {
+            changed_rows += update
+                .execute(params![change.content, change.id])
+                .map_err(|err| format!("No se pudo guardar el Nodo {}: {err}", change.id))?;
+        }
+    }
+    tx.commit()
+        .map_err(|err| format!("No se pudo confirmar el guardado incremental: {err}"))?;
+    let sqlite_ms = sqlite_started.elapsed().as_secs_f64() * 1000.0;
+    if changed_rows > 0 {
+        project.archive_dirty = true;
+    } else if !was_archive_dirty && project.archive_path.is_some() {
+        clear_speculative_archive_dirty(project)?;
+    }
+    let total_ms = total_started.elapsed().as_secs_f64() * 1000.0;
+    eprintln!(
+        "[lifecycle][{}] project.save-incremental sqlite={sqlite_ms:.2}ms changed_rows={changed_rows} total={total_ms:.2}ms",
+        trace_id.unwrap_or("no-trace")
+    );
+    Ok(SaveWorkspaceTimings {
+        resource_scan_ms: 0.0,
+        sqlite_ms,
+        resource_cleanup_ms: 0.0,
         total_ms,
         changed_rows,
     })
@@ -1834,6 +2136,120 @@ mod tests {
         moved.parent_id = None;
         save_nodes(&state, vec![moved.clone()]).unwrap();
         assert_eq!(without_primary(list_nodes(&state).unwrap()), vec![moved]);
+        close_project(&state).unwrap();
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn image_resize_persists_one_granular_layout_row() {
+        let root = test_root("image-layout");
+        let state = Mutex::new(Some(
+            create_project(root.to_string_lossy().into(), "Test".into()).unwrap(),
+        ));
+        let page = test_node("page", "pagina", None);
+        save_nodes(&state, vec![page]).unwrap();
+
+        save_editor_image_layout(
+            &state,
+            EditorImageLayout {
+                node_id: "page".into(),
+                block_id: "image-stable-id".into(),
+                width: 320.0,
+            },
+        )
+        .unwrap();
+        save_editor_image_layout(
+            &state,
+            EditorImageLayout {
+                node_id: "page".into(),
+                block_id: "image-stable-id".into(),
+                width: 480.5,
+            },
+        )
+        .unwrap();
+
+        assert_eq!(
+            list_editor_image_layouts(&state, "page").unwrap(),
+            vec![EditorImageLayout {
+                node_id: "page".into(),
+                block_id: "image-stable-id".into(),
+                width: 480.5,
+            }]
+        );
+        assert!(save_editor_image_layout(
+            &state,
+            EditorImageLayout {
+                node_id: "page".into(),
+                block_id: "bad id".into(),
+                width: 480.0,
+            },
+        )
+        .is_err());
+
+        save_nodes(&state, vec![]).unwrap();
+        assert!(list_editor_image_layouts(&state, "page")
+            .unwrap()
+            .is_empty());
+        close_project(&state).unwrap();
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn incremental_content_save_updates_only_target_nodes_and_is_atomic() {
+        let root = test_root("incremental-content");
+        let state = Mutex::new(Some(
+            create_project(root.to_string_lossy().into(), "Test".into()).unwrap(),
+        ));
+        let first = test_node("first", "pagina", None);
+        let second = test_node("second", "pagina", None);
+        save_nodes(&state, vec![first.clone(), second.clone()]).unwrap();
+
+        let timings = save_node_contents_traced(
+            &state,
+            vec![NodeContentChange {
+                id: first.id.clone(),
+                content: "<p>updated</p>".into(),
+            }],
+            Some("incremental-test"),
+        )
+        .unwrap();
+        assert_eq!(timings.changed_rows, 1);
+        let saved = without_primary(list_nodes(&state).unwrap());
+        assert_eq!(
+            saved
+                .iter()
+                .find(|node| node.id == first.id)
+                .unwrap()
+                .content,
+            "<p>updated</p>"
+        );
+        assert_eq!(
+            saved
+                .iter()
+                .find(|node| node.id == second.id)
+                .unwrap()
+                .content,
+            second.content
+        );
+
+        let before_failed_batch = list_nodes(&state).unwrap();
+        assert!(save_node_contents_traced(
+            &state,
+            vec![
+                NodeContentChange {
+                    id: first.id,
+                    content: "<p>must rollback</p>".into()
+                },
+                NodeContentChange {
+                    id: "missing".into(),
+                    content: "<p>missing</p>".into()
+                },
+            ],
+            None,
+        )
+        .is_err());
+        assert_eq!(list_nodes(&state).unwrap(), before_failed_batch);
+
         close_project(&state).unwrap();
         fs::remove_dir_all(root).unwrap();
     }

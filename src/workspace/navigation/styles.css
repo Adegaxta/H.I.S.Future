@@ -484,6 +484,11 @@
 .node-panels__empty { padding: 18px 8px; color: #727a7b; font-size: 12px; line-height: 1.45; }
 .recent-group h3 { margin: 5px 0 1px; color: var(--his-accent); font-size: 13px; font-weight: 500; }
 .context-node-row { position: relative; display: grid; width: 100%; min-height: 32px; grid-template-columns: 23px minmax(0, 1fr); align-items: center; gap: 6px; padding: 2px 3px; text-align: left; }
+.node-panels .context-node-row,
+.lore-tree .lore-node {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 36px;
+}
 .context-node-row__name {
   display: -webkit-box;
   -webkit-box-orient: vertical;
@@ -525,6 +530,44 @@
 .context-node-row.is-compact { margin-left: 4px; padding-left: 4px; }
 .context-node-row { align-items: start; padding-top: 4px; padding-bottom: 4px; }
 .context-node-row.is-compact { width: calc(100% - 4px); }
+
+/* Historial global del espacio de trabajo. La zona permanece junto a la
+   esquina del panel principal aunque cambie el ancho de la barra lateral. */
+.workspace-history-controls {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  z-index: 28;
+  width: 116px;
+  height: 74px;
+  display: flex;
+  align-items: flex-end;
+  pointer-events: none;
+}
+.workspace-history-controls__buttons {
+  display: flex;
+  pointer-events: auto;
+  transform: translateX(-61px);
+  opacity: 0.15;
+  transition: transform 210ms ease, opacity 160ms ease;
+}
+.workspace-history-controls.is-visible .workspace-history-controls__buttons,
+.workspace-history-controls:hover .workspace-history-controls__buttons { transform: translateX(0); opacity: 1; }
+.workspace-history-controls button {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border: 0;
+  border-radius: 0;
+  padding: 8px;
+  color: #4dd8c0;
+  background: #0e1114;
+  cursor: pointer;
+}
+.workspace-history-controls button:hover { background: #15181b; }
+.workspace-history-controls button:disabled { cursor: default; opacity: 0.25; }
+.workspace-history-controls img { width: 100%; height: 100%; filter: brightness(0) saturate(100%) invert(75%) sepia(57%) saturate(468%) hue-rotate(119deg) brightness(94%); }
 .is-search-dimmed { opacity: 0.4; }
 
 .settings-navigation { display: flex; flex-direction: column; padding-top: 4px; }

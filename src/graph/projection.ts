@@ -5,6 +5,8 @@ import { NODE_REGISTRY, getNodeDefinition } from "../defs/nodeTypes";
 import type { BaseNodeType, NodeItem } from "../types/nodes";
 import type { RelationRole } from "../nodes/relationTypes";
 import { isVaultPrimaryNode } from "../nodes/project/domain";
+import { buildNodeCustomVisuals } from "../nodes/nodeIconSource";
+import type { ResolvedNodeVisual } from "../nodes/visuals/types";
 
 export type GraphVertexKind = "node" | "type-hub";
 export type GraphVertexProvenance = "nodal-node" | "node-registry";
@@ -18,6 +20,9 @@ export interface GraphVertex {
   nodeType?: BaseNodeType;
   typeId?: BaseNodeType;
   imageSrc?: string;
+  iconSrc?: string;
+  customVisual?: ResolvedNodeVisual;
+  contentLength?: number;
   isPrimaryProject?: boolean;
 }
 
@@ -71,21 +76,35 @@ function mentionTargets(node: NodeItem): string[] {
     .filter((id): id is string => Boolean(id && id !== node.id));
 }
 
+function getPageContentLength(content: string): number {
+  const document = new DOMParser().parseFromString(content, "text/html");
+  const parsedText = document.body?.textContent ?? document.documentElement?.textContent;
+  const text = typeof parsedText === "string" ? parsedText : content.replace(/<[^>]*>/g, " ");
+  return text.replace(/\s+/g, " ").trim().length;
+}
+
 export function buildGraphProjection(
   nodes: readonly NodeItem[],
   { showTypes, translate }: GraphProjectionOptions,
 ): GraphProjection {
   const nodesById = new Map(nodes.map((node) => [node.id, node]));
-  const vertices: GraphVertex[] = nodes.map((node) => ({
-    id: node.id,
-    label: node.name,
-    kind: "node",
-    provenance: "nodal-node",
-    color: getNodeDefinition(node.type).color,
-    nodeType: node.type,
-    imageSrc: getNodeGraphImageSource(node),
-    isPrimaryProject: isVaultPrimaryNode(node),
-  }));
+  const customVisuals = buildNodeCustomVisuals(nodes);
+  const vertices: GraphVertex[] = nodes.map((node) => {
+    const customVisual = customVisuals.get(node.id);
+    return {
+      id: node.id,
+      label: node.name,
+      kind: "node",
+      provenance: "nodal-node",
+      color: getNodeDefinition(node.type).color,
+      nodeType: node.type,
+      imageSrc: getNodeGraphImageSource(node),
+      iconSrc: customVisual?.kind === "image" ? customVisual.src : undefined,
+      customVisual,
+      contentLength: node.type === "pagina" ? getPageContentLength(node.content) : undefined,
+      isPrimaryProject: isVaultPrimaryNode(node),
+    };
+  });
   const edges: GraphEdge[] = [];
   const diagnostics: GraphDiagnostic[] = [];
   const explicitTargets = new Set(

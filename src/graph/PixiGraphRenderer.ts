@@ -39,9 +39,14 @@ import {
   type GraphEdgeEndpoints,
   type GraphEdgeGeometry,
 } from "./edgeGeometry";
-import { GraphSimulation } from "./simulation";
+import { GraphSimulation, type GraphSimulationTuning } from "./simulation";
 import { isDirectionalGraphEdge } from "./edgeSemantics";
 import starIcon from "../assets/third-party/google-material/icons/star.svg";
+import {
+  graphVisualTextureKey,
+  loadGraphImageTexture,
+  loadGraphVisualTexture,
+} from "./visualTexture";
 
 interface GraphRendererCallbacks {
   onSelectNode: (id: string) => void;
@@ -120,6 +125,9 @@ const LOD_TRANSITION_MIN_ALPHA = 0.55;
 const NODE_ENTER_MS = 200;
 const NODE_EXIT_MS = 180;
 const NODE_EXIT_SCALE = 0.35;
+const PROGRESSIVE_SCENE_THRESHOLD = 48;
+const PROGRESSIVE_INITIAL_BATCH = 8;
+const PROGRESSIVE_MAX_BATCH = 160;
 let primaryIconTexturePromise: Promise<Texture> | null = null;
 
 function colorNumber(color: string): number {
@@ -127,9 +135,15 @@ function colorNumber(color: string): number {
 }
 
 function mediaSourceFor(point: GraphPoint, visual: ReturnType<typeof graphNodeVisual>): string | null {
-  if (visual === "thumbnail") return point.imageSrc ?? null;
+  if (visual === "thumbnail" || visual === "image") return point.imageSrc ?? null;
+  if (visual === "icon" && point.customVisual) return graphVisualTextureKey(point.customVisual);
+  if (visual === "icon" && point.iconSrc) return point.iconSrc;
   if (visual === "icon" && point.nodeType) return resolveNodeTypeIconSource(point.nodeType as BaseNodeType);
   return null;
+}
+
+function isCustomIconVisual(point: GraphPoint, visual: ReturnType<typeof graphNodeVisual>): boolean {
+  return visual === "icon" && Boolean(point.customVisual || point.iconSrc);
 }
 
 function loadPrimaryIconTexture(): Promise<Texture> {
@@ -145,7 +159,9 @@ export class PixiGraphRenderer {
   private readonly nodeDisplays = new Map<string, NodeDisplay>();
   private readonly retiringNodeDisplays = new Map<string, NodeDisplay>();
   private readonly edgeDisplays = new Map<string, EdgeDisplay>();
+  private readonly edgesByDirection = new Map<string, GraphRenderEdge>();
   private readonly texturePromises = new Map<string, Promise<Texture>>();
+  private readonly loadedTextures = new Map<string, Texture>();
   private readonly loadedTextureSources = new Set<string>();
   private readonly textureReferences = new Map<string, number>();
   private readonly fromEdgeGeometry: GraphEdgeGeometry = { kind: "circle", radius: 0, halfWidth: 0, halfHeight: 0 };
@@ -172,11 +188,15 @@ export class PixiGraphRenderer {
   private renderFrame: number | null = null;
   private hoverAnimationFrame: number | null = null;
   private simulationFrame: number | null = null;
+  private progressiveFrame: number | null = null;
+  private progressiveGeneration = 0;
+  private progressiveBatchSize = PROGRESSIVE_INITIAL_BATCH;
   private simulationTimestamp = 0;
   private destroyed = false;
   private suppressNextCanvasContextMenu = false;
   // GraphSimulation owns velocities and sleep state; Pixi owns scheduling and visual application.
   private simulation: GraphSimulation | null = null;
+  private simulationTuning: GraphSimulationTuning = { centerForce: 1, repelForce: 1, linkForce: 1, linkDistance: 1 };
   private lastTap: { id: string; time: number } | null = null;
   private readonly diagnostics: GraphRendererDiagnostics = {
     sceneUpdates: 0,
@@ -249,18 +269,75 @@ export class PixiGraphRenderer {
     if (this.destroyed) return;
     this.scene = scene;
     this.positionCache = positionCache;
+    this.edgesByDirection.clear();
+    scene.runtime.edges.forEach((edge) => {
+      this.edgesByDirection.set(`${edge.from.id}\u0000${edge.to.id}`, edge);
+    });
     if (!this.simulation) {
       this.simulation = new GraphSimulation(scene.runtime);
+      this.simulation.setTuning(this.simulationTuning);
       this.simulation.wake("initial");
       this.scheduleSimulation();
     } else if (this.simulation.setRuntime(scene.runtime)) {
       this.scheduleSimulation();
     }
     this.diagnostics.sceneUpdates += 1;
-    this.reconcileEdges();
-    this.reconcileNodes();
+    this.progressiveGeneration += 1;
+    if (this.progressiveFrame !== null) {
+      cancelAnimationFrame(this.progressiveFrame);
+      this.progressiveFrame = null;
+    }
+    const missingVisuals = scene.runtime.points.reduce(
+      (count, point) => count + (this.nodeDisplays.has(point.id) ? 0 : 1),
+      0,
+    ) + scene.runtime.edges.reduce(
+      (count, edge) => count + (this.edgeDisplays.has(edge.id) ? 0 : 1),
+      0,
+    );
+    if (missingVisuals > PROGRESSIVE_SCENE_THRESHOLD) {
+      // Update/remove existing visuals now, then materialize the expensive Pixi
+      // objects in growing batches so a large graph never monopolizes one frame.
+      this.reconcileEdges(0);
+      this.reconcileNodes(0);
+      this.progressiveBatchSize = PROGRESSIVE_INITIAL_BATCH;
+      this.scheduleProgressiveReconcile(this.progressiveGeneration);
+    } else {
+      this.reconcileEdges();
+      this.reconcileNodes();
+    }
     this.applyLod();
     this.requestRender();
+  }
+
+  setSimulationTuning(tuning: GraphSimulationTuning) {
+    this.simulationTuning = { ...tuning };
+    this.simulation?.setTuning(tuning);
+    this.scheduleSimulation();
+  }
+
+  private scaledNodeRadius(point: GraphPoint, emphasized: boolean, lod = this.lod) {
+    const preferences = this.scene?.preferences;
+    let adaptiveScale = 1;
+    if (preferences?.scaleNodesWithZoom) {
+      if (lod === "far") adaptiveScale = 1.25;
+      else if (lod === "distant") adaptiveScale = 1.8;
+    }
+    if (preferences?.scalePagesByContent && point.nodeType === "pagina" && (point.contentLength ?? 0) > 0) {
+      adaptiveScale *= 1 + Math.min(0.9, Math.log2(1 + (point.contentLength ?? 0)) / 14);
+    }
+    return graphNodeRadius(point, lod, emphasized) * (preferences?.nodeScale ?? 1) * adaptiveScale;
+  }
+
+  private resolveDisplayGeometry(point: GraphPoint, emphasized: boolean, target: GraphEdgeGeometry) {
+    const visual = graphNodeVisual(point, this.lod, this.scene!.preferences);
+    resolveGraphVisualGeometry(visual, this.scaledNodeRadius(point, emphasized), target);
+    const media = this.nodeDisplays.get(point.id)?.media;
+    if ((visual === "thumbnail" || visual === "image") && media?.visible && media.width > 0 && media.height > 0) {
+      target.kind = "rectangle";
+      target.halfWidth = media.width / 2;
+      target.halfHeight = media.height / 2;
+    }
+    return target;
   }
 
   // This is the high-frequency renderer boundary for a future GraphSimulation.
@@ -288,34 +365,41 @@ export class PixiGraphRenderer {
     return { ...this.diagnostics };
   }
 
-  private reconcileNodes() {
+  private reconcileNodes(creationLimit = Number.POSITIVE_INFINITY, onlyMissing = false, animateNew = this.hasMountedNodes) {
     if (!this.scene) return;
-    const liveIds = new Set(this.scene.runtime.points.map((point) => point.id));
-    for (const [id, display] of this.nodeDisplays) {
-      if (liveIds.has(id)) continue;
-      display.container.eventMode = "none";
-      display.lifecycle = { kind: "exit", startedAt: performance.now() };
-      display.lifeAlpha = 1;
-      display.lifeScale = 1;
-      this.nodeDisplays.delete(id);
-      this.retiringNodeDisplays.set(id, display);
-      this.scheduleHoverAnimation();
+    if (!onlyMissing) {
+      const liveIds = new Set(this.scene.runtime.points.map((point) => point.id));
+      for (const [id, display] of this.nodeDisplays) {
+        if (liveIds.has(id)) continue;
+        display.container.eventMode = "none";
+        display.lifecycle = { kind: "exit", startedAt: performance.now() };
+        display.lifeAlpha = 1;
+        display.lifeScale = 1;
+        this.nodeDisplays.delete(id);
+        this.retiringNodeDisplays.set(id, display);
+        this.scheduleHoverAnimation();
+      }
     }
-    const animateEntrance = this.hasMountedNodes;
+    let created = 0;
     for (const point of this.scene.runtime.points) {
       let display = this.nodeDisplays.get(point.id);
       if (!display) {
-        display = this.createNodeDisplay(point, animateEntrance);
+        if (created >= creationLimit) continue;
+        display = this.createNodeDisplay(point, animateNew);
         this.nodeDisplays.set(point.id, display);
         this.nodeLayer.addChild(display.container);
-        if (animateEntrance) this.scheduleHoverAnimation();
+        created += 1;
+        if (animateNew) this.scheduleHoverAnimation();
+      } else if (onlyMissing) {
+        continue;
       }
       display.point = point;
       display.container.position.set(point.x, point.y);
       display.label.text = point.label;
       display.label.style.fill = point.color;
     }
-    this.hasMountedNodes = true;
+    if (this.nodeDisplays.size > 0) this.hasMountedNodes = true;
+    return created;
   }
 
   private createNodeDisplay(point: GraphPoint, animateEntrance = false): NodeDisplay {
@@ -365,17 +449,21 @@ export class PixiGraphRenderer {
     };
   }
 
-  private reconcileEdges() {
+  private reconcileEdges(creationLimit = Number.POSITIVE_INFINITY, onlyMissing = false) {
     if (!this.scene) return;
-    const liveIds = new Set(this.scene.runtime.edges.map((edge) => edge.id));
-    for (const [id, display] of this.edgeDisplays) {
-      if (liveIds.has(id)) continue;
-      display.graphics.destroy();
-      this.edgeDisplays.delete(id);
+    if (!onlyMissing) {
+      const liveIds = new Set(this.scene.runtime.edges.map((edge) => edge.id));
+      for (const [id, display] of this.edgeDisplays) {
+        if (liveIds.has(id)) continue;
+        display.graphics.destroy();
+        this.edgeDisplays.delete(id);
+      }
     }
+    let created = 0;
     for (const rendered of this.scene.runtime.edges) {
       let display = this.edgeDisplays.get(rendered.id);
       if (!display) {
+        if (created >= creationLimit) continue;
         display = { rendered, graphics: new Graphics() };
         display.graphics.eventMode = "static";
         display.graphics.cursor = "pointer";
@@ -386,16 +474,45 @@ export class PixiGraphRenderer {
         display.graphics.on("pointerdown", (event: FederatedPointerEvent) => this.onEdgePointerDown(event, rendered.id));
         this.edgeDisplays.set(rendered.id, display);
         this.edgeLayer.addChild(display.graphics);
+        created += 1;
+      } else if (onlyMissing) {
+        continue;
       }
       display.rendered = rendered;
       this.drawEdge(display);
     }
+    return created;
+  }
+
+  private scheduleProgressiveReconcile(generation: number) {
+    if (this.destroyed || this.progressiveFrame !== null || generation !== this.progressiveGeneration) return;
+    this.progressiveFrame = requestAnimationFrame(() => {
+      this.progressiveFrame = null;
+      if (this.destroyed || !this.scene || generation !== this.progressiveGeneration) return;
+      let budget = this.progressiveBatchSize;
+      const nodesCreated = this.reconcileNodes(budget, true, true) ?? 0;
+      budget = Math.max(0, budget - nodesCreated);
+      const missingNodesRemain = this.scene.runtime.points.some((point) => !this.nodeDisplays.has(point.id));
+      const edgesCreated = missingNodesRemain ? 0 : (this.reconcileEdges(Math.max(budget, this.progressiveBatchSize), true) ?? 0);
+      this.applyLod();
+      this.requestRender();
+      const missingEdgesRemain = this.scene.runtime.edges.some((edge) => !this.edgeDisplays.has(edge.id));
+      if (missingNodesRemain || missingEdgesRemain) {
+        this.progressiveBatchSize = Math.min(
+          PROGRESSIVE_MAX_BATCH,
+          Math.ceil(this.progressiveBatchSize * 1.6),
+        );
+        this.scheduleProgressiveReconcile(generation);
+      } else if (nodesCreated > 0 || edgesCreated > 0) {
+        this.scheduleHoverAnimation();
+      }
+    });
   }
 
   private drawEdge(display?: EdgeDisplay) {
     if (!display || !this.scene) return;
     const { rendered, graphics } = display;
-    const reciprocal = this.scene.runtime.edges.find((candidate) => candidate.from.id === rendered.to.id && candidate.to.id === rendered.from.id);
+    const reciprocal = this.edgesByDirection.get(`${rendered.to.id}\u0000${rendered.from.id}`);
     const forwardArrow = rendered.facts.some(isDirectionalGraphEdge);
     const reverseArrow = reciprocal?.facts.some(isDirectionalGraphEdge) ?? false;
     const reciprocalDirectional = reciprocal && forwardArrow && reverseArrow ? reciprocal : undefined;
@@ -425,19 +542,12 @@ export class PixiGraphRenderer {
         : grouping
       ? (this.lod === "distant" ? 0.05 : this.lod === "far" ? 0.12 : 0.24)
       : (this.lod === "distant" ? 0.12 : this.lod === "far" ? 0.24 : 0.4);
-    const width = edgeHovered || edgeFocused ? 2.7 : nodeHighlighted ? 2.35 : focused ? 1.8 : this.lod === "detail" ? 1.45 : this.lod === "medium" ? 1.2 : 0.85;
+    const baseWidth = edgeHovered || edgeFocused ? 2.7 : nodeHighlighted ? 2.35 : focused ? 1.8 : this.lod === "detail" ? 1.45 : this.lod === "medium" ? 1.2 : 0.85;
+    const width = baseWidth * (this.scene.preferences.linkScale ?? 1);
     const fromEmphasized = rendered.from.id === this.selectedId || rendered.from.id === this.hoveredId;
     const toEmphasized = rendered.to.id === this.selectedId || rendered.to.id === this.hoveredId;
-    resolveGraphVisualGeometry(
-      graphNodeVisual(rendered.from, this.lod, this.scene.preferences),
-      graphNodeRadius(rendered.from, this.lod, fromEmphasized),
-      this.fromEdgeGeometry,
-    );
-    resolveGraphVisualGeometry(
-      graphNodeVisual(rendered.to, this.lod, this.scene.preferences),
-      graphNodeRadius(rendered.to, this.lod, toEmphasized),
-      this.toEdgeGeometry,
-    );
+    this.resolveDisplayGeometry(rendered.from, fromEmphasized, this.fromEdgeGeometry);
+    this.resolveDisplayGeometry(rendered.to, toEmphasized, this.toEdgeGeometry);
     const hasSegment = resolveVisualEdgeEndpoints(
       rendered.from.x,
       rendered.from.y,
@@ -460,7 +570,7 @@ export class PixiGraphRenderer {
     const edgeColor = highlighted ? highlightColor : grouping ? 0x4dd8c0 : 0x8d969b;
     if (hasSegment) {
       graphics.stroke({ color: edgeColor, width, alpha });
-      if (!grouping && this.lod !== "distant") {
+      if (this.scene.preferences.showArrows !== false && !grouping && this.lod !== "distant") {
         const arrowSize = this.lod === "detail" ? 8 : this.lod === "medium" ? 6.5 : 5;
         const arrowWidth = arrowSize * 0.82;
         if (forwardArrow && resolveGraphArrowhead(this.edgeEndpoints.startX, this.edgeEndpoints.startY, this.edgeEndpoints.endX, this.edgeEndpoints.endY, arrowSize, arrowWidth, this.arrowhead)) {
@@ -523,26 +633,29 @@ export class PixiGraphRenderer {
       && display.point.id !== this.selectedId
       && !this.focusedConnectionIds.has(display.point.id);
     const dimmed = hoverDimmed || focusDimmed;
-    const radius = graphNodeRadius(display.point, lod, emphasized);
+    const radius = this.scaledNodeRadius(display.point, emphasized, lod);
     const visual = graphNodeVisual(display.point, lod, this.scene.preferences);
     const color = colorNumber(display.point.color);
-    const square = visual === "thumbnail" || visual === "image";
+    const customIcon = isCustomIconVisual(display.point, visual);
+    const square = visual === "thumbnail" || visual === "image" || customIcon;
     const squareDiameter = visual === "thumbnail" ? GRAPH_THUMBNAIL_DIAMETER : 2;
     display.container.alpha = this.nodeBaseAlpha(display, dimmed) * display.visualAlpha * display.lifeAlpha;
     display.body.mask = null;
     display.mask.visible = false;
-    if (display.media && visual !== "thumbnail" && visual !== "icon") {
+    if (display.media && visual !== "thumbnail" && visual !== "image" && visual !== "icon") {
       display.media.mask = null;
       display.media.visible = false;
     }
-    if (square) {
+    if (visual === "thumbnail" || visual === "image" || customIcon) {
+      display.body.clear();
+    } else if (square) {
       const halfSize = radius * squareDiameter / 2;
       display.body.clear().rect(-halfSize, -halfSize, halfSize * 2, halfSize * 2).fill({ color, alpha: 0.96 });
     } else {
       display.body.clear().circle(0, 0, radius).fill({ color, alpha: visual === "point" ? 0.78 : 0.96 });
     }
     display.halo.clear();
-    const labelVisible = graphLabelVisible(lod, emphasized);
+    const labelVisible = graphLabelVisible(lod, emphasized, this.scene.preferences.labelThreshold);
     display.primaryBadge.visible = Boolean(display.point.isPrimaryProject && labelVisible);
     display.label.style.fontSize = display.point.kind === "type-hub" ? 13 : 11;
     display.label.style.fontWeight = display.point.isPrimaryProject ? "700" : "500";
@@ -603,18 +716,26 @@ export class PixiGraphRenderer {
     }
     let promise = this.texturePromises.get(source);
     if (!promise) {
-      promise = Assets.load<Texture>(source);
+      const customVisual = graphNodeVisual(display.point, lod, this.scene!.preferences) === "icon"
+        ? display.point.customVisual
+        : undefined;
+      promise = customVisual
+        ? loadGraphVisualTexture(customVisual)
+        : loadGraphImageTexture(source);
       this.texturePromises.set(source, promise);
       this.diagnostics.textureLoads += 1;
     }
     try {
       const texture = await promise;
+      if (this.texturePromises.get(source) !== promise) {
+        texture.destroy(true);
+        return;
+      }
       this.loadedTextureSources.add(source);
+      this.loadedTextures.set(source, texture);
       if (this.destroyed || !this.nodeDisplays.has(display.point.id) || display.mediaSource !== source) {
         if (this.destroyed || !this.textureReferences.has(source)) {
-          this.loadedTextureSources.delete(source);
-          this.texturePromises.delete(source);
-          void Assets.unload(source);
+          this.disposeLoadedTexture(source);
         }
         return;
       }
@@ -628,18 +749,36 @@ export class PixiGraphRenderer {
       }
       const emphasized = display.point.id === this.selectedId || display.point.id === this.hoveredId;
       const currentVisual = graphNodeVisual(display.point, lod, this.scene!.preferences);
-      const currentRadius = graphNodeRadius(display.point, lod, emphasized);
+      const currentRadius = this.scaledNodeRadius(display.point, emphasized, lod);
+      const customIcon = isCustomIconVisual(display.point, currentVisual);
       display.media.visible = mediaSourceFor(display.point, currentVisual) === source;
-      const diameter = currentRadius * (currentVisual === "thumbnail" ? GRAPH_THUMBNAIL_DIAMETER : 1.45);
-      display.media.width = diameter;
-      display.media.height = diameter;
+      const boxSize = currentRadius * (currentVisual === "thumbnail"
+        ? GRAPH_THUMBNAIL_DIAMETER
+        : currentVisual === "image" ? 1.6 : customIcon ? 2 : 1.45);
+      const sourceWidth = Math.max(1, texture.width);
+      const sourceHeight = Math.max(1, texture.height);
+      const dimensionScale = this.scene!.preferences.scaleImagesByDimensions && display.point.nodeType === "imagen"
+        ? Math.max(0.8, Math.min(1.75, Math.sqrt(sourceWidth * sourceHeight) / 640))
+        : 1;
+      const fitScale = Math.min(boxSize * dimensionScale / sourceWidth, boxSize * dimensionScale / sourceHeight);
+      display.media.width = sourceWidth * fitScale;
+      display.media.height = sourceHeight * fitScale;
       display.media.tint = 0xffffff;
+      if ((currentVisual === "thumbnail" || currentVisual === "image") && display.media.visible) {
+        const hitWidth = Math.max(22, display.media.width + 10);
+        const hitHeight = Math.max(22, display.media.height + 10);
+        display.container.hitArea = new Rectangle(-hitWidth / 2, -hitHeight / 2, hitWidth, hitHeight);
+        const labelY = display.media.height / 2 + 7;
+        display.label.position.y = labelY;
+        if (display.primaryBadge.visible) {
+          display.primaryBadge.position.y = labelY + display.label.height / 2;
+        }
+      }
       display.mask.clear();
-      if (currentVisual === "thumbnail") {
+      if (currentVisual === "thumbnail" || currentVisual === "image" || customIcon) {
         display.body.mask = null;
-        display.mask.clear().rect(-currentRadius * 0.95, -currentRadius * 0.95, currentRadius * 1.9, currentRadius * 1.9).fill(0xffffff);
-        display.mask.visible = true;
-        display.media.mask = display.mask;
+        display.mask.visible = false;
+        display.media.mask = null;
       } else if (currentVisual === "icon") {
         display.mask.visible = false;
         display.media.mask = null;
@@ -677,8 +816,15 @@ export class PixiGraphRenderer {
     queueMicrotask(() => {
       if (this.destroyed || this.textureReferences.has(source)) return;
       this.texturePromises.delete(source);
-      if (this.loadedTextureSources.delete(source)) void Assets.unload(source);
+      this.disposeLoadedTexture(source);
     });
+  }
+
+  private disposeLoadedTexture(source: string) {
+    this.loadedTextureSources.delete(source);
+    this.loadedTextures.get(source)?.destroy(true);
+    this.loadedTextures.delete(source);
+    this.texturePromises.delete(source);
   }
 
   private setHovered(id: string | null, nativeEvent?: PointerEvent) {
@@ -941,6 +1087,8 @@ export class PixiGraphRenderer {
     if (this.destroyed || !this.app.renderer) return;
     const { width, height } = this.host.getBoundingClientRect();
     if (width <= 0 || height <= 0) return;
+    const previousWidth = this.app.screen.width;
+    const previousHeight = this.app.screen.height;
     this.app.renderer.resize(width, height);
     this.app.stage.hitArea = new Rectangle(0, 0, width, height);
     if (center) {
@@ -949,6 +1097,11 @@ export class PixiGraphRenderer {
         width / 2 - GRAPH_CANVAS_WIDTH * this.zoom / 2,
         height / 2 - GRAPH_CANVAS_HEIGHT * this.zoom / 2,
       );
+    } else {
+      // Keep the same world point at the visual center when Suspense, a side
+      // panel, or the application window changes the renderer's dimensions.
+      this.viewport.position.x += (width - previousWidth) / 2;
+      this.viewport.position.y += (height - previousHeight) / 2;
     }
     this.requestRender();
   }
@@ -995,8 +1148,9 @@ export class PixiGraphRenderer {
             display.visualScale = LOD_TRANSITION_MIN_SCALE + (1 - LOD_TRANSITION_MIN_SCALE) * (progress - 0.5) * 2;
           }
           const emphasized = display.point.id === this.selectedId || display.point.id === this.hoveredId;
-          const fromLabelVisible = graphLabelVisible(transition.from, emphasized);
-          const toLabelVisible = graphLabelVisible(transition.to, emphasized);
+          const labelThreshold = this.scene?.preferences.labelThreshold;
+          const fromLabelVisible = graphLabelVisible(transition.from, emphasized, labelThreshold);
+          const toLabelVisible = graphLabelVisible(transition.to, emphasized, labelThreshold);
           display.label.visible = fromLabelVisible || toLabelVisible;
           display.label.alpha = progress < 0.5
             ? fromLabelVisible ? (toLabelVisible ? 1 : 1 - progress * 2) : 0
@@ -1068,6 +1222,7 @@ export class PixiGraphRenderer {
     if (this.renderFrame !== null) cancelAnimationFrame(this.renderFrame);
     if (this.hoverAnimationFrame !== null) cancelAnimationFrame(this.hoverAnimationFrame);
     if (this.simulationFrame !== null) cancelAnimationFrame(this.simulationFrame);
+    if (this.progressiveFrame !== null) cancelAnimationFrame(this.progressiveFrame);
     this.simulation?.sleep();
     this.app.stage.off("pointerdown", this.onStagePointerDown);
     window.removeEventListener("keydown", this.onKeyDown);
@@ -1077,8 +1232,9 @@ export class PixiGraphRenderer {
     this.app.canvas.removeEventListener("wheel", this.onWheel);
     this.app.canvas.removeEventListener("contextmenu", this.onCanvasContextMenu);
     this.app.destroy({ removeView: true }, { children: true, texture: false, textureSource: false, context: true });
-    for (const source of this.loadedTextureSources) void Assets.unload(source);
+    for (const source of this.loadedTextureSources) this.disposeLoadedTexture(source);
     this.loadedTextureSources.clear();
+    this.loadedTextures.clear();
     this.texturePromises.clear();
     this.textureReferences.clear();
     this.nodeDisplays.clear();
@@ -1088,5 +1244,6 @@ export class PixiGraphRenderer {
     }
     this.retiringNodeDisplays.clear();
     this.edgeDisplays.clear();
+    this.edgesByDirection.clear();
   }
 }

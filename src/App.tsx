@@ -1,16 +1,10 @@
-import AppWorkspace from "./components/AppWorkspace";
 import "./App.css";
 import "./ui/styles.css";
-import "./workspace/panels/styles.css";
-import "./workspace/navigation/styles.css";
-import "./graph/styles.css";
-import "./editor/styles.css";
-import "./nodes/styles.css";
 import HomeScreen from "./screens/HomeScreen";
 import { useProjectSession } from "./project/useProjectSession";
-import { useEffect } from "react";
-import { clearPresence, updatePresence } from "./utils/discordPresence";
-import { LocaleProvider } from "./i18n/LocaleContext";
+import { lazy, Suspense, useEffect } from "react";
+import { PresenceProvider, usePresence } from "./presence/PresenceProvider";
+import { LocaleProvider, useLocale } from "./i18n/LocaleContext";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { APP_WINDOW_TITLE } from "./utils/appEnvironment";
 import { isDesktopRuntime } from "./project/runtime";
@@ -18,12 +12,22 @@ import { AppLifecycleProvider, useAppLifecycle } from "./lifecycle/AppLifecycle"
 import { invoke } from "@tauri-apps/api/core";
 import progressActivityAsset from "./assets/third-party/google-material/icons/progress_activity.svg";
 
+const loadAppWorkspace = () => import("./components/AppWorkspace");
+const AppWorkspace = lazy(loadAppWorkspace);
+
 function AppLoadingScreen() {
   return (
     <div className="app-loading-screen" role="status" aria-label="Cargando H.I.S. Future">
       <img className="app-loading-screen__icon" src={progressActivityAsset} alt="" />
     </div>
   );
+}
+
+function HomePresence() {
+  const { locale } = useLocale();
+  const { setPresence } = usePresence();
+  useEffect(() => setPresence({ surface: "home", locale }), [locale, setPresence]);
+  return null;
 }
 
 function AppContent() {
@@ -35,6 +39,13 @@ function AppContent() {
     document.title = APP_WINDOW_TITLE;
     if (isDesktopRuntime()) void getCurrentWindow().setTitle(APP_WINDOW_TITLE);
   }, []);
+
+  // Fetch the editor bundle while the native backend is opening a project.
+  // A cold launch that only shows Home never pays for the workspace, graph,
+  // editor and node-renderer modules.
+  useEffect(() => {
+    if (session.busy || session.project) void loadAppWorkspace();
+  }, [session.busy, session.project]);
 
   useEffect(() => {
     if (!isDesktopRuntime()) return;
@@ -50,19 +61,6 @@ function AppContent() {
       disposed = true;
     };
   }, []);
-
-  useEffect(() => {
-    if (!session.project) {
-      clearPresence();
-      return;
-    }
-
-    updatePresence("Explorando proyecto", session.project.name);
-
-    return () => {
-      clearPresence();
-    };
-  }, [session.project]);
 
   if (session.initializing) return <AppLoadingScreen />;
 
@@ -81,22 +79,28 @@ function AppContent() {
     )}
     <LocaleProvider key={session.project?.folderPath ?? "home"} projectKey={session.project?.folderPath}>
       {!session.project ? (
+      <>
+      <HomePresence />
       <HomeScreen
         busy={session.busy}
         error={session.error}
         recentProjects={session.recentProjects}
         onCreateProject={session.createNew}
+        onQuickStartDev={session.createDev}
         onLoadProject={session.openExisting}
         onConvertProject={session.convertExisting}
         onOpenRecent={session.openRecent}
         onRemoveRecent={session.removeRecent}
       />
+      </>
       ) : (
-      <AppWorkspace
-        projectKey={session.project.folderPath}
-        projectName={session.project.name}
-        onExitProject={session.close}
-      />
+      <Suspense fallback={<AppLoadingScreen />}>
+        <AppWorkspace
+          projectKey={session.project.folderPath}
+          projectName={session.project.name}
+          onExitProject={session.close}
+        />
+      </Suspense>
       )}
     </LocaleProvider>
     </>
@@ -104,5 +108,9 @@ function AppContent() {
 }
 
 export default function App() {
-  return <AppLifecycleProvider><AppContent /></AppLifecycleProvider>;
+  return (
+    <PresenceProvider>
+      <AppLifecycleProvider><AppContent /></AppLifecycleProvider>
+    </PresenceProvider>
+  );
 }

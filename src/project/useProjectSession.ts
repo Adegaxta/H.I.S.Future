@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   closeProject,
+  createDevProject,
   createProject,
   convertProjectFolder,
   loadProject,
@@ -30,7 +31,12 @@ export function useProjectSession() {
   const [initializing, setInitializing] = useState(true);
   const restoreStartedRef = useRef(false);
 
-  const run = async (operation: string, task: () => Promise<ProjectInfo | null>, onFailure?: () => void) => {
+  const run = async (
+    operation: string,
+    task: () => Promise<ProjectInfo | null>,
+    onFailure?: () => void,
+    remember = true,
+  ) => {
     setBusy(true);
     setError(null);
     startLifecycleFlow("project.time-to-useful-ui");
@@ -38,12 +44,14 @@ export function useProjectSession() {
       const next = await measureLifecyclePhase(`project.${operation}.backend`, task);
       if (next) {
         setProject(next);
-        localStorage.setItem(lastProjectStorageKey, next.folderPath);
-        setRecentProjects((current) => {
-          const nextList = [next, ...current.filter((item) => item.folderPath !== next.folderPath)].slice(0, 12);
-          localStorage.setItem("hisfuture.recent-projects", JSON.stringify(nextList));
-          return nextList;
-        });
+        if (remember) {
+          localStorage.setItem(lastProjectStorageKey, next.folderPath);
+          setRecentProjects((current) => {
+            const nextList = [next, ...current.filter((item) => item.folderPath !== next.folderPath)].slice(0, 12);
+            localStorage.setItem("hisfuture.recent-projects", JSON.stringify(nextList));
+            return nextList;
+          });
+        }
       }
     } catch (caught) {
       setError(asErrorMessage(caught));
@@ -89,6 +97,7 @@ export function useProjectSession() {
       });
     },
     createNew: (name: string, t: Translate) => run("create", () => createProject(name, t)),
+    createDev: (t: Translate) => run("create-dev", () => createDevProject(t), undefined, false),
     openExisting: (t: Translate) => run("open-dialog", () => loadProject(t)),
     convertExisting: async (t: Translate) => {
       setBusy(true);

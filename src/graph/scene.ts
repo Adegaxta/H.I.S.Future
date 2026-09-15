@@ -6,6 +6,13 @@ export type GraphNodeVisual = "thumbnail" | "image" | "icon" | "circle" | "point
 export interface GraphVisualPreferences {
   showIcons: boolean;
   showImages: boolean;
+  showArrows?: boolean;
+  labelThreshold?: number;
+  nodeScale?: number;
+  linkScale?: number;
+  scalePagesByContent?: boolean;
+  scaleImagesByDimensions?: boolean;
+  scaleNodesWithZoom?: boolean;
 }
 
 export interface GraphScene {
@@ -42,7 +49,8 @@ export function graphNodeVisual(
   preferences: GraphVisualPreferences,
 ): GraphNodeVisual {
   if (point.kind === "node" && point.nodeType === "imagen" && preferences.showImages) {
-    return lod === "detail" && point.imageSrc ? "thumbnail" : "circle";
+    if (!point.imageSrc) return lod === "distant" ? "point" : lod === "far" ? "circle" : preferences.showIcons ? "icon" : "circle";
+    return lod === "detail" ? "thumbnail" : lod === "medium" ? "image" : lod === "far" ? "circle" : "point";
   }
   if (point.kind === "node" && point.imageSrc && preferences.showImages) {
     return lod === "detail" ? "thumbnail" : "circle";
@@ -53,8 +61,10 @@ export function graphNodeVisual(
   return "circle";
 }
 
-export function graphLabelVisible(lod: GraphLod, emphasized: boolean): boolean {
-  return lod === "detail" || lod === "medium" || (lod === "far" && emphasized);
+export function graphLabelVisible(lod: GraphLod, emphasized: boolean, threshold = 0.45): boolean {
+  if (emphasized) return lod !== "distant";
+  const visibility = lod === "detail" ? 1 : lod === "medium" ? 0.67 : lod === "far" ? 0.34 : 0;
+  return visibility >= threshold;
 }
 
 export function graphNodeRadius(point: GraphPoint, lod: GraphLod, emphasized: boolean): number {

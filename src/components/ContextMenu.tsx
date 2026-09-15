@@ -9,11 +9,13 @@ interface ContextMenuProps {
   onRename: (nodeId: string) => void;
   onView: (nodeId: string) => void;
   onSetPrimary: (nodeId: string) => void;
+  onAddToLore: (nodeId: string) => void;
   onRemoveFromLore: (nodeId: string) => void;
   onDelete: (nodeId: string) => void;
   onClose: () => void;
   removeCount?: number;
   canSetPrimary?: boolean;
+  canAddToLore?: boolean;
   canDelete?: boolean;
 }
 
@@ -25,10 +27,12 @@ export function buildNodeContextMenuItems({
   onRename,
   onView,
   onSetPrimary,
+  onAddToLore,
   onRemoveFromLore,
   onDelete,
   removeCount = 1,
   canSetPrimary = true,
+  canAddToLore = false,
   canDelete = true,
   t,
 }: ContextMenuActions): HisContextMenuItem[] {
@@ -42,6 +46,7 @@ export function buildNodeContextMenuItems({
     const id = menu.nodeId;
     items.push({ id: "rename", label: t("context.rename"), onSelect: () => onRename(id) });
     items.push({ id: "view", label: t("context.view"), onSelect: () => onView(id) });
+    if (menu.context !== "lore" && canAddToLore) items.push({ id: "add-lore", label: t("context.addToLore"), onSelect: () => onAddToLore(id) });
     if (canSetPrimary) items.push({ id: "set-primary", label: t("context.setPrimary"), onSelect: () => onSetPrimary(id) });
     if (menu.context === "lore") {
       items.push({ id: "remove-lore", label: t(removeCount > 1 ? "context.removeManyFromLore" : "context.removeFromLore", { count: removeCount }), onSelect: () => onRemoveFromLore(id) });

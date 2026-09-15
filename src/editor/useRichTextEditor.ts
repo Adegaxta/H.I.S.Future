@@ -9,7 +9,9 @@ interface UseRichTextEditorOptions {
   editorRef?: RefObject<HTMLDivElement | null>;
 }
 
-const CONTENT_SYNC_DEBOUNCE_MS = 150;
+// A short pause between fast keystrokes should not clone the page and rerender
+// the complete workspace. Structural edits and blur still flush immediately.
+const CONTENT_SYNC_DEBOUNCE_MS = 400;
 
 export function useRichTextEditor({
   node,
@@ -19,6 +21,7 @@ export function useRichTextEditor({
   const internalRef = useRef<HTMLDivElement | null>(null);
   const editorRef = externalRef ?? internalRef;
   const timerRef = useRef<number | null>(null);
+  const idleRef = useRef<number | null>(null);
   const nodeRef = useRef(node);
   nodeRef.current = node;
 
@@ -26,6 +29,10 @@ export function useRichTextEditor({
     if (timerRef.current !== null) {
       window.clearTimeout(timerRef.current);
       timerRef.current = null;
+    }
+    if (idleRef.current !== null) {
+      window.cancelIdleCallback?.(idleRef.current);
+      idleRef.current = null;
     }
   };
 
@@ -54,8 +61,7 @@ export function useRichTextEditor({
 
   // Flush INMEDIATO — para todo lo que no sea tipear letra por letra
   // (blur, pegar, negrita/cursiva, mover líneas, imágenes, etc).
-  const syncContent = () => {
-    cancelScheduled();
+  const persistEditorSnapshot = () => {
     const currentNode = nodeRef.current;
     if (editorRef.current && currentNode) {
       const content = readEditorContent(editorRef.current, currentNode);
@@ -63,13 +69,25 @@ export function useRichTextEditor({
     }
   };
 
+  const syncContent = () => {
+    cancelScheduled();
+    persistEditorSnapshot();
+  };
+
   // Versión debounced — SOLO para el tipeo normal (onInput).
-  const scheduleContentSync = () => {
+  const scheduleContentSync = (delay = CONTENT_SYNC_DEBOUNCE_MS, preferIdle = false) => {
     cancelScheduled();
     timerRef.current = window.setTimeout(() => {
       timerRef.current = null;
-      syncContent();
-    }, CONTENT_SYNC_DEBOUNCE_MS);
+      if (preferIdle && typeof window.requestIdleCallback === "function") {
+        idleRef.current = window.requestIdleCallback(() => {
+          idleRef.current = null;
+          persistEditorSnapshot();
+        }, { timeout: 2_000 });
+        return;
+      }
+      persistEditorSnapshot();
+    }, delay);
   };
 
   const onInput: FormEventHandler<HTMLDivElement> = () => scheduleContentSync();

@@ -1,9 +1,14 @@
 import { stringifyHtmlMetadata } from "./htmlMetadata";
+import { parseNodeVisual, type NodeVisual } from "../nodes/visuals/types";
 export interface PageMeta {
   description: string;
   iconNodeId: string | null;
+  iconVisual: NodeVisual | null;
   coverNodeId: string | null;
   hideDescription: boolean;
+  hideIcon: boolean;
+  hideCover: boolean;
+  hideSource: boolean;
   blockWidth: number;
   headerPosition: "left" | "center" | "right";
   textPosition: "left" | "center" | "right";
@@ -15,8 +20,12 @@ const META_SUFFIX = "-->";
 export const DEFAULT_PAGE_META: PageMeta = {
   description: "",
   iconNodeId: null,
+  iconVisual: null,
   coverNodeId: null,
   hideDescription: false,
+  hideIcon: false,
+  hideCover: false,
+  hideSource: false,
   blockWidth: 200,
   headerPosition: "left",
   textPosition: "center",
@@ -32,11 +41,19 @@ export function getPageMeta(content: string): PageMeta {
   if (end < 0) return { ...DEFAULT_PAGE_META };
   try {
     const parsed = JSON.parse(content.slice(start + META_PREFIX.length, end)) as Partial<PageMeta>;
+    const iconNodeId = typeof parsed.iconNodeId === "string" ? parsed.iconNodeId : null;
+    const iconVisual = parseNodeVisual(parsed.iconVisual) ?? (iconNodeId
+      ? { kind: "image" as const, nodeId: iconNodeId, source: "local" as const }
+      : null);
     return {
       description: typeof parsed.description === "string" ? parsed.description : "",
-      iconNodeId: typeof parsed.iconNodeId === "string" ? parsed.iconNodeId : null,
+      iconNodeId,
+      iconVisual,
       coverNodeId: typeof parsed.coverNodeId === "string" ? parsed.coverNodeId : null,
       hideDescription: parsed.hideDescription === true,
+      hideIcon: parsed.hideIcon === true,
+      hideCover: parsed.hideCover === true,
+      hideSource: parsed.hideSource === true,
       blockWidth: typeof parsed.blockWidth === "number"
         ? Math.min(200, Math.max(100, parsed.blockWidth))
         : DEFAULT_PAGE_META.blockWidth,

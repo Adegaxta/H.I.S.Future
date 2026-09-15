@@ -86,6 +86,26 @@ const HIS_BACKGROUND_COLORS: Record<string, string> = {
   negro: "#2A2E33",
 };
 
+function formatMarkdownInline(value: string): string {
+  const tokens: string[] = [];
+  const token = (html: string) => {
+    const index = tokens.push(html) - 1;
+    return `\u0000HISMD${index}\u0000`;
+  };
+  let source = value
+    .replace(/`([^`\n]+)`/g, (_match, code: string) => token(`<code>${escapeHtml(code)}</code>`))
+    .replace(/\[([^\]\n]+)\]\(([^\s)]+)\)/g, (match, label: string, href: string) =>
+      isSafeUrl(href) ? token(`<a href="${escapeHtml(href)}">${escapeHtml(label)}</a>`) : match,
+    );
+  source = escapeHtml(source)
+    .replace(/\*\*([^*\n]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/__([^_\n]+)__/g, "<strong>$1</strong>")
+    .replace(/~~([^~\n]+)~~/g, "<s>$1</s>")
+    .replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, "$1<em>$2</em>")
+    .replace(/(^|[^_])_([^_\n]+)_(?!_)/g, "$1<em>$2</em>");
+  return source.replace(/\u0000HISMD(\d+)\u0000/g, (_match, index: string) => tokens[Number(index)] || "");
+}
+
 export function formatPastedText(text: string): string {
   const cssEnd = text.indexOf("ul { margin: 0px; }");
   const source = cssEnd >= 0 ? text.slice(cssEnd + "ul { margin: 0px; }".length) : text;
@@ -99,17 +119,57 @@ export function formatPastedText(text: string): string {
   const lines = separated.split("\n");
   const blocks: string[] = [];
   let listItems: string[] = [];
+  let listTag: "ul" | "ol" = "ul";
+  let codeLanguage = "";
+  let codeLines: string[] | null = null;
   const flushList = () => {
-    if (listItems.length) blocks.push(`<ul>${listItems.join("")}</ul>`);
+    if (listItems.length) blocks.push(`<${listTag}>${listItems.join("")}</${listTag}>`);
     listItems = [];
   };
-  for (const rawLine of lines) {
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
+    const rawLine = lines[lineIndex];
     const line = rawLine.trim();
+    const fence = line.match(/^```([a-z0-9_+-]*)$/i);
+    if (fence) {
+      flushList();
+      if (codeLines) {
+        const language = codeLanguage ? ` data-language="${escapeHtml(codeLanguage)}"` : "";
+        blocks.push(`<pre${language}><code>${escapeHtml(codeLines.join("\n"))}</code></pre>`);
+        codeLines = null;
+        codeLanguage = "";
+      } else {
+        codeLines = [];
+        codeLanguage = fence[1] || "";
+      }
+      continue;
+    }
+    if (codeLines) {
+      codeLines.push(rawLine.replace(/\r$/, ""));
+      continue;
+    }
     if (!line) {
       flushList();
       continue;
     }
-    const escaped = escapeHtml(line);
+    const escaped = formatMarkdownInline(line);
+    const markdownHeading = line.match(/^(#{1,6})\s+(.+)$/);
+    if (markdownHeading) {
+      flushList();
+      const level = Math.min(4, markdownHeading[1].length);
+      blocks.push(`<h${level}>${formatMarkdownInline(markdownHeading[2])}</h${level}>`);
+      continue;
+    }
+    if (/^(?:---+|___+|\*\*\*+)$/.test(line)) {
+      flushList();
+      blocks.push('<div data-divider="true" contenteditable="false"><hr /></div>');
+      continue;
+    }
+    const quote = line.match(/^>\s?(.*)$/);
+    if (quote) {
+      flushList();
+      blocks.push(`<blockquote>${formatMarkdownInline(quote[1]) || "<br>"}</blockquote>`);
+      continue;
+    }
     const callout = Object.entries(CALLOUT_COLORS).find(([emoji]) =>
       line.startsWith(emoji),
     );
@@ -123,6 +183,17 @@ export function formatPastedText(text: string): string {
       blocks.push(
         `<div data-globe="true" style="color: ${color}"><span data-globe-icon="true" contenteditable="false">${emoji}</span><div data-globe-content="true"><p><strong>${label}</strong>${detail}</p></div></div>`,
       );
+      continue;
+    }
+    const markdownOrderedItem = line.match(/^(\d+)\.\s+(.+)$/);
+    const adjacentOrderedItem = Boolean(
+      lines[lineIndex - 1]?.trim().match(/^\d+\.\s+/) ||
+      lines[lineIndex + 1]?.trim().match(/^\d+\.\s+/),
+    );
+    if (markdownOrderedItem && adjacentOrderedItem) {
+      if (listItems.length && listTag !== "ol") flushList();
+      listTag = "ol";
+      listItems.push(`<li>${formatMarkdownInline(markdownOrderedItem[2])}</li>`);
       continue;
     }
     const heading = line.match(/^(\d+(?:\.\d+)*)\.\s+(.+)$/);
@@ -141,11 +212,23 @@ export function formatPastedText(text: string): string {
       continue;
     }
     if (/^(?:[-*•])\s+/.test(line)) {
-      listItems.push(`<li>${escaped.replace(/^(?:[-*•])\s+/, "")}</li>`);
+      if (listItems.length && listTag !== "ul") flushList();
+      listTag = "ul";
+      listItems.push(`<li>${formatMarkdownInline(line.replace(/^(?:[-*•])\s+/, ""))}</li>`);
+      continue;
+    }
+    if (/^\d+[)]\s+/.test(line)) {
+      if (listItems.length && listTag !== "ol") flushList();
+      listTag = "ol";
+      listItems.push(`<li>${formatMarkdownInline(line.replace(/^\d+[)]\s+/, ""))}</li>`);
       continue;
     }
     flushList();
     blocks.push(`<p>${escaped}</p>`);
+  }
+  if (codeLines) {
+    const language = codeLanguage ? ` data-language="${escapeHtml(codeLanguage)}"` : "";
+    blocks.push(`<pre${language}><code>${escapeHtml(codeLines.join("\n"))}</code></pre>`);
   }
   flushList();
   return blocks.join("");
@@ -761,6 +844,18 @@ export function sanitizeEditorHtml(html: string): string {
     "data-mention-id",
     "data-mention-align",
     "data-no-resize",
+    "data-his-dropdown",
+    "data-his-globe",
+    "data-his-highlighted",
+    "data-his-code",
+    "data-his-equation",
+    "data-his-synced",
+    "data-his-list",
+    "data-his-column-layout",
+    "data-his-column",
+    "data-his-collapsed",
+    "data-his-dropdown-content",
+    "data-his-todo-checked",
     "href",
     "rowspan",
     "src",
@@ -772,6 +867,10 @@ export function sanitizeEditorHtml(html: string): string {
     const element = node as HTMLElement;
     if (["STYLE", "SCRIPT", "NOSCRIPT"].includes(element.tagName)) return "";
     if (element.tagName === "DIV") {
+      if (element.hasAttribute("data-his-column-layout"))
+        return `<div data-his-column-layout="true">${Array.from(element.childNodes).map(visit).join("")}</div>`;
+      if (element.hasAttribute("data-his-column"))
+        return `<div data-his-column="true">${Array.from(element.childNodes).map(visit).join("")}</div>`;
       if (element.hasAttribute("data-divider"))
         return '<div data-divider="true" contenteditable="false"><hr /></div>';
       if (element.hasAttribute("data-page-index")) {
@@ -811,6 +910,9 @@ export function sanitizeEditorHtml(html: string): string {
     }
     if (element.tagName === "SPAN" && element.hasAttribute("data-anytype-mention")) {
       return `<span data-anytype-mention="true">${children}</span>`;
+    }
+    if (element.tagName === "SPAN" && element.hasAttribute("data-his-dropdown-content")) {
+      return `<span data-his-dropdown-content="true">${children}</span>`;
     }
     if (element.tagName === "SPAN") {
       const mentionId = element.getAttribute("data-mention-id");

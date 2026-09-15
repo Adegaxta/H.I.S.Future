@@ -6,6 +6,7 @@ import { EN_EDITOR_TRANSLATIONS } from "./catalogs/en/editor";
 import { EN_HOME_TRANSLATIONS } from "./catalogs/en/home";
 import { EN_NODES_UI_TRANSLATIONS } from "./catalogs/en/nodes-ui";
 import { EN_SHELL_TRANSLATIONS } from "./catalogs/en/shell";
+import { EN_PRESENCE_TRANSLATIONS } from "./catalogs/en/presence";
 import { ES_CHANGELOG_TRANSLATIONS } from "./catalogs/es/changelog";
 import { ES_NODES_TRANSLATIONS } from "./catalogs/es/nodes";
 import { ES_SETTINGS_TRANSLATIONS } from "./catalogs/es/settings";
@@ -14,6 +15,7 @@ import { ES_EDITOR_TRANSLATIONS } from "./catalogs/es/editor";
 import { ES_HOME_TRANSLATIONS } from "./catalogs/es/home";
 import { ES_NODES_UI_TRANSLATIONS } from "./catalogs/es/nodes-ui";
 import { ES_SHELL_TRANSLATIONS } from "./catalogs/es/shell";
+import { ES_PRESENCE_TRANSLATIONS } from "./catalogs/es/presence";
 
 export const ES_TRANSLATIONS = {
   ...ES_WORKSPACE_TRANSLATIONS,
@@ -24,6 +26,7 @@ export const ES_TRANSLATIONS = {
   ...ES_SETTINGS_TRANSLATIONS,
   ...ES_NODES_TRANSLATIONS,
   ...ES_CHANGELOG_TRANSLATIONS,
+  ...ES_PRESENCE_TRANSLATIONS,
 } as const;
 
 export type TranslationKey = keyof typeof ES_TRANSLATIONS;
@@ -38,4 +41,5 @@ export const EN_TRANSLATIONS = {
   ...EN_SETTINGS_TRANSLATIONS,
   ...EN_NODES_TRANSLATIONS,
   ...EN_CHANGELOG_TRANSLATIONS,
+  ...EN_PRESENCE_TRANSLATIONS,
 } as const satisfies TranslationCatalog;

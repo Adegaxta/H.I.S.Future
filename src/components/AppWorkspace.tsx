@@ -1,7 +1,12 @@
+import "../workspace/panels/styles.css";
+import "../workspace/navigation/styles.css";
+import "../graph/styles.css";
+import "../editor/styles.css";
+import "../nodes/styles.css";
 import { isDesktopRuntime } from "../project/runtime";
 import { useWorkspaceNavigation, type NavigationHandler } from "../hooks/useWorkspaceNavigation";
 import { AVATAR_COLORS } from "../defs/palette";
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { getNodeDefinition, getNodeDisplayLabel, hasNodeCapability } from "../defs/nodeTypes";
 import { assignVaultPrimaryNode } from "../nodes/project/domain";
 import type { BaseNodeType, NodeItem } from "../types/nodes";
@@ -15,7 +20,6 @@ import NodePanels from "../workspace/navigation/NodePanels";
 import LoreAddDialog from "./LoreAddDialog";
 import { UiIcon } from "../ui/Icon";
 import { usePendingEditorFocus } from "../editor/usePendingEditorFocus";
-import GraphView from "../graph/view";
 import RegisteredNodeView from "./RegisteredNodeView";
 import type { TimeFormat } from "../utils/temporalMeta";
 import { handleCalendarSlashCommand } from "../nodes/calendar/operations";
@@ -40,6 +44,13 @@ import { TrashNodeView } from "../workspace/panels/TrashNodeView";
 import { finishLifecycleFlow } from "../lifecycle/metrics";
 import { getActiveCloseProjectTraceId, recordCloseProjectPhase } from "../lifecycle/metrics";
 import { readDefaultNodeType } from "../workspace/defaultNodeType";
+import { usePresence } from "../presence/PresenceProvider";
+import PageNodeChrome from "../nodes/page/chrome";
+import WorkspaceHistoryControls from "../workspace/navigation/WorkspaceHistoryControls";
+import { getLoreAncestorIds, getNodeSidebarLocation } from "../utils/loreTree";
+import { resolveNodeCustomVisual } from "../nodes/nodeIconSource";
+
+const GraphView = lazy(() => import("../graph/view"));
 
 interface AppWorkspaceProps {
   projectKey: string;
@@ -82,7 +93,8 @@ export default function AppWorkspace({
     projectName,
     onExitProject,
   }: AppWorkspaceProps) {
-  const { t } = useLocale();
+  const { locale, t } = useLocale();
+  const { setPresence } = usePresence();
   const colorStorageKey = `hisfuture.project.color.${projectKey}`;
   const locationStorageKey = `hisfuture.project.location.${projectKey}`;
   const timeFormatStorageKey = "hisfuture.settings.time-format";
@@ -197,6 +209,7 @@ export default function AppWorkspace({
   const [trashMenu, setTrashMenu] = useState<{ x: number; y: number } | null>(null);
   const [trashActionsMenu, setTrashActionsMenu] = useState<{ x: number; y: number } | null>(null);
   const editorRef = useRef<HTMLDivElement | null>(null);
+  const workspaceMainRef = useRef<HTMLElement | null>(null);
   const calendarNavigation = useRef<NavigationHandler | null>(null);
   const selectedNode = workspace.nodes.find(
     (node) => node.id === workspace.selectedId,
@@ -207,6 +220,24 @@ export default function AppWorkspace({
   const selectedTrashNode = workspace.deletedNodes.find(
     (node) => node.id === selectedTrashNodeId,
   );
+  useEffect(() => {
+    const surface = projectTab === "settings"
+      ? settingsPanel === "trash"
+        ? "trash"
+        : settingsPanel === "changelog"
+          ? "changelog"
+          : "settings"
+      : view === "graph"
+        ? "graph"
+        : "workspace";
+    setPresence({
+      surface,
+      locale,
+      nodeType: surface === "workspace"
+        ? selectedTrashNode?.type ?? selectedType
+        : null,
+    });
+  }, [locale, projectTab, selectedTrashNode?.type, selectedType, setPresence, settingsPanel, view]);
   useEffect(() => {
     if (workspace.selectedId) setSelectedTrashNodeId(null);
   }, [workspace.selectedId]);
@@ -229,7 +260,30 @@ export default function AppWorkspace({
     return () => window.removeEventListener("keydown", handleRenameShortcut);
   }, [selectedLoreIds, workspace]);
 
-  useWorkspaceNavigation({
+  const revealNodeInSidebar = (id: string, forceLore = false) => {
+    const location = forceLore ? "lore" : getNodeSidebarLocation(workspace.nodes, id);
+    setSidebarVisible(true);
+    setSidebarPanel(location);
+    setSidebarQuery("");
+    if (location === "types") {
+      setSelectedLoreIds([]);
+      return;
+    }
+    setSelectedLoreIds([id]);
+    const ancestors = getLoreAncestorIds(workspace.nodes, id);
+    if (ancestors.length) {
+      workspace.setExpanded((current) => ancestors.reduce((next, ancestorId) => ({ ...next, [ancestorId]: true }), current));
+    }
+  };
+  const openNodeView = (id: string) => {
+    setSelectedTrashNodeId(null);
+    setProjectTab("workspace");
+    setView("list");
+    revealNodeInSidebar(id);
+    workspace.setSelectedId(id);
+  };
+
+  const workspaceNavigation = useWorkspaceNavigation({
     selectedId: workspace.selectedId,
     selectedTrashId: selectedTrashNodeId,
     navigateWithinView: (direction) => Boolean(selectedNode && hasNodeCapability(selectedNode.type, "navigateWithinView") && calendarNavigation.current?.(direction)),
@@ -240,10 +294,7 @@ export default function AppWorkspace({
         setSettingsPanel("trash");
         setSelectedTrashNodeId(next.id);
       } else {
-        setSelectedTrashNodeId(null);
-        setProjectTab("workspace");
-        setView("list");
-        workspace.setSelectedId(next.id);
+        openNodeView(next.id);
       }
     },
   });
@@ -265,6 +316,10 @@ export default function AppWorkspace({
   const previewNode = workspace.nodes.find(
     (node) => node.id === workspace.dragPreviewId,
   );
+  const previewVisual = useMemo(
+    () => previewNode ? resolveNodeCustomVisual(previewNode, workspace.nodes) : undefined,
+    [previewNode, workspace.nodes],
+  );
   const { exitWorkspace, hideApplication } = useWorkspaceLifecycle({
     nodes: workspace.nodes,
     selectedId: workspace.selectedId,
@@ -279,7 +334,13 @@ export default function AppWorkspace({
     createNode: workspace.createNode,
     translate: t,
     reportError: setFileImportError,
+    onGlobalImport: (imported) => openNodeView(imported.id),
   });
+  const createNodeFromFileAndOpen = async (file: File, parentId: string | null) => {
+    const imported = await createNodeFromFile(file, parentId);
+    if (imported) openNodeView(imported.id);
+    return imported;
+  };
   const {
     projectImage,
     upload: handleProjectImageUpload,
@@ -295,7 +356,7 @@ export default function AppWorkspace({
   const calendarOperationsHost = {
     nodes: workspace.nodes,
     createNode: workspace.createNode,
-    selectNode: workspace.setSelectedId,
+    selectNode: openNodeView,
     setExpanded: workspace.setExpanded,
     updateContent: workspace.updateContent,
   };
@@ -345,12 +406,6 @@ export default function AppWorkspace({
       onSelect: workspace.permanentlyDeleteNodes,
     },
   ];
-  const openNodeView = (id: string) => {
-    setSelectedTrashNodeId(null);
-    setProjectTab("workspace");
-    setView("list");
-    workspace.setSelectedId(id);
-  };
   const nodeViewHost: NodeViewHost = {
     data: { nodes: workspace.nodes, deletedNodes: workspace.deletedNodes, timeFormat },
     mutations: {
@@ -361,7 +416,7 @@ export default function AppWorkspace({
       deleteNode: workspace.deleteNode,
     },
     navigation: {
-      selectNode: workspace.setSelectedId,
+      selectNode: openNodeView,
       openNodeView,
       openDeletedNode,
       registerWithinView: (handler) => {
@@ -494,7 +549,7 @@ export default function AppWorkspace({
                         <button type="button" onClick={() => { cancelLoreMultiSelection(); setLoreAddOpen(true); }} title={t("sidebar.addNode")}><UiIcon name="add" /></button>
                         <button type="button" onClick={() => { cancelLoreMultiSelection(); workspace.openCreate(null, "categoria"); }} title={t("sidebar.addFolder")}><UiIcon name="folder" /></button>
                         <button type="button" onClick={() => { cancelLoreMultiSelection(); sidebarImageInputRef.current?.click(); }} title={t("sidebar.addImage")}><UiIcon name="image-add" /></button>
-                        <input ref={sidebarImageInputRef} hidden type="file" accept={fileImportAccept()} onChange={(event) => { const file = event.target.files?.[0]; if (file) void createNodeFromFile(file, null); event.currentTarget.value = ""; }} />
+                        <input ref={sidebarImageInputRef} hidden type="file" accept={fileImportAccept()} onChange={(event) => { const file = event.target.files?.[0]; if (file) void createNodeFromFileAndOpen(file, null); event.currentTarget.value = ""; }} />
                       </>}
                     </div>
                     <div className="context-toolbar__search">
@@ -503,7 +558,7 @@ export default function AppWorkspace({
                     </div>
                   </div>
                   {sidebarPanel === "lore" ? (
-                    <SidebarTree {...workspace} selectedLoreIds={selectedLoreIds} setSelectedLoreIds={setSelectedLoreIds} query={sidebarQuery} onFileDrop={(file, parentId) => void createNodeFromFile(file, parentId)} selectedId={workspace.selectedId} contextMenuNodeId={contextMenu?.context === "lore" ? contextMenu.nodeId : null} setSelectedId={(id) => { setSelectedTrashNodeId(null); workspace.setSelectedId(id); }} setContextMenu={(menu) => setContextMenu({ ...menu, context: "lore" })} />
+                    <SidebarTree {...workspace} selectedLoreIds={selectedLoreIds} setSelectedLoreIds={setSelectedLoreIds} query={sidebarQuery} onFileDrop={(file, parentId) => void createNodeFromFileAndOpen(file, parentId)} selectedId={workspace.selectedId} contextMenuNodeId={contextMenu?.context === "lore" ? contextMenu.nodeId : null} setSelectedId={(id) => { setSelectedTrashNodeId(null); workspace.setSelectedId(id); }} setContextMenu={(menu) => setContextMenu({ ...menu, context: "lore" })} />
                   ) : (
                     <NodePanels
                       projectKey={projectKey}
@@ -531,6 +586,7 @@ export default function AppWorkspace({
         )}
 
         <main
+          ref={workspaceMainRef}
           className={`workspace-main${view === "graph" ? " workspace-main--graph" : ""}`}
         >
           {selectedTrashNode ? (
@@ -563,23 +619,22 @@ export default function AppWorkspace({
               appVersion={appVersion}
             />
           ) : view === "graph" ? (
-            <GraphView
-              nodes={workspace.nodes}
-              onSelectNode={workspace.setSelectedId}
-              onClearSelection={() => workspace.setSelectedId(null)}
-              onOpenNode={(id) => {
-                workspace.setSelectedId(id);
-                setView("list");
-              }}
-              onCreateNode={(name, type) => {
-                const id = workspace.createNode(name, type, null);
-                workspace.setSelectedId(id);
-                setSelectedLoreIds([id]);
-                return id;
-              }}
-              onOpenNodeMenu={(menu) => setContextMenu(menu)}
-              projectKey={projectKey}
-            />
+            <Suspense fallback={<div className="app-loading-screen" role="status">Cargando grafo…</div>}>
+              <GraphView
+                nodes={workspace.nodes}
+                onSelectNode={workspace.setSelectedId}
+                onClearSelection={() => workspace.setSelectedId(null)}
+                onOpenNode={openNodeView}
+                onCreateNode={(name, type) => {
+                  const id = workspace.createNode(name, type, null);
+                  workspace.setSelectedId(id);
+                  setSelectedLoreIds([id]);
+                  return id;
+                }}
+                onOpenNodeMenu={(menu) => setContextMenu(menu)}
+                projectKey={projectKey}
+              />
+            </Suspense>
           ) : !selectedNode ? (
             <div className="workspace-empty-state">
               <div>
@@ -598,7 +653,24 @@ export default function AppWorkspace({
               />
             </div>
           )}
+          {projectTab !== "settings" && view === "list" && selectedNode?.type === "pagina" && (
+            <PageNodeChrome
+              node={selectedNode}
+              nodes={workspace.nodes}
+              editorRef={editorRef}
+              projectKey={projectKey}
+              onOpenNode={openNodeView}
+            />
+          )}
         </main>
+        <WorkspaceHistoryControls
+          mainRef={workspaceMainRef}
+          locationKey={`${projectTab}:${settingsPanel}:${view}:${selectedTrashNodeId ?? workspace.selectedId ?? "empty"}`}
+          canBack={workspaceNavigation.canBack}
+          canForward={workspaceNavigation.canForward}
+          onBack={workspaceNavigation.back}
+          onForward={workspaceNavigation.forward}
+        />
       </div>
 
       {contextMenu && (
@@ -618,16 +690,15 @@ export default function AppWorkspace({
             setSelectedLoreIds([id]);
             workspace.startRename(node);
           }}
-          onView={(id) => {
-            setSelectedTrashNodeId(null);
-            setProjectTab("workspace");
-            setView("list");
-            setSelectedLoreIds([id]);
-            workspace.setSelectedId(id);
+          onView={openNodeView}
+          onAddToLore={(id) => {
+            workspace.addToLore([id]);
+            revealNodeInSidebar(id, true);
           }}
           onSetPrimary={(id) => workspace.mutateNodes((nodes) => assignVaultPrimaryNode(nodes, id))}
           removeCount={selectedLoreIds.includes(contextMenu.nodeId ?? "") ? selectedLoreIds.length : 1}
           canSetPrimary={contextMenu.context !== "lore" || selectedLoreIds.length <= 1}
+          canAddToLore={Boolean(contextMenu.nodeId && workspace.nodes.find((node) => node.id === contextMenu.nodeId)?.loreHidden)}
           canDelete={!contextMenu.nodeId || (contextMenu.context === "lore" && selectedLoreIds.includes(contextMenu.nodeId)
             ? selectedLoreIds.some((id) => workspace.canDeleteNode(id))
             : workspace.canDeleteNode(contextMenu.nodeId))}
@@ -671,6 +742,7 @@ export default function AppWorkspace({
         <DragPreview
           node={previewNode}
           nodeType={getEffectiveNodeType(workspace.nodes, previewNode)}
+          visual={previewVisual}
           position={workspace.dragPreviewPosition}
         />
       )}

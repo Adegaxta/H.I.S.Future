@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import type { ContextMenuState, NodeItem, RenderNodeType } from "../../types/nodes";
 import { NODE_REGISTRY, getNodeDefinition, getNodeDisplayLabel } from "../../defs/nodeTypes";
-import { getEffectiveNodeType, opensNodeViewOnClick } from "../../utils/nodeTree";
+import { opensNodeViewOnClick } from "../../utils/nodeTree";
 import { useLocale } from "../../i18n/LocaleContext";
 import { UiIcon } from "../../ui/Icon";
 import { NodeIcon } from "../../nodes/NodeIcon";
 import { PrimaryNodeName } from "../../nodes/PrimaryNodeName";
+import { buildNodeCustomVisuals } from "../../nodes/nodeIconSource";
+import type { ResolvedNodeVisual } from "../../nodes/visuals/types";
 import { useSearchReveal } from "../../hooks/useSearchReveal";
 import {
   nodeTypePanelStorageKey,
@@ -48,6 +50,27 @@ export default function NodePanels({ projectKey, panel, nodes, recentNodes, rece
   const normalizedQuery = query.trim().toLocaleLowerCase(locale);
   const matches = (node: NodeItem) => node.name.toLocaleLowerCase(locale).includes(normalizedQuery);
   const searchRef = useSearchReveal(normalizedQuery, `${panel}:${(panel === "recent" ? recentNodes : nodes).filter(matches).map((node) => node.id).join(",")}`);
+  const selectedType = nodes.find((node) => node.id === selectedId)?.type;
+  const parentIds = useMemo(() => new Set(nodes.map((node) => node.parentId).filter(Boolean)), [nodes]);
+  const customVisuals = useMemo(() => buildNodeCustomVisuals(nodes), [nodes]);
+  useEffect(() => {
+    if (!selectedId || !selectedType) return;
+    if (panel === "types") {
+      setCollapsed((current) => current[selectedType] ? { ...current, [selectedType]: false } : current);
+    }
+    let secondFrame = 0;
+    const firstFrame = requestAnimationFrame(() => {
+      secondFrame = requestAnimationFrame(() => {
+        const row = Array.from(searchRef.current?.querySelectorAll<HTMLElement>("[data-node-id]") ?? [])
+          .find((element) => element.dataset.nodeId === selectedId);
+        row?.scrollIntoView({ block: "nearest" });
+      });
+    });
+    return () => {
+      cancelAnimationFrame(firstFrame);
+      cancelAnimationFrame(secondFrame);
+    };
+  }, [panel, searchRef, selectedId, selectedType]);
   const recentGroups = useMemo(() => {
     const today = startOfDay(new Date());
     const yesterday = today - 86_400_000;
@@ -66,7 +89,7 @@ export default function NodePanels({ projectKey, panel, nodes, recentNodes, rece
       {recentGroups.length === 0 ? <div className="node-panels__empty">{t("sidebar.noRecent")}</div> : recentGroups.map(([label, items]) => (
         <section className="recent-group" key={label}>
           <h3 className={normalizedQuery && !items.some(matches) ? "is-search-dimmed" : ""}>{label}</h3>
-          {items.map((node) => <NodeRow key={node.id} node={node} nodes={nodes} selected={node.id === selectedId} onSelect={onSelect} context={panel} onContextMenu={onContextMenu} searchMatch={normalizedQuery ? matches(node) : undefined} />)}
+          {items.map((node) => <NodeRow key={node.id} node={node} visual={customVisuals.get(node.id)} hasChildren={parentIds.has(node.id)} selected={node.id === selectedId} onSelect={onSelect} context={panel} onContextMenu={onContextMenu} searchMatch={normalizedQuery ? matches(node) : undefined} />)}
         </section>
       ))}
     </div>
@@ -99,18 +122,18 @@ export default function NodePanels({ projectKey, panel, nodes, recentNodes, rece
                 <UiIcon name={isCollapsed ? "arrow-close" : "arrow-open"} className="type-group__chevron" />
               </button>
             </div>
-            {!isCollapsed && items.map((node) => <NodeRow key={node.id} node={node} nodes={nodes} selected={node.id === selectedId} onSelect={onSelect} context={panel} onContextMenu={onContextMenu} compact searchMatch={normalizedQuery ? matches(node) : undefined} />)}
+            {!isCollapsed && items.map((node) => <NodeRow key={node.id} node={node} visual={customVisuals.get(node.id)} hasChildren={parentIds.has(node.id)} selected={node.id === selectedId} onSelect={onSelect} context={panel} onContextMenu={onContextMenu} compact searchMatch={normalizedQuery ? matches(node) : undefined} />)}
           </section>
         );
       })}
     </div>
   );
 }
-function NodeRow({ node, nodes, selected, onSelect, context, onContextMenu, compact = false, searchMatch }: { node: NodeItem; nodes: NodeItem[]; selected: boolean; compact?: boolean; searchMatch?: boolean; onSelect: (id: string) => void; context: "recent" | "types"; onContextMenu: (menu: ContextMenuState) => void }) {
-  const type = getEffectiveNodeType(nodes, node);
+function NodeRow({ node, visual, hasChildren, selected, onSelect, context, onContextMenu, compact = false, searchMatch }: { node: NodeItem; visual?: ResolvedNodeVisual; hasChildren: boolean; selected: boolean; compact?: boolean; searchMatch?: boolean; onSelect: (id: string) => void; context: "recent" | "types"; onContextMenu: (menu: ContextMenuState) => void }) {
+  const type: RenderNodeType = node.type === "pagina" && hasChildren ? "pagina-carpeta" : node.type;
   return (
-    <button type="button" data-search-match={searchMatch} className={`context-node-row ${selected ? "is-selected" : ""} ${compact ? "is-compact" : ""} ${searchMatch === false ? "is-search-dimmed" : ""}`} style={{ "--node-color": getNodeDefinition(type).color } as CSSProperties} onClick={() => { if (opensNodeViewOnClick(node)) onSelect(node.id); }} onContextMenu={(event) => { event.preventDefault(); event.stopPropagation(); onContextMenu({ context, nodeId: node.id, x: event.clientX, y: event.clientY, extended: event.shiftKey }); }} title={node.name}>
-      <NodeIcon type={type} />
+    <button type="button" data-node-id={node.id} data-search-match={searchMatch} className={`context-node-row ${selected ? "is-selected" : ""} ${compact ? "is-compact" : ""} ${searchMatch === false ? "is-search-dimmed" : ""}`} style={{ "--node-color": getNodeDefinition(type).color } as CSSProperties} onClick={() => { if (opensNodeViewOnClick(node)) onSelect(node.id); }} onContextMenu={(event) => { event.preventDefault(); event.stopPropagation(); onContextMenu({ context, nodeId: node.id, x: event.clientX, y: event.clientY, extended: event.shiftKey }); }} title={node.name}>
+      <NodeIcon type={type} visual={visual} />
       <PrimaryNodeName node={node} className="context-node-row__name" />
     </button>
   );

@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { hasNodeCapability } from "../defs/nodeTypes";
 import type { Translate } from "../i18n/LocaleContext";
 import {
@@ -15,9 +15,12 @@ interface FileNodeImportsOptions {
   createNode: (name: string, type: BaseNodeType, parentId: string | null, content?: string) => string;
   translate: Translate;
   reportError: (message: string | null) => void;
+  onGlobalImport?: (node: NodeItem) => void;
 }
 
-export function useFileNodeImports({ nodes, createNode, translate, reportError }: FileNodeImportsOptions) {
+export function useFileNodeImports({ nodes, createNode, translate, reportError, onGlobalImport }: FileNodeImportsOptions) {
+  const onGlobalImportRef = useRef(onGlobalImport);
+  onGlobalImportRef.current = onGlobalImport;
   const resolveDropParentId = useCallback((clientX: number, clientY: number) => {
     const target = document.elementFromPoint(clientX, clientY)?.closest<HTMLElement>("[data-node-id]");
     const targetId = target?.dataset.nodeId;
@@ -59,7 +62,8 @@ export function useFileNodeImports({ nodes, createNode, translate, reportError }
       if (!file) return;
       event.preventDefault();
       event.stopPropagation();
-      void importFile(file, resolveDropParentId(dragEvent.clientX, dragEvent.clientY));
+      void importFile(file, resolveDropParentId(dragEvent.clientX, dragEvent.clientY))
+        .then((node) => { if (node) onGlobalImportRef.current?.(node); });
     };
 
     const targets = [window, document, document.body];

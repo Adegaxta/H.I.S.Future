@@ -4,6 +4,7 @@ export const ES_WORKSPACE_TRANSLATIONS = {
   "context.rename": "Renombrar",
   "context.view": "Vista",
   "context.setPrimary": "Establecer como Nodo principal",
+  "context.addToLore": "Agregar a Lore",
   "context.removeFromLore": "Quitar de Lore",
   "context.removeManyFromLore": "Quitar {count} Nodos de Lore",
   "context.deleteNode": "Eliminar Nodo",

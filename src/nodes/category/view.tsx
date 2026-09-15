@@ -1,14 +1,16 @@
-import type { CSSProperties } from "react";
+import { useMemo, type CSSProperties } from "react";
 import type { ContextMenuState, NodeItem } from "../../types/nodes";
 import { getNodeDefinition, getNodeDisplayLabel } from "../../defs/nodeTypes";
 import { getChildren, getEffectiveNodeType, opensNodeViewOnClick } from "../../utils/nodeTree";
 import { useLocale } from "../../i18n/LocaleContext";
 import { NodeIcon } from "../NodeIcon";
 import NodeTypeLabel from "../../components/NodeTypeLabel";
+import { buildNodeCustomVisuals } from "../nodeIconSource";
 
 export default function FolderNodeView({ node, nodes, onSelect, onContextMenu }: { node: NodeItem; nodes: NodeItem[]; onSelect: (id: string) => void; onContextMenu: (menu: ContextMenuState) => void }) {
   const { t } = useLocale();
   const children = getChildren(nodes, node.id);
+  const customVisuals = useMemo(() => buildNodeCustomVisuals(nodes), [nodes]);
   return (
     <section className="folder-node-view">
       <NodeTypeLabel type="categoria" node={node} />
@@ -20,7 +22,7 @@ export default function FolderNodeView({ node, nodes, onSelect, onContextMenu }:
             const type = getEffectiveNodeType(nodes, child);
             return <li key={child.id}>
               <button type="button" onClick={() => { if (opensNodeViewOnClick(child)) onSelect(child.id); }} onContextMenu={(event) => { event.preventDefault(); event.stopPropagation(); onContextMenu({ context: "folder", nodeId: child.id, x: event.clientX, y: event.clientY, extended: event.shiftKey }); }} style={{ "--node-color": getNodeDefinition(type).color } as CSSProperties}>
-                <NodeIcon type={type} />
+                <NodeIcon type={type} visual={customVisuals.get(child.id)} />
                 <span><strong>{child.name}</strong><small>{getNodeDisplayLabel(type, t)}</small></span>
               </button>
             </li>;

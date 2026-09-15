@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { createServer } from "vite";
 
 const server = await createServer({
@@ -10,7 +11,7 @@ const server = await createServer({
 
 try {
   const { buildNodeContextMenuItems } = await server.ssrLoadModule("/src/components/ContextMenu.tsx");
-  const { withExitAction } = await server.ssrLoadModule("/src/components/HisContextMenu.tsx");
+  const { withExitAction, clampContextMenuPosition } = await server.ssrLoadModule("/src/components/HisContextMenu.tsx");
   const { ES_TRANSLATIONS } = await server.ssrLoadModule("/src/i18n/translations.ts");
   const { opensNodeViewOnClick } = await server.ssrLoadModule("/src/utils/nodeTree.ts");
   const { changedNodeIds, recordRecentActivity } = await server.ssrLoadModule("/src/utils/recentActivity.ts");
@@ -20,10 +21,13 @@ try {
     ES_TRANSLATIONS[key] ?? key,
   );
   const calls = [];
+  assert.deepEqual(clampContextMenuPosition(790, 590, 170, 180, 800, 600), { left: 622, top: 412 });
+  assert.deepEqual(clampContextMenuPosition(-20, -10, 170, 180, 800, 600), { left: 8, top: 8 });
   const callbacks = {
     onCreate: (id) => calls.push(["create", id]),
     onView: (id) => calls.push(["view", id]),
     onSetPrimary: (id) => calls.push(["set-primary", id]),
+    onAddToLore: (id) => calls.push(["add-lore", id]),
     onRemoveFromLore: (id) => calls.push(["remove-lore", id]),
     onDelete: (id) => calls.push(["delete", id]),
   };
@@ -57,6 +61,17 @@ try {
   typeItems.find((item) => item.id === "delete").onSelect();
   assert.deepEqual(calls, [["delete", "page"]]);
 
+  calls.length = 0;
+  const hiddenTypeItems = buildNodeContextMenuItems({
+    ...callbacks,
+    t,
+    canAddToLore: true,
+    menu: { context: "types", nodeId: "page", x: 0, y: 0 },
+  });
+  assert.deepEqual(hiddenTypeItems.map((item) => item.id), ["rename", "view", "add-lore", "set-primary", "delete"]);
+  hiddenTypeItems.find((item) => item.id === "add-lore").onSelect();
+  assert.deepEqual(calls, [["add-lore", "page"]]);
+
   const folder = { id: "folder", name: "Folder", type: "categoria", parentId: null, order: 0, content: "" };
   const page = { ...folder, id: "page", type: "pagina" };
   assert.equal(opensNodeViewOnClick(folder), false, "left click keeps a structural Folder in Lore");
@@ -81,6 +96,23 @@ try {
     ["page"],
     "domain mutations attribute activity only to Nodes whose persisted state changed",
   );
+
+  const [pageChrome, editorController, pageHeader, editorStyles, workspaceImports, workspaceView, sidebarTree] = await Promise.all([
+    readFile(new URL("../src/nodes/page/chrome.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/editor/useEditorController.ts", import.meta.url), "utf8"),
+    readFile(new URL("../src/nodes/page/header.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/editor/styles.css", import.meta.url), "utf8"),
+    readFile(new URL("../src/workspace/useFileNodeImports.ts", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/AppWorkspace.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/workspace/navigation/SidebarTree.tsx", import.meta.url), "utf8"),
+  ]);
+  assert.ok(pageChrome.includes("focusPageHeading(entry.element)") && editorController.includes("focusPageHeading(target)"), "native and inserted indices share navigation feedback");
+  assert.ok(pageChrome.includes('icons/more_vert.svg'), "the native Page index keeps its dedicated vertical-more asset");
+  assert.ok(pageHeader.includes("previewBlockWidth") && pageHeader.includes("commitBlockWidth") && pageHeader.includes("onPointerUp={commitBlockWidth}"), "page width previews locally and commits once");
+  assert.ok(pageHeader.includes("page-node-header__cover-attribution") && pageHeader.includes("provenance?.creatorUrl") && pageHeader.includes("provenance?.resourceUrl"), "Unsplash covers retain direct attribution links");
+  assert.ok(editorStyles.includes("article_shortcut.svg") && editorStyles.includes("--mention-color"), "mentions use the requested article marker and semantic hover color");
+  assert.ok(workspaceImports.includes("onGlobalImportRef.current?.(node)") && workspaceView.includes("onGlobalImport: (imported) => openNodeView(imported.id)"), "external drops open their imported Node");
+  assert.ok(sidebarTree.includes("customVisuals.get(node.id)"), "a Page's typed custom visual propagates to its Lore identity");
 
   console.log("PASS: contextual actions, Folder navigation and mutation-only Recent activity.");
 } finally {

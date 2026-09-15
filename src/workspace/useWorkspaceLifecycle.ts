@@ -7,6 +7,7 @@ import {
   failCloseProjectTrace,
   measureActiveCloseProjectPhase,
 } from "../lifecycle/metrics";
+import { flushEditorLayoutWrites } from "../project/editorLayoutRepository";
 
 interface WorkspaceLifecycleOptions {
   nodes: NodeItem[];
@@ -43,13 +44,17 @@ export function useWorkspaceLifecycle({
   const { hideApplication, registerWorkspaceFlush } = useAppLifecycle();
 
   const saveCurrentWorkspace = useCallback(
-    () => saveNow(getWorkspaceSnapshot(nodes, selectedId, editorRef.current)),
+    async () => {
+      await flushEditorLayoutWrites();
+      await saveNow(getWorkspaceSnapshot(nodes, selectedId, editorRef.current));
+    },
     [editorRef, nodes, saveNow, selectedId],
   );
 
   const exitWorkspace = useCallback(async () => {
     beginCloseProjectTrace();
     try {
+      await flushEditorLayoutWrites();
       const snapshot = measureActiveCloseProjectPhase("capture active editor", () =>
         getWorkspaceSnapshot(nodes, selectedId, editorRef.current),
       );

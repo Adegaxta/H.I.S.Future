@@ -23,5 +23,5 @@ export function PageNodeRenderer({ node, host }: NodeRendererProps) {
       false,
     );
   };
-  return <><PageNodeHeader node={node} nodes={host.data.nodes} onContentChange={host.mutations.updateContent} onRename={host.mutations.renameNode} onImageFileUpload={async (file) => (await host.files.importFile(file, node.parentId))?.id ?? null} onUnsplashImageSelect={onUnsplashImageSelect} /><RichTextNodeContent node={node} host={host} className="page-node-editor" style={{ width: `${getPageBlockWidthPercent(pageMeta)}%`, ...margin }} /></>;
+  return <RichTextNodeContent node={node} host={host} className="page-node-editor" style={{ width: `${getPageBlockWidthPercent(pageMeta)}%`, ...margin }} beforeContent={<PageNodeHeader node={node} nodes={host.data.nodes} onContentChange={host.mutations.updateContent} onRename={host.mutations.renameNode} onImageFileUpload={async (file) => (await host.files.importFile(file, node.parentId))?.id ?? null} onUnsplashImageSelect={onUnsplashImageSelect} />} />;
 }

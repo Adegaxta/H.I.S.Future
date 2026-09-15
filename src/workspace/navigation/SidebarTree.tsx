@@ -12,14 +12,15 @@ import type {
   RenderNodeType,
 } from "../../types/nodes";
 import { NODE_REGISTRY, getNodeDefinition, getNodeDisplayLabel, hasNodeCapability } from "../../defs/nodeTypes";
-import { getChildren, getEffectiveNodeType, opensNodeViewOnClick } from "../../utils/nodeTree";
+import { getEffectiveNodeType, opensNodeViewOnClick } from "../../utils/nodeTree";
 import { useLocale } from "../../i18n/LocaleContext";
 import { findImportableFile, isImportableDragItem } from "../../project/fileNodeImporter";
 import { NodeIcon } from "../../nodes/NodeIcon";
 import { PrimaryNodeName } from "../../nodes/PrimaryNodeName";
 import { useSearchReveal } from "../../hooks/useSearchReveal";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { getLoreNodes, selectLoreRange } from "../../utils/loreTree";
+import { buildNodeCustomVisuals } from "../../nodes/nodeIconSource";
 
 interface SidebarTreeProps {
   selectedLoreIds: string[];
@@ -83,7 +84,19 @@ export default function SidebarTree(props: SidebarTreeProps) {
     editingName,
     dropTarget,
   } = props;
-  const nodes = getLoreNodes(projectNodes);
+  const nodes = useMemo(() => getLoreNodes(projectNodes), [projectNodes]);
+  const customVisuals = useMemo(() => buildNodeCustomVisuals(projectNodes), [projectNodes]);
+  const nodesById = useMemo(() => new Map(nodes.map((node) => [node.id, node])), [nodes]);
+  const childrenByParent = useMemo(() => {
+    const index = new Map<string | null, NodeItem[]>();
+    nodes.forEach((node) => {
+      const siblings = index.get(node.parentId) ?? [];
+      siblings.push(node);
+      index.set(node.parentId, siblings);
+    });
+    index.forEach((siblings) => siblings.sort((a, b) => a.order - b.order));
+    return index;
+  }, [nodes]);
   const selectionAnchor = useRef<string | null>(null);
   useEffect(() => {
     if (!props.selectedLoreIds.length) {
@@ -97,6 +110,21 @@ export default function SidebarTree(props: SidebarTreeProps) {
   const normalizedQuery = (props.query ?? "").trim().toLocaleLowerCase(locale);
   const matches = (node: NodeItem) => node.name.toLocaleLowerCase(locale).includes(normalizedQuery);
   const searchRef = useSearchReveal(normalizedQuery, nodes.filter(matches).map((node) => node.id).join(","));
+  useEffect(() => {
+    if (!selectedId || !nodes.some((node) => node.id === selectedId)) return;
+    let secondFrame = 0;
+    const firstFrame = requestAnimationFrame(() => {
+      secondFrame = requestAnimationFrame(() => {
+        const row = Array.from(searchRef.current?.querySelectorAll<HTMLElement>("[data-node-id]") ?? [])
+          .find((element) => element.dataset.nodeId === selectedId);
+        row?.scrollIntoView({ block: "nearest" });
+      });
+    });
+    return () => {
+      cancelAnimationFrame(firstFrame);
+      cancelAnimationFrame(secondFrame);
+    };
+  }, [searchRef, selectedId]);
   const visibleIds = new Set<string>();
   if (normalizedQuery) {
     nodes.forEach((node) => {
@@ -104,13 +132,13 @@ export default function SidebarTree(props: SidebarTreeProps) {
       let current: NodeItem | undefined = node;
       while (current) {
         visibleIds.add(current.id);
-        current = current.parentId ? nodes.find((candidate) => candidate.id === current?.parentId) : undefined;
+        current = current.parentId ? nodesById.get(current.parentId) : undefined;
       }
     });
   }
-  const childrenOf = (id: string) => getChildren(nodes, id);
+  const childrenOf = (id: string) => childrenByParent.get(id) ?? [];
   const displayedIds: string[] = [];
-  const visit = (parentId: string | null) => getChildren(nodes, parentId).forEach((node) => {
+  const visit = (parentId: string | null) => (childrenByParent.get(parentId) ?? []).forEach((node) => {
     displayedIds.push(node.id);
     if (expanded[node.id] || (normalizedQuery && visibleIds.has(node.id))) visit(node.id);
   });
@@ -302,7 +330,7 @@ export default function SidebarTree(props: SidebarTreeProps) {
             });
           }}
         >
-          <NodeIcon type={type} className={isFolder && isExpanded ? "is-open" : ""} />
+          <NodeIcon type={type} visual={customVisuals.get(node.id)} className={isFolder && isExpanded ? "is-open" : ""} />
           <span
             onClick={(event) => {
               event.stopPropagation();
@@ -455,7 +483,7 @@ export default function SidebarTree(props: SidebarTreeProps) {
         </div>
       ) : (
         <>
-          {getChildren(nodes, null).map((node) => renderNode(node, 0))}
+          {(childrenByParent.get(null) ?? []).map((node) => renderNode(node, 0))}
           {creating?.parentId === null && renderCreateForm()}
         </>
       )}

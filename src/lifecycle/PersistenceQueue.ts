@@ -1,4 +1,5 @@
 export type PersistenceWriter<T> = (value: T) => Promise<void>;
+export type PersistenceMerger<T> = (current: T, next: T) => T;
 
 /**
  * Serializes persistence and coalesces queued snapshots to the newest state.
@@ -8,10 +9,13 @@ export class PersistenceQueue<T> {
   private pending: T | null = null;
   private drainPromise: Promise<void> | null = null;
 
-  constructor(private readonly write: PersistenceWriter<T>) {}
+  constructor(
+    private readonly write: PersistenceWriter<T>,
+    private readonly merge: PersistenceMerger<T> = (_current, next) => next,
+  ) {}
 
   enqueue(value: T): Promise<void> {
-    this.pending = value;
+    this.pending = this.pending === null ? value : this.merge(this.pending, value);
     return this.startDrain();
   }
 
@@ -31,8 +35,9 @@ export class PersistenceQueue<T> {
       try {
         await this.write(value);
       } catch (error) {
-        // A newer snapshot supersedes this one; otherwise retain it for an explicit retry.
-        if (this.pending === null) this.pending = value;
+        // Preserve failed work unless the configured merger can prove that a
+        // newer request supersedes it.
+        this.pending = this.pending === null ? value : this.merge(value, this.pending);
         throw error;
       }
     }

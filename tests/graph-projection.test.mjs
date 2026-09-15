@@ -14,7 +14,12 @@ try {
     parseFromString(content) {
       return {
         querySelector: (selector) => selector === "img"
-          ? { getAttribute: (name) => name === "src" ? "data:image/png;base64,AA==" : null, dataset: {} }
+              ? {
+                getAttribute: (name) => name === "src"
+                  ? content.match(/<img[^>]*src=["']([^"']+)["']/)?.[1] ?? null
+                  : null,
+                dataset: {},
+              }
           : null,
         querySelectorAll: () => [...content.matchAll(/<[^>]*data-mention-id=(['"])(.*?)\1[^>]*>/g)].map((match) => ({ dataset: { mentionId: match[2] } })),
       };
@@ -50,6 +55,35 @@ try {
 
   const imageProjection = project([base("image", "imagen", { content: "<p><img src=\"data:image/png;base64,AA==\"></p>" })]);
   assert.equal(imageProjection.vertices[0].imageSrc, "data:image/png;base64,AA==");
+  const unsplashProjection = project([base("unsplash-image", "imagen", {
+    content: "<p><img src=\"https://images.unsplash.com/photo-abc?ixid=keep-me&fm=jpg&w=1080\"></p>",
+  })]);
+  assert.equal(
+    unsplashProjection.vertices[0].imageSrc,
+    "https://images.unsplash.com/photo-abc?ixid=keep-me&fm=jpg&w=1080",
+  );
+  const iconImage = base("page-icon", "imagen", { content: "<p><img src=\"data:image/png;base64,ICON\"></p>" });
+  const pageWithIcon = base("page-with-icon", "pagina", {
+    content: "<!--hisfuture-page-meta:{\"iconNodeId\":\"page-icon\"}--><p>Page</p>",
+  });
+  const iconProjection = project([pageWithIcon, iconImage]);
+  assert.equal(iconProjection.vertices.find((vertex) => vertex.id === pageWithIcon.id).iconSrc, "data:image/png;base64,ICON");
+  assert.deepEqual(iconProjection.vertices.find((vertex) => vertex.id === pageWithIcon.id).customVisual, { kind: "image", src: "data:image/png;base64,ICON" });
+  const pageWithEmoji = base("page-with-emoji", "pagina", {
+    content: '<!--hisfuture-page-meta:{"iconVisual":{"kind":"emoji","value":"🌙","style":"twemoji"}}--><p>Page</p>',
+  });
+  const pageWithLucide = base("page-with-lucide", "pagina", {
+    content: '<!--hisfuture-page-meta:{"iconVisual":{"kind":"icon","provider":"lucide","name":"moon"}}--><p>Page</p>',
+  });
+  const pageWithMaterial = base("page-with-material", "pagina", {
+    content: '<!--hisfuture-page-meta:{"iconVisual":{"kind":"icon","provider":"material-symbols","name":"settings"}}--><p>Page</p>',
+  });
+  const visualProjection = project([pageWithEmoji, pageWithLucide, pageWithMaterial]);
+  assert.deepEqual(visualProjection.vertices.map((vertex) => vertex.customVisual), [
+    { kind: "emoji", value: "🌙", style: "twemoji" },
+    { kind: "icon", provider: "lucide", name: "moon" },
+    { kind: "icon", provider: "material-symbols", name: "settings" },
+  ]);
 
   const typeOff = project([base("course", "curso")], false);
   assert.equal(typeOff.vertices.some((vertex) => vertex.kind === "type-hub"), false);
@@ -201,6 +235,18 @@ try {
   assert.equal(preferences.readGraphBooleanPreference(storageApi, "images", true), true);
   storage.set("legacy-concepts", "true");
   assert.equal(preferences.readGraphBooleanPreference(storageApi, "types", false, "legacy-concepts"), true);
+  const configurable = preferences.readGraphUserPreferences(storageApi, "test-project");
+  assert.equal(configurable.showIcons, true);
+  assert.equal(configurable.showArrows, true);
+  assert.equal(configurable.showOrphans, true);
+  assert.equal(configurable.linkScale, 0.45);
+  assert.equal(configurable.scalePagesByContent, false);
+  assert.equal(configurable.scaleImagesByDimensions, false);
+  assert.equal(configurable.scaleNodesWithZoom, true);
+  assert.equal(configurable.localDepth, 1);
+  const customized = { ...configurable, nodeScale: 1.4, repelForce: 1.7, localDepth: 3 };
+  preferences.writeGraphUserPreferences(storageApi, "test-project", customized);
+  assert.deepEqual(preferences.readGraphUserPreferences(storageApi, "test-project"), customized);
   assert.equal(storage.get("types"), "true");
   assert.deepEqual(project([base("isolated", "pagina")]), project([base("isolated", "pagina")], false));
   const projectionSource = fs.readFileSync(new URL("../src/graph/projection.ts", import.meta.url), "utf8");

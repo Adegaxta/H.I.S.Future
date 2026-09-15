@@ -27,9 +27,9 @@ try {
   assert.equal(scene.graphLodForZoom(0.64, "medium"), "medium", "medium LOD has hysteresis when zooming in");
 
   assert.equal(scene.graphNodeVisual(node, "detail", { showImages: true, showIcons: false }), "thumbnail");
-  assert.equal(scene.graphNodeVisual(node, "medium", { showImages: true, showIcons: true }), "circle");
+  assert.equal(scene.graphNodeVisual(node, "medium", { showImages: true, showIcons: true }), "image");
   assert.equal(scene.graphNodeVisual(node, "far", { showImages: true, showIcons: true }), "circle");
-  assert.equal(scene.graphNodeVisual(node, "distant", { showImages: true, showIcons: true }), "circle");
+  assert.equal(scene.graphNodeVisual(node, "distant", { showImages: true, showIcons: true }), "point");
   assert.equal(scene.graphNodeVisual(pageWithImage, "detail", { showImages: true, showIcons: true }), "thumbnail");
   assert.equal(scene.graphNodeVisual(pageWithImage, "medium", { showImages: true, showIcons: true }), "circle");
   assert.equal(scene.graphNodeVisual(pageWithImage, "distant", { showImages: true, showIcons: true }), "circle");
@@ -134,7 +134,8 @@ try {
   const rendererSource = fs.readFileSync(new URL("../src/graph/PixiGraphRenderer.ts", import.meta.url), "utf8");
   const viewSource = fs.readFileSync(new URL("../src/graph/view.tsx", import.meta.url), "utf8");
   const iconSource = fs.readFileSync(new URL("../src/graph/iconSource.ts", import.meta.url), "utf8");
-  for (const lifecycleGuard of ["autoStart: false", "this.app.stop()", "ResizeObserver", "removeEventListener", "Assets.unload", "this.app.destroy"]) {
+  const visualTextureSource = fs.readFileSync(new URL("../src/graph/visualTexture.ts", import.meta.url), "utf8");
+  for (const lifecycleGuard of ["autoStart: false", "this.app.stop()", "ResizeObserver", "removeEventListener", "disposeLoadedTexture", "this.app.destroy"]) {
     assert.ok(rendererSource.includes(lifecycleGuard), `renderer lifecycle must include ${lifecycleGuard}`);
   }
   assert.ok(rendererSource.includes("preference: \"webgl\""));
@@ -164,11 +165,28 @@ try {
   assert.ok(rendererSource.includes("NODE_ENTER_MS = 200"), "new nodes enter within the requested presentation window");
   assert.ok(rendererSource.includes("NODE_EXIT_MS = 180"), "removed nodes exit within the requested presentation window");
   assert.ok(rendererSource.includes("retiringNodeDisplays"), "removed nodes remain available for their exit animation");
+  assert.ok(rendererSource.includes("scheduleProgressiveReconcile"), "large scenes materialize over multiple frames");
+  assert.ok(rendererSource.includes("progressiveBatchSize * 1.6"), "graph batches grow exponentially after a responsive first frame");
+  assert.ok(rendererSource.includes("edgesByDirection.get"), "reciprocal edges use constant-time lookup instead of scanning the graph per draw");
+  assert.ok(rendererSource.includes("setSimulationTuning"), "Obsidian-style force controls reach the simulation without rebuilding React nodes");
+  assert.ok(rendererSource.includes("preferences.showArrows !== false"), "arrow visibility is a renderer preference");
+  assert.ok(viewSource.includes("graph.localDepth") && viewSource.includes("preferences.localDepth"), "local graphs expose configurable traversal depth");
   const applyVisualStart = rendererSource.indexOf("private applyNodeVisual");
-  const ensureMediaStart = rendererSource.indexOf("private async ensureMedia");
-  const thumbnailMaskStart = rendererSource.indexOf("display.mask.visible = true", ensureMediaStart);
   assert.ok(applyVisualStart >= 0 && rendererSource.indexOf("display.mask.visible = false", applyVisualStart) >= 0, "LOD reconciliation hides the thumbnail mask before rendering non-thumbnail visuals");
-  assert.ok(thumbnailMaskStart >= ensureMediaStart && thumbnailMaskStart < rendererSource.indexOf("} else if (currentVisual === \"icon\")", thumbnailMaskStart), "only thumbnail media re-enables the mask Graphics");
+  assert.ok(rendererSource.includes('currentVisual === "thumbnail" || currentVisual === "image" || customIcon'), "image media remains unmasked so transparent pixels stay transparent");
+  assert.ok(rendererSource.includes("sourceWidth * fitScale") && rendererSource.includes("sourceHeight * fitScale"), "graph images preserve their source aspect ratio");
+  assert.ok(rendererSource.includes("scaleImagesByDimensions"), "source-dimension scaling remains an explicit preference");
+  assert.ok(rendererSource.includes("scalePagesByContent"), "page content scaling remains an explicit preference");
+  assert.ok(rendererSource.includes("scaleNodesWithZoom"), "zoom compensation remains an explicit preference");
+  assert.ok(rendererSource.includes("isCustomIconVisual"), "assigned page icons have a dedicated image-like visual path");
+  assert.ok(rendererSource.includes("point.customVisual"), "Pixi consumes the shared resolved Node visual contract");
+  assert.ok(visualTextureSource.includes("dynamicIconImports"), "Lucide graph textures stay lazy and use the installed official catalogue");
+  assert.ok(visualTextureSource.includes("Noto Color Emoji") && visualTextureSource.includes("Twemoji"), "both offline emoji styles can be rasterized for Pixi");
+  assert.ok(visualTextureSource.includes("Material Symbols Rounded"), "Material Symbols use the installed offline rounded font in Pixi");
+  assert.ok(rendererSource.includes("(width - previousWidth) / 2"), "renderer resize preserves the world point at the visual center");
+  assert.ok(rendererSource.includes("visual === \"thumbnail\" || visual === \"image\" || customIcon"), "assigned page icons use square node geometry");
+  assert.ok(rendererSource.includes("display.media.mask = null"), "image and assigned-icon transparency is preserved");
+  assert.ok(rendererSource.includes("display.media.tint = 0xffffff"), "assigned page icons preserve their original colors");
   for (const counter of ["sceneUpdates", "localizedPositionUpdates", "viewportUpdates", "lodChanges", "textureLoads", "renders"]) {
     assert.ok(rendererSource.includes(counter), `renderer exposes ${counter} instrumentation`);
   }

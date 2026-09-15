@@ -5,20 +5,62 @@
 .editor-content h2,
 .editor-content h3,
 .editor-content h4 {
-  margin-top: 1.15em;
-  margin-bottom: 0.65em;
+  margin-top: 1.35em;
+  margin-bottom: 0.35em;
   color: #f2f3f4;
-  font-weight: bold;
+  font-weight: 650;
+  line-height: 1.25;
+  letter-spacing: -0.018em;
 }
 
 /* Tamano del encabezado de nivel 1. */
-.editor-content h1 { font-size: 2em; }
+.editor-content h1 { font-size: 1.9em; }
 /* Tamano del encabezado de nivel 2. */
 .editor-content h2 { font-size: 1.5em; }
 /* Tamano del encabezado de nivel 3. */
-.editor-content h3 { font-size: 1.17em; }
+.editor-content h3 { font-size: 1.22em; }
 /* Tamano y color del encabezado de nivel 4. */
 .editor-content h4 { color: #c7c9cc; font-size: 1em; }
+.editor-content h5 { color: #bfc3c6; font-size: .9em; }
+.editor-content h6 { color: #b8bdc0; font-size: .8em; }
+
+.editor-content [data-his-highlighted="true"] { padding: 4px 8px; background: rgba(77, 216, 192, .12); border-left: 3px solid #4dd8c0; }
+.editor-content [data-his-code="true"] { font-family: ui-monospace, "Cascadia Code", monospace; background: #101315; }
+.editor-content [data-his-equation="true"] { font-family: Cambria, "Times New Roman", serif; font-style: italic; letter-spacing: .03em; }
+.editor-content [data-his-dropdown="true"]::before {
+  content: "";
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  margin: 0 6px -4px 0;
+  background: #4dd8c0;
+  mask: url("../assets/third-party/Lucide.dev/icons/chevron-down.svg") center / contain no-repeat;
+  transition: transform .12s ease;
+}
+.editor-content [data-his-dropdown="true"][data-his-collapsed]::before { transform: rotate(-90deg); }
+.editor-content [data-his-dropdown="true"][data-his-collapsed] > [data-his-dropdown-content] { display: none; }
+.editor-content [data-his-synced] { outline: 1px dashed rgba(77, 216, 192, .55); outline-offset: 3px; }
+.editor-content [data-his-column-layout] { display: flex; align-items: flex-start; gap: 20px; width: 100%; }
+.editor-content [data-his-column] { flex: 1 1 0; min-width: 0; }
+.editor-content [data-his-column] > :first-child { margin-top: 0; }
+.editor-content [data-his-list] { padding-left: 24px; }
+.editor-content [data-his-list]::before { position: absolute; margin-left: -20px; color: #4dd8c0; }
+.editor-content [data-his-list="bullets"]::before { content: "•"; }
+.editor-content [data-his-list="collapsible"]::before { content: "›"; }
+.editor-content [data-his-list="numbered"]::before { content: "1."; }
+.editor-content [data-his-list="tree"]::before { content: "├"; }
+.editor-content [data-his-list="todo"]::before {
+  content: "";
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  background: #4dd8c0;
+  mask: url("../assets/third-party/google-material/icons/check_box_outline_blank_256dp_E3E3E3_FILL0_wght400_GRAD0_opsz48.svg") center / contain no-repeat;
+}
+.editor-content [data-his-list="todo"][data-his-todo-checked]::before {
+  mask-image: url("../assets/third-party/google-material/icons/check_box_256dp_E3E3E3_FILL0_wght400_GRAD0_opsz48.svg");
+}
+.editor-content [data-his-list="todo"][data-his-todo-checked] { color: #737a80; text-decoration: line-through; }
 
 .editor-content ul {
   margin: 0.45em 0;
@@ -50,8 +92,8 @@
   margin: 12px 0;
   padding: 12px;
   background: #1a1d21;
-  border: 1px solid #343940;
-  border-radius: 4px;
+  border: 0;
+  border-radius: 0;
 }
 
 .editor-page-index {
@@ -87,6 +129,15 @@
 
 .editor-page-index__marker {
   color: #7a7f87;
+}
+
+@keyframes editor-page-index-highlight {
+  0%, 100% { box-shadow: 0 0 0 0 rgb(77 216 192 / 0%); background-color: transparent; }
+  16%, 72% { box-shadow: 0 0 0 2px rgb(77 216 192 / 72%); background-color: rgb(77 216 192 / 9%); }
+}
+
+.editor-content .editor-page-index-target {
+  animation: editor-page-index-highlight var(--page-index-highlight-duration, 900ms) ease-out;
 }
 
 .editor-page-index__label {
@@ -136,6 +187,11 @@
 /* Altura minima del area editable. */
 .editor-content {
   min-height: 100%;
+  caret-color: #4dd8c0;
+  cursor: default;
+  font-kerning: normal;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
 }
 
 /* Separacion clara para bloques de texto normales y dentro de globos; no afecta a titulos. */
@@ -143,8 +199,33 @@
 /* Superficie que conserva la seleccion rectangular despues del ultimo bloque. */
 .editor-selection-surface {
   width: 100%;
-  min-height: calc(100vh - 40px);
+  min-width: 100%;
+  min-height: 100vh;
+  cursor: default;
 }
+
+.page-node-editor-surface {
+  box-sizing: border-box;
+  width: calc(100% + 132px);
+  min-height: calc(100vh - 36px);
+  margin-top: -56px;
+  margin-left: -96px;
+  padding-top: 56px;
+  padding-left: 96px;
+  padding-right: 36px;
+  padding-bottom: 96px;
+}
+
+/* El cursor de escritura pertenece únicamente a contenido realmente editable. */
+.editor-content :is(p, h1, h2, h3, h4, h5, h6, blockquote, li, pre, td, th, [data-globe-content]) {
+  cursor: text;
+}
+
+.editor-content :is([data-page-index], [data-page-index] *, [data-divider], [data-divider] *) {
+  cursor: default;
+}
+
+.editor-content [data-page-index] button { cursor: pointer; }
 
 .editor-content p,
 .editor-content blockquote,
@@ -152,7 +233,8 @@
 .editor-content [data-globe-content] p,
 .editor-content [data-globe-content] blockquote,
 .editor-content [data-globe-content] li {
-  margin: 0.7em 0;
+  min-height: 1.6em;
+  margin: 0.28em 0;
 }
 /* Estilo del texto en negrita. */
 .editor-content b { font-weight: bold; }
@@ -213,18 +295,26 @@
   vertical-align: baseline;
   white-space: nowrap;
   cursor: pointer;
+  margin: 0 -0.15em;
+  padding: 0 0.15em;
+  transition: background-color 130ms ease, color 130ms ease;
 }
 
 .editor-content .editor-mention:not(:has(img))::before {
-  color: inherit;
-  content: "#";
-  text-decoration-line: underline;
-  text-decoration-color: currentColor;
-  text-decoration-thickness: 1px;
-  text-underline-offset: 3px;
-  user-select: text;
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  flex: 0 0 1em;
+  margin-right: 0.2em;
+  background: currentColor;
+  content: "";
+  mask: url("../assets/third-party/google-material/icons/article_shortcut.svg") center / contain no-repeat;
+  user-select: none;
 }
-.editor-content .editor-mention:not(:has(img)) { gap: 0; }
+.editor-content .editor-mention:hover {
+  color: var(--mention-color, #4dd8c0);
+  background-color: color-mix(in srgb, var(--mention-color, #4dd8c0) 18%, transparent);
+}
 .editor-content .editor-mention img {
   display: inline-block;
   width: 1em;
@@ -273,8 +363,66 @@
 /* Evita seleccionar caracteres mientras se dibuja el cuadro de bloques. */
 .editor-content[data-block-selecting="true"] { user-select: none; }
 /* Desactiva gestos de toque en el control de linea. */
-[data-line-control="true"] { touch-action: none; }
-[data-line-gutter="true"] { pointer-events: none; }
+[data-line-control="true"] { touch-action: auto; }
+[data-line-control-mode="drag"] { touch-action: none; }
+.editor-line-control-cluster {
+  pointer-events: auto;
+  isolation: isolate;
+}
+.editor-line-control-menu {
+  position: absolute;
+  inset: 0;
+  width: 28px;
+  height: 100%;
+  min-height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.editor-line-control-insert {
+  position: absolute;
+  left: 50%;
+  width: 22px;
+  height: 22px;
+  padding: 0 0 2px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #4dd8c0;
+  font: 400 18px/18px system-ui, sans-serif;
+  cursor: pointer;
+  z-index: 2;
+  opacity: 1;
+  transform: translateX(-50%);
+}
+.editor-line-control-insert--above { top: -11px; }
+.editor-line-control-insert--below { bottom: -11px; }
+.editor-line-control-cluster--compact .editor-line-control-insert--above { top: -20px; }
+.editor-line-control-cluster--compact .editor-line-control-insert--below { bottom: -20px; }
+.editor-line-control-insert:focus-visible {
+  transform: translateX(-50%);
+  outline: 1px solid #4dd8c0;
+  outline-offset: 1px;
+}
+.editor-line-control-icon {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  filter: brightness(0) saturate(100%) invert(77%) sepia(36%) saturate(706%) hue-rotate(121deg) brightness(93%) contrast(88%);
+  transition: opacity 100ms ease;
+  pointer-events: none;
+}
+.editor-line-control-icon--drag { opacity: 0; }
+[data-line-control-mode="drag"] .editor-line-control-icon--drag { opacity: 1; }
+.editor-line-control-menu:hover .editor-line-control-icon--more { opacity: 0; }
+.editor-line-control-menu:hover .editor-line-control-icon--drag { opacity: 1; }
+.editor-drag-preview { min-height: 0 !important; }
 /* Apariencia temporal de una linea durante el arrastre. */
 .editor-content [data-line-dragging="true"] {
   opacity: 0.42;
@@ -296,7 +444,8 @@
   top: 0;
   left: 0;
   content: attr(data-editor-placeholder);
-  color: #5a5f66;
+  color: #686e75;
+  opacity: 0.82;
   pointer-events: none;
   user-select: none;
 }
@@ -312,7 +461,8 @@
   transition: top 140ms ease, opacity 140ms ease;
 }
 
-/* Marco de seleccion de un bloque completo. */
+/* Marco de seleccion de un bloque completo. El portal usa coordenadas de viewport
+  para que el origen permanezca fijo mientras se desplaza el editor. */
 .editor-block-selection {
   position: fixed;
   pointer-events: none;

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { NODE_REGISTRY, getNodeDefinition, getNodeDisplayLabel } from "../defs/nodeTypes";
 import { useLocale } from "../i18n/LocaleContext";
 import type { BaseNodeType, NodeItem } from "../types/nodes";
@@ -10,6 +10,7 @@ import { NodeIcon } from "../nodes/NodeIcon";
 import { PrimaryNodeName } from "../nodes/PrimaryNodeName";
 import { UiIcon } from "../ui/Icon";
 import { fileImportAccept } from "../project/fileImportRegistry";
+import { buildNodeCustomVisuals, resolveNodeCustomVisual } from "../nodes/nodeIconSource";
 
 const assets = import.meta.glob<string>("../assets/third-party/google-material/icons/*.svg", { eager: true, query: "?url", import: "default" });
 export type NodalIconName = "syllable" | "classroom" | "classes_video" | "content" | "Evaluation" | "add_video" | "add_link" | "material" | "task" | "state" | "undated" | "download" | "delete" | "extension" | "storage" | "audio_capture" | "link_1" | "link_2";
@@ -26,7 +27,8 @@ export interface NodalViewProps {
 }
 export function NodeReference({ node, nodes, onOpen, label }: { node: NodeItem; nodes: NodeItem[]; onOpen: (id: string) => void; label?: ReactNode }) {
   const type = getEffectiveNodeType(nodes, node);
-  return <button type="button" className="node-reference" data-mention-id={node.id} style={{ "--node-color": getNodeDefinition(type).color } as CSSProperties} title={node.name} onClick={() => onOpen(node.id)}><NodeIcon type={type} /><PrimaryNodeName node={node}>{label ?? node.name}</PrimaryNodeName></button>;
+  const visual = useMemo(() => resolveNodeCustomVisual(node, nodes), [node, nodes]);
+  return <button type="button" className="node-reference" data-mention-id={node.id} style={{ "--node-color": getNodeDefinition(type).color } as CSSProperties} title={node.name} onClick={() => onOpen(node.id)}><NodeIcon type={type} visual={visual} /><PrimaryNodeName node={node}>{label ?? node.name}</PrimaryNodeName></button>;
 }
 export function NodeReferenceList({ source, role, nodes, onOpen, onRemove, query = "" }: {
   source: NodeItem; role: RelationRole; nodes: NodeItem[]; onOpen: (id: string) => void;
@@ -60,11 +62,12 @@ export function NodePicker({ nodes, types, onChoose, onCreate, onImport, onClose
   const mounted = useRef(true);
   useEffect(() => { mounted.current = true; ref.current?.showModal(); return () => { mounted.current = false; ref.current?.close(); }; }, []);
   const filtered = nodes.filter((n) => (!types || types.includes(n.type)) && normalizeSearchText(n.name).includes(normalizeSearchText(query)));
+  const customVisuals = useMemo(() => buildNodeCustomVisuals(nodes), [nodes]);
   const importAccept = fileImportAccept(types);
   return <dialog ref={ref} className="lore-add-dialog node-picker" onCancel={(e) => { if (busy) e.preventDefault(); else onClose(); }} aria-label={t("nodal.choose")}>
     <div className="lore-add-dialog__content"><header><h2>{t("nodal.choose")}</h2><button disabled={busy} onClick={onClose} aria-label={t("nodal.close")}>×</button></header>
       <label className="nodal-search"><UiIcon name="search" /><input autoFocus placeholder={t("nodal.search")} aria-label={t("nodal.search")} value={query} onChange={(e) => setQuery(e.target.value)} /></label>
-      <div className="lore-add-dialog__list">{filtered.map((n) => <button disabled={busy} type="button" key={n.id} className="node-reference" style={{ "--node-color": getNodeDefinition(getEffectiveNodeType(nodes, n)).color } as CSSProperties} onClick={() => { onChoose(n.id); onClose(); }}><NodeIcon type={getEffectiveNodeType(nodes, n)} /><span>{n.name}</span><small>{getNodeDisplayLabel(n.type, t)}</small></button>)}{!filtered.length && <p>{t("nodal.empty")}</p>}</div>
+      <div className="lore-add-dialog__list">{filtered.map((n) => <button disabled={busy} type="button" key={n.id} className="node-reference" style={{ "--node-color": getNodeDefinition(getEffectiveNodeType(nodes, n)).color } as CSSProperties} onClick={() => { onChoose(n.id); onClose(); }}><NodeIcon type={getEffectiveNodeType(nodes, n)} visual={customVisuals.get(n.id)} /><span>{n.name}</span><small>{getNodeDisplayLabel(n.type, t)}</small></button>)}{!filtered.length && <p>{t("nodal.empty")}</p>}</div>
       {onCreate && availableTypes.length > 0 && <form onSubmit={(e) => { e.preventDefault(); if (name.trim()) { onCreate(name.trim(), type); onClose(); } }}>
         <label>{t("nodal.name")}<input value={name} onChange={(e) => setName(e.target.value)} required /></label>
         {availableTypes.length > 1 && <label>{t("nodal.type")}<select value={type} onChange={(e) => setType(e.target.value as BaseNodeType)}>{availableTypes.map((d) => <option value={d.type} key={d.type}>{t(d.labelKey)}</option>)}</select></label>}

@@ -8,7 +8,7 @@ import type {
 import type { NodeItem } from "../types/nodes";
 import { getPageMeta } from "../utils/pageMeta";
 import { getNodeDefinition } from "../defs/nodeTypes";
-import { isResizableEditorImage } from "./imageResize";
+import { ensureEditorImageBlockId, isResizableEditorImage } from "./imageResize";
 
 interface UseEditorMentionsOptions {
   editorRef: RefObject<HTMLDivElement | null>;
@@ -25,6 +25,8 @@ interface UseEditorMentionsOptions {
     image: HTMLImageElement;
     startX: number;
     startWidth: number;
+    blockId: string;
+    blockIdCreated: boolean;
   } | null>;
   controls: {
     clearBlockControls: () => void;
@@ -55,6 +57,7 @@ export function useEditorMentions({
     mention.dataset.noResize = "true";
     mention.title = target.name;
     mention.setAttribute("aria-label", target.name);
+    mention.style.setProperty("--mention-color", getNodeDefinition(target.type).color);
     if (target.type === "imagen") mention.dataset.mentionMode = imageMode;
     if (deletedNodes.some((item) => item.id === target.id)) {
       mention.dataset.deletedMention = "true";
@@ -84,6 +87,7 @@ export function useEditorMentions({
         image.alt = target.name;
         if (imageMode === "inserted") image.className = "editor-mention__icon";
         image.dataset.noResize = "true";
+        if (imageMode === "full") ensureEditorImageBlockId(image);
         mention.appendChild(image);
         if (imageMode === "inserted") mention.appendChild(document.createTextNode(target.name));
       } else mention.textContent = target.name;
@@ -210,10 +214,13 @@ export function useEditorMentions({
     if (event.button !== 2 && image && isResizableEditorImage(image) && editorRef.current?.contains(image)) {
       event.preventDefault();
       event.stopPropagation();
+      const identity = ensureEditorImageBlockId(image, editorRef.current);
       imageResizeRef.current = {
         image,
         startX: event.clientX,
         startWidth: image.getBoundingClientRect().width,
+        blockId: identity.blockId,
+        blockIdCreated: identity.created,
       };
       document.body.style.cursor = "ew-resize";
       return;
@@ -265,7 +272,9 @@ export function useEditorMentions({
     captureStructuralUndo();
     imageBlocks.forEach((block) => {
       const fullMentions = Array.from(
-        block.querySelectorAll<HTMLElement>('[data-mention-id][data-mention-mode="full"]'),
+        block.matches('[data-mention-id][data-mention-mode="full"]')
+          ? [block]
+          : block.querySelectorAll<HTMLElement>('[data-mention-id][data-mention-mode="full"]'),
       );
       if (fullMentions.length) {
         fullMentions.forEach((mention) => {

@@ -1,17 +1,23 @@
 import type { NodeItem, RenderNodeType } from "../types/nodes";
 import { getNodeDefinition } from "../defs/nodeTypes";
 import { PrimaryNodeName } from "../nodes/PrimaryNodeName";
+import { NodeIcon } from "../nodes/NodeIcon";
+import type { ResolvedNodeVisual } from "../nodes/visuals/types";
 
 interface DragPreviewProps {
   node: NodeItem | undefined;
   nodeType: RenderNodeType | undefined;
   position: { x: number; y: number };
+  iconSource?: string;
+  visual?: ResolvedNodeVisual;
 }
 
 export default function DragPreview({
   node,
   nodeType,
   position,
+  iconSource,
+  visual,
 }: DragPreviewProps) {
   if (!node) return null;
   const color = getNodeDefinition(nodeType || "pagina").color;
@@ -36,14 +42,7 @@ export default function DragPreview({
         fontSize: "12px",
       }}
     >
-      <span
-        style={{
-          width: "7px",
-          height: "7px",
-          borderRadius: "50%",
-          background: color,
-        }}
-      />
+      <NodeIcon type={nodeType || "pagina"} source={iconSource} visual={visual} />
       <PrimaryNodeName node={node}>{node.name}</PrimaryNodeName>
     </div>
   );

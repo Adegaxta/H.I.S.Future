@@ -1,0 +1,21 @@
+@font-face {
+  font-family: "Noto Color Emoji";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url("@fontsource/noto-color-emoji/files/noto-color-emoji-emoji-400-normal.woff2") format("woff2");
+}
+
+.node-visual.node-custom-icon {
+  background: transparent !important;
+  mask: none !important;
+  -webkit-mask: none !important;
+}
+
+@font-face {
+  font-family: "Twemoji";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url("@sableclient/twemoji-font/files/twemoji.woff2") format("woff2");
+}

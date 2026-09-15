@@ -26,6 +26,7 @@ interface HomeScreenProps {
   busy: boolean;
   error: string | null;
   onCreateProject: (name: string, t: Translate) => Promise<void> | void;
+  onQuickStartDev: (t: Translate) => Promise<void> | void;
   onLoadProject: (t: Translate) => Promise<void> | void;
   onConvertProject: (t: Translate) => Promise<string | null>;
   recentProjects: ProjectInfo[];
@@ -37,6 +38,7 @@ export default function HomeScreen({
   busy,
   error,
   onCreateProject,
+  onQuickStartDev,
   onLoadProject,
   onConvertProject,
   recentProjects,
@@ -146,6 +148,20 @@ export default function HomeScreen({
                 </button>
                 <span>{t("home.convert.description")} <b>DEV</b></span>
               </div>
+              {import.meta.env.DEV && (
+                <div className="home-action home-action--dev home-action--quick-dev">
+                  <button
+                    type="button"
+                    className="home-action__button"
+                    title={t("home.quickDev.title")}
+                    disabled={busy}
+                    onClick={() => void onQuickStartDev(t)}
+                  >
+                    <span className="home-action__asset" aria-hidden="true">+</span>
+                  </button>
+                  <span>{t("home.quickDev.description")} <b>DEV</b></span>
+                </div>
+              )}
             </div>
           </section>
           <section className="home-screen__recent">

@@ -29,6 +29,13 @@ export interface GraphSimulationConfig {
   edgeKinds: Record<GraphEdgeKind, GraphSimulationEdgeConfig>;
 }
 
+export interface GraphSimulationTuning {
+  centerForce: number;
+  repelForce: number;
+  linkForce: number;
+  linkDistance: number;
+}
+
 export const DEFAULT_GRAPH_SIMULATION_CONFIG: GraphSimulationConfig = {
   repulsionStrength: 80000,
   maxRepulsionDistance: 900,
@@ -109,6 +116,25 @@ export class GraphSimulation {
     this.runtime = runtime;
     this.config = mergeConfig(config);
     this.syncRuntime();
+  }
+
+  setTuning(tuning: GraphSimulationTuning): void {
+    const clamp = (value: number, minimum: number, maximum: number) =>
+      Math.max(minimum, Math.min(maximum, Number.isFinite(value) ? value : 1));
+    const centerForce = clamp(tuning.centerForce, 0, 2);
+    const repelForce = clamp(tuning.repelForce, 0, 2);
+    const linkForce = clamp(tuning.linkForce, 0, 2);
+    const linkDistance = clamp(tuning.linkDistance, 0.5, 2);
+    this.config.centerStrength = DEFAULT_GRAPH_SIMULATION_CONFIG.centerStrength * centerForce;
+    this.config.repulsionStrength = DEFAULT_GRAPH_SIMULATION_CONFIG.repulsionStrength * repelForce;
+    for (const kind of Object.keys(this.config.edgeKinds) as GraphEdgeKind[]) {
+      const defaults = DEFAULT_GRAPH_SIMULATION_CONFIG.edgeKinds[kind];
+      this.config.edgeKinds[kind] = {
+        strength: defaults.strength * linkForce,
+        targetLength: defaults.targetLength * linkDistance,
+      };
+    }
+    this.wake("manual");
   }
 
   setRuntime(runtime: GraphRuntimeModel): boolean {
