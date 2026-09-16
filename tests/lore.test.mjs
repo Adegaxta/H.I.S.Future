@@ -26,6 +26,9 @@ try {
     { id: "folder", type: "pagina", parentId: null, order: 1, content: "" },
   ], new Set(["folder"]))], [], "all hidden non-project nodes are restored on load");
   assert.deepEqual([...normalizeLoreHiddenIds(nodes, new Set(["child"]))], ["child"], "partial Lore hiding remains persisted");
+  const persistedHidden = new Set(["folder", "child", "other"]);
+  const normalizedHidden = normalizeLoreHiddenIds(nodes, persistedHidden);
+  assert.equal(normalizedHidden.size !== persistedHidden.size, true, "a Lore reset must be detectable for persistence");
   assert.ok(nodes.every((node) => node.loreHidden === undefined), "operations must not mutate input");
   const order = ["folder", "child", "other"];
   assert.deepEqual(selectLoreRange(order, ["folder"], "folder", "other", true, false), ["folder", "other"]);
