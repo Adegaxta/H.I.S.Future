@@ -1,7 +1,7 @@
 {
   "name": "hisfuture",
   "private": true,
-  "version": "0.6.0",
+  "version": "0.6.1",
   "type": "module",
   "scripts": {
     "generate:material-symbols": "node scripts/generate-material-symbol-catalog.mjs",
