@@ -4,6 +4,7 @@ import type { NodeItem } from "../types/nodes";
 import { asErrorMessage, isDesktopRuntime } from "./runtime";
 import type { PersistedNode } from "./types";
 import { getProjectSetting } from "./settingsRepository";
+import { normalizeLoreHiddenIds } from "../utils/loreTree";
 import {
   getActiveCloseProjectTraceId,
   measureActiveCloseProjectPhase,
@@ -69,13 +70,13 @@ export async function listNodes(defaultNodeType: BaseNodeType = "pagina"): Promi
       const [rows, hiddenSetting] = await measureLifecyclePhase("project.load-nodes", async () => [
         listBrowserDevNodes(), await getProjectSetting("loreHiddenIds"),
       ] as const);
-      const hidden = new Set<string>(JSON.parse(hiddenSetting || "[]"));
+      const hidden = normalizeLoreHiddenIds(rows, new Set<string>(JSON.parse(hiddenSetting || "[]")));
       return rows.map((row) => ({ ...toNodeItem(row), loreHidden: hidden.has(row.id) }));
     }
     const [rows, hiddenSetting] = await measureLifecyclePhase("project.load-nodes", () => Promise.all([
       invoke<PersistedNode[]>("list_nodes", { defaultNodeType }), getProjectSetting("loreHiddenIds"),
     ]));
-    const hidden = new Set<string>(JSON.parse(hiddenSetting || "[]"));
+    const hidden = normalizeLoreHiddenIds(rows, new Set<string>(JSON.parse(hiddenSetting || "[]")));
     return rows.map((row) => ({ ...toNodeItem(row), loreHidden: hidden.has(row.id) }));
   } catch (error) {
     throw new Error(asErrorMessage(error));
@@ -91,7 +92,7 @@ export async function loadWorkspaceSnapshot(defaultNodeType: BaseNodeType = "pag
     const snapshot = await measureLifecyclePhase("project.load-workspace", () =>
       invoke<PersistedWorkspaceSnapshot>("load_workspace_snapshot", { defaultNodeType }),
     );
-    const hidden = new Set<string>(JSON.parse(snapshot.loreHiddenIds || "[]"));
+    const hidden = normalizeLoreHiddenIds(snapshot.nodes, new Set<string>(JSON.parse(snapshot.loreHiddenIds || "[]")));
     const nodes = snapshot.nodes.map((row) => ({ ...toNodeItem(row), loreHidden: hidden.has(row.id) }));
     const parsedDeleted: unknown = snapshot.deletedNodes === null ? null : JSON.parse(snapshot.deletedNodes);
     const deletedNodes = parsedDeleted === null
