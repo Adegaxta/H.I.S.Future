@@ -1,5 +1,6 @@
 import type { NodeItem } from "../types/nodes";
-import { collectDescendantIds } from "./nodeTree";
+import { getEffectiveNodeType, collectDescendantIds } from "./nodeTree";
+import { hasNodeCapability } from "../nodes/registry";
 
 export function setLoreMembership(nodes: NodeItem[], ids: string[], visible: boolean): NodeItem[] {
   const affected = new Set(ids.flatMap((id) => [...collectDescendantIds(nodes, id)]));
@@ -21,16 +22,30 @@ export function getLoreNodes(nodes: NodeItem[]): NodeItem[] {
   });
 }
 
-export function normalizeLoreHiddenIds(nodes: readonly NodeItem[], hiddenIds: ReadonlySet<string>): Set<string> {
-  const hasNonProjectNode = nodes.some((node) => node.type !== "proyecto");
-  const allNonProjectNodesHidden = hasNonProjectNode && nodes
-    .filter((node) => node.type !== "proyecto")
-    .every((node) => hiddenIds.has(node.id));
-  return allNonProjectNodesHidden ? new Set<string>() : new Set(hiddenIds);
+export type LoreConnectorTopology = "none" | "single" | "multiple";
+
+export function getLoreConnectorTopology(visibleChildCount: number): LoreConnectorTopology {
+  if (visibleChildCount === 0) return "none";
+  if (visibleChildCount === 1) return "single";
+  return "multiple";
 }
 
 export function getNodeSidebarLocation(nodes: readonly NodeItem[], id: string): "lore" | "types" {
   return nodes.find((node) => node.id === id)?.loreHidden ? "types" : "lore";
+}
+
+export function getLoreExpandableIds(nodes: NodeItem[]): string[] {
+  const visibleNodes = getLoreNodes(nodes);
+  const childrenByParent = new Map<string | null, NodeItem[]>();
+  visibleNodes.forEach((node) => {
+    const children = childrenByParent.get(node.parentId) ?? [];
+    children.push(node);
+    childrenByParent.set(node.parentId, children);
+  });
+  return visibleNodes
+    .filter((node) => (childrenByParent.get(node.id)?.length ?? 0) > 0)
+    .filter((node) => hasNodeCapability(getEffectiveNodeType(visibleNodes, node), "containChildren"))
+    .map((node) => node.id);
 }
 
 export function getLoreAncestorIds(nodes: NodeItem[], id: string): string[] {

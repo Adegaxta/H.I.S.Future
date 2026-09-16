@@ -19,7 +19,7 @@ import { NodeIcon } from "../../nodes/NodeIcon";
 import { PrimaryNodeName } from "../../nodes/PrimaryNodeName";
 import { useSearchReveal } from "../../hooks/useSearchReveal";
 import { useEffect, useMemo, useRef } from "react";
-import { getLoreNodes, selectLoreRange } from "../../utils/loreTree";
+import { getLoreConnectorTopology, getLoreNodes, selectLoreRange } from "../../utils/loreTree";
 import { buildNodeCustomVisuals } from "../../nodes/nodeIconSource";
 
 interface SidebarTreeProps {
@@ -143,6 +143,7 @@ export default function SidebarTree(props: SidebarTreeProps) {
     if (expanded[node.id] || (normalizedQuery && visibleIds.has(node.id))) visit(node.id);
   });
   visit(null);
+  const toggleExpanded = (id: string) => props.setExpanded((current) => ({ ...current, [id]: !current[id] }));
   const selectLoreNode = (node: NodeItem, event: ReactMouseEvent) => {
     const additive = event.ctrlKey || event.metaKey;
     props.setSelectedLoreIds(selectLoreRange(displayedIds, props.selectedLoreIds, selectionAnchor.current, node.id, additive, event.shiftKey));
@@ -150,7 +151,7 @@ export default function SidebarTree(props: SidebarTreeProps) {
     if (additive || event.shiftKey) return;
     props.setCreating(null);
     const type = getEffectiveNodeType(projectNodes, node);
-    if (hasNodeCapability(type, "containChildren")) {
+    if (node.type === "categoria" && hasNodeCapability(type, "containChildren")) {
       props.setExpanded((current) => ({ ...current, [node.id]: !current[node.id] }));
     }
     if (opensNodeViewOnClick(node)) props.setSelectedId(node.id);
@@ -213,6 +214,9 @@ export default function SidebarTree(props: SidebarTreeProps) {
     const children = childrenOf(node.id);
     const type: RenderNodeType = getEffectiveNodeType(projectNodes, node);
     const isFolder = hasNodeCapability(type, "containChildren");
+    const visibleChildCount = children.length + Number(creating?.parentId === node.id);
+    const connectorTopology = getLoreConnectorTopology(visibleChildCount);
+    const singleConnectorClass = connectorTopology === "single" ? "lore-node--single-connector" : "";
     const canContainChildren =
       isFolder || children.length > 0 || creating?.parentId === node.id;
     const isExpanded = expanded[node.id] || (Boolean(normalizedQuery) && visibleIds.has(node.id));
@@ -222,7 +226,7 @@ export default function SidebarTree(props: SidebarTreeProps) {
     return (
       <div key={node.id} className="lore-branch" style={{ "--node-color": getNodeDefinition(type).color } as CSSProperties}>
         <div
-          className={`lore-node ${isSelected ? "is-selected" : ""} ${normalizedQuery && !matches(node) ? "is-search-dimmed" : ""} ${activeDropPosition ? `is-drop-${activeDropPosition}` : ""}`}
+          className={`lore-node ${singleConnectorClass} ${isSelected ? "is-selected" : ""} ${children.length === 1 ? "has-single-child" : children.length > 1 ? "has-children" : ""} ${normalizedQuery && !matches(node) ? "is-search-dimmed" : ""} ${activeDropPosition ? `is-drop-${activeDropPosition}` : ""}`}
           data-search-match={Boolean(normalizedQuery) && matches(node)}
           data-node-id={node.id}
           onPointerDown={(event: ReactPointerEvent<HTMLDivElement>) => {
@@ -371,6 +375,21 @@ export default function SidebarTree(props: SidebarTreeProps) {
               <PrimaryNodeName node={node}>{node.name}</PrimaryNodeName>
             )}
           </span>
+          {children.length > 0 ? (
+            <button
+              type="button"
+              data-no-drag="true"
+              className={`lore-node__expand ${isExpanded ? "is-expanded" : ""}`}
+              aria-label={t(isExpanded ? "sidebar.collapseNode" : "sidebar.expandNode")}
+              title={t(isExpanded ? "sidebar.collapseNode" : "sidebar.expandNode")}
+              onClick={(event) => {
+                event.stopPropagation();
+                toggleExpanded(node.id);
+              }}
+            >
+              <span className="sidebar-icon sidebar-icon--chevron-down" aria-hidden="true" />
+            </button>
+          ) : <span className="lore-node__expand lore-node__expand--placeholder" aria-hidden="true" />}
           <span
             data-no-drag="true"
             onClick={(event) => {
@@ -387,7 +406,7 @@ export default function SidebarTree(props: SidebarTreeProps) {
         </div>
         {canContainChildren && isExpanded && (
           <div
-            className={`lore-children ${children.length + Number(creating?.parentId === node.id) === 1 ? "lore-children--single" : "lore-children--multiple"}`}
+            className={`lore-children lore-children--${connectorTopology}`}
             style={{ "--parent-color": getNodeDefinition(type).color } as CSSProperties}
           >
             {children.map((child) => renderNode(child, depth + 1))}

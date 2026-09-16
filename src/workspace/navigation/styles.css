@@ -368,6 +368,7 @@
 .context-toolbar.is-searching .context-toolbar__actions { width: 0; transform: translateX(34px); opacity: 0; pointer-events: none; }
 .context-toolbar.is-searching .context-toolbar__search input { width: 100%; padding: 4px 2px; border-bottom-color: var(--his-accent); opacity: 1; }
 .context-toolbar__search .sidebar-icon { width: 22px; height: 22px; }
+.context-toolbar__expand-all { color: var(--his-accent); }
 
 .lore-tree,
 .node-panels {
@@ -383,7 +384,7 @@
   position: relative;
   display: grid;
   min-height: 31px;
-  grid-template-columns: 25px minmax(0, 1fr) 24px;
+  grid-template-columns: 25px minmax(0, 1fr) 24px 24px;
   align-items: start;
   gap: 5px;
   padding: 4px 1px 4px 3px;
@@ -404,7 +405,21 @@
   opacity: 0;
 }
 
-.lore-node.is-selected::after,
+.lore-node.is-selected::after {
+  left: 28px;
+  opacity: 1;
+}
+.lore-node.has-single-child.is-selected::after { left: 13.5px; }
+.lore-node--single-connector:not(.is-selected)::before {
+  content: "";
+  position: absolute;
+  top: 27px;
+  right: auto;
+  bottom: 0;
+  left: 13.5px;
+  border-left: 2px solid var(--node-color);
+  pointer-events: none;
+}
 .context-node-row.is-selected::after { opacity: 1; }
 .lore-node.is-drop-inside { background: color-mix(in srgb, var(--node-color) 12%, transparent); outline: 1px dashed var(--node-color); }
 .lore-node.is-drop-before { border-top: 2px solid var(--node-color); }
@@ -426,10 +441,15 @@
   word-break: normal;
 }
 .lore-node__name:has(input) { display: block; }
+.lore-node__expand { display: grid; width: 24px; height: 24px; place-items: center; border: 0; padding: 0; color: var(--node-color); background: transparent; cursor: pointer; }
+.lore-node__expand--placeholder { visibility: hidden; pointer-events: none; }
+.lore-node__expand .sidebar-icon { width: 20px; height: 20px; transition: transform 120ms ease; }
+.lore-node__expand.is-expanded .sidebar-icon { transform: rotate(180deg); }
 .lore-node__add { z-index: 1; display: grid; width: 24px; height: 24px; place-items: center; padding: 0; color: var(--his-accent); font-size: 24px; opacity: 0; }
 .lore-node:hover .lore-node__add,
 .lore-node__add:focus-visible { opacity: 1; }
 .lore-children { position: relative; }
+/* MULTIPLE owns the shared rail and sibling corner geometry below. */
 .lore-children--multiple { margin-left: 13px; padding-left: 12px; }
 .lore-create-branch { position: relative; display: flow-root; }
 /* Each sibling owns its rail segment; descendants cannot extend the final one. */
@@ -449,7 +469,7 @@
   height: 17px;
   border-bottom: 2px solid var(--parent-color);
 }
-.lore-children--multiple > .lore-branch > .lore-node::before,
+.lore-children--multiple > .lore-branch > .lore-node:not(.lore-node--single-connector)::before,
 .lore-children--multiple > .lore-create-branch::after {
   content: "";
   position: absolute;
@@ -460,16 +480,16 @@
   pointer-events: none;
 }
 /* Draw the final corner as one border so its two strokes end together. */
-.lore-children--multiple > .lore-branch:last-child > .lore-node::before,
+.lore-children--multiple > .lore-branch:last-child > .lore-node:not(.lore-node--single-connector)::before,
 .lore-children--multiple > .lore-create-branch:last-child::after { content: none; }
-/* A single child shares the parent's icon axis, with a short link in the gap. */
-.lore-children--single { padding-top: 10px; }
+/* SINGLE owns only its one-child connector geometry. */
+.lore-children--single { padding-top: 16px; }
 .lore-children--single::before {
   content: "";
   position: absolute;
-  top: 1px;
+  top: 0;
   left: 13.5px;
-  height: 8px;
+  height: 16px;
   border-left: 2px solid var(--parent-color);
   pointer-events: none;
 }
