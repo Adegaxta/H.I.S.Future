@@ -180,6 +180,11 @@ fn close_project(
 }
 
 #[tauri::command]
+fn current_project(state: tauri::State<ProjectState>) -> Result<Option<ProjectInfo>, String> {
+    project::current_project(&state)
+}
+
+#[tauri::command]
 fn exit_application(
     app: tauri::AppHandle,
     state: tauri::State<ProjectState>,
@@ -452,6 +457,7 @@ pub fn run() {
             convert_project_folder,
             open_project,
             close_project,
+            current_project,
             exit_application,
             archive_sync_status,
             list_nodes,

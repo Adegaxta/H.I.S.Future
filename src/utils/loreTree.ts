@@ -22,6 +22,14 @@ export function getLoreNodes(nodes: NodeItem[]): NodeItem[] {
   });
 }
 
+export function normalizeLoreHiddenIds(nodes: readonly NodeItem[], hiddenIds: ReadonlySet<string>): Set<string> {
+  const hasNonProjectNode = nodes.some((node) => node.type !== "proyecto");
+  const allNonProjectNodesHidden = hasNonProjectNode && nodes
+    .filter((node) => node.type !== "proyecto")
+    .every((node) => hiddenIds.has(node.id));
+  return allNonProjectNodesHidden ? new Set<string>() : new Set(hiddenIds);
+}
+
 export type LoreConnectorTopology = "none" | "single" | "multiple";
 
 export function getLoreConnectorTopology(visibleChildCount: number): LoreConnectorTopology {

@@ -8,7 +8,7 @@ export const projectNodeModule = defineNodeModule({
   nodeNameKey: "nodes.project.nodeName",
   color: PALETTE.proyecto,
   renderer: "project",
-  capabilities: { openOnPrimaryAction: true },
+  capabilities: { containChildren: true, openOnPrimaryAction: true },
   composition: { capabilities: [RICH_TEXT_CAPABILITY] },
   creation: { available: false, selectAfterCreation: false },
   typePanel: { visible: true },

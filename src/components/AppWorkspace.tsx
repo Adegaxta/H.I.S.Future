@@ -48,7 +48,7 @@ import { readDefaultNodeType } from "../workspace/defaultNodeType";
 import { usePresence } from "../presence/PresenceProvider";
 import PageNodeChrome from "../nodes/page/chrome";
 import WorkspaceHistoryControls from "../workspace/navigation/WorkspaceHistoryControls";
-import { getLoreAncestorIds, getNodeSidebarLocation } from "../utils/loreTree";
+import { getLoreAncestorIds, getLoreExpandableIds, getNodeSidebarLocation } from "../utils/loreTree";
 import { resolveNodeCustomVisual } from "../nodes/nodeIconSource";
 import { getNodalMeta, setNodalMeta } from "../nodes/metadata";
 import { nodeToMarkdown } from "../export/nodeMarkdown";
@@ -586,6 +586,10 @@ export default function AppWorkspace({
                       </>}
                     </div>
                     <div className="context-toolbar__search">
+                      {sidebarPanel === "lore" && (() => {
+                        const expandAll = !Object.values(workspace.expanded).some(Boolean);
+                        return <button className="context-toolbar__expand-all" type="button" onClick={() => workspace.setExpanded(() => expandAll ? Object.fromEntries(getLoreExpandableIds(workspace.nodes).map((id) => [id, true])) : {})} title={t(expandAll ? "sidebar.expandAll" : "sidebar.collapseAll")} aria-label={t(expandAll ? "sidebar.expandAll" : "sidebar.collapseAll")}><UiIcon name={expandAll ? "expand-all" : "collapse-all"} /></button>;
+                      })()}
                       <input ref={sidebarSearchRef} value={sidebarQuery} onChange={(event) => setSidebarQuery(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") { setSidebarQuery(""); setSidebarSearchOpen(false); } }} placeholder={t("sidebar.search")} aria-label={t("sidebar.search")} />
                       <button type="button" onClick={() => { if (sidebarSearchOpen && !sidebarQuery) setSidebarSearchOpen(false); else setSidebarSearchOpen(true); }} title={t("sidebar.search")}><UiIcon name="search" /></button>
                     </div>

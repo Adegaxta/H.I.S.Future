@@ -4,6 +4,7 @@ import {
   createDevProject,
   createProject,
   convertProjectFolder,
+  currentProject,
   loadProject,
   openProject,
 } from "../project/fileManager";
@@ -61,26 +62,49 @@ export function useProjectSession() {
     }
   };
 
+  const rememberProject = (next: ProjectInfo) => {
+    localStorage.setItem(lastProjectStorageKey, next.folderPath);
+    setRecentProjects((current) => {
+      const nextList = [next, ...current.filter((item) => item.folderPath !== next.folderPath)].slice(0, 12);
+      localStorage.setItem("hisfuture.recent-projects", JSON.stringify(nextList));
+      return nextList;
+    });
+  };
+
   useEffect(() => {
     if (restoreStartedRef.current) return;
     restoreStartedRef.current = true;
-    let lastProjectPath: string | null = null;
-    try {
-      lastProjectPath = localStorage.getItem(lastProjectStorageKey);
-    } catch {
-      lastProjectPath = null;
-    }
-
-    if (!lastProjectPath) {
-      setInitializing(false);
-      return;
-    }
-
-    void run("restore-last", () => openProject(lastProjectPath!), () => {
-      localStorage.removeItem(lastProjectStorageKey);
-    }).finally(() => {
-      setInitializing(false);
-    });
+    const restore = async () => {
+      try {
+        const activeProject = await currentProject();
+        if (activeProject) {
+          setProject(activeProject);
+          rememberProject(activeProject);
+          return;
+        }
+        let lastProjectPath: string | null = null;
+        try {
+          lastProjectPath = localStorage.getItem(lastProjectStorageKey);
+        } catch {
+          lastProjectPath = null;
+        }
+        if (lastProjectPath) {
+          const restored = await openProject(lastProjectPath);
+          setProject(restored);
+          rememberProject(restored);
+        }
+      } catch (caught) {
+        setError(asErrorMessage(caught));
+        try {
+          localStorage.removeItem(lastProjectStorageKey);
+        } catch {
+          // Storage is optional; the open error remains visible to the user.
+        }
+      } finally {
+        setInitializing(false);
+      }
+    };
+    void restore();
   }, []);
 
   return {

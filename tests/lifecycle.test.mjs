@@ -118,6 +118,8 @@ try {
   assert.deepEqual(destroyedByDocument, { A1: 1, B: 1, A2: 1 });
 
   const appLifecycle = read("src/lifecycle/AppLifecycle.tsx");
+  const fileManager = read("src/project/fileManager.ts");
+  const projectSession = read("src/project/useProjectSession.ts");
   const workspaceLifecycle = read("src/workspace/useWorkspaceLifecycle.ts");
   const app = read("src/App.tsx");
   const nodeStore = read("src/hooks/useNodeStore.ts");
@@ -129,6 +131,7 @@ try {
   const imageLayoutRepository = read("src/project/editorLayoutRepository.ts");
   const backend = read("src-tauri/src/lib.rs");
   const project = read("src-tauri/src/project.rs");
+  const localeContext = read("src/i18n/LocaleContext.tsx");
 
   assert.ok(appLifecycle.includes("event.preventDefault()") && appLifecycle.includes("hideApplication()"), "native X hides the window");
   assert.equal(appLifecycle.includes("closeProject"), false, "window close does not close the project");
@@ -141,6 +144,15 @@ try {
   assert.ok(backend.includes('"Abrir H.I.S. Future"') && backend.includes('"Salir"'), "tray exposes restore and real Exit");
   assert.ok(backend.includes('app.emit("app-exit-requested"'), "tray Exit enters the safe frontend flush path");
   assert.ok(backend.includes("take_launch_project_path") && backend.includes("initial_his_path"), "startup consumes a direct .his launch path");
+  assert.ok(backend.includes("fn current_project") && backend.includes("project::current_project(&state)"), "backend exposes a read-only active-project query");
+  assert.ok(backend.includes("current_project,"), "active-project query is registered with Tauri");
+  assert.ok(fileManager.includes('invoke<ProjectInfo | null>("current_project")'), "frontend can query the active native project");
+  assert.ok(projectSession.indexOf("currentProject()") < projectSession.indexOf("openProject(lastProjectPath)"), "rehydration checks native state before restore-last opening");
+  assert.ok(projectSession.includes("setProject(activeProject)") && projectSession.includes("rememberProject(activeProject)"), "an active native project rehydrates the frontend session");
+  assert.ok(projectSession.includes("if (lastProjectPath)") && projectSession.includes("setProject(restored)"), "last-project remains the fallback when native state is empty");
+  assert.ok(app.includes("if (session.initializing) return <AppLoadingScreen />"), "initialization prevents a premature Home flash");
+  assert.ok(app.includes("function HomeBranch") && app.includes("<HomeBranch"), "Home locale consumer is isolated in an explicit provider child");
+  assert.ok(localeContext.includes("export const ProjectLocaleProvider = LocaleProvider"), "Home uses the required project locale provider contract");
   assert.ok(app.includes('invoke<string | null>("take_launch_project_path")') && app.includes("session.openDirect(path)"), "frontend opens the .his path received at startup");
   assert.ok(nodeStore.includes("enqueueFullSave(snapshot, changeVersionRef.current)"), "explicit flush creates a complete validated checkpoint");
   assert.ok(nodeStore.includes("PersistenceQueue"), "workspace persistence has an explicit queue");

@@ -28,6 +28,9 @@
 .sidebar-icon--exit { --icon-url: url("../assets/third-party/google-material/icons/exit.svg"); }
 .sidebar-icon--arrow-open { --icon-url: url("../assets/third-party/google-material/icons/arrow_open.svg"); }
 .sidebar-icon--arrow-close { --icon-url: url("../assets/third-party/google-material/icons/arrow_close.svg"); }
+.sidebar-icon--expand-all { --icon-url: url("../assets/third-party/google-material/icons/expand_all_256dp_E3E3E3_FILL0_wght400_GRAD0_opsz48.svg"); }
+.sidebar-icon--collapse-all { --icon-url: url("../assets/third-party/google-material/icons/collapse_all_256dp_E3E3E3_FILL0_wght400_GRAD0_opsz48.svg"); }
+.sidebar-icon--chevron-down { --icon-url: url("../assets/third-party/Lucide.dev/icons/chevron-down.svg"); }
 .sidebar-icon--lore { --icon-url: url("../assets/third-party/google-material/icons/lore_inactive.svg"); }
 .sidebar-icon--lore.is-active { --icon-url: url("../assets/modified/google-material/icons/lore_active.svg"); }
 .sidebar-icon--recent { --icon-url: url("../assets/third-party/google-material/icons/recent_inactive.svg"); }

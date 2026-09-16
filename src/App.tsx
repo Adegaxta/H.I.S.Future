@@ -11,6 +11,7 @@ import { isDesktopRuntime } from "./project/runtime";
 import { AppLifecycleProvider, useAppLifecycle } from "./lifecycle/AppLifecycle";
 import { invoke } from "@tauri-apps/api/core";
 import progressActivityAsset from "./assets/third-party/google-material/icons/progress_activity.svg";
+import type { ProjectInfo } from "./project/types";
 
 const loadAppWorkspace = () => import("./components/AppWorkspace");
 const AppWorkspace = lazy(loadAppWorkspace);
@@ -23,11 +24,41 @@ function AppLoadingScreen() {
   );
 }
 
-function HomePresence() {
+function HomeBranch({
+  busy,
+  error,
+  recentProjects,
+  onCreateProject,
+  onQuickStartDev,
+  onLoadProject,
+  onConvertProject,
+  onOpenRecent,
+  onRemoveRecent,
+}: {
+  busy: boolean;
+  error: string | null;
+  recentProjects: ProjectInfo[];
+  onCreateProject: (name: string, t: import("./i18n/core").Translate) => void;
+  onQuickStartDev: (t: import("./i18n/core").Translate) => void;
+  onLoadProject: (t: import("./i18n/core").Translate) => void;
+  onConvertProject: (t: import("./i18n/core").Translate) => Promise<string | null>;
+  onOpenRecent: (path: string) => void;
+  onRemoveRecent: (path: string) => void;
+}) {
   const { locale } = useLocale();
   const { setPresence } = usePresence();
   useEffect(() => setPresence({ surface: "home", locale }), [locale, setPresence]);
-  return null;
+  return <HomeScreen
+    busy={busy}
+    error={error}
+    recentProjects={recentProjects}
+    onCreateProject={onCreateProject}
+    onQuickStartDev={onQuickStartDev}
+    onLoadProject={onLoadProject}
+    onConvertProject={onConvertProject}
+    onOpenRecent={onOpenRecent}
+    onRemoveRecent={onRemoveRecent}
+  />;
 }
 
 function AppContent() {
@@ -79,9 +110,7 @@ function AppContent() {
     )}
     <LocaleProvider key={session.project?.folderPath ?? "home"} projectKey={session.project?.folderPath}>
       {!session.project ? (
-      <>
-      <HomePresence />
-      <HomeScreen
+      <HomeBranch
         busy={session.busy}
         error={session.error}
         recentProjects={session.recentProjects}
@@ -92,7 +121,6 @@ function AppContent() {
         onOpenRecent={session.openRecent}
         onRemoveRecent={session.removeRecent}
       />
-      </>
       ) : (
       <Suspense fallback={<AppLoadingScreen />}>
         <AppWorkspace

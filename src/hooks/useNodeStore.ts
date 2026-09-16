@@ -134,7 +134,7 @@ export function useNodeStore(projectKey?: string, projectName = "", defaultNodeT
       try {
         const request = loadRequestRef.current ?? loadWorkspaceSnapshot(initialDefaultNodeTypeRef.current);
         loadRequestRef.current = request;
-        const { nodes: stored, deletedNodes: trash, loreMembershipReset } = await request;
+        const { nodes: stored, deletedNodes: trash } = await request;
         if (cancelled) return;
         persistedVersionRef.current = changeVersionRef.current;
         const previousTrash = trash ?? deletedNodesRef.current.filter((node) => !stored.some((active) => active.id === node.id));
@@ -143,7 +143,7 @@ export function useNodeStore(projectKey?: string, projectName = "", defaultNodeT
         setNodes(reconciledNodes);
         setDeletedNodes(repaired.deletedNodes);
         deletedNodesRef.current = repaired.deletedNodes;
-        if (loreMembershipReset || trash === null || reconciledNodes !== stored || repaired.deletedNodes !== previousTrash) markDirty();
+        if (trash === null || reconciledNodes !== stored || repaired.deletedNodes !== previousTrash) markDirty();
         setHydrated(true);
       } catch (error) {
         console.error(error);

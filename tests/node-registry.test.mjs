@@ -34,6 +34,7 @@ try {
   assert.equal(registry.hasNodeCapability("categoria", "containChildren"), true);
   assert.equal(registry.hasNodeCapability("pagina", "containChildren"), false);
   assert.equal(registry.hasNodeCapability("pagina-carpeta", "containChildren"), true);
+  assert.equal(registry.hasNodeCapability("proyecto", "containChildren"), true);
   assert.equal(registry.hasNodeCapability("categoria", "openOnPrimaryAction"), false);
   assert.equal(registry.hasNodeCapability("calendario", "navigateWithinView"), true);
   assert.equal(registry.hasNodeCapability("curso", "navigateWithinView"), true);
@@ -69,6 +70,7 @@ try {
   const editorStyles = fs.readFileSync(path.join(root, "src/editor/styles.css"), "utf8");
   const workspacePanelStyles = fs.readFileSync(path.join(root, "src/workspace/panels/styles.css"), "utf8");
   const workspaceNavigationStyles = fs.readFileSync(path.join(root, "src/workspace/navigation/styles.css"), "utf8");
+  const sidebarTree = fs.readFileSync(path.join(root, "src/workspace/navigation/SidebarTree.tsx"), "utf8");
   const uiStyles = fs.readFileSync(path.join(root, "src/ui/styles.css"), "utf8");
   const nodeIconStyles = fs.readFileSync(path.join(root, "src/nodes/iconStyles.css"), "utf8");
   const graphView = fs.readFileSync(path.join(root, "src/graph/view.tsx"), "utf8");
@@ -127,6 +129,10 @@ try {
   for (const file of ["SidebarTree.tsx", "NodePanels.tsx", "SidebarIcon.tsx"]) {
     assert.equal(fs.existsSync(path.join(root, "src/components", file)), false, `${file} stays out of shared components`);
   }
+  assert.ok(sidebarTree.includes("sidebar-icon--chevron-down"), "Lore children expose the chevron expansion control");
+  assert.ok(sidebarTree.includes("lore-node__expand--placeholder"), "Lore reserves the chevron column for leaf nodes");
+  assert.ok(sidebarTree.includes('node.type === "categoria"'), "only folder rows retain direct expansion");
+  assert.ok(sidebarTree.includes("toggleExpanded(node.id)"), "the chevron toggles the existing expanded state");
   assert.equal(fs.existsSync(path.join(root, "src/ui/Icon.tsx")), true, "generic action icons live in UI");
   assert.equal(fs.existsSync(path.join(root, "src/nodes/NodeIcon.tsx")), true, "typed Node icons live in Nodes");
   for (const implementationDetail of ["TrashNodePreview", "CHANGELOG_ENTRIES", "NODE_REGISTRY.availableForCreation", "<RichTextEditor"]) {

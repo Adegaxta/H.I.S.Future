@@ -100,6 +100,15 @@ export async function openProject(path: string): Promise<ProjectInfo> {
   }
 }
 
+export async function currentProject(): Promise<ProjectInfo | null> {
+  if (!isDesktopRuntime()) return null;
+  try {
+    return await invoke<ProjectInfo | null>("current_project");
+  } catch (error) {
+    throw new Error(asErrorMessage(error));
+  }
+}
+
 export async function closeProject(): Promise<void> {
   if (!isDesktopRuntime()) {
     if (isBrowserDevProjectActive()) closeBrowserDevProject();

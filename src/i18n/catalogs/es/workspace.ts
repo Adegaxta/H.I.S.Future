@@ -1,4 +1,8 @@
 export const ES_WORKSPACE_TRANSLATIONS = {
+  "sidebar.expandAll": "Expandir todo",
+  "sidebar.collapseAll": "Contraer todo",
+  "sidebar.expandNode": "Expandir Nodo",
+  "sidebar.collapseNode": "Contraer Nodo",
   "context.createInside": "Crear Nodo dentro",
   "context.createRoot": "Crear Nodo raíz",
   "context.rename": "Renombrar",

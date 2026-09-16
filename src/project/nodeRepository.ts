@@ -4,7 +4,6 @@ import type { NodeItem } from "../types/nodes";
 import { asErrorMessage, isDesktopRuntime } from "./runtime";
 import type { PersistedNode } from "./types";
 import { getProjectSetting } from "./settingsRepository";
-import { normalizeLoreHiddenIds } from "../utils/loreTree";
 import {
   getActiveCloseProjectTraceId,
   measureActiveCloseProjectPhase,
@@ -40,7 +39,6 @@ interface PersistedWorkspaceSnapshot {
 export interface LoadedWorkspaceSnapshot {
   nodes: NodeItem[];
   deletedNodes: NodeItem[] | null;
-  loreMembershipReset: boolean;
 }
 
 function toNodeItem(record: PersistedNode): NodeItem {
@@ -71,13 +69,13 @@ export async function listNodes(defaultNodeType: BaseNodeType = "pagina"): Promi
       const [rows, hiddenSetting] = await measureLifecyclePhase("project.load-nodes", async () => [
         listBrowserDevNodes(), await getProjectSetting("loreHiddenIds"),
       ] as const);
-      const hidden = normalizeLoreHiddenIds(rows, new Set<string>(JSON.parse(hiddenSetting || "[]")));
+      const hidden = new Set<string>(JSON.parse(hiddenSetting || "[]"));
       return rows.map((row) => ({ ...toNodeItem(row), loreHidden: hidden.has(row.id) }));
     }
     const [rows, hiddenSetting] = await measureLifecyclePhase("project.load-nodes", () => Promise.all([
       invoke<PersistedNode[]>("list_nodes", { defaultNodeType }), getProjectSetting("loreHiddenIds"),
     ]));
-    const hidden = normalizeLoreHiddenIds(rows, new Set<string>(JSON.parse(hiddenSetting || "[]")));
+    const hidden = new Set<string>(JSON.parse(hiddenSetting || "[]"));
     return rows.map((row) => ({ ...toNodeItem(row), loreHidden: hidden.has(row.id) }));
   } catch (error) {
     throw new Error(asErrorMessage(error));
@@ -87,14 +85,13 @@ export async function listNodes(defaultNodeType: BaseNodeType = "pagina"): Promi
 export async function loadWorkspaceSnapshot(defaultNodeType: BaseNodeType = "pagina"): Promise<LoadedWorkspaceSnapshot> {
   if (!isDesktopRuntime()) {
     const [nodes, deletedNodes] = await Promise.all([listNodes(defaultNodeType), loadDeletedNodes()]);
-    return { nodes, deletedNodes, loreMembershipReset: false };
+    return { nodes, deletedNodes };
   }
   try {
     const snapshot = await measureLifecyclePhase("project.load-workspace", () =>
       invoke<PersistedWorkspaceSnapshot>("load_workspace_snapshot", { defaultNodeType }),
     );
-    const persistedHidden = new Set<string>(JSON.parse(snapshot.loreHiddenIds || "[]"));
-    const hidden = normalizeLoreHiddenIds(snapshot.nodes, persistedHidden);
+    const hidden = new Set<string>(JSON.parse(snapshot.loreHiddenIds || "[]"));
     const nodes = snapshot.nodes.map((row) => ({ ...toNodeItem(row), loreHidden: hidden.has(row.id) }));
     const parsedDeleted: unknown = snapshot.deletedNodes === null ? null : JSON.parse(snapshot.deletedNodes);
     const deletedNodes = parsedDeleted === null
@@ -102,7 +99,7 @@ export async function loadWorkspaceSnapshot(defaultNodeType: BaseNodeType = "pag
       : Array.isArray(parsedDeleted) && parsedDeleted.every((node) => node && typeof node.id === "string" && typeof node.content === "string")
         ? parsedDeleted as NodeItem[]
         : (() => { throw new Error("La papelera guardada no tiene un formato válido."); })();
-    return { nodes, deletedNodes, loreMembershipReset: hidden.size !== persistedHidden.size };
+    return { nodes, deletedNodes };
   } catch (error) {
     throw new Error(asErrorMessage(error));
   }
