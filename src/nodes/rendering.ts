@@ -47,4 +47,5 @@ export interface NodeViewHost {
 export interface NodeRendererProps {
   node: NodeItem;
   host: NodeViewHost;
+  mode?: "interactive" | "print";
 }

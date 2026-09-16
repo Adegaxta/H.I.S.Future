@@ -59,6 +59,7 @@ try {
   const tempoStyles = fs.readFileSync(path.join(root, "src/nodes/tempo/styles.css"), "utf8");
   const calendarView = fs.readFileSync(path.join(root, "src/nodes/calendar/view.tsx"), "utf8");
   const pageHeader = fs.readFileSync(path.join(root, "src/nodes/page/header.tsx"), "utf8");
+  const workspaceSource = fs.readFileSync(path.join(root, "src/components/AppWorkspace.tsx"), "utf8");
   const richTextEditor = fs.readFileSync(path.join(root, "src/editor/RichTextEditor.tsx"), "utf8");
   const projectRenderer = fs.readFileSync(path.join(root, "src/nodes/project/renderer.tsx"), "utf8");
   const composableContent = fs.readFileSync(path.join(root, "src/nodes/capabilities/ComposableNodeContent.tsx"), "utf8");
@@ -170,7 +171,11 @@ try {
   assert.equal(appCss.includes(".node-type-icon--"), false, "Node icon assets stay out of App.css");
   assert.ok(nodeIconStyles.includes(".node-type-icon--pagina"), "the Node system owns persisted type icons");
   assert.ok(nodeIconStyles.includes('nodes/node_project.svg'), "Project uses the official Node icon through the shared catalogue");
-  assert.ok(projectRenderer.includes("<ComposableNodeContent"), "Project content is resolved through the capability composition host");
+  assert.ok(projectRenderer.includes("<PageNodeRenderer"), "Project composes the complete Page capability renderer");
+  assert.ok(projectRenderer.includes('type="proyecto"'), "Project keeps its independent type while reusing Page behavior");
+  assert.ok(pageHeader.includes("type?: NodeItem[\"type\"]"), "Page header supports independent Node identities");
+  assert.ok(pageHeader.includes("<NodeTypeLabel type={type} node={node} />"), "Type labels keep the semantic Node icon instead of the custom header visual");
+  assert.ok(workspaceSource.includes('selectedNode?.type === "pagina" || selectedNode?.type === "proyecto"'), "Project receives native Page chrome capabilities");
   assert.equal(composableContent.includes('=== "proyecto"'), false, "the capability host does not know its consumer Node type");
   assert.equal(fs.existsSync(path.join(root, "src/components/GraphView.tsx")), false, "Graph view stays out of shared components");
   for (const file of ["view.tsx", "projection.ts", "preferences.ts", "runtime.ts", "scene.ts", "PixiGraphRenderer.ts", "iconSource.ts", "styles.css"]) {

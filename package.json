@@ -37,6 +37,8 @@
     "@tauri-apps/plugin-sql": "^2.4.0",
     "@tauri-apps/plugin-updater": "^2.11.0",
     "emojibase-data": "^17.0.0",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^4.2.1",
     "lucide-react": "^1.45.0",
     "pdfjs-dist": "6.3.289",
     "pixi.js": "^8.20.1",

@@ -13,6 +13,7 @@ import type { BaseNodeType, NodeItem } from "../types/nodes";
 import { getEffectiveNodeType } from "../utils/nodeTree";
 import { useTreeController } from "../hooks/useTreeController";
 import ContextMenu from "./ContextMenu";
+import NodeOptionsMenu from "./NodeOptionsMenu";
 import HisContextMenu, { type HisContextMenuItem } from "./HisContextMenu";
 import DragPreview from "./DragPreview";
 import SidebarTree from "../workspace/navigation/SidebarTree";
@@ -49,6 +50,13 @@ import PageNodeChrome from "../nodes/page/chrome";
 import WorkspaceHistoryControls from "../workspace/navigation/WorkspaceHistoryControls";
 import { getLoreAncestorIds, getNodeSidebarLocation } from "../utils/loreTree";
 import { resolveNodeCustomVisual } from "../nodes/nodeIconSource";
+import { getNodalMeta, setNodalMeta } from "../nodes/metadata";
+import { nodeToMarkdown } from "../export/nodeMarkdown";
+import NodeActionDialog, { type ExportFormat, type PdfExportSettings } from "./NodeActionDialog";
+import PrintDocument from "./PrintDocument";
+import NodeSearchOverlay from "./NodeSearchOverlay";
+import { save } from "@tauri-apps/plugin-dialog";
+import { invoke } from "@tauri-apps/api/core";
 
 const GraphView = lazy(() => import("../graph/view"));
 
@@ -133,6 +141,7 @@ export default function AppWorkspace({
   const [sidebarSearchOpen, setSidebarSearchOpen] = useState(false);
   const [sidebarQuery, setSidebarQuery] = useState("");
   const [selectedLoreIds, setSelectedLoreIds] = useState<string[]>([]);
+  const [selectedPanelIds, setSelectedPanelIds] = useState<string[]>([]);
   const cancelLoreMultiSelection = () => setSelectedLoreIds((current) => {
     if (current.length <= 1) return current;
     const keepId = workspace.selectedId && current.includes(workspace.selectedId)
@@ -203,11 +212,23 @@ export default function AppWorkspace({
   useEffect(() => {
     if (sidebarSearchOpen) sidebarSearchRef.current?.focus();
   }, [sidebarSearchOpen]);
+  useEffect(() => {
+    setSelectedPanelIds([]);
+  }, [sidebarPanel]);
   const [contextMenu, setContextMenu] = useState<
     React.ComponentProps<typeof ContextMenu>["menu"] | null
   >(null);
   const [trashMenu, setTrashMenu] = useState<{ x: number; y: number } | null>(null);
   const [trashActionsMenu, setTrashActionsMenu] = useState<{ x: number; y: number } | null>(null);
+  const [nodeOptionsMenu, setNodeOptionsMenu] = useState<{ x: number; y: number; nodeId: string } | null>(null);
+  const [nodeAction, setNodeAction] = useState<"link" | "folder" | "template" | "export" | "confirm" | null>(null);
+  const [nodeActionNodeId, setNodeActionNodeId] = useState<string | null>(null);
+  const [templateToApply, setTemplateToApply] = useState<{ name: string; type: string; content: string } | null>(null);
+  const [nodeSearchQuery, setNodeSearchQuery] = useState("");
+  const [nodeSearchOpen, setNodeSearchOpen] = useState(false);
+  const [printNode, setPrintNode] = useState<NodeItem | null>(null);
+  const [printSettings, setPrintSettings] = useState<PdfExportSettings>({ pageSize: "a4", orientation: "portrait", scale: 1, includeTitle: true, includeIcon: true, includeCover: true, includeImages: true });
+  const printReadyRef = useRef<((editor: HTMLDivElement) => void) | null>(null);
   const editorRef = useRef<HTMLDivElement | null>(null);
   const workspaceMainRef = useRef<HTMLElement | null>(null);
   const calendarNavigation = useRef<NavigationHandler | null>(null);
@@ -259,6 +280,18 @@ export default function AppWorkspace({
     window.addEventListener("keydown", handleRenameShortcut);
     return () => window.removeEventListener("keydown", handleRenameShortcut);
   }, [selectedLoreIds, workspace]);
+  useEffect(() => {
+    const handleSearchShortcut = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== "f") return;
+      if (!workspaceMainRef.current?.contains(event.target as Node)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      setNodeSearchQuery("");
+      setNodeSearchOpen(true);
+    };
+    window.addEventListener("keydown", handleSearchShortcut, true);
+    return () => window.removeEventListener("keydown", handleSearchShortcut, true);
+  }, []);
 
   const revealNodeInSidebar = (id: string, forceLore = false) => {
     const location = forceLore ? "lore" : getNodeSidebarLocation(workspace.nodes, id);
@@ -562,13 +595,18 @@ export default function AppWorkspace({
                   ) : (
                     <NodePanels
                       projectKey={projectKey}
-                      onContextMenu={setContextMenu}
+                      onContextMenu={(menu) => {
+                        if (menu.nodeId && !selectedPanelIds.includes(menu.nodeId)) setSelectedPanelIds([menu.nodeId]);
+                        setContextMenu(menu);
+                      }}
                       panel={sidebarPanel}
                       query={sidebarQuery}
                       nodes={workspace.nodes}
                       recentNodes={workspace.recentNodes}
                       recentActivity={workspace.recentActivity}
                       selectedId={workspace.selectedId}
+                      selectedIds={selectedPanelIds}
+                      onSelectionChange={setSelectedPanelIds}
                       onSelect={(id) => { setSelectedTrashNodeId(null); setSelectedLoreIds([id]); workspace.setSelectedId(id); }}
                       onCreateType={(type) => {
                         const name = getUniqueNodeName(getNodeDisplayLabel(type, t), workspace.nodes);
@@ -653,13 +691,14 @@ export default function AppWorkspace({
               />
             </div>
           )}
-          {projectTab !== "settings" && view === "list" && selectedNode?.type === "pagina" && (
+          {projectTab !== "settings" && view === "list" && (selectedNode?.type === "pagina" || selectedNode?.type === "proyecto") && (
             <PageNodeChrome
               node={selectedNode}
               nodes={workspace.nodes}
               editorRef={editorRef}
               projectKey={projectKey}
               onOpenNode={openNodeView}
+              onOpenNodeMenu={(position) => setNodeOptionsMenu({ ...position, nodeId: selectedNode.id })}
             />
           )}
         </main>
@@ -692,13 +731,15 @@ export default function AppWorkspace({
           }}
           onView={openNodeView}
           onAddToLore={(id) => {
-            workspace.addToLore([id]);
-            revealNodeInSidebar(id, true);
+            const ids = contextMenu.context !== "lore" && selectedPanelIds.includes(id) ? selectedPanelIds : [id];
+            workspace.addToLore(ids);
+            ids.forEach((nodeId) => revealNodeInSidebar(nodeId, true));
+            setSelectedPanelIds([]);
           }}
           onSetPrimary={(id) => workspace.mutateNodes((nodes) => assignVaultPrimaryNode(nodes, id))}
           removeCount={selectedLoreIds.includes(contextMenu.nodeId ?? "") ? selectedLoreIds.length : 1}
           canSetPrimary={contextMenu.context !== "lore" || selectedLoreIds.length <= 1}
-          canAddToLore={Boolean(contextMenu.nodeId && workspace.nodes.find((node) => node.id === contextMenu.nodeId)?.loreHidden)}
+          canAddToLore={contextMenu.context === "types" || contextMenu.context === "recent" || Boolean(contextMenu.nodeId && workspace.nodes.find((node) => node.id === contextMenu.nodeId)?.loreHidden)}
           canDelete={!contextMenu.nodeId || (contextMenu.context === "lore" && selectedLoreIds.includes(contextMenu.nodeId)
             ? selectedLoreIds.some((id) => workspace.canDeleteNode(id))
             : workspace.canDeleteNode(contextMenu.nodeId))}
@@ -717,6 +758,160 @@ export default function AppWorkspace({
           onClose={() => setContextMenu(null)}
         />
       )}
+      {nodeOptionsMenu && (() => {
+        const optionNode = workspace.nodes.find((item) => item.id === nodeOptionsMenu.nodeId);
+        if (!optionNode) return null;
+        const updateNodeMeta = (key: "favorite" | "pinned" | "protected") => {
+          const meta = getNodalMeta(optionNode.content);
+          workspace.updateContent(optionNode.id, setNodalMeta(optionNode.content, { [key]: !meta[key] }));
+        };
+        return <NodeOptionsMenu
+          node={optionNode}
+          x={nodeOptionsMenu.x}
+          y={nodeOptionsMenu.y}
+          onClose={() => setNodeOptionsMenu(null)}
+          onToggleMeta={updateNodeMeta}
+          onCreateLink={() => {
+            setNodeActionNodeId(optionNode.id);
+            setNodeAction("link");
+          }}
+          onAddToFolder={() => {
+            setNodeActionNodeId(optionNode.id);
+            setNodeAction("folder");
+          }}
+          onSaveTemplate={() => {
+            const key = `hisfuture.templates.${projectKey}`;
+            const templates = JSON.parse(localStorage.getItem(key) || "[]") as Array<{ name: string; type: string; content: string }>;
+            templates.push({ name: optionNode.name, type: optionNode.type, content: optionNode.content });
+            localStorage.setItem(key, JSON.stringify(templates));
+            setNodeOptionsMenu(null);
+          }}
+          onLoadTemplate={() => {
+            setNodeActionNodeId(optionNode.id);
+            setNodeAction("template");
+          }}
+          onDuplicate={() => {
+            const id = workspace.createNode(`${optionNode.name} (copia)`, optionNode.type, optionNode.parentId, optionNode.content, true);
+            workspace.setSelectedId(id);
+            setNodeOptionsMenu(null);
+          }}
+          onDelete={() => { workspace.deleteNode(optionNode.id); setNodeOptionsMenu(null); }}
+          onSearch={() => { setNodeOptionsMenu(null); setNodeSearchQuery(""); setNodeSearchOpen(true); }}
+          onExport={() => {
+            setNodeActionNodeId(optionNode.id);
+            setNodeAction("export");
+          }}
+        />;
+      })()}
+      {nodeAction && nodeActionNodeId && (() => {
+        const actionNode = workspace.nodes.find((item) => item.id === nodeActionNodeId);
+        if (!actionNode) return null;
+        const folders = workspace.nodes.filter((item) => item.id !== actionNode.id && workspace.nodes.some((child) => child.parentId === item.id));
+        const templates = (JSON.parse(localStorage.getItem(`hisfuture.templates.${projectKey}`) || "[]") as Array<{ name: string; type: string; content: string }>).filter((template) => template.type === actionNode.type);
+        const download = async (format: ExportFormat, settings: PdfExportSettings) => {
+          const started = performance.now();
+          const logPdf = (message: string) => console.info(`[PDF][+${Math.round(performance.now() - started)}ms] ${message}`);
+          logPdf("export requested");
+          const filename = actionNode.name.trim().replace(/[<>:"/\\|?*\x00-\x1F]/g, "-") || "nodo";
+          if (isDesktopRuntime()) {
+            if (format === "pdf") {
+              try {
+                const data = await new Promise<number[]>((resolve, reject) => {
+                  let phase = "PrintDocument";
+                  const timeout = window.setTimeout(() => {
+                    printReadyRef.current = null;
+                    reject(new Error(`[PDF] timeout during ${phase} readiness`));
+                  }, 30_000);
+                  printReadyRef.current = async () => {
+                    try {
+                      logPdf("PrintDocument mounted");
+                      phase = "fonts";
+                      await document.fonts.ready;
+                      logPdf("fonts ready");
+                      phase = "images";
+                      const images = Array.from(document.querySelectorAll<HTMLImageElement>(".his-print-document img"));
+                      await Promise.all(images.map((image) => image.complete ? Promise.resolve() : new Promise<void>((done) => {
+                        image.addEventListener("load", () => done(), { once: true });
+                        image.addEventListener("error", () => done(), { once: true });
+                      })));
+                      logPdf("images ready");
+                      phase = "WebView2 PrintToPdfStream";
+                      logPdf("invoke started");
+                      const result = await invoke<number[]>("print_webview_to_pdf", { settings });
+                      window.clearTimeout(timeout);
+                      logPdf(`frontend received ${result.length} bytes`);
+                      resolve(result);
+                    } catch (error) {
+                      window.clearTimeout(timeout);
+                      console.error("[PDF] export failed", error);
+                      reject(error instanceof Error ? error : new Error(String(error)));
+                    }
+                  };
+                  setPrintSettings(settings);
+                  setPrintNode(actionNode);
+                });
+                logPdf("Save As opened");
+                const path = await save({ defaultPath: `${filename}.pdf`, title: `Exportar ${actionNode.name}`, filters: [{ name: "PDF", extensions: ["pdf"] }] });
+                if (path) {
+                  await invoke("save_image_file", { path, data });
+                  logPdf("file written");
+                }
+              } finally {
+                printReadyRef.current = null;
+                setPrintNode(null);
+              }
+            } else {
+              const blob = new Blob([nodeToMarkdown(actionNode)], { type: "text/markdown;charset=utf-8" });
+              const path = await save({ defaultPath: `${filename}.md`, title: `Exportar ${actionNode.name}`, filters: [{ name: "Markdown", extensions: ["md"] }] });
+              if (path) await invoke("save_image_file", { path, data: Array.from(new Uint8Array(await blob.arrayBuffer())) });
+            }
+          } else {
+            throw new Error("La exportación PDF HTML/CSS está implementada actualmente solo para Windows.");
+          }
+          setNodeAction(null);
+          setNodeOptionsMenu(null);
+        };
+        return <NodeActionDialog
+          mode={nodeAction}
+          nodes={nodeAction === "link" ? workspace.nodes.filter((item) => item.id !== actionNode.id) : folders}
+          templates={templates}
+          onClose={() => { setNodeAction(null); setNodeActionNodeId(null); setTemplateToApply(null); }}
+          onSelect={(id) => {
+            if (nodeAction === "link") {
+              const target = workspace.nodes.find((item) => item.id === id);
+              if (target) {
+                const targetDocument = new DOMParser().parseFromString(target.content, "text/html");
+                const paragraph = targetDocument.createElement("p");
+                const mention = targetDocument.createElement("span");
+                mention.className = "editor-mention";
+                mention.contentEditable = "false";
+                mention.dataset.mentionId = actionNode.id;
+                mention.dataset.noResize = "true";
+                mention.textContent = actionNode.name;
+                paragraph.appendChild(mention);
+                targetDocument.body.appendChild(paragraph);
+                workspace.updateContent(target.id, targetDocument.body.innerHTML);
+              }
+            } else {
+              workspace.mutateNodes((nodes) => nodes.map((item) => item.id === actionNode.id ? { ...item, parentId: id } : item));
+            }
+            setNodeAction(null);
+            setNodeActionNodeId(null);
+            setNodeOptionsMenu(null);
+          }}
+          onCreateFolder={(name) => {
+            const folderId = workspace.createNode(name, "pagina", null, undefined, false);
+            workspace.mutateNodes((nodes) => nodes.map((item) => item.id === actionNode.id ? { ...item, parentId: folderId } : item));
+            setNodeAction(null);
+            setNodeActionNodeId(null);
+            setNodeOptionsMenu(null);
+          }}
+          onSelectTemplate={(template) => { setTemplateToApply(template); setNodeAction("confirm"); }}
+          onExport={(format, settings) => { void download(format, settings).catch((error) => setFileImportError(error instanceof Error ? error.message : String(error))); }}
+          confirmation={`Cargar “${templateToApply?.name ?? "esta plantilla"}” sobrescribirá el contenido actual.`}
+          onConfirm={() => { if (templateToApply) workspace.updateContent(actionNode.id, templateToApply.content); setTemplateToApply(null); setNodeAction(null); setNodeActionNodeId(null); setNodeOptionsMenu(null); }}
+        />;
+      })()}
       {loreAddOpen && <LoreAddDialog nodes={workspace.nodes} onAdd={(ids) => { workspace.addToLore(ids); setSelectedLoreIds(ids); }} onCreate={(name, type) => {
         const id = workspace.createNode(name, type, null);
         workspace.setSelectedId(id);
@@ -746,6 +941,8 @@ export default function AppWorkspace({
           position={workspace.dragPreviewPosition}
         />
       )}
+      {nodeSearchOpen && selectedNode && <NodeSearchOverlay editorRef={editorRef} initialQuery={nodeSearchQuery} onClose={() => { setNodeSearchOpen(false); setNodeSearchQuery(""); }} />}
+      {printNode && <PrintDocument node={printNode} host={nodeViewHost} settings={printSettings} onReady={(printEditor) => printReadyRef.current?.(printEditor)} />}
     </div>
   );
 }

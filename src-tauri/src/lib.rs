@@ -2,6 +2,8 @@ mod archive_sync;
 mod discord_presence;
 mod persistence;
 mod project;
+#[cfg(windows)]
+mod windows_print;
 
 use archive_sync::{ArchiveSyncManager, ArchiveSyncStatus};
 use discord_presence::{DiscordPresenceManager, PresenceActivity};
@@ -332,6 +334,21 @@ fn save_image_file(path: String, data: Vec<u8>) -> Result<(), String> {
     std::fs::write(path, data).map_err(|error| format!("No se pudo guardar la imagen: {error}"))
 }
 
+#[tauri::command]
+#[cfg(windows)]
+async fn print_webview_to_pdf(
+    window: tauri::WebviewWindow,
+    settings: windows_print::PdfPrintSettings,
+) -> Result<Vec<u8>, String> {
+    windows_print::print_webview_to_pdf(window, settings).await
+}
+
+#[cfg(not(windows))]
+#[tauri::command]
+fn print_webview_to_pdf() -> Result<Vec<u8>, String> {
+    Err("La exportacion PDF HTML/CSS esta implementada actualmente solo para Windows.".to_owned())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -448,7 +465,8 @@ pub fn run() {
             delete_project_resource,
             get_project_setting,
             set_project_setting,
-            save_image_file
+            save_image_file,
+            print_webview_to_pdf
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

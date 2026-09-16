@@ -98,6 +98,7 @@ interface RichTextEditorProps {
   onCreatePastedNode?: (name: string) => NodeItem | null;
   onSlashCommand?: (tag: string) => boolean;
   readOnly?: boolean;
+  mode?: "interactive" | "print";
   className?: string;
   style: CSSProperties;
   beforeContent?: ReactNode;
@@ -119,6 +120,7 @@ export default function RichTextEditor({
   onCreatePastedNode,
   onSlashCommand,
   readOnly = false,
+  mode = "interactive",
   className,
   style,
   beforeContent,
@@ -633,6 +635,7 @@ export default function RichTextEditor({
   return (
     <div
       className={`editor-selection-surface${className ? ` ${className}-surface` : ""}`}
+      data-editor-mode={mode}
       onPointerDown={(event) => {
         controller.onEditorPointerDown(event);
       }}

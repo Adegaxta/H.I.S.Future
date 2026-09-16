@@ -836,40 +836,6 @@ export function useEditorController({
     alignImage,
   } = mentionController;
 
-  const getCurrentPageIndexEntries = (scopeRoot?: HTMLElement | null) => {
-    const editor = editorRef.current;
-    if (!editor) return [];
-
-    const scopeTarget = scopeRoot && scopeRoot.isConnected ? scopeRoot : editor;
-    const headingSelectors = "h1, h2, h3, h4, h5, h6, [data-heading], .editor-heading, .heading";
-    const headings = Array.from(scopeTarget.querySelectorAll<HTMLElement>(headingSelectors)).filter((heading) => {
-      if (!editor.contains(heading)) return false;
-      if (heading.closest("[data-page-index]")) return false;
-      if (scopeRoot && !scopeRoot.contains(heading)) return false;
-      if (!scopeRoot && heading.closest("[data-globe]")) return false;
-      const text = heading.textContent?.replace(/\s+/g, " ").trim();
-      return Boolean(text && text.length > 0);
-    });
-
-    if (!headings.length) return [];
-
-    const scopeToken = scopeRoot
-      ? `${node.id}-globe-${Math.random().toString(36).slice(2, 8)}`
-      : `${node.id}-page`;
-
-    return headings.map((heading, index) => {
-      const id = heading.id || `${scopeToken}-heading-${index}`;
-      if (!heading.id) heading.id = id;
-      heading.dataset.pageIndexId = id;
-      return {
-        index,
-        id,
-        label: heading.textContent?.replace(/\s+/g, " ").trim() || `Sección ${index + 1}`,
-        level: Number.parseInt(heading.tagName.replace("H", ""), 10) || 1,
-      };
-    });
-  };
-
   const insertStructuralBlockAfter = (anchor: HTMLElement, block: HTMLElement) => {
     const editor = editorRef.current;
     if (!editor || !editor.contains(anchor)) return null;
@@ -914,86 +880,13 @@ export function useEditorController({
     updatePlaceholder();
   };
 
-  const buildPageIndexBlock = (scopeRoot?: HTMLElement | null) => {
-    const block = document.createElement("div");
-    block.dataset.pageIndex = "true";
-    block.className = "editor-page-index";
-    block.contentEditable = "false";
-    block.style.userSelect = "none";
-    block.style.margin = "12px 0";
-    block.style.padding = "4px 0";
-    block.setAttribute("aria-hidden", "true");
-
-    const entries = getCurrentPageIndexEntries(scopeRoot);
-    if (!entries.length) {
-      const empty = document.createElement("div");
-      empty.className = "editor-page-index__empty";
-      empty.textContent = "Sin secciones";
-      block.appendChild(empty);
-      return block;
-    }
-
-    entries.forEach(({ id, label, level }) => {
-      const row = document.createElement("div");
-      row.dataset.pageIndexItem = "true";
-      row.dataset.pageId = id;
-      row.className = "editor-page-index__item";
-      row.contentEditable = "false";
-      row.style.marginLeft = `${Math.max(0, level - 1) * 14}px`;
-      row.tabIndex = 0;
-      row.setAttribute("role", "link");
-      row.setAttribute("aria-label", `Ir a la sección ${label}`);
-      row.style.userSelect = "none";
-
-      const marker = document.createElement("span");
-      marker.className = "editor-page-index__marker";
-      marker.textContent = "•";
-      row.appendChild(marker);
-
-      const name = document.createElement("span");
-      name.className = "editor-page-index__label";
-      name.textContent = label;
-      row.appendChild(name);
-
-            
-            block.appendChild(row);
-    });
-
-    return block;
-  };
-
-  const replacePastedIndices = (roots: Node[]) => {
-    const importedIndices = new Set<HTMLElement>();
-    roots.forEach((root) => {
-      if (root instanceof HTMLElement && root.matches("[data-page-index]")) {
-        importedIndices.add(root);
-      }
-      if (root instanceof Element) {
-        root.querySelectorAll<HTMLElement>("[data-page-index]").forEach((index) => importedIndices.add(index));
-      }
-    });
-    const replacements = new Map<Node, HTMLElement>();
-    importedIndices.forEach((index) => {
-      const scopeRoot = index.dataset.pageIndexSource === "anytype"
-        ? null
-        : index.closest<HTMLElement>("[data-globe-content]");
-      const replacement = buildPageIndexBlock(scopeRoot);
-      index.replaceWith(replacement);
-      replacements.set(index, replacement);
-    });
-    return replacements;
-  };
-
   const normalizePageIndices = () => {
     const editor = editorRef.current;
     if (!editor) return false;
     let changed = false;
     editor.querySelectorAll<HTMLElement>("[data-page-index]").forEach((index) => {
-      ["border-top", "border-bottom"].forEach((property) => {
-        if (!index.style.getPropertyValue(property)) return;
-        index.style.removeProperty(property);
-        changed = true;
-      });
+      index.remove();
+      changed = true;
     });
     return changed;
   };
@@ -1429,32 +1322,6 @@ export function useEditorController({
       if (!blocks.length) return;
       captureStructuralUndo();
       blocks.forEach((block) => insertTableIntoBlock(block));
-    } else if (value === "INDICE") {
-      const blocks = validActionBlocks.length ? validActionBlocks : [currentBlock].filter(Boolean) as HTMLElement[];
-      if (!blocks.length) return;
-      captureStructuralUndo();
-      blocks.forEach((block) => {
-        const globeContent = block.closest("[data-globe-content]") as HTMLElement | null;
-        const indexBlock = buildPageIndexBlock(globeContent ?? null);
-        if (globeContent) {
-          const target = block.matches("p, h1, h2, h3, h4, blockquote, li") ? block : globeContent.lastElementChild || block;
-          const nextSibling = target.nextSibling;
-          target.parentElement?.insertBefore(indexBlock, nextSibling ?? null);
-          return;
-        }
-
-        const parent = block.parentElement;
-        if (!parent) return;
-        const nextSibling = block.nextSibling;
-        block.replaceWith(indexBlock);
-        if (nextSibling && indexBlock.parentElement && nextSibling.parentElement === indexBlock.parentElement) {
-          const sibling = nextSibling as HTMLElement | ChildNode;
-          const target = sibling as Node;
-          if (target && target.parentNode === indexBlock.parentNode && indexBlock.nextSibling !== target) {
-            indexBlock.parentNode?.insertBefore(target, indexBlock.nextSibling);
-          }
-        }
-      });
     } else if (value === "GLOBO" || value === "GLOBO_INDIVIDUAL") {
       const blocks = actionBlocks.length ? actionBlocks : [getEditorBlock(selection.focusNode)].filter(Boolean) as HTMLElement[];
       if (blocks.length) captureStructuralUndo();
@@ -1812,12 +1679,11 @@ export function useEditorController({
         range.selectNode(block);
         range.collapse(false);
         const fragment = range.createContextualFragment(clean);
-        const pastedRoots = Array.from(fragment.childNodes);
         const lastInserted = fragment.lastElementChild;
         replacePastedMentions(fragment);
+        fragment.querySelectorAll<HTMLElement>("[data-page-index]").forEach((index) => index.remove());
         range.insertNode(fragment);
-        const indexReplacements = replacePastedIndices(pastedRoots);
-        const nextLine = (lastInserted && indexReplacements.get(lastInserted)) || lastInserted || originalNextLine;
+        const nextLine = lastInserted || originalNextLine;
         if (nextLine && nextLine !== originalNextLine) {
   const nextRange = document.createRange();
   nextRange.selectNodeContents(nextLine);
@@ -1835,9 +1701,9 @@ export function useEditorController({
         replacePastedMentions(pastedContainer);
         document.execCommand("insertHTML", false, pastedContainer.innerHTML);
         if (editor) {
-          const pastedIndices = Array.from(editor.querySelectorAll<HTMLElement>("[data-page-index]"))
-            .filter((index) => !previousIndices.has(index));
-          replacePastedIndices(pastedIndices);
+          Array.from(editor.querySelectorAll<HTMLElement>("[data-page-index]"))
+            .filter((index) => !previousIndices.has(index))
+            .forEach((index) => index.remove());
         }
       }
       syncContent();
@@ -2023,7 +1889,6 @@ export function useEditorController({
     focusOrCreatePageLine,
     clearStructuralUndo,
     captureStructuralUndo,
-    buildPageIndexBlock,
     focusPageIndexEntry,
     repairUnlinkedEditorImages,
     

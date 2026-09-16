@@ -139,19 +139,27 @@
 .page-chrome__scroll-rail { position: absolute; top: 0; right: 0; bottom: 0; width: 8px; overflow: hidden; background: #121417; }
 .page-chrome__scroll-thumb { position: absolute; right: 0; width: 8px; min-height: 24px; border-radius: 0; background: #4dd8c0; }
 .page-chrome__zone { position: absolute; pointer-events: auto; }
+.page-chrome__zone--node-options { top: 22px; right: 16px; width: 52px; height: 44px; display: flex; align-items: center; justify-content: flex-end; }
 .page-chrome__zone--index { top: 50%; right: 0; width: 48px; height: 92px; display: flex; align-items: center; justify-content: flex-end; transform: translateY(-50%); }
 .page-chrome__zone--graph { right: 8px; bottom: 12px; width: 68px; height: 62px; display: flex; align-items: flex-end; justify-content: flex-end; }
-.page-chrome__button { display: grid; width: 36px; height: 36px; place-items: center; border: 0; border-radius: 0; padding: 8px; color: #4dd8c0; background: #0e1114; cursor: pointer; transition: transform 190ms ease, opacity 160ms ease, background 160ms ease; }
-.page-chrome__button:hover { background: #15181b; }
+.page-chrome__button { display: grid; width: 36px; height: 36px; place-items: center; border: 0; border-radius: 0; padding: 8px; color: #4dd8c0; background: transparent; cursor: pointer; transition: transform 190ms ease, opacity 160ms ease; }
+.page-chrome__button:hover { background: transparent; }
 .page-chrome__button:disabled { cursor: default; opacity: 0.25; }
-.page-chrome__button img { width: 100%; height: 100%; filter: brightness(0) saturate(100%) invert(75%) sepia(57%) saturate(468%) hue-rotate(119deg) brightness(94%); }
+.page-chrome__button img { width: 100%; height: 100%; filter: brightness(0) saturate(100%) invert(75%) sepia(57%) saturate(468%) hue-rotate(119deg) brightness(94%); transition: transform 170ms cubic-bezier(0.2, 0.8, 0.2, 1), filter 170ms ease; }
+.page-chrome__button:hover img,
+.page-chrome__button:focus-visible img { transform: scale(1.18); filter: brightness(0) saturate(100%) invert(82%) sepia(72%) saturate(585%) hue-rotate(107deg) brightness(103%); }
 .page-chrome__zone--index .page-chrome__button { width: 42px; height: 72px; padding: 5px; transform: translateX(25px); opacity: 0.28; background: transparent; }
 .page-chrome__zone--index .page-chrome__button:hover { background: transparent; }
+.page-chrome__zone--node-options .page-chrome__button { transform: translateY(-12px); opacity: 0.2; }
 .page-chrome__zone--graph .page-chrome__button { transform: translateX(44px); opacity: 0.15; }
+.page-chrome__zone--node-options.is-visible .page-chrome__button,
+.page-chrome__zone--node-options:hover .page-chrome__button,
 .page-chrome__zone--index.is-visible .page-chrome__button,
 .page-chrome__zone--index:hover .page-chrome__button,
 .page-chrome__zone--graph.is-visible .page-chrome__button,
 .page-chrome__zone--graph:hover .page-chrome__button { transform: translateX(0); opacity: 1; }
+.page-chrome__zone--node-options.is-visible .page-chrome__button,
+.page-chrome__zone--node-options:hover .page-chrome__button { transform: translateY(0); }
 .page-chrome__index-panel { position: absolute; top: 50%; right: 34px; width: min(520px, calc(100vw - 90px)); max-height: min(66vh, 620px); overflow-y: auto; transform: translateY(-50%); padding: 22px 0; background: #15181b; box-shadow: 0 22px 70px rgb(0 0 0 / 46%); pointer-events: auto; }
 .page-chrome__panel-title { padding: 0 22px 14px; color: #727980; font: 10px ui-monospace, "SF Mono", "Cascadia Code", monospace; letter-spacing: 0.13em; text-transform: uppercase; }
 .page-chrome__index-entry { display: block; width: 100%; overflow: hidden; border: 0; border-left: 3px solid transparent; border-radius: 0; padding-top: 8px; padding-right: 22px; padding-bottom: 8px; color: #e8e9ea; background: transparent; cursor: pointer; font: inherit; text-align: left; text-overflow: ellipsis; white-space: nowrap; }

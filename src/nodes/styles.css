@@ -12,9 +12,20 @@
 @import "./course/styles.css";
 
 .primary-node-name { display: inline-flex; min-width: 0; align-items: center; gap: 5px; line-height: 1; vertical-align: middle; }
-.primary-node-name__icon { width: 14px; height: 14px; flex: 0 0 auto; object-fit: contain; }
+.primary-node-name__icon { width: 14px; height: 14px; flex: 0 0 auto; object-fit: contain; filter: brightness(0) saturate(100%) invert(78%) sepia(93%) saturate(1022%) hue-rotate(2deg) brightness(103%) contrast(90%); }
 .primary-node-name__text { min-width: 0; }
-.primary-node-badge { width: 14px; height: 14px; flex: 0 0 auto; margin: 0 2px; object-fit: contain; vertical-align: middle; }
+.primary-node-badge { width: 14px; height: 14px; flex: 0 0 auto; margin: 0 2px; object-fit: contain; vertical-align: middle; filter: brightness(0) saturate(100%) invert(78%) sepia(93%) saturate(1022%) hue-rotate(2deg) brightness(103%) contrast(90%); }
+.node-options { position: fixed; z-index: 80; box-sizing: border-box; width: min(420px, calc(100vw - 32px)); max-height: calc(100vh - 60px); overflow: auto; padding: 18px 20px; background: #15181b; color: #e3e3e3; box-shadow: 0 22px 70px rgb(0 0 0 / 46%); }
+.node-options__header { display: flex; align-items: center; gap: 10px; color: #4dd8c0; font-size: 18px; font-weight: 400; }
+.node-options__header img { width: 28px; height: 28px; filter: brightness(0) saturate(100%) invert(75%) sepia(57%) saturate(468%) hue-rotate(119deg) brightness(94%); }
+.node-options__rule { height: 3px; margin: 14px 0; background: #4dd8c0; }
+.node-options__row { display: grid; grid-template-columns: 28px minmax(0, 1fr) 38px; min-height: 38px; align-items: center; gap: 8px; width: 100%; border: 0; padding: 4px 0; color: #e3e3e3; background: transparent; cursor: pointer; font: inherit; font-size: 15px; text-align: left; }
+.node-options__row:hover:not(:disabled), .node-options__row:focus-visible:not(:disabled) { color: #4dd8c0; outline: 0; }
+.node-options__row:disabled { cursor: default; opacity: 0.38; }
+.node-options__icon, .node-options__symbol { width: 22px; height: 22px; object-fit: contain; filter: brightness(0) saturate(100%) invert(75%) sepia(57%) saturate(468%) hue-rotate(119deg) brightness(94%); }
+.node-options__symbol { justify-self: center; width: 19px; height: 19px; }
+.node-options__symbol--double { display: inline-flex; align-items: center; justify-content: center; gap: 1px; width: 38px; }
+.node-options__symbol--double img { width: 17px; height: 17px; filter: inherit; }
 .pdf-viewer__page--placeholder {
   min-height: 1100px;
 }

@@ -151,6 +151,8 @@ function loadPrimaryIconTexture(): Promise<Texture> {
   return primaryIconTexturePromise;
 }
 
+const PRIMARY_BADGE_TINT = 0xF1C40F;
+
 export class PixiGraphRenderer {
   private readonly app = new Application();
   private readonly viewport = new Container();
@@ -417,6 +419,7 @@ export class PixiGraphRenderer {
     halo.eventMode = "none";
     body.eventMode = "none";
     primaryBadge.anchor.set(0.5);
+    primaryBadge.tint = PRIMARY_BADGE_TINT;
     primaryBadge.eventMode = "none";
     mask.eventMode = "none";
     container.addChild(halo, body, mask, primaryBadge, label);

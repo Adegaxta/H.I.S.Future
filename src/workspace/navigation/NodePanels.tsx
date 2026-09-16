@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent } from "react";
 import type { ContextMenuState, NodeItem, RenderNodeType } from "../../types/nodes";
 import { NODE_REGISTRY, getNodeDefinition, getNodeDisplayLabel } from "../../defs/nodeTypes";
 import { opensNodeViewOnClick } from "../../utils/nodeTree";
@@ -9,6 +9,7 @@ import { PrimaryNodeName } from "../../nodes/PrimaryNodeName";
 import { buildNodeCustomVisuals } from "../../nodes/nodeIconSource";
 import type { ResolvedNodeVisual } from "../../nodes/visuals/types";
 import { useSearchReveal } from "../../hooks/useSearchReveal";
+import { selectLoreRange } from "../../utils/loreTree";
 import {
   nodeTypePanelStorageKey,
   parseCollapsedNodeTypes,
@@ -22,6 +23,8 @@ interface NodePanelsProps {
   recentNodes: NodeItem[];
   recentActivity: Record<string, number>;
   selectedId: string | null;
+  selectedIds: string[];
+  onSelectionChange: (ids: string[]) => void;
   query: string;
   onSelect: (id: string) => void;
   onContextMenu: (menu: ContextMenuState) => void;
@@ -30,7 +33,7 @@ interface NodePanelsProps {
 
 const startOfDay = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
 
-export default function NodePanels({ projectKey, panel, nodes, recentNodes, recentActivity, selectedId, query, onSelect, onContextMenu, onCreateType }: NodePanelsProps) {
+export default function NodePanels({ projectKey, panel, nodes, recentNodes, recentActivity, selectedId, selectedIds, onSelectionChange, query, onSelect, onContextMenu, onCreateType }: NodePanelsProps) {
   const { locale, t } = useLocale();
   const collapsedStorageKey = nodeTypePanelStorageKey(projectKey);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>(() => {
@@ -53,6 +56,10 @@ export default function NodePanels({ projectKey, panel, nodes, recentNodes, rece
   const selectedType = nodes.find((node) => node.id === selectedId)?.type;
   const parentIds = useMemo(() => new Set(nodes.map((node) => node.parentId).filter(Boolean)), [nodes]);
   const customVisuals = useMemo(() => buildNodeCustomVisuals(nodes), [nodes]);
+  const selectionAnchor = useRef<string | null>(null);
+  useEffect(() => {
+    if (!selectedIds.length) selectionAnchor.current = null;
+  }, [selectedIds]);
   useEffect(() => {
     if (!selectedId || !selectedType) return;
     if (panel === "types") {
@@ -83,13 +90,21 @@ export default function NodePanels({ projectKey, panel, nodes, recentNodes, rece
     });
     return [...groups.entries()];
   }, [locale, recentActivity, recentNodes, t]);
+  const panelNodes = panel === "recent" ? recentGroups.flatMap(([, items]) => items) : nodes;
+  const selectPanelNode = (node: NodeItem, event: MouseEvent) => {
+    const next = selectLoreRange(panelNodes.map((item) => item.id), selectedIds, selectionAnchor.current, node.id, event.ctrlKey || event.metaKey, event.shiftKey);
+    onSelectionChange(next);
+    if (!event.shiftKey) selectionAnchor.current = node.id;
+    if (event.ctrlKey || event.metaKey || event.shiftKey) return;
+    if (opensNodeViewOnClick(node)) onSelect(node.id);
+  };
 
   if (panel === "recent") return (
     <div ref={searchRef} className="node-panels node-panels--recent">
       {recentGroups.length === 0 ? <div className="node-panels__empty">{t("sidebar.noRecent")}</div> : recentGroups.map(([label, items]) => (
         <section className="recent-group" key={label}>
           <h3 className={normalizedQuery && !items.some(matches) ? "is-search-dimmed" : ""}>{label}</h3>
-          {items.map((node) => <NodeRow key={node.id} node={node} visual={customVisuals.get(node.id)} hasChildren={parentIds.has(node.id)} selected={node.id === selectedId} onSelect={onSelect} context={panel} onContextMenu={onContextMenu} searchMatch={normalizedQuery ? matches(node) : undefined} />)}
+          {items.map((node) => <NodeRow key={node.id} node={node} visual={customVisuals.get(node.id)} hasChildren={parentIds.has(node.id)} selected={selectedIds.length ? selectedIds.includes(node.id) : node.id === selectedId} onSelect={selectPanelNode} context={panel} onContextMenu={onContextMenu} searchMatch={normalizedQuery ? matches(node) : undefined} />)}
         </section>
       ))}
     </div>
@@ -122,17 +137,17 @@ export default function NodePanels({ projectKey, panel, nodes, recentNodes, rece
                 <UiIcon name={isCollapsed ? "arrow-close" : "arrow-open"} className="type-group__chevron" />
               </button>
             </div>
-            {!isCollapsed && items.map((node) => <NodeRow key={node.id} node={node} visual={customVisuals.get(node.id)} hasChildren={parentIds.has(node.id)} selected={node.id === selectedId} onSelect={onSelect} context={panel} onContextMenu={onContextMenu} compact searchMatch={normalizedQuery ? matches(node) : undefined} />)}
+            {!isCollapsed && items.map((node) => <NodeRow key={node.id} node={node} visual={customVisuals.get(node.id)} hasChildren={parentIds.has(node.id)} selected={selectedIds.length ? selectedIds.includes(node.id) : node.id === selectedId} onSelect={selectPanelNode} context={panel} onContextMenu={onContextMenu} compact searchMatch={normalizedQuery ? matches(node) : undefined} />)}
           </section>
         );
       })}
     </div>
   );
 }
-function NodeRow({ node, visual, hasChildren, selected, onSelect, context, onContextMenu, compact = false, searchMatch }: { node: NodeItem; visual?: ResolvedNodeVisual; hasChildren: boolean; selected: boolean; compact?: boolean; searchMatch?: boolean; onSelect: (id: string) => void; context: "recent" | "types"; onContextMenu: (menu: ContextMenuState) => void }) {
+function NodeRow({ node, visual, hasChildren, selected, onSelect, context, onContextMenu, compact = false, searchMatch }: { node: NodeItem; visual?: ResolvedNodeVisual; hasChildren: boolean; selected: boolean; compact?: boolean; searchMatch?: boolean; onSelect: (node: NodeItem, event: MouseEvent) => void; context: "recent" | "types"; onContextMenu: (menu: ContextMenuState) => void }) {
   const type: RenderNodeType = node.type === "pagina" && hasChildren ? "pagina-carpeta" : node.type;
   return (
-    <button type="button" data-node-id={node.id} data-search-match={searchMatch} className={`context-node-row ${selected ? "is-selected" : ""} ${compact ? "is-compact" : ""} ${searchMatch === false ? "is-search-dimmed" : ""}`} style={{ "--node-color": getNodeDefinition(type).color } as CSSProperties} onClick={() => { if (opensNodeViewOnClick(node)) onSelect(node.id); }} onContextMenu={(event) => { event.preventDefault(); event.stopPropagation(); onContextMenu({ context, nodeId: node.id, x: event.clientX, y: event.clientY, extended: event.shiftKey }); }} title={node.name}>
+    <button type="button" data-node-id={node.id} data-search-match={searchMatch} className={`context-node-row ${selected ? "is-selected" : ""} ${compact ? "is-compact" : ""} ${searchMatch === false ? "is-search-dimmed" : ""}`} style={{ "--node-color": getNodeDefinition(type).color } as CSSProperties} onClick={(event) => onSelect(node, event)} onContextMenu={(event) => { event.preventDefault(); event.stopPropagation(); onContextMenu({ context, nodeId: node.id, x: event.clientX, y: event.clientY, extended: event.shiftKey }); }} title={node.name}>
       <NodeIcon type={type} visual={visual} />
       <PrimaryNodeName node={node} className="context-node-row__name" />
     </button>

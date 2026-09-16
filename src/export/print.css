@@ -1,0 +1,136 @@
+.his-print-document {
+  display: none;
+  min-height: 0;
+  color: inherit;
+  background: inherit;
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+
+.his-print-document,
+.his-print-document * {
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+
+@media print {
+  html,
+  body,
+  #root {
+    width: auto !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    background: transparent !important;
+  }
+
+  body > * {
+    display: none !important;
+  }
+
+  #root,
+  #root > .app-workspace,
+  #root > .app-workspace > .workspace-body,
+  #root > .app-workspace > .workspace-body > .workspace-main,
+  #root > .app-workspace > .workspace-main {
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+
+  #root,
+  #root > .app-workspace,
+  #root > .app-workspace > .his-print-document {
+    display: block !important;
+  }
+
+  #root > .app-workspace > :not(.his-print-document) {
+    display: none !important;
+  }
+
+  .his-print-document {
+    display: block !important;
+    width: 100% !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    color: #e8e9ea;
+    background: #121417;
+  }
+
+  .his-print-document .editor-selection-surface,
+  .his-print-document .editor-content,
+  .his-print-document .page-node-editor-surface,
+  .his-print-document .page-node-editor {
+    box-sizing: border-box !important;
+    width: 100% !important;
+    max-width: none !important;
+    min-height: 0 !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  .his-print-document .editor-selection-surface,
+  .his-print-document .editor-content {
+    display: block !important;
+    width: 100% !important;
+    max-width: none !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+
+  .his-print-document [contenteditable],
+  .his-print-document [data-editor-ui],
+  .his-print-document .editor-line-control-cluster,
+  .his-print-document .editor-line-preview,
+  .his-print-document .editor-block-selection,
+  .his-print-document .page-node-header__actions,
+  .his-print-document .page-node-settings,
+  .his-print-document .page-node-visibility-menu,
+  .his-print-document button,
+  .his-print-document textarea,
+  .his-print-document input,
+  .his-print-document select {
+    pointer-events: none !important;
+  }
+
+  .his-print-document .page-node-header__editable-title,
+  .his-print-document .page-node-header__title-input {
+    cursor: default !important;
+  }
+
+  .his-print-document h1,
+  .his-print-document h2,
+  .his-print-document h3,
+  .his-print-document h4,
+  .his-print-document h5,
+  .his-print-document h6 {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  .his-print-document img,
+  .his-print-document svg,
+  .his-print-document [data-globe],
+  .his-print-document .editor-mention,
+  .his-print-document [data-his-table] {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .his-print-document p,
+  .his-print-document li {
+    orphans: 3;
+    widows: 3;
+  }
+
+  .his-print-document [data-his-table] {
+    max-width: 100%;
+    overflow: visible !important;
+  }
+
+  .his-print-document [data-his-table-grid] {
+    max-width: 100%;
+  }
+}

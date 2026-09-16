@@ -24,8 +24,10 @@ const IconPicker = lazy(() => import("../visuals/IconPicker").then((module) => (
 const IMAGE_FILE_ACCEPT = fileImportAccept(["imagen"]);
 
 interface PageNodeHeaderProps {
+  mode?: "interactive" | "print";
   node: NodeItem;
   nodes: NodeItem[];
+  type?: NodeItem["type"];
   onContentChange: (id: string, content: string) => void;
   onRename: (id: string, name: string) => void;
   onImageFileUpload: (file: File) => Promise<string | null>;
@@ -36,8 +38,10 @@ type ImageChoice = "iconNodeId" | "coverNodeId";
 type ChoiceTab = "local" | "emoji" | "icon" | "unsplash";
 
 export default function PageNodeHeader({
+  mode = "interactive",
   node,
   nodes,
+  type = "pagina",
   onContentChange,
   onRename,
   onImageFileUpload,
@@ -238,8 +242,8 @@ export default function PageNodeHeader({
             {iconVisual && !meta.hideIcon && <NodeVisualRenderer visual={iconVisual} className="page-node-header__icon" />}
             <div className="page-node-header__title-content">
               <div className="page-node-header__type-row">
-                {!meta.hideSource && <NodeTypeLabel type="pagina" node={node} visual={iconVisual ?? undefined} />}
-                <div className="page-node-header__actions">
+                {!meta.hideSource && <NodeTypeLabel type={type} node={node} />}
+                  {mode === "interactive" && <div className="page-node-header__actions">
                   <span className="page-node-header__separator" aria-hidden="true" />
                   <button type="button" className="page-node-header__icon-button" onClick={() => { setChoiceTab("local"); setChoice("iconNodeId"); }} title={t("page.chooseIcon")} aria-label={t("page.chooseIcon")}><img src={imageAsset} alt="" /></button>
                   <button type="button" className="page-node-header__icon-button" onClick={() => { setChoiceTab("local"); setChoice("coverNodeId"); }} title={t("page.chooseCover")} aria-label={t("page.chooseCover")}><img src={coverAsset} alt="" /></button>
@@ -320,9 +324,9 @@ export default function PageNodeHeader({
                       </div>
                     )}
                   </span>
-                </div>
+                </div>}
               </div>
-              {editingTitle ? (
+              {mode === "print" ? <h1 className="editor-page__title page-node-header__title-input">{node.name}</h1> : editingTitle ? (
                 <input
                   className="editor-page__title page-node-header__title-input"
                   autoFocus
@@ -351,7 +355,7 @@ export default function PageNodeHeader({
                   {node.name}
                 </h1>
               )}
-              {!meta.hideDescription && (
+              {mode === "print" ? (!meta.hideDescription && meta.description ? <div className="page-node-header__description">{meta.description}</div> : null) : !meta.hideDescription && (
                 <textarea
                   className="page-node-header__description"
                   value={meta.description}

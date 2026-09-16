@@ -3,6 +3,7 @@ import type { NodeItem } from "../../types/nodes";
 import { useLocale } from "../../i18n/LocaleContext";
 import graphAsset from "../../assets/third-party/google-material/icons/graph_1.svg";
 import indexAsset from "../../assets/third-party/google-material/icons/more_vert.svg";
+import nodeOptionsAsset from "../../assets/third-party/google-material/icons/more_horiz.svg";
 import { focusPageHeading } from "../../editor/pageIndexNavigation";
 
 const GraphView = lazy(() => import("../../graph/view"));
@@ -13,6 +14,7 @@ interface PageNodeChromeProps {
   editorRef: RefObject<HTMLDivElement | null>;
   projectKey: string;
   onOpenNode: (id: string) => void;
+  onOpenNodeMenu: (position: { x: number; y: number }) => void;
 }
 
 interface OutlineEntry {
@@ -53,6 +55,7 @@ export default function PageNodeChrome({
   editorRef,
   projectKey,
   onOpenNode,
+  onOpenNodeMenu,
 }: PageNodeChromeProps) {
   const { t } = useLocale();
   const controls = useAutoHide(node.id);
@@ -160,6 +163,12 @@ export default function PageNodeChrome({
     <div className="page-chrome" style={{ left: bounds.left, top: bounds.top }} aria-label={t("nodes.page.nodeName")}>
       <div className="page-chrome__scroll-rail" aria-hidden="true">
         <span ref={thumbRef} className="page-chrome__scroll-thumb" />
+      </div>
+
+      <div className={`page-chrome__zone page-chrome__zone--node-options${visibilityClass}`} onPointerEnter={controls.reveal} onPointerLeave={controls.release}>
+        <button className="page-chrome__button" type="button" aria-label="Opciones de Nodo" title="Opciones de Nodo" onClick={(event) => onOpenNodeMenu({ x: event.clientX, y: event.clientY })}>
+          <img src={nodeOptionsAsset} alt="" />
+        </button>
       </div>
 
       <div className={`page-chrome__zone page-chrome__zone--index${visibilityClass}`} onPointerEnter={controls.reveal} onPointerLeave={controls.release}>

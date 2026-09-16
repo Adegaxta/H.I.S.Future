@@ -8,6 +8,7 @@ import type {
 } from "../types/nodes";
 import { getChildren } from "../utils/nodeTree";
 import { useNodeStore } from "./useNodeStore";
+import { getNodalMeta } from "../nodes/metadata";
 
 export function useTreeController(
   defaultNodeType: BaseNodeType = "pagina",
@@ -125,7 +126,11 @@ export function useTreeController(
       resetDrag();
       return;
     }
-    store.moveNodes(dragged, targetId, position);
+    const movable = dragged.filter((id) => {
+      const node = store.nodes.find((item) => item.id === id);
+      return node && !getNodalMeta(node.content).pinned;
+    });
+    if (movable.length) store.moveNodes(movable, targetId, position);
     resetDrag();
   };
 

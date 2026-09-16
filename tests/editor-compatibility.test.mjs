@@ -65,8 +65,8 @@ try {
   assert.match(controllerSource, /line\.contentEditable = expected;/,
     "Imported text lines must be normalized as editable at runtime");
   assert.match(controllerSource, /const normalizePageIndices = \(\) =>/);
-  assert.match(controllerSource, /\["border-top", "border-bottom"\]/,
-    "legacy generated indices lose their artificial start and end dividers");
+  assert.match(controllerSource, /index\.remove\(\)/,
+    "legacy inline indices are removed in favor of the native lateral index");
   assert.match(persistenceSource, /querySelectorAll\('\[contenteditable="true"\]'\)/,
     "Runtime editability markers must not inflate persisted HTML");
   assert.match(controllerSource, /repairUnlinkedEditorImages/,
