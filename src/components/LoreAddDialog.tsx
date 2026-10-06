@@ -1,24 +1,21 @@
 import { useEffect, useRef, useState } from "react";
-import type { BaseNodeType, NodeItem } from "../types/nodes";
-import { NODE_REGISTRY, getNodeDisplayLabel } from "../defs/nodeTypes";
+import type { NodeItem } from "../types/nodes";
+import { getNodeDisplayLabel } from "../defs/nodeTypes";
 import { useLocale } from "../i18n/LocaleContext";
 import { PrimaryNodeName } from "../nodes/PrimaryNodeName";
 
-export default function LoreAddDialog({ nodes, onAdd, onCreate, onClose, initialMode = null, title }: {
+export default function LoreAddDialog({ nodes, onAdd, onClose, title, onRequestCreate }: {
   nodes: NodeItem[];
   onAdd: (ids: string[]) => void;
-  onCreate: (name: string, type: BaseNodeType) => void;
   onClose: () => void;
-  initialMode?: "existing" | "new" | null;
   title?: string;
+  onRequestCreate: () => void;
 }) {
   const { t } = useLocale();
   const dialogRef = useRef<HTMLDialogElement>(null);
-  const [mode, setMode] = useState<"existing" | "new" | null>(initialMode);
+  const [mode, setMode] = useState<"existing" | null>(null);
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
-  const [name, setName] = useState("");
-  const [type, setType] = useState<BaseNodeType>("pagina");
   useEffect(() => {
     const dialog = dialogRef.current;
     dialog?.showModal();
@@ -31,7 +28,7 @@ export default function LoreAddDialog({ nodes, onAdd, onCreate, onClose, initial
       <header><h2 id="lore-add-title">{title ?? t("lore.dialog.title")}</h2><button type="button" onClick={onClose} aria-label={t("common.actions.close")}>×</button></header>
       <div className="lore-add-dialog__choices">
         <button type="button" aria-pressed={mode === "existing"} onClick={() => setMode("existing")}>{t("lore.dialog.existing")}</button>
-        <button type="button" aria-pressed={mode === "new"} onClick={() => setMode("new")}>{t("lore.dialog.new")}</button>
+        <button type="button" onClick={onRequestCreate}>{t("lore.dialog.new")}</button>
       </div>
       {mode === "existing" && <>
         <p>{t("lore.dialog.explanation")}</p>
@@ -45,11 +42,6 @@ export default function LoreAddDialog({ nodes, onAdd, onCreate, onClose, initial
         </div>
         <button type="button" disabled={!selected.length} onClick={() => { onAdd(selected); onClose(); }}>{t("lore.dialog.add")}{selected.length ? ` (${selected.length})` : ""}</button>
       </>}
-      {mode === "new" && <form onSubmit={(event) => { event.preventDefault(); if (name.trim()) { onCreate(name.trim(), type); onClose(); } }}>
-        <label>{t("lore.dialog.name")}<input autoFocus value={name} onChange={(event) => setName(event.target.value)} required /></label>
-        <label>{t("lore.dialog.type")}<select value={type} onChange={(event) => setType(event.target.value as BaseNodeType)}>{NODE_REGISTRY.availableForCreation().map((definition) => <option key={definition.type} value={definition.type}>{getNodeDisplayLabel(definition.type, t)}</option>)}</select></label>
-        <button type="submit" disabled={!name.trim()}>{t("lore.dialog.create")}</button>
-      </form>}
     </div>
   </dialog>;
 }

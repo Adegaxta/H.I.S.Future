@@ -1,23 +1,31 @@
-import { useEffect, type RefObject } from "react";
+import { useEffect, useRef, type RefObject } from "react";
 
 export function useDismissibleLayer(
   ref: RefObject<HTMLElement | null>,
   onClose: () => void,
   enabled = true,
 ) {
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
   useEffect(() => {
     if (!enabled) return;
-    const closeOutside = (event: PointerEvent) => {
-      if (!ref.current?.contains(event.target as Node)) onClose();
+    const closeOutside = (event: Event) => {
+      const target = event.target;
+      if (!(target instanceof Node) || !ref.current?.contains(target)) onCloseRef.current();
     };
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape") onCloseRef.current();
     };
-    document.addEventListener("pointerdown", closeOutside, true);
-    document.addEventListener("keydown", closeOnEscape, true);
+    // Window capture runs before editor/WebView handlers that may stop the
+    // event. This keeps contextual layers dismissible even after focus moves.
+    window.addEventListener("pointerdown", closeOutside, true);
+    window.addEventListener("contextmenu", closeOutside, true);
+    window.addEventListener("keydown", closeOnEscape, true);
     return () => {
-      document.removeEventListener("pointerdown", closeOutside, true);
-      document.removeEventListener("keydown", closeOnEscape, true);
+      window.removeEventListener("pointerdown", closeOutside, true);
+      window.removeEventListener("contextmenu", closeOutside, true);
+      window.removeEventListener("keydown", closeOnEscape, true);
     };
-  }, [enabled, onClose, ref]);
+  }, [enabled, ref]);
 }

@@ -1,13 +1,14 @@
+import { parseImagePresentation, type ImagePresentation } from "../../utils/imagePresentation";
 export type EmojiVisualStyle = "noto" | "twemoji";
 export type IconVisualProvider = "lucide" | "material-symbols";
 
 export type NodeVisual =
-  | { kind: "image"; nodeId: string; source: "local" | "unsplash" }
+  | { kind: "image"; nodeId: string; source: "local" | "unsplash"; presentation?: ImagePresentation }
   | { kind: "emoji"; value: string; style: EmojiVisualStyle }
   | { kind: "icon"; provider: IconVisualProvider; name: string };
 
 export type ResolvedNodeVisual =
-  | { kind: "image"; src: string }
+  | { kind: "image"; src: string; presentation?: ImagePresentation }
   | Extract<NodeVisual, { kind: "emoji" | "icon" }>;
 
 export function parseNodeVisual(value: unknown): NodeVisual | null {
@@ -15,7 +16,7 @@ export function parseNodeVisual(value: unknown): NodeVisual | null {
   const candidate = value as Partial<NodeVisual> & Record<string, unknown>;
   if (candidate.kind === "image" && typeof candidate.nodeId === "string" &&
       (candidate.source === "local" || candidate.source === "unsplash")) {
-    return { kind: "image", nodeId: candidate.nodeId, source: candidate.source };
+    return { kind: "image", nodeId: candidate.nodeId, source: candidate.source, ...(parseImagePresentation(candidate.presentation) ? { presentation: parseImagePresentation(candidate.presentation) } : {}) };
   }
   if (candidate.kind === "emoji" && typeof candidate.value === "string" && candidate.value.length > 0 &&
       (candidate.style === "noto" || candidate.style === "twemoji")) {

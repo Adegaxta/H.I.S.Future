@@ -49,7 +49,7 @@
 
 .trash-view__view-toggle button.is-active {
   color: #101416;
-  background: #4dd8c0;
+  background: var(--his-accent);
 }
 
 /* Titulo de la papelera. */
@@ -81,7 +81,7 @@
 
 /* Borde de acciones normales al pasar el cursor. */
 .trash-view__actions button:hover {
-  border-color: #4dd8c0;
+  border-color: var(--his-accent);
 }
 
 .trash-view__actions button:disabled {
@@ -100,7 +100,7 @@
 }
 
 .trash-view__actions .trash-view__more:hover {
-  color: #4dd8c0;
+  color: var(--his-accent);
 }
 
 /* Borde de la accion destructiva al pasar el cursor. */
@@ -197,7 +197,7 @@
 }
 
 .trash-node-back:hover {
-  border-color: #4dd8c0;
+  border-color: var(--his-accent);
   color: #f2f3f4;
 }
 
@@ -233,7 +233,7 @@
 }
 
 .trash-view__card.is-selected {
-  border-color: #4dd8c0;
+  border-color: var(--his-accent);
   background: #202b2d;
 }
 
@@ -304,7 +304,7 @@
 
 /* Color de las casillas de seleccion de la papelera. */
 .trash-view__item input {
-  accent-color: #4dd8c0;
+  accent-color: var(--his-accent);
 }
 
 /* Metadatos pequenos de cada elemento de papelera. */
@@ -386,7 +386,7 @@
 
 /* Estado hover del boton volver. */
 .project-settings__back:hover {
-  border-color: #4dd8c0;
+  border-color: var(--his-accent);
 }
 
 /* Icono del boton volver. */
@@ -413,7 +413,7 @@
 /* Etiqueta tecnica sobre el titulo de configuracion. */
 .project-settings__eyebrow {
   margin-bottom: 8px;
-  color: #4dd8c0;
+  color: var(--his-text-secondary);
   font-family: ui-monospace, "SF Mono", "Cascadia Code", monospace;
   font-size: 10px;
   letter-spacing: 0.14em;
@@ -454,7 +454,7 @@
 
 /* Borde del selector cuando esta enfocado. */
 .project-settings__field select:focus {
-  border-color: #4dd8c0;
+  border-color: var(--his-accent);
 }
 
 /* Version de la aplicacion, anclada discretamente al pie de configuracion. */
@@ -500,12 +500,12 @@
 
 .changelog-list { display: grid; gap: 18px; max-width: 720px; margin-top: 24px; }
 .changelog-entry { padding: 16px 0; border-top: 1px solid #343940; }
-.changelog-entry__meta { color: #4dd8c0; font: 11px ui-monospace, "SF Mono", "Cascadia Code", monospace; letter-spacing: 0.08em; }
+.changelog-entry__meta { color: var(--his-text-secondary); font: 11px ui-monospace, "SF Mono", "Cascadia Code", monospace; letter-spacing: 0.08em; }
 .changelog-entry h2 { margin: 8px 0 10px; color: #f2f3f4; font-size: 18px; }
 .changelog-entry ul { margin: 0; padding-left: 18px; color: #c7c9cc; font-size: 13px; line-height: 1.7; }
 .changelog-entry__summary { max-width: 640px; margin: 0 0 20px; color: #92989e; font-size: 13px; line-height: 1.55; }
 .changelog-entry__sections { display: grid; gap: 18px; }
-.changelog-entry__sections section { padding-left: 13px; border-left: 2px solid #4dd8c0; }
+.changelog-entry__sections section { padding-left: 13px; border-left: 2px solid var(--his-divider); }
 .changelog-entry__sections section.is-fix { border-left-color: #d8b34d; }
 .changelog-entry__sections h3 { margin: 0 0 6px; color: #e8e9ea; font-size: 14px; font-weight: 600; }
 .changelog-entry__sections .is-fix h3 { color: #d8b34d; }

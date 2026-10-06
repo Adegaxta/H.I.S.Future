@@ -1,4 +1,7 @@
+import { stringifyHtmlMetadata } from "./htmlMetadata";
+
 export interface ImageResourceInfo {
+  storage: "inline" | "external";
   src: string;
   fileName: string;
   fileSize: number | null;
@@ -7,6 +10,24 @@ export interface ImageResourceInfo {
   description: string;
   provenance: ImageProvenance | null;
 }
+
+export interface ProjectImageResourceInfo {
+  storage: "project-resource";
+  version: 2;
+  resourceId: string;
+  fileName: string;
+  fileSize: number;
+  mimeType: string;
+  extension: string;
+  hash: string;
+  description: string;
+  provenance: ImageProvenance | null;
+}
+
+export type ImageResourceDescriptor = ImageResourceInfo | ProjectImageResourceInfo;
+
+const IMAGE_RESOURCE_PREFIX = "<!--hisfuture-image-resource:";
+const IMAGE_RESOURCE_SUFFIX = "-->";
 
 export interface ImageProvenance {
   provider: string;
@@ -88,6 +109,7 @@ export function getImageResourceInfo(content: string, fallbackName: string): Ima
     : "";
   const parsedSize = Number(image.dataset.imageSize);
   return {
+    storage: src.startsWith("data:image/") ? "inline" : "external",
     src,
     fileName,
     fileSize: Number.isFinite(parsedSize) && parsedSize >= 0 ? parsedSize : null,
@@ -96,6 +118,59 @@ export function getImageResourceInfo(content: string, fallbackName: string): Ima
     description: image.dataset.imageDescription || "",
     provenance: parseImageProvenance(image.dataset.imageProvenance),
   };
+}
+
+function safeResourceExtension(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const normalized = value.toLowerCase() === "jpeg" || value.toLowerCase() === "jfif"
+    ? "jpg"
+    : value.toLowerCase();
+  return /^[a-z0-9]{2,5}$/.test(normalized) ? normalized : null;
+}
+
+export function getProjectImageResourceInfo(content: string): ProjectImageResourceInfo | null {
+  const start = content.indexOf(IMAGE_RESOURCE_PREFIX);
+  if (start < 0) return null;
+  const end = content.indexOf(IMAGE_RESOURCE_SUFFIX, start + IMAGE_RESOURCE_PREFIX.length);
+  if (end < 0) return null;
+  try {
+    const parsed = JSON.parse(content.slice(start + IMAGE_RESOURCE_PREFIX.length, end)) as Partial<ProjectImageResourceInfo>;
+    const extension = safeResourceExtension(parsed.extension);
+    if (
+      parsed.version !== 2 ||
+      typeof parsed.resourceId !== "string" ||
+      !/^[A-Za-z0-9_-]{1,128}$/.test(parsed.resourceId) ||
+      typeof parsed.fileName !== "string" ||
+      typeof parsed.fileSize !== "number" ||
+      !Number.isFinite(parsed.fileSize) || parsed.fileSize < 0 ||
+      typeof parsed.mimeType !== "string" || !parsed.mimeType.startsWith("image/") ||
+      typeof parsed.hash !== "string" || !/^[a-f0-9]{64}$/i.test(parsed.hash) ||
+      !extension
+    ) return null;
+    return {
+      storage: "project-resource",
+      version: 2,
+      resourceId: parsed.resourceId,
+      fileName: parsed.fileName,
+      fileSize: parsed.fileSize,
+      mimeType: parsed.mimeType,
+      extension,
+      hash: parsed.hash.toLowerCase(),
+      description: typeof parsed.description === "string" ? parsed.description : "",
+      provenance: parseImageProvenance(parsed.provenance ? JSON.stringify(parsed.provenance) : undefined),
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function getImageResourceDescriptor(content: string, fallbackName: string): ImageResourceDescriptor | null {
+  return getProjectImageResourceInfo(content) ?? getImageResourceInfo(content, fallbackName);
+}
+
+export function createProjectImageContent(resource: Omit<ProjectImageResourceInfo, "storage" | "version">): string {
+  const metadata: Omit<ProjectImageResourceInfo, "storage"> = { version: 2, ...resource };
+  return `${IMAGE_RESOURCE_PREFIX}${stringifyHtmlMetadata(metadata)}${IMAGE_RESOURCE_SUFFIX}<p><br></p>`;
 }
 
 export function createImageContent(

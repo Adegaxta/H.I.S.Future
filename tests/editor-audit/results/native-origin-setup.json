@@ -1,0 +1,45 @@
+{
+  "pid": 60876,
+  "profile": "C:\\Users\\Matias\\AppData\\Local\\Temp\\his-editor-audit-i8P7CX",
+  "cycles": [],
+  "ui": [],
+  "errors": [
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    ""
+  ],
+  "warnings": [
+    {
+      "type": "error",
+      "text": "No se pudo leer el estado de sincronización archive_sync_status not allowed. Plugin not found"
+    },
+    {
+      "type": "warning",
+      "text": "Discord Presence cleanup unavailable: clear_discord_presence not allowed. Plugin not found"
+    },
+    {
+      "type": "error",
+      "text": "No se pudo abrir el proyecto recibido al iniciar take_launch_project_path not allowed. Plugin not found"
+    },
+    {
+      "type": "error",
+      "text": "No se pudo leer el estado de sincronización archive_sync_status not allowed. Plugin not found"
+    },
+    {
+      "type": "warning",
+      "text": "Discord Presence transport unavailable: set_discord_presence not allowed. Plugin not found"
+    }
+  ],
+  "failed": {
+    "message": "locator.waitFor: Timeout 60000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-node-id]').first() to be visible\u001b[22m\n",
+    "stack": "locator.waitFor: Timeout 60000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-node-id]').first() to be visible\u001b[22m\n\n    at C:\\Users\\Matias\\Documents\\COSAS_DE_HIS\\H.I.S.Future\\hisfuture\\tests\\editor-audit\\native.mjs:19:150"
+  },
+  "nativeLogs": [
+    "[discord-presence] activity published large_image=hisfuture_icon small_image=none\n"
+  ]
+}

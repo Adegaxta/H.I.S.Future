@@ -1,3 +1,5 @@
+import type { NodeCreationDraft } from "../nodes/creation";
+import { buildNodeCreation } from "../nodes/creation";
 import { useLocale } from "../i18n/LocaleContext";
 import { courseAwareDeletionIds, hasMissingCourseCalendar, reconcileCourseCalendars, synchronizedNodeIds } from "../nodes/course/domain";
 import { applyNodeRename } from "../nodes/runtime";
@@ -28,6 +30,12 @@ import {
 } from "../utils/nodeTree";
 import { PersistenceQueue } from "../lifecycle/PersistenceQueue";
 import { measureActiveCloseProjectPhase } from "../lifecycle/metrics";
+import { safeLocalStorageSet } from "../workspace/safeStorage";
+import {
+  loreExpansionStorageKey,
+  parseLoreExpansion,
+  serializeLoreExpansion,
+} from "../workspace/navigationPreferences";
 import {
   mergeNodePersistenceRequests,
   type NodePersistenceRequest,
@@ -37,6 +45,7 @@ export function useNodeStore(projectKey?: string, projectName = "", defaultNodeT
   const { t } = useLocale();
   const trashKey = projectKey ? `hisfuture.project.trash.${projectKey}` : null;
   const recentKey = projectKey ? `hisfuture.project.recent-nodes.${projectKey}` : null;
+  const expandedKey = projectKey ? loreExpansionStorageKey(projectKey) : null;
   const [nodes, setNodes] = useState<NodeItem[]>([]);
   const [deletedNodes, setDeletedNodes] = useState<NodeItem[]>(() => {
     if (!trashKey) return [];
@@ -50,7 +59,9 @@ export function useNodeStore(projectKey?: string, projectName = "", defaultNodeT
   const [selectedDeletedIds, setSelectedDeletedIds] = useState<string[]>([]);
   const [deletedSelectionAnchorId, setDeletedSelectionAnchorId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [expanded, setExpanded] = useState<Record<string, boolean>>(() =>
+    expandedKey ? parseLoreExpansion(localStorage.getItem(expandedKey)) : {},
+  );
   const [recentActivity, setRecentActivity] = useState<Record<string, number>>(() => {
     if (!recentKey) return {};
     try {
@@ -120,6 +131,11 @@ export function useNodeStore(projectKey?: string, projectName = "", defaultNodeT
   const markRecent = (nodeId: string, kind: RecentActivityKind) => {
     setRecentActivity((current) => recordRecentActivity(current, nodeId, kind));
   };
+
+  useEffect(() => {
+    if (!expandedKey) return;
+    safeLocalStorageSet(expandedKey, serializeLoreExpansion(expanded));
+  }, [expanded, expandedKey]);
 
   useEffect(() => {
     if (!recentKey) return;
@@ -225,6 +241,19 @@ export function useNodeStore(projectKey?: string, projectName = "", defaultNodeT
     );
   };
 
+  const acceptPersistedSnapshot = (snapshot: NodeItem[], trash: NodeItem[]) => {
+    persistence.cancelPending();
+    pendingContentRef.current.clear();
+    requiresFullSaveRef.current = false;
+    changeVersionRef.current += 1;
+    persistedVersionRef.current = changeVersionRef.current;
+    nodesRef.current = snapshot;
+    deletedNodesRef.current = trash;
+    setNodes(snapshot);
+    setDeletedNodes(trash);
+    setPersistenceError(null);
+  };
+
   const reconcile = (next: NodeItem[]) => {
     const repaired = reconcileCourseCalendars(next, deletedNodesRef.current, t("nodes.calendar.label"));
     if (repaired.deletedNodes !== deletedNodesRef.current) {
@@ -233,22 +262,26 @@ export function useNodeStore(projectKey?: string, projectName = "", defaultNodeT
     }
     return reconcileVaultPrimary(repaired.nodes, projectName);
   };
+  const mutationActivityPendingRef = useRef(false);
+  const previousActivityNodesRef = useRef(nodes);
+  useEffect(() => {
+    const previous = previousActivityNodesRef.current;
+    previousActivityNodesRef.current = nodes;
+    if (!mutationActivityPendingRef.current) return;
+    mutationActivityPendingRef.current = false;
+    const ids = changedNodeIds(previous, nodes);
+    if (!ids.length) return;
+    const timestamp = Date.now();
+    setRecentActivity(activity => ids.reduce(
+      (result, id) => recordRecentActivity(result, id, "edit", timestamp), activity,
+    ));
+  }, [nodes]);
   const mutateNodes = (update: (current: NodeItem[]) => NodeItem[]) => {
-    setNodes((current) => {
-      const next = reconcile(update(current));
-      if (next !== current) {
-        markDirty();
-        const changedIds = changedNodeIds(current, next);
-        if (changedIds.length) {
-          const timestamp = Date.now();
-          setRecentActivity((activity) => changedIds.reduce(
-            (result, id) => recordRecentActivity(result, id, "edit", timestamp),
-            activity,
-          ));
-        }
-      }
-      return next;
-    });
+    // React can replay a functional updater while rebasing a transition.
+    // Activity bookkeeping belongs after commit, never inside that updater.
+    mutationActivityPendingRef.current = true;
+    markDirty();
+    setNodes(current => reconcile(update(current)));
   };
   const selectedNode = nodes.find((node) => node.id === selectedId);
   const recentNodes = nodes
@@ -303,17 +336,26 @@ export function useNodeStore(projectKey?: string, projectName = "", defaultNodeT
     if (selectCreated && getNodeDefinition(type).creation.selectAfterCreation) setSelectedId(id);
     return id;
   };
-  const renameNode = (id: string, name: string) =>
-    setNodes((current) => {
-      const nextName = name.trim();
-      const node = current.find((item) => item.id === id);
-      if (!node || node.name === nextName) return current;
-      markDirty();
-      markRecent(id, "rename");
-      return reconcile(current.map((item) =>
-        item.id === id ? applyNodeRename(item, nextName) : item,
-      ));
-    });
+  const createConfiguredNode = async (draft: NodeCreationDraft) => {
+    // Finish pending editor writes before committing a complete creation snapshot.
+    await saveNow();
+    const id = crypto.randomUUID();
+    const repaired = reconcileCourseCalendars(buildNodeCreation(nodesRef.current, id, draft), deletedNodesRef.current, t("nodes.calendar.label"));
+    const next = reconcileVaultPrimary(repaired.nodes, projectName);
+    await saveNodes(sortNodesForPersistence(next), repaired.deletedNodes, [id, draft.tagIds]);
+    acceptPersistedSnapshot(next, repaired.deletedNodes);
+    markRecent(id, "create");
+    if (draft.parentId) setExpanded(current => ({ ...current, [draft.parentId!]: true }));
+    if (getNodeDefinition(draft.type).creation.selectAfterCreation) setSelectedId(id);
+    return id;
+  };
+  const renameNode = (id: string, name: string) => {
+    const nextName = name.trim();
+    const node = nodesRef.current.find(item => item.id === id);
+    if (!node || node.name === nextName) return;
+    mutateNodes(current => current.map(item => item.id === id ? applyNodeRename(item, nextName) : item));
+    markRecent(id, "rename");
+  };
   const deleteNodes = (selectedIds: string[]) => {
     setNodes((current) => {
       const ids = courseAwareDeletionIds(current, selectedIds);
@@ -449,6 +491,7 @@ export function useNodeStore(projectKey?: string, projectName = "", defaultNodeT
     updateContent,
     mutateNodes,
     createNode,
+    createConfiguredNode,
     renameNode,
     deleteNode,
     deleteNodes,
@@ -467,5 +510,6 @@ export function useNodeStore(projectKey?: string, projectName = "", defaultNodeT
     moveNode,
     moveNodes,
     saveNow,
+    acceptPersistedSnapshot,
   };
 }

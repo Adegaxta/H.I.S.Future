@@ -2,7 +2,7 @@ import type { MouseEvent } from "react";
 import { getNodeDefinition, getNodeDisplayLabel } from "../../defs/nodeTypes";
 import { useLocale } from "../../i18n/LocaleContext";
 import type { NodeItem } from "../../types/nodes";
-import { getImageResourceInfo } from "../../utils/imageResource";
+import { useResolvedImageSource } from "../../utils/imageRuntimeResolver";
 import { PrimaryNodeName } from "../../nodes/PrimaryNodeName";
 
 export type TrashViewMode = "gallery" | "list";
@@ -23,8 +23,8 @@ interface TrashPanelProps {
 function TrashNodePreview({ node }: { node: NodeItem }) {
   const { t } = useLocale();
   const parsed = new DOMParser().parseFromString(node.content, "text/html");
-  const resource = node.type === "imagen" ? getImageResourceInfo(node.content, node.name) : null;
-  const imageSource = resource?.src || parsed.querySelector("img")?.getAttribute("src");
+  const resource = useResolvedImageSource(node.type === "imagen" ? node : null);
+  const imageSource = resource.src || parsed.querySelector("img")?.getAttribute("src");
   if (imageSource) return <img src={imageSource} alt="" loading="lazy" decoding="async" />;
   const text = parsed.body.textContent?.replace(/\s+/g, " ").trim().slice(0, 180);
   return <span>{text || t("workspace.noPreview")}</span>;

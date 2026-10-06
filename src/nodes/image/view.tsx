@@ -3,15 +3,19 @@ import { invoke } from "@tauri-apps/api/core";
 import { save } from "@tauri-apps/plugin-dialog";
 import type { NodeItem } from "../../types/nodes";
 import {
-  getImageResourceInfo,
-  hashImageFile,
+  createProjectImageContent,
+  getImageResourceDescriptor,
   createImageContent,
   getDataUrlByteSize,
   getImageMimeType,
 } from "../../utils/imageResource";
+import { useResolvedImageSource } from "../../utils/imageRuntimeResolver";
+import { hashFileBytes } from "../../project/fileHash";
+import { deleteProjectResource, storeProjectResource } from "../../project/resourceRepository";
 import { isDesktopRuntime } from "../../project/runtime";
 import NodeTypeLabel from "../../components/NodeTypeLabel";
 import { openWebUrl } from "../viewPrimitives";
+import { getNodalMeta, setNodalMeta } from "../metadata";
 import { useLocale } from "../../i18n/LocaleContext";
 
 interface ImageNodeViewProps {
@@ -19,6 +23,7 @@ interface ImageNodeViewProps {
   onContentChange: (id: string, content: string) => void;
   onRename: (id: string, name: string) => void;
   onDelete: (id: string) => void;
+  onAttachFile?: (id: string, name: string, content: string) => void;
   onUseAsProjectCover?: (nodeId: string) => void;
 }
 
@@ -28,9 +33,11 @@ export default function ImageNodeView({
   onRename,
   onDelete,
   onUseAsProjectCover,
+  onAttachFile,
 }: ImageNodeViewProps) {
   const { t } = useLocale();
-  const resource = getImageResourceInfo(node.content, node.name);
+  const resource = getImageResourceDescriptor(node.content, node.name);
+  const resolved = useResolvedImageSource(node);
   const [inspection, setInspection] = useState<{
     width: number;
     height: number;
@@ -38,9 +45,11 @@ export default function ImageNodeView({
     mimeType: string | null;
     hasTransparency: boolean | null;
   } | null>(null);
+  const uploadRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [editingName, setEditingName] = useState(node.name);
-  const [editingDescription, setEditingDescription] = useState(resource?.description || "");
+  const [editingDescription, setEditingDescription] = useState(resource?.description || getNodalMeta(node.content).description);
   const renameTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -58,7 +67,7 @@ export default function ImageNodeView({
   }, [resource?.hash]);
 
   useEffect(() => {
-    if (!resource) {
+    if (!resource || !resolved.src) {
       setInspection(null);
       return;
     }
@@ -66,7 +75,8 @@ export default function ImageNodeView({
     const image = new Image();
     image.onload = () => {
       let hasTransparency: boolean | null = null;
-      if (getImageMimeType(resource.src) === "image/jpeg") {
+      const mimeType = resource.storage === "project-resource" ? resource.mimeType : getImageMimeType(resource.src);
+      if (mimeType === "image/jpeg") {
         hasTransparency = false;
       } else {
         try {
@@ -97,17 +107,17 @@ export default function ImageNodeView({
         setInspection({
           width: image.naturalWidth,
           height: image.naturalHeight,
-          storedSize: getDataUrlByteSize(resource.src),
-          mimeType: getImageMimeType(resource.src),
+          storedSize: resource.storage === "project-resource" ? resource.fileSize : getDataUrlByteSize(resource.src),
+          mimeType,
           hasTransparency,
         });
       }
     };
-    image.src = resource.src;
+    image.src = resolved.src;
     return () => {
       cancelled = true;
     };
-  }, [resource?.src]);
+  }, [resolved.src, resource?.hash]);
 
   const handleNameChange = (newName: string) => {
     setEditingName(newName);
@@ -129,34 +139,53 @@ export default function ImageNodeView({
     }
   };
 
-  if (!resource) {
-    return <div className="image-node-view__empty">{t("image.invalid")}</div>;
-  }
-
   const replaceImage = async (file: File) => {
     if (!file.type.startsWith("image/")) {
       setMessage(t("image.replace.invalid"));
       return;
     }
-    const hash = await hashImageFile(file);
-    const reader = new FileReader();
-    reader.onload = async () => {
-      if (typeof reader.result !== "string") return;
-      onContentChange(
-        node.id,
-        createImageContent(reader.result, file.name, file.size, hash, editingDescription, null)
-      );
-      setMessage(t("image.replace.success"));
-    };
-    reader.readAsDataURL(file);
+    const data = new Uint8Array(await file.arrayBuffer());
+    const hash = await hashFileBytes(data);
+    const resourceId = crypto.randomUUID();
+    const requestedExtension = file.name.includes(".") ? file.name.slice(file.name.lastIndexOf(".") + 1) : undefined;
+    const stored = await storeProjectResource("image", resourceId, data, requestedExtension);
+    try {
+      const content = createProjectImageContent({
+        resourceId,
+        fileName: file.name,
+        fileSize: data.byteLength,
+        mimeType: stored.mimeType,
+        extension: stored.extension,
+        hash,
+        description: editingDescription,
+        provenance: null,
+      });
+      if (!resource && onAttachFile) onAttachFile(node.id, file.name, setNodalMeta(content, getNodalMeta(node.content)));
+      else onContentChange(node.id, content);
+    } catch (error) {
+      await deleteProjectResource("image", resourceId, stored.extension).catch(() => undefined);
+      throw error;
+    }
+    if (!resource && !onAttachFile) onRename(node.id, file.name);
+    setMessage(t("image.replace.success"));
   };
+
+  if (!resource) {
+    return <div className="image-node-view__empty">
+      <NodeTypeLabel type="imagen" node={node} /><h1>{node.name}</h1>
+      <p>{t("nodeCreation.emptyImage")}</p>
+      <button type="button" disabled={uploading} onClick={() => uploadRef.current?.click()}>{t(uploading ? "nodeCreation.uploading" : "nodeCreation.uploadImage")}</button><input ref={uploadRef} hidden disabled={uploading} type="file" accept="image/*" onChange={event => { const file = event.target.files?.[0]; if (file) { setUploading(true); void replaceImage(file).catch(reason => { console.error("[image] upload failed", reason); setMessage(t("fileImport.failed")); }).finally(() => setUploading(false)); } event.currentTarget.value = ""; }} />
+      {message && <p role="status">{message}</p>}
+    </div>;
+  }
 
   const copyImage = async () => {
     try {
       if (!navigator.clipboard) {
         throw new Error(t("image.clipboardUnavailable"));
       }
-      const response = await fetch(resource.src);
+      if (!resolved.src) throw new Error(t("image.invalid"));
+      const response = await fetch(resolved.src);
       const blob = await response.blob();
       if (navigator.clipboard.write && typeof ClipboardItem !== "undefined") {
         try {
@@ -169,7 +198,7 @@ export default function ImageNodeView({
           // Si falla el MIME type, intentar fallback
         }
       }
-      if (navigator.clipboard.writeText && resource.src.startsWith("data:")) {
+      if (navigator.clipboard.writeText && resource.storage !== "project-resource" && resource.src.startsWith("data:")) {
         await navigator.clipboard.writeText(resource.src);
         setMessage(t("image.copyReference.success"));
       } else {
@@ -182,7 +211,7 @@ export default function ImageNodeView({
 
   const downloadImage = async () => {
     try {
-      if (isDesktopRuntime() && resource.src.startsWith("data:")) {
+      if (resource.storage !== "project-resource" && isDesktopRuntime() && resource.src.startsWith("data:")) {
         const path = await save({
           defaultPath: resource.fileName,
           title: t("image.saveDialog"),
@@ -199,7 +228,8 @@ export default function ImageNodeView({
         });
       } else {
         const link = document.createElement("a");
-        link.href = resource.src;
+        if (!resolved.src) throw new Error(t("image.invalid"));
+        link.href = resolved.src;
         link.download = resource.fileName;
         document.body.appendChild(link);
         link.click();
@@ -214,7 +244,7 @@ export default function ImageNodeView({
   return (
     <div className="image-node-view">
       <div className="image-node-view__preview">
-        <img src={resource.src} alt={resource.fileName} />
+        {resolved.src ? <img src={resolved.src} alt={resource.fileName} /> : <span>{resolved.error?.message ?? t("image.invalid")}</span>}
       </div>
       <div className="image-node-view__panel">
         <NodeTypeLabel type="imagen" node={node} />
@@ -233,15 +263,17 @@ export default function ImageNodeView({
           value={editingDescription}
           onChange={(event) => setEditingDescription(event.target.value)}
           onBlur={() => {
-            if (editingDescription !== (resource?.description || "")) {
-              const updated = createImageContent(
-                resource?.src || "",
-                resource?.fileName || node.name,
-                resource?.fileSize ?? null,
-                resource?.hash ?? null,
-                editingDescription,
-                resource?.provenance || null,
-              );
+            if (editingDescription !== (resource?.description || getNodalMeta(node.content).description)) {
+              const updated = resource?.storage === "project-resource"
+                ? createProjectImageContent({ ...resource, description: editingDescription })
+                : createImageContent(
+                  resource?.src || "",
+                  resource?.fileName || node.name,
+                  resource?.fileSize ?? null,
+                  resource?.hash ?? null,
+                  editingDescription,
+                  resource?.provenance || null,
+                );
               onContentChange(node.id, updated);
             }
           }}

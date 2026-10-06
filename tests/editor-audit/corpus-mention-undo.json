@@ -1,0 +1,6 @@
+{
+  "id": "AUDIT-003",
+  "seed": 3,
+  "expectedFailureId": "ATOMIC_MENTION_EDITABLE",
+  "actions": [{"kind":"press","key":"Control+a"},{"kind":"saveSelectedReload"}]
+}

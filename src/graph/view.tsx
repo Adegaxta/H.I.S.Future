@@ -1,3 +1,4 @@
+import { useNodeCustomVisuals } from "../nodes/nodeIconSource";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { buildGraphProjection } from "./projection";
@@ -16,7 +17,6 @@ import { useLocale } from "../i18n/LocaleContext";
 import { getNodeDisplayLabel } from "../nodes/registry";
 import { NodeIcon } from "../nodes/NodeIcon";
 import HisContextMenu, { type HisContextMenuItem } from "../components/HisContextMenu";
-import LoreAddDialog from "../components/LoreAddDialog";
 import { aggregateGraphEdgeFacts } from "./edgeFacts";
 import settingsAsset from "../assets/original/ui/settings.svg";
 import { getNodeDefinition } from "../defs/nodeTypes";
@@ -38,7 +38,7 @@ interface GraphViewProps {
   onSelectNode: (id: string) => void;
   onClearSelection: () => void;
   onOpenNode: (id: string) => void;
-  onCreateNode: (name: string, type: BaseNodeType, position: GraphPosition) => string;
+  onRequestCreate?: (position: GraphPosition, onCreated: (id: string) => void) => void;
   onOpenNodeMenu: (menu: ContextMenuState) => void;
   projectKey: string;
   readOnly?: boolean;
@@ -62,16 +62,14 @@ function GraphRange({ label, value, minimum, maximum, step, outputValue, onChang
   );
 }
 
-export default function GraphView({ nodes, onSelectNode, onClearSelection, onOpenNode, onCreateNode, onOpenNodeMenu, projectKey, readOnly = false, localRootId }: GraphViewProps) {
+export default function GraphView({ nodes, onSelectNode, onClearSelection, onOpenNode, onRequestCreate, onOpenNodeMenu, projectKey, readOnly = false, localRootId }: GraphViewProps) {
   const { t } = useLocale();
   const [preferences, setPreferences] = useState<GraphUserPreferences>(() => readGraphUserPreferences(localStorage, projectKey));
-  const [showIntro, setShowIntro] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
   const [hoveredNode, setHoveredNode] = useState<HoveredGraphNode | null>(null);
   const [hoveredEdge, setHoveredEdge] = useState<HoveredGraphEdge | null>(null);
   const [focusedEdge, setFocusedEdge] = useState<HoveredGraphEdge | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; worldX: number; worldY: number } | null>(null);
-  const [createPosition, setCreatePosition] = useState<GraphPosition | null>(null);
   const rendererHostRef = useRef<HTMLDivElement | null>(null);
   const rendererRef = useRef<PixiGraphRenderer | null>(null);
   const callbacksRef = useRef({ onSelectNode, onClearSelection, onOpenNode });
@@ -145,10 +143,14 @@ export default function GraphView({ nodes, onSelectNode, onClearSelection, onOpe
       (!query || `${item.name} ${item.type}`.toLocaleLowerCase().includes(query)),
     );
   }, [connectedNodeIds, localNodeIds, nodes, preferences.hiddenTypes, preferences.searchQuery, preferences.showOrphans]);
-  const projection = useMemo(
-    () => buildGraphProjection(visibleNodes, { showTypes: preferences.showTypes, translate: t }),
-    [preferences.showTypes, t, visibleNodes],
-  );
+  const customVisuals = useNodeCustomVisuals(nodes);
+  const projection = useMemo(() => {
+    const projection = buildGraphProjection(visibleNodes, { showTypes: preferences.showTypes, translate: t });
+    return { ...projection, vertices: projection.vertices.map((vertex) => {
+      const visual = customVisuals.get(vertex.id) ?? vertex.customVisual;
+      return { ...vertex, customVisual: visual, iconSrc: visual?.kind === "image" ? visual.src : vertex.iconSrc };
+    }) };
+  }, [preferences.showTypes, t, visibleNodes, customVisuals]);
   const runtime = useMemo(
     () => buildGraphRuntime(projection, positionCacheRef.current),
     [projection, projectKey],
@@ -223,18 +225,9 @@ export default function GraphView({ nodes, onSelectNode, onClearSelection, onOpe
   useEffect(() => rendererRef.current?.setSimulationTuning(simulationTuning), [simulationTuning]);
   useEffect(() => setPreferences(readGraphUserPreferences(localStorage, projectKey)), [projectKey]);
   useEffect(() => writeGraphUserPreferences(localStorage, projectKey, preferences), [preferences, projectKey]);
-  useEffect(() => {
-    const timeout = window.setTimeout(() => setShowIntro(false), 4200);
-    return () => window.clearTimeout(timeout);
-  }, []);
-
   return (
     <section className="graph-view" aria-label={t("graph.label")}>
       <div className="graph-view__toolbar">
-        <div>
-          <div className="graph-view__eyebrow">{t("graph.eyebrow")}</div>
-          <h1>{t("graph.title")}</h1>
-        </div>
         <div className="graph-view__menu-wrap">
           <button
             type="button"
@@ -313,7 +306,6 @@ export default function GraphView({ nodes, onSelectNode, onClearSelection, onOpe
           )}
         </div>
       </div>
-      {showIntro && <div className="graph-view__intro" role="status">{t("graph.intro")}</div>}
       <div ref={rendererHostRef} className="graph-view__renderer" />
       {(hoveredEdge ?? focusedEdge) && (
         <div
@@ -337,7 +329,7 @@ export default function GraphView({ nodes, onSelectNode, onClearSelection, onOpe
           </div>
         </div>
       )}
-      {!readOnly && contextMenu && (
+      {!readOnly && onRequestCreate && contextMenu && (
         <HisContextMenu
           x={contextMenu.x}
           y={contextMenu.y}
@@ -345,25 +337,12 @@ export default function GraphView({ nodes, onSelectNode, onClearSelection, onOpe
             id: "create-node",
             label: t("nodal.create"),
             onSelect: () => {
-              setCreatePosition({ x: contextMenu.worldX, y: contextMenu.worldY });
+              const position = { x: contextMenu.worldX, y: contextMenu.worldY };
+              onRequestCreate(position, id => positionCacheRef.current.set(id, position));
               setContextMenu(null);
             },
           } satisfies HisContextMenuItem]}
           onClose={() => setContextMenu(null)}
-        />
-      )}
-      {!readOnly && createPosition && (
-        <LoreAddDialog
-          nodes={nodes}
-          initialMode="new"
-          title={t("graph.createNode")}
-          onAdd={() => undefined}
-          onCreate={(name, type) => {
-            const id = onCreateNode(name, type, createPosition);
-            positionCacheRef.current.set(id, createPosition);
-            setCreatePosition(null);
-          }}
-          onClose={() => setCreatePosition(null)}
         />
       )}
       {hoveredNode && (

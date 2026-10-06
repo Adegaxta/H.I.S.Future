@@ -1,0 +1,784 @@
+{
+  "timestamp": "2026-10-02T13:44:49.290Z",
+  "productionUnchanged": true,
+  "runs": [],
+  "regressions": [
+    {
+      "name": "ctrlClick-scroll-multiselect",
+      "status": "pass"
+    },
+    {
+      "name": "H1-selection",
+      "status": "pass"
+    },
+    {
+      "name": "back-forward-scroll",
+      "status": "pass"
+    },
+    {
+      "name": "paste-full-partial-html",
+      "status": "pass"
+    },
+    {
+      "name": "marks-toolbar-mention",
+      "status": "pass"
+    },
+    {
+      "name": "toolbar-on-off-mixed-and-strike",
+      "status": "pass"
+    },
+    {
+      "name": "slash-headings-list",
+      "status": "fail",
+      "error": "locator.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-picker]').getByText('Título 1', { exact: true })\u001b[22m\n"
+    },
+    {
+      "name": "table-runtime-roundtrip",
+      "status": "pass"
+    },
+    {
+      "name": "ctrlA-copy-delete-undo",
+      "status": "fail",
+      "error": "The expression evaluated to a falsy value:\n\n  assert.ok(await page.locator('[data-line-selected]').count()>90)\n"
+    },
+    {
+      "name": "node-drop-mention-undo",
+      "status": "pass"
+    },
+    {
+      "name": "large-input-remount",
+      "status": "pass"
+    }
+  ],
+  "properties": [
+    {
+      "checks": 18000,
+      "failures": [
+        {
+          "id": "SANITIZE_TEXT",
+          "seed": 10,
+          "input": "<p>&lt;literal&gt; / 10 &amp; &lt; &gt; \" '</p>",
+          "expected": "<literal> / 10 & < > \" '",
+          "actual": " / 10 & < > \" '"
+        },
+        {
+          "id": "PLAIN_PASTE_TEXT",
+          "seed": 10,
+          "input": "<literal> / 10 & < > \" '",
+          "expected": "<literal> / 10 & < > \" '",
+          "actual": "/ 10 & < > \" '"
+        }
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "REG_slash-headings-list",
+      "seed": 0,
+      "message": "locator.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-picker]').getByText('Título 1', { exact: true })\u001b[22m\n",
+      "actions": [],
+      "state": {
+        "id": "A",
+        "dom": "<p contenteditable=\"true\">/</p>",
+        "html": "<p>/</p>",
+        "text": "/",
+        "blocks": [
+          {
+            "tag": "P",
+            "text": "/",
+            "html": "<p contenteditable=\"true\">/</p>"
+          }
+        ],
+        "scroll": 0,
+        "selection": {
+          "text": "",
+          "collapsed": true,
+          "connected": true,
+          "belongs": true
+        }
+      }
+    },
+    {
+      "id": "REG_ctrlA-copy-delete-undo",
+      "seed": 0,
+      "message": "The expression evaluated to a falsy value:\n\n  assert.ok(await page.locator('[data-line-selected]').count()>90)\n",
+      "actions": [],
+      "state": {
+        "id": "A",
+        "dom": "<h1 contenteditable=\"true\">Heading selection</h1><p data-test=\"p0\" contenteditable=\"true\">Block 0 abcdef</p><p data-test=\"p1\" contenteditable=\"true\">Block 1 abcdef</p><p data-test=\"p2\" contenteditable=\"true\">Block 2 abcdef</p><p data-test=\"p3\" contenteditable=\"true\">Block 3 abcdef</p><p data-test=\"p4\" contenteditable=\"true\">Block 4 abcdef</p><p data-test=\"p5\" contenteditable=\"true\">Block 5 abcdef</p><p data-test=\"p6\" contenteditable=\"true\">Block 6 abcdef</p><p data-test=\"p7\" contenteditable=\"true\">Block 7 abcdef</p><p data-test=\"p8\" contenteditable=\"true\">Block 8 abcdef</p><p data-test=\"p9\" contenteditable=\"true\">Block 9 abcdef</p><p data-test=\"p10\" contenteditable=\"true\">Block 10 abcdef</p><p data-test=\"p11\" contenteditable=\"true\">Block 11 abcdef</p><p data-test=\"p12\" contenteditable=\"true\">Block 12 abcdef</p><p data-test=\"p13\" contenteditable=\"true\">Block 13 abcdef</p><p data-test=\"p14\" contenteditable=\"true\">Block 14 abcdef</p><p data-test=\"p15\" contenteditable=\"true\">Block 15 abcdef</p><p data-test=\"p16\" contenteditable=\"true\">Block 16 abcdef</p><p data-test=\"p17\" contenteditable=\"true\">Block 17 abcdef</p><p data-test=\"p18\" contenteditable=\"true\">Block 18 abcdef</p><p data-test=\"p19\" contenteditable=\"true\">Block 19 abcdef</p><p data-test=\"p20\" contenteditable=\"true\">Block 20 abcdef</p><p data-test=\"p21\" contenteditable=\"true\">Block 21 abcdef</p><p data-test=\"p22\" contenteditable=\"true\">Block 22 abcdef</p><p data-test=\"p23\" contenteditable=\"true\">Block 23 abcdef</p><p data-test=\"p24\" contenteditable=\"true\">Block 24 abcdef</p><p data-test=\"p25\" contenteditable=\"true\">Block 25 abcdef</p><p data-test=\"p26\" contenteditable=\"true\">Block 26 abcdef</p><p data-test=\"p27\" contenteditable=\"true\">Block 27 abcdef</p><p data-test=\"p28\" contenteditable=\"true\">Block 28 abcdef</p><p data-test=\"p29\" contenteditable=\"true\">Block 29 abcdef</p><p data-test=\"p30\" contenteditable=\"true\">Block 30 abcdef</p><p data-test=\"p31\" contenteditable=\"true\">Block 31 abcdef</p><p data-test=\"p32\" contenteditable=\"true\">Block 32 abcdef</p><p data-test=\"p33\" contenteditable=\"true\">Block 33 abcdef</p><p data-test=\"p34\" contenteditable=\"true\">Block 34 abcdef</p><p data-test=\"p35\" contenteditable=\"true\">Block 35 abcdef</p><p data-test=\"p36\" contenteditable=\"true\">Block 36 abcdef</p><p data-test=\"p37\" contenteditable=\"true\">Block 37 abcdef</p><p data-test=\"p38\" contenteditable=\"true\">Block 38 abcdef</p><p data-test=\"p39\" contenteditable=\"true\">Block 39 abcdef</p><p data-test=\"p40\" contenteditable=\"true\">Block 40 abcdef</p><p data-test=\"p41\" contenteditable=\"true\">Block 41 abcdef</p><p data-test=\"p42\" contenteditable=\"true\">Block 42 abcdef</p><p data-test=\"p43\" contenteditable=\"true\">Block 43 abcdef</p><p data-test=\"p44\" contenteditable=\"true\">Block 44 abcdef</p><p data-test=\"p45\" contenteditable=\"true\">Block 45 abcdef</p><p data-test=\"p46\" contenteditable=\"true\">Block 46 abcdef</p><p data-test=\"p47\" contenteditable=\"true\">Block 47 abcdef</p><p data-test=\"p48\" contenteditable=\"true\">Block 48 abcdef</p><p data-test=\"p49\" contenteditable=\"true\">Block 49 abcdef</p><p data-test=\"p50\" contenteditable=\"true\">Block 50 abcdef</p><p data-test=\"p51\" contenteditable=\"true\">Block 51 abcdef</p><p data-test=\"p52\" contenteditable=\"true\">Block 52 abcdef</p><p data-test=\"p53\" contenteditable=\"true\">Block 53 abcdef</p><p data-test=\"p54\" contenteditable=\"true\">Block 54 abcdef</p><p data-test=\"p55\" contenteditable=\"true\">Block 55 abcdef</p><p data-test=\"p56\" contenteditable=\"true\">Block 56 abcdef</p><p data-test=\"p57\" contenteditable=\"true\">Block 57 abcdef</p><p data-test=\"p58\" contenteditable=\"true\">Block 58 abcdef</p><p data-test=\"p59\" contenteditable=\"true\">Block 59 abcdef</p><p data-test=\"p60\" contenteditable=\"true\">Block 60 abcdef</p><p data-test=\"p61\" contenteditable=\"true\">Block 61 abcdef</p><p data-test=\"p62\" contenteditable=\"true\">Block 62 abcdef</p><p data-test=\"p63\" contenteditable=\"true\">Block 63 abcdef</p><p data-test=\"p64\" contenteditable=\"true\">Block 64 abcdef</p><p data-test=\"p65\" contenteditable=\"true\">Block 65 abcdef</p><p data-test=\"p66\" contenteditable=\"true\">Block 66 abcdef</p><p data-test=\"p67\" contenteditable=\"true\">Block 67 abcdef</p><p data-test=\"p68\" contenteditable=\"true\">Block 68 abcdef</p><p data-test=\"p69\" contenteditable=\"true\">Block 69 abcdef</p><p data-test=\"p70\" contenteditable=\"true\">Block 70 abcdef</p><p data-test=\"p71\" contenteditable=\"true\">Block 71 abcdef</p><p data-test=\"p72\" contenteditable=\"true\">Block 72 abcdef</p><p data-test=\"p73\" contenteditable=\"true\">Block 73 abcdef</p><p data-test=\"p74\" contenteditable=\"true\">Block 74 abcdef</p><p data-test=\"p75\" contenteditable=\"true\">Block 75 abcdef</p><p data-test=\"p76\" contenteditable=\"true\">Block 76 abcdef</p><p data-test=\"p77\" contenteditable=\"true\">Block 77 abcdef</p><p data-test=\"p78\" contenteditable=\"true\">Block 78 abcdef</p><p data-test=\"p79\" contenteditable=\"true\">Block 79 abcdef</p><p data-test=\"p80\" contenteditable=\"true\">Block 80 abcdef</p><p data-test=\"p81\" contenteditable=\"true\">Block 81 abcdef</p><p data-test=\"p82\" contenteditable=\"true\">Block 82 abcdef</p><p data-test=\"p83\" contenteditable=\"true\">Block 83 abcdef</p><p data-test=\"p84\" contenteditable=\"true\">Block 84 abcdef</p><p data-test=\"p85\" contenteditable=\"true\">Block 85 abcdef</p><p data-test=\"p86\" contenteditable=\"true\">Block 86 abcdef</p><p data-test=\"p87\" contenteditable=\"true\">Block 87 abcdef</p><p data-test=\"p88\" contenteditable=\"true\">Block 88 abcdef</p><p data-test=\"p89\" contenteditable=\"true\">Block 89 abcdef</p><p data-test=\"p90\" contenteditable=\"true\">Block 90 abcdef</p><p data-test=\"p91\" contenteditable=\"true\">Block 91 abcdef</p><p data-test=\"p92\" contenteditable=\"true\">Block 92 abcdef</p><p data-test=\"p93\" contenteditable=\"true\">Block 93 abcdef</p><p data-test=\"p94\" contenteditable=\"true\">Block 94 abcdef</p><p data-test=\"p95\" contenteditable=\"true\">Block 95 abcdef</p><p data-test=\"p96\" contenteditable=\"true\">Block 96 abcdef</p><p data-test=\"p97\" contenteditable=\"true\">Block 97 abcdef</p><p data-test=\"p98\" contenteditable=\"true\">Block 98 abcdef</p><p data-test=\"p99\" contenteditable=\"true\">Block 99 abcdef</p><p data-test=\"mention\" contenteditable=\"true\">antes <span class=\"editor-mention\" data-mention-id=\"B\" contenteditable=\"false\" title=\"Nodo B\" aria-label=\"Nodo B\" data-mention-selected=\"true\"><span class=\"sidebar-icon node-type-icon node-type-icon--pagina editor-mention__visual editor-mention__node-icon\" data-mention-node-visual=\"true\" data-editor-ui=\"true\" data-no-resize=\"true\" aria-hidden=\"true\" style=\"--mention-selection-left: -1.046875px; --mention-selection-width: 16px; --mention-selection-top: -1.9453125px; --mention-selection-height: 17px;\"></span><span class=\"editor-mention__label\">Nodo B</span></span> después</p>",
+        "html": "<h1>Heading selection</h1><p data-test=\"p0\">Block 0 abcdef</p><p data-test=\"p1\">Block 1 abcdef</p><p data-test=\"p2\">Block 2 abcdef</p><p data-test=\"p3\">Block 3 abcdef</p><p data-test=\"p4\">Block 4 abcdef</p><p data-test=\"p5\">Block 5 abcdef</p><p data-test=\"p6\">Block 6 abcdef</p><p data-test=\"p7\">Block 7 abcdef</p><p data-test=\"p8\">Block 8 abcdef</p><p data-test=\"p9\">Block 9 abcdef</p><p data-test=\"p10\">Block 10 abcdef</p><p data-test=\"p11\">Block 11 abcdef</p><p data-test=\"p12\">Block 12 abcdef</p><p data-test=\"p13\">Block 13 abcdef</p><p data-test=\"p14\">Block 14 abcdef</p><p data-test=\"p15\">Block 15 abcdef</p><p data-test=\"p16\">Block 16 abcdef</p><p data-test=\"p17\">Block 17 abcdef</p><p data-test=\"p18\">Block 18 abcdef</p><p data-test=\"p19\">Block 19 abcdef</p><p data-test=\"p20\">Block 20 abcdef</p><p data-test=\"p21\">Block 21 abcdef</p><p data-test=\"p22\">Block 22 abcdef</p><p data-test=\"p23\">Block 23 abcdef</p><p data-test=\"p24\">Block 24 abcdef</p><p data-test=\"p25\">Block 25 abcdef</p><p data-test=\"p26\">Block 26 abcdef</p><p data-test=\"p27\">Block 27 abcdef</p><p data-test=\"p28\">Block 28 abcdef</p><p data-test=\"p29\">Block 29 abcdef</p><p data-test=\"p30\">Block 30 abcdef</p><p data-test=\"p31\">Block 31 abcdef</p><p data-test=\"p32\">Block 32 abcdef</p><p data-test=\"p33\">Block 33 abcdef</p><p data-test=\"p34\">Block 34 abcdef</p><p data-test=\"p35\">Block 35 abcdef</p><p data-test=\"p36\">Block 36 abcdef</p><p data-test=\"p37\">Block 37 abcdef</p><p data-test=\"p38\">Block 38 abcdef</p><p data-test=\"p39\">Block 39 abcdef</p><p data-test=\"p40\">Block 40 abcdef</p><p data-test=\"p41\">Block 41 abcdef</p><p data-test=\"p42\">Block 42 abcdef</p><p data-test=\"p43\">Block 43 abcdef</p><p data-test=\"p44\">Block 44 abcdef</p><p data-test=\"p45\">Block 45 abcdef</p><p data-test=\"p46\">Block 46 abcdef</p><p data-test=\"p47\">Block 47 abcdef</p><p data-test=\"p48\">Block 48 abcdef</p><p data-test=\"p49\">Block 49 abcdef</p><p data-test=\"p50\">Block 50 abcdef</p><p data-test=\"p51\">Block 51 abcdef</p><p data-test=\"p52\">Block 52 abcdef</p><p data-test=\"p53\">Block 53 abcdef</p><p data-test=\"p54\">Block 54 abcdef</p><p data-test=\"p55\">Block 55 abcdef</p><p data-test=\"p56\">Block 56 abcdef</p><p data-test=\"p57\">Block 57 abcdef</p><p data-test=\"p58\">Block 58 abcdef</p><p data-test=\"p59\">Block 59 abcdef</p><p data-test=\"p60\">Block 60 abcdef</p><p data-test=\"p61\">Block 61 abcdef</p><p data-test=\"p62\">Block 62 abcdef</p><p data-test=\"p63\">Block 63 abcdef</p><p data-test=\"p64\">Block 64 abcdef</p><p data-test=\"p65\">Block 65 abcdef</p><p data-test=\"p66\">Block 66 abcdef</p><p data-test=\"p67\">Block 67 abcdef</p><p data-test=\"p68\">Block 68 abcdef</p><p data-test=\"p69\">Block 69 abcdef</p><p data-test=\"p70\">Block 70 abcdef</p><p data-test=\"p71\">Block 71 abcdef</p><p data-test=\"p72\">Block 72 abcdef</p><p data-test=\"p73\">Block 73 abcdef</p><p data-test=\"p74\">Block 74 abcdef</p><p data-test=\"p75\">Block 75 abcdef</p><p data-test=\"p76\">Block 76 abcdef</p><p data-test=\"p77\">Block 77 abcdef</p><p data-test=\"p78\">Block 78 abcdef</p><p data-test=\"p79\">Block 79 abcdef</p><p data-test=\"p80\">Block 80 abcdef</p><p data-test=\"p81\">Block 81 abcdef</p><p data-test=\"p82\">Block 82 abcdef</p><p data-test=\"p83\">Block 83 abcdef</p><p data-test=\"p84\">Block 84 abcdef</p><p data-test=\"p85\">Block 85 abcdef</p><p data-test=\"p86\">Block 86 abcdef</p><p data-test=\"p87\">Block 87 abcdef</p><p data-test=\"p88\">Block 88 abcdef</p><p data-test=\"p89\">Block 89 abcdef</p><p data-test=\"p90\">Block 90 abcdef</p><p data-test=\"p91\">Block 91 abcdef</p><p data-test=\"p92\">Block 92 abcdef</p><p data-test=\"p93\">Block 93 abcdef</p><p data-test=\"p94\">Block 94 abcdef</p><p data-test=\"p95\">Block 95 abcdef</p><p data-test=\"p96\">Block 96 abcdef</p><p data-test=\"p97\">Block 97 abcdef</p><p data-test=\"p98\">Block 98 abcdef</p><p data-test=\"p99\">Block 99 abcdef</p><p data-test=\"mention\">antes <span class=\"editor-mention\" data-mention-id=\"B\" title=\"Nodo B\" aria-label=\"Nodo B\"><span class=\"editor-mention__label\">Nodo B</span></span> después</p>",
+        "text": "Heading selectionBlock 0 abcdefBlock 1 abcdefBlock 2 abcdefBlock 3 abcdefBlock 4 abcdefBlock 5 abcdefBlock 6 abcdefBlock 7 abcdefBlock 8 abcdefBlock 9 abcdefBlock 10 abcdefBlock 11 abcdefBlock 12 abcdefBlock 13 abcdefBlock 14 abcdefBlock 15 abcdefBlock 16 abcdefBlock 17 abcdefBlock 18 abcdefBlock 19 abcdefBlock 20 abcdefBlock 21 abcdefBlock 22 abcdefBlock 23 abcdefBlock 24 abcdefBlock 25 abcdefBlock 26 abcdefBlock 27 abcdefBlock 28 abcdefBlock 29 abcdefBlock 30 abcdefBlock 31 abcdefBlock 32 abcdefBlock 33 abcdefBlock 34 abcdefBlock 35 abcdefBlock 36 abcdefBlock 37 abcdefBlock 38 abcdefBlock 39 abcdefBlock 40 abcdefBlock 41 abcdefBlock 42 abcdefBlock 43 abcdefBlock 44 abcdefBlock 45 abcdefBlock 46 abcdefBlock 47 abcdefBlock 48 abcdefBlock 49 abcdefBlock 50 abcdefBlock 51 abcdefBlock 52 abcdefBlock 53 abcdefBlock 54 abcdefBlock 55 abcdefBlock 56 abcdefBlock 57 abcdefBlock 58 abcdefBlock 59 abcdefBlock 60 abcdefBlock 61 abcdefBlock 62 abcdefBlock 63 abcdefBlock 64 abcdefBlock 65 abcdefBlock 66 abcdefBlock 67 abcdefBlock 68 abcdefBlock 69 abcdefBlock 70 abcdefBlock 71 abcdefBlock 72 abcdefBlock 73 abcdefBlock 74 abcdefBlock 75 abcdefBlock 76 abcdefBlock 77 abcdefBlock 78 abcdefBlock 79 abcdefBlock 80 abcdefBlock 81 abcdefBlock 82 abcdefBlock 83 abcdefBlock 84 abcdefBlock 85 abcdefBlock 86 abcdefBlock 87 abcdefBlock 88 abcdefBlock 89 abcdefBlock 90 abcdefBlock 91 abcdefBlock 92 abcdefBlock 93 abcdefBlock 94 abcdefBlock 95 abcdefBlock 96 abcdefBlock 97 abcdefBlock 98 abcdefBlock 99 abcdefantes Nodo B después",
+        "blocks": [
+          {
+            "tag": "H1",
+            "text": "Heading selection",
+            "html": "<h1 contenteditable=\"true\">Heading selection</h1>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 0 abcdef",
+            "html": "<p data-test=\"p0\" contenteditable=\"true\">Block 0 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 1 abcdef",
+            "html": "<p data-test=\"p1\" contenteditable=\"true\">Block 1 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 2 abcdef",
+            "html": "<p data-test=\"p2\" contenteditable=\"true\">Block 2 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 3 abcdef",
+            "html": "<p data-test=\"p3\" contenteditable=\"true\">Block 3 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 4 abcdef",
+            "html": "<p data-test=\"p4\" contenteditable=\"true\">Block 4 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 5 abcdef",
+            "html": "<p data-test=\"p5\" contenteditable=\"true\">Block 5 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 6 abcdef",
+            "html": "<p data-test=\"p6\" contenteditable=\"true\">Block 6 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 7 abcdef",
+            "html": "<p data-test=\"p7\" contenteditable=\"true\">Block 7 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 8 abcdef",
+            "html": "<p data-test=\"p8\" contenteditable=\"true\">Block 8 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 9 abcdef",
+            "html": "<p data-test=\"p9\" contenteditable=\"true\">Block 9 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 10 abcdef",
+            "html": "<p data-test=\"p10\" contenteditable=\"true\">Block 10 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 11 abcdef",
+            "html": "<p data-test=\"p11\" contenteditable=\"true\">Block 11 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 12 abcdef",
+            "html": "<p data-test=\"p12\" contenteditable=\"true\">Block 12 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 13 abcdef",
+            "html": "<p data-test=\"p13\" contenteditable=\"true\">Block 13 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 14 abcdef",
+            "html": "<p data-test=\"p14\" contenteditable=\"true\">Block 14 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 15 abcdef",
+            "html": "<p data-test=\"p15\" contenteditable=\"true\">Block 15 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 16 abcdef",
+            "html": "<p data-test=\"p16\" contenteditable=\"true\">Block 16 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 17 abcdef",
+            "html": "<p data-test=\"p17\" contenteditable=\"true\">Block 17 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 18 abcdef",
+            "html": "<p data-test=\"p18\" contenteditable=\"true\">Block 18 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 19 abcdef",
+            "html": "<p data-test=\"p19\" contenteditable=\"true\">Block 19 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 20 abcdef",
+            "html": "<p data-test=\"p20\" contenteditable=\"true\">Block 20 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 21 abcdef",
+            "html": "<p data-test=\"p21\" contenteditable=\"true\">Block 21 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 22 abcdef",
+            "html": "<p data-test=\"p22\" contenteditable=\"true\">Block 22 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 23 abcdef",
+            "html": "<p data-test=\"p23\" contenteditable=\"true\">Block 23 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 24 abcdef",
+            "html": "<p data-test=\"p24\" contenteditable=\"true\">Block 24 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 25 abcdef",
+            "html": "<p data-test=\"p25\" contenteditable=\"true\">Block 25 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 26 abcdef",
+            "html": "<p data-test=\"p26\" contenteditable=\"true\">Block 26 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 27 abcdef",
+            "html": "<p data-test=\"p27\" contenteditable=\"true\">Block 27 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 28 abcdef",
+            "html": "<p data-test=\"p28\" contenteditable=\"true\">Block 28 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 29 abcdef",
+            "html": "<p data-test=\"p29\" contenteditable=\"true\">Block 29 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 30 abcdef",
+            "html": "<p data-test=\"p30\" contenteditable=\"true\">Block 30 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 31 abcdef",
+            "html": "<p data-test=\"p31\" contenteditable=\"true\">Block 31 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 32 abcdef",
+            "html": "<p data-test=\"p32\" contenteditable=\"true\">Block 32 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 33 abcdef",
+            "html": "<p data-test=\"p33\" contenteditable=\"true\">Block 33 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 34 abcdef",
+            "html": "<p data-test=\"p34\" contenteditable=\"true\">Block 34 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 35 abcdef",
+            "html": "<p data-test=\"p35\" contenteditable=\"true\">Block 35 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 36 abcdef",
+            "html": "<p data-test=\"p36\" contenteditable=\"true\">Block 36 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 37 abcdef",
+            "html": "<p data-test=\"p37\" contenteditable=\"true\">Block 37 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 38 abcdef",
+            "html": "<p data-test=\"p38\" contenteditable=\"true\">Block 38 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 39 abcdef",
+            "html": "<p data-test=\"p39\" contenteditable=\"true\">Block 39 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 40 abcdef",
+            "html": "<p data-test=\"p40\" contenteditable=\"true\">Block 40 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 41 abcdef",
+            "html": "<p data-test=\"p41\" contenteditable=\"true\">Block 41 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 42 abcdef",
+            "html": "<p data-test=\"p42\" contenteditable=\"true\">Block 42 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 43 abcdef",
+            "html": "<p data-test=\"p43\" contenteditable=\"true\">Block 43 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 44 abcdef",
+            "html": "<p data-test=\"p44\" contenteditable=\"true\">Block 44 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 45 abcdef",
+            "html": "<p data-test=\"p45\" contenteditable=\"true\">Block 45 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 46 abcdef",
+            "html": "<p data-test=\"p46\" contenteditable=\"true\">Block 46 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 47 abcdef",
+            "html": "<p data-test=\"p47\" contenteditable=\"true\">Block 47 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 48 abcdef",
+            "html": "<p data-test=\"p48\" contenteditable=\"true\">Block 48 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 49 abcdef",
+            "html": "<p data-test=\"p49\" contenteditable=\"true\">Block 49 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 50 abcdef",
+            "html": "<p data-test=\"p50\" contenteditable=\"true\">Block 50 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 51 abcdef",
+            "html": "<p data-test=\"p51\" contenteditable=\"true\">Block 51 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 52 abcdef",
+            "html": "<p data-test=\"p52\" contenteditable=\"true\">Block 52 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 53 abcdef",
+            "html": "<p data-test=\"p53\" contenteditable=\"true\">Block 53 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 54 abcdef",
+            "html": "<p data-test=\"p54\" contenteditable=\"true\">Block 54 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 55 abcdef",
+            "html": "<p data-test=\"p55\" contenteditable=\"true\">Block 55 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 56 abcdef",
+            "html": "<p data-test=\"p56\" contenteditable=\"true\">Block 56 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 57 abcdef",
+            "html": "<p data-test=\"p57\" contenteditable=\"true\">Block 57 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 58 abcdef",
+            "html": "<p data-test=\"p58\" contenteditable=\"true\">Block 58 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 59 abcdef",
+            "html": "<p data-test=\"p59\" contenteditable=\"true\">Block 59 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 60 abcdef",
+            "html": "<p data-test=\"p60\" contenteditable=\"true\">Block 60 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 61 abcdef",
+            "html": "<p data-test=\"p61\" contenteditable=\"true\">Block 61 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 62 abcdef",
+            "html": "<p data-test=\"p62\" contenteditable=\"true\">Block 62 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 63 abcdef",
+            "html": "<p data-test=\"p63\" contenteditable=\"true\">Block 63 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 64 abcdef",
+            "html": "<p data-test=\"p64\" contenteditable=\"true\">Block 64 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 65 abcdef",
+            "html": "<p data-test=\"p65\" contenteditable=\"true\">Block 65 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 66 abcdef",
+            "html": "<p data-test=\"p66\" contenteditable=\"true\">Block 66 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 67 abcdef",
+            "html": "<p data-test=\"p67\" contenteditable=\"true\">Block 67 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 68 abcdef",
+            "html": "<p data-test=\"p68\" contenteditable=\"true\">Block 68 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 69 abcdef",
+            "html": "<p data-test=\"p69\" contenteditable=\"true\">Block 69 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 70 abcdef",
+            "html": "<p data-test=\"p70\" contenteditable=\"true\">Block 70 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 71 abcdef",
+            "html": "<p data-test=\"p71\" contenteditable=\"true\">Block 71 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 72 abcdef",
+            "html": "<p data-test=\"p72\" contenteditable=\"true\">Block 72 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 73 abcdef",
+            "html": "<p data-test=\"p73\" contenteditable=\"true\">Block 73 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 74 abcdef",
+            "html": "<p data-test=\"p74\" contenteditable=\"true\">Block 74 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 75 abcdef",
+            "html": "<p data-test=\"p75\" contenteditable=\"true\">Block 75 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 76 abcdef",
+            "html": "<p data-test=\"p76\" contenteditable=\"true\">Block 76 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 77 abcdef",
+            "html": "<p data-test=\"p77\" contenteditable=\"true\">Block 77 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 78 abcdef",
+            "html": "<p data-test=\"p78\" contenteditable=\"true\">Block 78 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 79 abcdef",
+            "html": "<p data-test=\"p79\" contenteditable=\"true\">Block 79 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 80 abcdef",
+            "html": "<p data-test=\"p80\" contenteditable=\"true\">Block 80 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 81 abcdef",
+            "html": "<p data-test=\"p81\" contenteditable=\"true\">Block 81 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 82 abcdef",
+            "html": "<p data-test=\"p82\" contenteditable=\"true\">Block 82 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 83 abcdef",
+            "html": "<p data-test=\"p83\" contenteditable=\"true\">Block 83 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 84 abcdef",
+            "html": "<p data-test=\"p84\" contenteditable=\"true\">Block 84 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 85 abcdef",
+            "html": "<p data-test=\"p85\" contenteditable=\"true\">Block 85 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 86 abcdef",
+            "html": "<p data-test=\"p86\" contenteditable=\"true\">Block 86 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 87 abcdef",
+            "html": "<p data-test=\"p87\" contenteditable=\"true\">Block 87 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 88 abcdef",
+            "html": "<p data-test=\"p88\" contenteditable=\"true\">Block 88 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 89 abcdef",
+            "html": "<p data-test=\"p89\" contenteditable=\"true\">Block 89 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 90 abcdef",
+            "html": "<p data-test=\"p90\" contenteditable=\"true\">Block 90 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 91 abcdef",
+            "html": "<p data-test=\"p91\" contenteditable=\"true\">Block 91 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 92 abcdef",
+            "html": "<p data-test=\"p92\" contenteditable=\"true\">Block 92 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 93 abcdef",
+            "html": "<p data-test=\"p93\" contenteditable=\"true\">Block 93 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 94 abcdef",
+            "html": "<p data-test=\"p94\" contenteditable=\"true\">Block 94 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 95 abcdef",
+            "html": "<p data-test=\"p95\" contenteditable=\"true\">Block 95 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 96 abcdef",
+            "html": "<p data-test=\"p96\" contenteditable=\"true\">Block 96 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 97 abcdef",
+            "html": "<p data-test=\"p97\" contenteditable=\"true\">Block 97 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 98 abcdef",
+            "html": "<p data-test=\"p98\" contenteditable=\"true\">Block 98 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "Block 99 abcdef",
+            "html": "<p data-test=\"p99\" contenteditable=\"true\">Block 99 abcdef</p>"
+          },
+          {
+            "tag": "P",
+            "text": "antes Nodo B después",
+            "html": "<p data-test=\"mention\" contenteditable=\"true\">antes <span class=\"editor-mention\" data-mention-id=\"B\" contenteditable=\"false\" title=\"Nodo B\" aria-label=\"Nodo B\" data-mention-selected=\"true\"><span class=\"sidebar-icon node-type-icon node-type-icon--pagina editor-mention__visual editor-mention__node-icon\" data-mention-node-visual=\"true\" data-editor-ui=\"true\" data-no-resize=\"true\" aria-hidden=\"true\" style=\"--mention-selection-left: -1.046875px; --mention-selection-width: 16px; --mention-selection-top: -1.9453125px; --mention-selection-height: 17px;\"></span><span class=\"editor-mention__label\">Nodo B</span></span> después</p>"
+          }
+        ],
+        "scroll": 0,
+        "selection": {
+          "text": "Heading selection\nBlock 0 abcdef\n\nBlock 1 abcdef\n\nBlock 2 abcdef\n\nBlock 3 abcdef\n\nBlock 4 abcdef\n\nBlock 5 abcdef\n\nBlock 6 abcdef\n\nBlock 7 abcdef\n\nBlock 8 abcdef\n\nBlock 9 abcdef\n\nBlock 10 abcdef\n\nBlock 11 abcdef\n\nBlock 12 abcdef\n\nBlock 13 abcdef\n\nBlock 14 abcdef\n\nBlock 15 abcdef\n\nBlock 16 abcdef\n\nBlock 17 abcdef\n\nBlock 18 abcdef\n\nBlock 19 abcdef\n\nBlock 20 abcdef\n\nBlock 21 abcdef\n\nBlock 22 abcdef\n\nBlock 23 abcdef\n\nBlock 24 abcdef\n\nBlock 25 abcdef\n\nBlock 26 abcdef\n\nBlock 27 abcdef\n\nBlock 28 abcdef\n\nBlock 29 abcdef\n\nBlock 30 abcdef\n\nBlock 31 abcdef\n\nBlock 32 abcdef\n\nBlock 33 abcdef\n\nBlock 34 abcdef\n\nBlock 35 abcdef\n\nBlock 36 abcdef\n\nBlock 37 abcdef\n\nBlock 38 abcdef\n\nBlock 39 abcdef\n\nBlock 40 abcdef\n\nBlock 41 abcdef\n\nBlock 42 abcdef\n\nBlock 43 abcdef\n\nBlock 44 abcdef\n\nBlock 45 abcdef\n\nBlock 46 abcdef\n\nBlock 47 abcdef\n\nBlock 48 abcdef\n\nBlock 49 abcdef\n\nBlock 50 abcdef\n\nBlock 51 abcdef\n\nBlock 52 abcdef\n\nBlock 53 abcdef\n\nBlock 54 abcdef\n\nBlock 55 abcdef\n\nBlock 56 abcdef\n\nBlock 57 abcdef\n\nBlock 58 abcdef\n\nBlock 59 abcdef\n\nBlock 60 abcdef\n\nBlock 61 abcdef\n\nBlock 62 abcdef\n\nBlock 63 abcdef\n\nBlock 64 abcdef\n\nBlock 65 abcdef\n\nBlock 66 abcdef\n\nBlock 67 abcdef\n\nBlock 68 abcdef\n\nBlock 69 abcdef\n\nBlock 70 abcdef\n\nBlock 71 abcdef\n\nBlock 72 abcdef\n\nBlock 73 abcdef\n\nBlock 74 abcdef\n\nBlock 75 abcdef\n\nBlock 76 abcdef\n\nBlock 77 abcdef\n\nBlock 78 abcdef\n\nBlock 79 abcdef\n\nBlock 80 abcdef\n\nBlock 81 abcdef\n\nBlock 82 abcdef\n\nBlock 83 abcdef\n\nBlock 84 abcdef\n\nBlock 85 abcdef\n\nBlock 86 abcdef\n\nBlock 87 abcdef\n\nBlock 88 abcdef\n\nBlock 89 abcdef\n\nBlock 90 abcdef\n\nBlock 91 abcdef\n\nBlock 92 abcdef\n\nBlock 93 abcdef\n\nBlock 94 abcdef\n\nBlock 95 abcdef\n\nBlock 96 abcdef\n\nBlock 97 abcdef\n\nBlock 98 abcdef\n\nBlock 99 abcdef\n\nantes Nodo B después",
+          "collapsed": false,
+          "connected": true,
+          "belongs": true
+        }
+      }
+    },
+    {
+      "id": "SANITIZE_TEXT",
+      "seed": 10,
+      "input": "<p>&lt;literal&gt; / 10 &amp; &lt; &gt; \" '</p>",
+      "expected": "<literal> / 10 & < > \" '",
+      "actual": " / 10 & < > \" '"
+    },
+    {
+      "id": "PLAIN_PASTE_TEXT",
+      "seed": 10,
+      "input": "<literal> / 10 & < > \" '",
+      "expected": "<literal> / 10 & < > \" '",
+      "actual": "/ 10 & < > \" '"
+    }
+  ],
+  "soak": [
+    {
+      "batch": 0,
+      "heap": 48553576,
+      "documents": 8,
+      "nodes": 297,
+      "jsEventListeners": 216,
+      "p50": 92.35659999999916,
+      "p95": 93.73219999999856,
+      "renders": 126,
+      "resources": {
+        "timeouts": 0,
+        "intervals": 1,
+        "objectUrls": 0
+      },
+      "metrics": []
+    },
+    {
+      "batch": 1,
+      "heap": 48638144,
+      "documents": 8,
+      "nodes": 297,
+      "jsEventListeners": 216,
+      "p50": 92.86800000000221,
+      "p95": 94.89289999999892,
+      "renders": 186,
+      "resources": {
+        "timeouts": 0,
+        "intervals": 1,
+        "objectUrls": 0
+      },
+      "metrics": []
+    },
+    {
+      "batch": 2,
+      "heap": 48885916,
+      "documents": 8,
+      "nodes": 297,
+      "jsEventListeners": 216,
+      "p50": 92.39640000000509,
+      "p95": 93.80010000000038,
+      "renders": 246,
+      "resources": {
+        "timeouts": 0,
+        "intervals": 1,
+        "objectUrls": 0
+      },
+      "metrics": []
+    },
+    {
+      "batch": 3,
+      "heap": 49054872,
+      "documents": 8,
+      "nodes": 297,
+      "jsEventListeners": 216,
+      "p50": 78.73709999999846,
+      "p95": 93.16000000000349,
+      "renders": 306,
+      "resources": {
+        "timeouts": 0,
+        "intervals": 1,
+        "objectUrls": 0
+      },
+      "metrics": []
+    },
+    {
+      "batch": 4,
+      "heap": 49079468,
+      "documents": 8,
+      "nodes": 297,
+      "jsEventListeners": 216,
+      "p50": 78.00960000000487,
+      "p95": 93.63910000000033,
+      "renders": 366,
+      "resources": {
+        "timeouts": 0,
+        "intervals": 1,
+        "objectUrls": 0
+      },
+      "metrics": []
+    },
+    {
+      "batch": 5,
+      "heap": 49093028,
+      "documents": 8,
+      "nodes": 297,
+      "jsEventListeners": 216,
+      "p50": 83.18370000000141,
+      "p95": 94.50469999999768,
+      "renders": 426,
+      "resources": {
+        "timeouts": 0,
+        "intervals": 1,
+        "objectUrls": 0
+      },
+      "metrics": []
+    },
+    {
+      "batch": 6,
+      "heap": 49110204,
+      "documents": 8,
+      "nodes": 297,
+      "jsEventListeners": 216,
+      "p50": 92.52880000000005,
+      "p95": 93.90639999999985,
+      "renders": 486,
+      "resources": {
+        "timeouts": 0,
+        "intervals": 1,
+        "objectUrls": 0
+      },
+      "metrics": []
+    },
+    {
+      "batch": 7,
+      "heap": 49161792,
+      "documents": 8,
+      "nodes": 297,
+      "jsEventListeners": 216,
+      "p50": 92.1652000000031,
+      "p95": 93.66129999999976,
+      "renders": 546,
+      "resources": {
+        "timeouts": 0,
+        "intervals": 1,
+        "objectUrls": 0
+      },
+      "metrics": []
+    }
+  ],
+  "errors": [],
+  "warnings": [
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    }
+  ]
+}

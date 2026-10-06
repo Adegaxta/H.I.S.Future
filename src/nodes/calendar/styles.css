@@ -556,13 +556,13 @@
 .weekly-tempo-bar__segments > .starts-filtered-run { border-top: 1px solid var(--weekly-tempo-color, #d88f5a); }
 .weekly-tempo-bar__segments > .ends-filtered-run { border-bottom: 1px solid var(--weekly-tempo-color, #d88f5a); }
 .weekly-tempo-drop-preview { z-index: 3; margin: 3px 9px; border: 1px dashed; border-radius: 0; pointer-events: none; }
-.weekly-tempo-reorder-preview { z-index: 1; margin: 2px; border: 1px dashed var(--weekly-tempo-accent, #4dd8c0); border-radius: 0; pointer-events: none; }
+.weekly-tempo-reorder-preview { z-index: 1; margin: 2px; border: 1px dashed var(--weekly-tempo-accent, var(--his-accent)); border-radius: 0; pointer-events: none; }
 .weekly-tempo-bar__handle { position: absolute; right: 0; left: 0; width: 100%; height: 7px; border: 0; background: rgba(21, 24, 28, 0.25); cursor: ns-resize; opacity: 0; }
 .weekly-tempo-bar:hover .weekly-tempo-bar__handle, .weekly-tempo-bar__handle:focus-visible { opacity: 1; }
 .weekly-tempo-bar__handle--start { top: 0; }
 .weekly-tempo-bar__handle--end { bottom: 0; }
 .weekly-tempo-view__back { margin: -4px 0 0 -7px; border: 0; border-radius: 0; padding: 4px 7px; background: transparent; color: #777d84; cursor: pointer; font-size: 10px; transition: background-color 60ms linear, color 60ms linear; }
-.weekly-tempo-view__back:hover, .weekly-tempo-view__back:focus-visible { background: var(--weekly-tempo-accent, #4dd8c0); color: #121417; outline: 0; }
+.weekly-tempo-view__back:hover, .weekly-tempo-view__back:focus-visible { background: var(--weekly-tempo-accent, var(--his-accent)); color: #121417; outline: 0; }
 
 .weekly-tempo-surface-scroll {
   flex: 1;

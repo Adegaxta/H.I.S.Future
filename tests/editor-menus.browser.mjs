@@ -1,0 +1,78 @@
+import assert from 'node:assert/strict';
+import {createServer} from 'vite';
+import {createRequire} from 'node:module';
+import {join} from 'node:path';
+import {homedir} from 'node:os';
+const require=createRequire(join(homedir(),'.cache/codex-runtimes/codex-primary-runtime/dependencies/node/package.json'));
+const {chromium}=require('playwright');
+const server=await createServer({configFile:false,cacheDir:'node_modules/.vite/editor-interactions',esbuild:{jsx:'automatic'},optimizeDeps:{noDiscovery:true,include:['react/jsx-dev-runtime','react/jsx-runtime','nspell','react','react-dom','react-dom/client','lucide-react','lucide-react/dynamicIconImports']},server:{port:5199,host:'127.0.0.1'},plugins:[{name:'fixture',configureServer(s){s.middlewares.use('/interaction-fixture',async(req,res)=>{res.setHeader('Content-Type','text/html');res.end(await s.transformIndexHtml('/interaction-fixture','<div id="root"></div><script type="module" src="/tests/editor-interactions.fixture.tsx"></script>'));});}}]});
+await server.listen(); console.log('Fixture server ready');
+let browser;
+try {
+ browser=await chromium.launch({channel:'msedge',headless:true});
+ const page=await browser.newPage(); page.setDefaultTimeout(60000); console.log('Browser ready');
+ page.on('pageerror',e=>console.error(e));
+ await page.goto('http://127.0.0.1:5199/interaction-fixture',{waitUntil:'domcontentloaded'}); console.log('HTML ready');
+ await page.locator('[data-test="p50"]').waitFor(); console.log('Editor ready');
+
+ const choose = async (kind, name) => {
+  await page.locator('.page-context-menu__toolbar').getByRole('button',{name:kind,exact:true}).click();
+  await page.locator('.his-color-options').getByRole('button',{name,exact:true}).click();
+ };
+ const toggle = async (i) => page.locator('[data-test="p'+i+'"]').evaluate(e=>{e.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,ctrlKey:true,button:0,buttons:1}));e.dispatchEvent(new MouseEvent('click',{bubbles:true,ctrlKey:true}));});
+ await page.locator('#scroll').evaluate(e=>e.scrollTop=1500);
+ await toggle(50);await toggle(51);await toggle(52);
+ await page.locator('[data-test="p51"]').click({button:'right',position:{x:240,y:8}});
+ await page.locator('.page-context-menu').waitFor();
+ assert.equal(await page.locator('[data-line-selected]').count(),3);
+ await choose('Color de texto','Rojo');
+ for(const i of [50,51,52]) assert.equal(await page.locator('[data-test="p'+i+'"]').evaluate(e=>e.style.color),'rgb(231, 76, 60)');
+ const palette=await page.locator('.his-color-options > button').evaluateAll(es=>es.slice(1).map(e=>getComputedStyle(e).color));
+ assert.equal(palette[0],'rgb(123, 127, 133)');assert.equal(palette.at(-1),'rgb(231, 76, 60)');
+ await choose('Color de fondo','Azul');
+ for(const i of [50,51,52]) assert.equal(await page.locator('[data-test="p'+i+'"]').evaluate(e=>e.style.backgroundColor),'rgba(122, 183, 255, 0.22)');
+ await choose('Color de borde','Verde');
+ for(const i of [50,51,52]) assert.equal(await page.locator('[data-test="p'+i+'"]').evaluate(e=>e.style.border),'1px solid rgb(46, 204, 113)');
+ await page.locator('.page-context-menu-layer').screenshot({path:join(homedir(),'.codex','editor-block-colors.png')});
+ await page.locator('.his-color-options').getByRole('button',{name:'Predeterminado',exact:true}).click();
+ for(const i of [50,51,52]) assert.equal(await page.locator('[data-test="p'+i+'"]').evaluate(e=>e.style.border),'');
+ await page.keyboard.press('Escape');
+ await page.locator('.page-context-menu').waitFor({state:'hidden'});
+ await toggle(50);await toggle(51);
+ await page.locator('[data-test="p53"]').click({button:'right',position:{x:240,y:8}});
+ assert.deepEqual(await page.locator('[data-line-selected]').evaluateAll(es=>es.map(e=>e.getAttribute('data-test'))),['p53']);
+ await page.keyboard.press('Escape');
+ await page.locator('.page-context-menu').waitFor({state:'hidden'});
+ const rightWord = async (selector, word) => {
+  const locator=page.locator(selector); await locator.scrollIntoViewIfNeeded();
+  const point=await locator.evaluate((e,word)=>{
+   const text=e.firstChild;const start=text.textContent.indexOf(word);const r=document.createRange();r.setStart(text,start);r.setEnd(text,start+word.length);const rect=r.getBoundingClientRect();return {x:rect.left+rect.width/2,y:rect.top+rect.height/2};
+  },word);
+  await page.mouse.click(point.x,point.y,{button:'right'});
+ };
+ await rightWord('[data-test="spelling"]','ortgrafía');
+ await page.locator('.his-spelling-menu').waitFor();
+ await page.locator('.his-spelling-menu').screenshot({path:join(homedir(),'.codex','editor-spelling-menu.png')});
+ await page.locator('.his-spelling-menu').getByRole('menuitem',{name:'ortografía',exact:true}).click();
+ assert.equal(await page.locator('[data-test="spelling"]').textContent(),'Esta es ortografía y así.');
+ await page.keyboard.press('Control+z');
+ assert.equal(await page.locator('[data-test="spelling"]').textContent(),'Esta es ortgrafía y así.');
+ await page.keyboard.press('Control+y');
+ assert.equal(await page.locator('[data-test="spelling"]').textContent(),'Esta es ortografía y así.');
+ await page.getByRole('button',{name:'English',exact:true}).click();
+ await rightWord('[data-test="english"]','helo');
+ await page.locator('.his-spelling-menu').getByRole('menuitem',{name:'hello',exact:true}).click();
+ assert.equal(await page.locator('[data-test="english"]').textContent(),'This is hello world.');
+ await page.keyboard.press('Control+z');
+ await rightWord('[data-test="english"]','helo');
+ await page.locator('.his-spelling-menu').getByRole('menuitem',{name:'Add to dictionary',exact:true}).click();
+ await page.locator('.his-spelling-menu').waitFor({state:'hidden'});
+ assert.ok(await page.evaluate(()=>JSON.parse(localStorage.getItem('his.editor.personal-dictionary.v1')).includes('helo')));
+ await page.getByRole('button',{name:'Visit',exact:true}).click();
+ await page.getByRole('button',{name:'Español',exact:true}).click();
+ await rightWord('[data-test="english"]','helo');
+ await page.locator('.page-context-menu').waitFor();
+ assert.equal(await page.locator('.his-spelling-menu').count(),0);
+ assert.doesNotMatch(await page.locator('#saved').textContent(),/his-editor-spelling|data-spelling|personal-dictionary/);
+ console.log('PASS: colored palette labels, muted backgrounds, complete/default borders, multi-block colors, right-click selection, Spanish/English corrections, undo/redo and global personal dictionary.');
+} finally {await browser?.close();await server.close();}

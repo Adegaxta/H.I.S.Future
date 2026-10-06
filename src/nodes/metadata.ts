@@ -17,6 +17,7 @@ export interface NodalMeta {
   size: number | null;
   mediaType: string;
   role: "vault-primary" | null;
+  primaryDismissed: boolean;
   favorite: boolean;
   pinned: boolean;
   protected: boolean;
@@ -49,6 +50,7 @@ export function getNodalMeta(content: string): NodalMeta {
     evaluation: raw.evaluation === true, status: raw.status === "progress" || raw.status === "done" ? raw.status : "pending",
     transcript: text(raw.transcript), duration: positive(raw.duration), size: positive(raw.size), mediaType: text(raw.mediaType),
     role: raw.role === "vault-primary" ? "vault-primary" : null,
+    primaryDismissed: raw.primaryDismissed === true,
     favorite: raw.favorite === true,
     pinned: raw.pinned === true,
     protected: raw.protected === true,

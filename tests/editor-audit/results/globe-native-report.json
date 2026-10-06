@@ -1,0 +1,195 @@
+{
+  "profile": "C:\\Users\\Matias\\AppData\\Local\\Temp\\his-globe-audit-Q3cC20",
+  "pid": 85324,
+  "scenarios": [
+    {
+      "seed": 20261003,
+      "id": "CARET_AFTER_GLOBE",
+      "generated": {
+        "html": "<div data-globe=\"true\" contenteditable=\"true\"><span data-globe-icon=\"true\" contenteditable=\"false\"><img src=\"data:image/svg+xml,%3c!--%20Modified%20for%20H.I.S.%20Future:%20SVG%20presentation%20attributes%20changed%20(height:%2048%20-%3e%2048px;%20width:%2048%20-%3e%2048px;%20fill:%20(ausente)%20-%3e%20%23e3e3e3).%20Derived%20from%20Google%20Material%20Symbols,%20Apache-2.0.%20See%20docs/legal/material-symbols-provenance.md.%20--%3e%3csvg%20xmlns='http://www.w3.org/2000/svg'%20height='48px'%20viewBox='0%20-960%20960%20960'%20width='48px'%20fill='%23e3e3e3'%3e%3cpath%20d='M220-80q-24%200-42-18t-18-42v-680q0-24%2018-42t42-18h361l219%20219v521q0%2024-18%2042t-42%2018H220Zm331-554v-186H220v680h520v-494H551ZM220-820v186-186%20680-680Z'/%3e%3c/svg%3e\" alt=\"Draft\"></span><div data-globe-content=\"true\" contenteditable=\"true\"><p contenteditable=\"true\">Alpha beta</p></div></div><ul><li contenteditable=\"true\">Elemento lista</li></ul>",
+        "text": "Alpha betaElemento lista",
+        "selection": {
+          "text": "",
+          "collapsed": true,
+          "connected": true,
+          "inEditor": true,
+          "focusText": "Alpha beta",
+          "focusOffset": 6
+        },
+        "globes": [
+          {
+            "parent": "DIV",
+            "html": "<div data-globe=\"true\" contenteditable=\"true\"><span data-globe-icon=\"true\" contenteditable=\"false\"><img src=\"data:image/svg+xml,%3c!--%20Modified%20for%20H.I.S.%20Future:%20SVG%20presentation%20attributes%20changed%20(height:%2048%20-%3e%2048px;%20width:%2048%20-%3e%2048px;%20fill:%20(ausente)%20-%3e%20%23e3e3e3).%20Derived%20from%20Google%20Material%20Symbols,%20Apache-2.0.%20See%20docs/legal/material-symbols-provenance.md.%20--%3e%3csvg%20xmlns='http://www.w3.org/2000/svg'%20height='48px'%20viewBox='0%20-960%20960%20960'%20width='48px'%20fill='%23e3e3e3'%3e%3cpath%20d='M220-80q-24%200-42-18t-18-42v-680q0-24%2018-42t42-18h361l219%20219v521q0%2024-18%2042t-42%2018H220Zm331-554v-186H220v680h520v-494H551ZM220-820v186-186%20680-680Z'/%3e%3c/svg%3e\" alt=\"Draft\"></span><div data-globe-content=\"true\" contenteditable=\"true\"><p contenteditable=\"true\">Alpha beta</p></div></div>"
+          }
+        ],
+        "listChildren": [
+          {
+            "tag": "UL",
+            "children": [
+              "LI"
+            ]
+          }
+        ]
+      },
+      "afterTyping": {
+        "html": "<div data-globe=\"true\" contenteditable=\"true\"><span data-globe-icon=\"true\" contenteditable=\"false\"><img src=\"data:image/svg+xml,%3c!--%20Modified%20for%20H.I.S.%20Future:%20SVG%20presentation%20attributes%20changed%20(height:%2048%20-%3e%2048px;%20width:%2048%20-%3e%2048px;%20fill:%20(ausente)%20-%3e%20%23e3e3e3).%20Derived%20from%20Google%20Material%20Symbols,%20Apache-2.0.%20See%20docs/legal/material-symbols-provenance.md.%20--%3e%3csvg%20xmlns='http://www.w3.org/2000/svg'%20height='48px'%20viewBox='0%20-960%20960%20960'%20width='48px'%20fill='%23e3e3e3'%3e%3cpath%20d='M220-80q-24%200-42-18t-18-42v-680q0-24%2018-42t42-18h361l219%20219v521q0%2024-18%2042t-42%2018H220Zm331-554v-186H220v680h520v-494H551ZM220-820v186-186%20680-680Z'/%3e%3c/svg%3e\" alt=\"Draft\"></span><div data-globe-content=\"true\" contenteditable=\"true\"><p contenteditable=\"true\">Alpha Xbeta</p></div></div><ul><li contenteditable=\"true\">Elemento lista</li></ul>",
+        "text": "Alpha XbetaElemento lista",
+        "selection": {
+          "text": "",
+          "collapsed": true,
+          "connected": true,
+          "inEditor": true,
+          "focusText": "Alpha Xbeta",
+          "focusOffset": 7
+        },
+        "globes": [
+          {
+            "parent": "DIV",
+            "html": "<div data-globe=\"true\" contenteditable=\"true\"><span data-globe-icon=\"true\" contenteditable=\"false\"><img src=\"data:image/svg+xml,%3c!--%20Modified%20for%20H.I.S.%20Future:%20SVG%20presentation%20attributes%20changed%20(height:%2048%20-%3e%2048px;%20width:%2048%20-%3e%2048px;%20fill:%20(ausente)%20-%3e%20%23e3e3e3).%20Derived%20from%20Google%20Material%20Symbols,%20Apache-2.0.%20See%20docs/legal/material-symbols-provenance.md.%20--%3e%3csvg%20xmlns='http://www.w3.org/2000/svg'%20height='48px'%20viewBox='0%20-960%20960%20960'%20width='48px'%20fill='%23e3e3e3'%3e%3cpath%20d='M220-80q-24%200-42-18t-18-42v-680q0-24%2018-42t42-18h361l219%20219v521q0%2024-18%2042t-42%2018H220Zm331-554v-186H220v680h520v-494H551ZM220-820v186-186%20680-680Z'/%3e%3c/svg%3e\" alt=\"Draft\"></span><div data-globe-content=\"true\" contenteditable=\"true\"><p contenteditable=\"true\">Alpha Xbeta</p></div></div>"
+          }
+        ],
+        "listChildren": [
+          {
+            "tag": "UL",
+            "children": [
+              "LI"
+            ]
+          }
+        ]
+      },
+      "stored": "<div data-globe=\"true\"><span data-globe-icon=\"true\" contenteditable=\"false\"><img src=\"data:image/svg+xml,%3c!--%20Modified%20for%20H.I.S.%20Future:%20SVG%20presentation%20attributes%20changed%20(height:%2048%20-%3e%2048px;%20width:%2048%20-%3e%2048px;%20fill:%20(ausente)%20-%3e%20%23e3e3e3).%20Derived%20from%20Google%20Material%20Symbols,%20Apache-2.0.%20See%20docs/legal/material-symbols-provenance.md.%20--%3e%3csvg%20xmlns='http://www.w3.org/2000/svg'%20height='48px'%20viewBox='0%20-960%20960%20960'%20width='48px'%20fill='%23e3e3e3'%3e%3cpath%20d='M220-80q-24%200-42-18t-18-42v-680q0-24%2018-42t42-18h361l219%20219v521q0%2024-18%2042t-42%2018H220Zm331-554v-186H220v680h520v-494H551ZM220-820v186-186%20680-680Z'/%3e%3c/svg%3e\" alt=\"Draft\"></span><div data-globe-content=\"true\"><p>Alpha Xbeta</p></div></div><ul><li>Elemento lista</li></ul>"
+    },
+    {
+      "seed": 20261003,
+      "id": "GLOBE_FROM_LIST_ITEM",
+      "generated": {
+        "html": "<div data-globe=\"true\" contenteditable=\"true\"><span data-globe-icon=\"true\" contenteditable=\"false\"><img src=\"data:image/svg+xml,%3c!--%20Modified%20for%20H.I.S.%20Future:%20SVG%20presentation%20attributes%20changed%20(height:%2048%20-%3e%2048px;%20width:%2048%20-%3e%2048px;%20fill:%20(ausente)%20-%3e%20%23e3e3e3).%20Derived%20from%20Google%20Material%20Symbols,%20Apache-2.0.%20See%20docs/legal/material-symbols-provenance.md.%20--%3e%3csvg%20xmlns='http://www.w3.org/2000/svg'%20height='48px'%20viewBox='0%20-960%20960%20960'%20width='48px'%20fill='%23e3e3e3'%3e%3cpath%20d='M220-80q-24%200-42-18t-18-42v-680q0-24%2018-42t42-18h361l219%20219v521q0%2024-18%2042t-42%2018H220Zm331-554v-186H220v680h520v-494H551ZM220-820v186-186%20680-680Z'/%3e%3c/svg%3e\" alt=\"Draft\"></span><div data-globe-content=\"true\" contenteditable=\"true\"><p contenteditable=\"true\">Alpha Xbeta</p></div></div><ul><li contenteditable=\"true\"><div data-globe=\"true\" contenteditable=\"true\"><span data-globe-icon=\"true\" contenteditable=\"false\"><img src=\"data:image/svg+xml,%3c!--%20Modified%20for%20H.I.S.%20Future:%20SVG%20presentation%20attributes%20changed%20(height:%2048%20-%3e%2048px;%20width:%2048%20-%3e%2048px;%20fill:%20(ausente)%20-%3e%20%23e3e3e3).%20Derived%20from%20Google%20Material%20Symbols,%20Apache-2.0.%20See%20docs/legal/material-symbols-provenance.md.%20--%3e%3csvg%20xmlns='http://www.w3.org/2000/svg'%20height='48px'%20viewBox='0%20-960%20960%20960'%20width='48px'%20fill='%23e3e3e3'%3e%3cpath%20d='M220-80q-24%200-42-18t-18-42v-680q0-24%2018-42t42-18h361l219%20219v521q0%2024-18%2042t-42%2018H220Zm331-554v-186H220v680h520v-494H551ZM220-820v186-186%20680-680Z'/%3e%3c/svg%3e\" alt=\"Draft\"></span><div data-globe-content=\"true\" contenteditable=\"true\"><p contenteditable=\"true\">Elemento lista</p></div></div></li></ul>",
+        "text": "Alpha XbetaElemento lista",
+        "selection": {
+          "text": "",
+          "collapsed": true,
+          "connected": true,
+          "inEditor": true,
+          "focusText": "Elemento lista",
+          "focusOffset": 0
+        },
+        "globes": [
+          {
+            "parent": "DIV",
+            "html": "<div data-globe=\"true\" contenteditable=\"true\"><span data-globe-icon=\"true\" contenteditable=\"false\"><img src=\"data:image/svg+xml,%3c!--%20Modified%20for%20H.I.S.%20Future:%20SVG%20presentation%20attributes%20changed%20(height:%2048%20-%3e%2048px;%20width:%2048%20-%3e%2048px;%20fill:%20(ausente)%20-%3e%20%23e3e3e3).%20Derived%20from%20Google%20Material%20Symbols,%20Apache-2.0.%20See%20docs/legal/material-symbols-provenance.md.%20--%3e%3csvg%20xmlns='http://www.w3.org/2000/svg'%20height='48px'%20viewBox='0%20-960%20960%20960'%20width='48px'%20fill='%23e3e3e3'%3e%3cpath%20d='M220-80q-24%200-42-18t-18-42v-680q0-24%2018-42t42-18h361l219%20219v521q0%2024-18%2042t-42%2018H220Zm331-554v-186H220v680h520v-494H551ZM220-820v186-186%20680-680Z'/%3e%3c/svg%3e\" alt=\"Draft\"></span><div data-globe-content=\"true\" contenteditable=\"true\"><p contenteditable=\"true\">Alpha Xbeta</p></div></div>"
+          },
+          {
+            "parent": "LI",
+            "html": "<div data-globe=\"true\" contenteditable=\"true\"><span data-globe-icon=\"true\" contenteditable=\"false\"><img src=\"data:image/svg+xml,%3c!--%20Modified%20for%20H.I.S.%20Future:%20SVG%20presentation%20attributes%20changed%20(height:%2048%20-%3e%2048px;%20width:%2048%20-%3e%2048px;%20fill:%20(ausente)%20-%3e%20%23e3e3e3).%20Derived%20from%20Google%20Material%20Symbols,%20Apache-2.0.%20See%20docs/legal/material-symbols-provenance.md.%20--%3e%3csvg%20xmlns='http://www.w3.org/2000/svg'%20height='48px'%20viewBox='0%20-960%20960%20960'%20width='48px'%20fill='%23e3e3e3'%3e%3cpath%20d='M220-80q-24%200-42-18t-18-42v-680q0-24%2018-42t42-18h361l219%20219v521q0%2024-18%2042t-42%2018H220Zm331-554v-186H220v680h520v-494H551ZM220-820v186-186%20680-680Z'/%3e%3c/svg%3e\" alt=\"Draft\"></span><div data-globe-content=\"true\" contenteditable=\"true\"><p contenteditable=\"true\">Elemento lista</p></div></div>"
+          }
+        ],
+        "listChildren": [
+          {
+            "tag": "UL",
+            "children": [
+              "LI"
+            ]
+          }
+        ]
+      },
+      "stored": "<div data-globe=\"true\"><span data-globe-icon=\"true\" contenteditable=\"false\"><img src=\"data:image/svg+xml,%3c!--%20Modified%20for%20H.I.S.%20Future:%20SVG%20presentation%20attributes%20changed%20(height:%2048%20-%3e%2048px;%20width:%2048%20-%3e%2048px;%20fill:%20(ausente)%20-%3e%20%23e3e3e3).%20Derived%20from%20Google%20Material%20Symbols,%20Apache-2.0.%20See%20docs/legal/material-symbols-provenance.md.%20--%3e%3csvg%20xmlns='http://www.w3.org/2000/svg'%20height='48px'%20viewBox='0%20-960%20960%20960'%20width='48px'%20fill='%23e3e3e3'%3e%3cpath%20d='M220-80q-24%200-42-18t-18-42v-680q0-24%2018-42t42-18h361l219%20219v521q0%2024-18%2042t-42%2018H220Zm331-554v-186H220v680h520v-494H551ZM220-820v186-186%20680-680Z'/%3e%3c/svg%3e\" alt=\"Draft\"></span><div data-globe-content=\"true\"><p>Alpha Xbeta</p></div></div><ul><li><div data-globe=\"true\"><span data-globe-icon=\"true\" contenteditable=\"false\"><img src=\"data:image/svg+xml,%3c!--%20Modified%20for%20H.I.S.%20Future:%20SVG%20presentation%20attributes%20changed%20(height:%2048%20-%3e%2048px;%20width:%2048%20-%3e%2048px;%20fill:%20(ausente)%20-%3e%20%23e3e3e3).%20Derived%20from%20Google%20Material%20Symbols,%20Apache-2.0.%20See%20docs/legal/material-symbols-provenance.md.%20--%3e%3csvg%20xmlns='http://www.w3.org/2000/svg'%20height='48px'%20viewBox='0%20-960%20960%20960'%20width='48px'%20fill='%23e3e3e3'%3e%3cpath%20d='M220-80q-24%200-42-18t-18-42v-680q0-24%2018-42t42-18h361l219%20219v521q0%2024-18%2042t-42%2018H220Zm331-554v-186H220v680h520v-494H551ZM220-820v186-186%20680-680Z'/%3e%3c/svg%3e\" alt=\"Draft\"></span><div data-globe-content=\"true\"><p>Elemento lista</p></div></div></li></ul>",
+      "storedListShape": [
+        {
+          "tag": "UL",
+          "children": [
+            "LI"
+          ]
+        }
+      ],
+      "reopened": {
+        "html": "<div data-globe=\"true\" contenteditable=\"true\"><span data-globe-icon=\"true\" contenteditable=\"false\"><img src=\"data:image/svg+xml,%3c!--%20Modified%20for%20H.I.S.%20Future:%20SVG%20presentation%20attributes%20changed%20(height:%2048%20-%3e%2048px;%20width:%2048%20-%3e%2048px;%20fill:%20(ausente)%20-%3e%20%23e3e3e3).%20Derived%20from%20Google%20Material%20Symbols,%20Apache-2.0.%20See%20docs/legal/material-symbols-provenance.md.%20--%3e%3csvg%20xmlns='http://www.w3.org/2000/svg'%20height='48px'%20viewBox='0%20-960%20960%20960'%20width='48px'%20fill='%23e3e3e3'%3e%3cpath%20d='M220-80q-24%200-42-18t-18-42v-680q0-24%2018-42t42-18h361l219%20219v521q0%2024-18%2042t-42%2018H220Zm331-554v-186H220v680h520v-494H551ZM220-820v186-186%20680-680Z'/%3e%3c/svg%3e\" alt=\"Draft\"></span><div data-globe-content=\"true\" contenteditable=\"true\"><p contenteditable=\"true\">Alpha Xbeta</p></div></div><ul><li contenteditable=\"true\"><div data-globe=\"true\" contenteditable=\"true\"><span data-globe-icon=\"true\" contenteditable=\"false\"><img src=\"data:image/svg+xml,%3c!--%20Modified%20for%20H.I.S.%20Future:%20SVG%20presentation%20attributes%20changed%20(height:%2048%20-%3e%2048px;%20width:%2048%20-%3e%2048px;%20fill:%20(ausente)%20-%3e%20%23e3e3e3).%20Derived%20from%20Google%20Material%20Symbols,%20Apache-2.0.%20See%20docs/legal/material-symbols-provenance.md.%20--%3e%3csvg%20xmlns='http://www.w3.org/2000/svg'%20height='48px'%20viewBox='0%20-960%20960%20960'%20width='48px'%20fill='%23e3e3e3'%3e%3cpath%20d='M220-80q-24%200-42-18t-18-42v-680q0-24%2018-42t42-18h361l219%20219v521q0%2024-18%2042t-42%2018H220Zm331-554v-186H220v680h520v-494H551ZM220-820v186-186%20680-680Z'/%3e%3c/svg%3e\" alt=\"Draft\"></span><div data-globe-content=\"true\" contenteditable=\"true\"><p contenteditable=\"true\">Elemento lista</p></div></div></li></ul>",
+        "text": "Alpha XbetaElemento lista",
+        "selection": null,
+        "globes": [
+          {
+            "parent": "DIV",
+            "html": "<div data-globe=\"true\" contenteditable=\"true\"><span data-globe-icon=\"true\" contenteditable=\"false\"><img src=\"data:image/svg+xml,%3c!--%20Modified%20for%20H.I.S.%20Future:%20SVG%20presentation%20attributes%20changed%20(height:%2048%20-%3e%2048px;%20width:%2048%20-%3e%2048px;%20fill:%20(ausente)%20-%3e%20%23e3e3e3).%20Derived%20from%20Google%20Material%20Symbols,%20Apache-2.0.%20See%20docs/legal/material-symbols-provenance.md.%20--%3e%3csvg%20xmlns='http://www.w3.org/2000/svg'%20height='48px'%20viewBox='0%20-960%20960%20960'%20width='48px'%20fill='%23e3e3e3'%3e%3cpath%20d='M220-80q-24%200-42-18t-18-42v-680q0-24%2018-42t42-18h361l219%20219v521q0%2024-18%2042t-42%2018H220Zm331-554v-186H220v680h520v-494H551ZM220-820v186-186%20680-680Z'/%3e%3c/svg%3e\" alt=\"Draft\"></span><div data-globe-content=\"true\" contenteditable=\"true\"><p contenteditable=\"true\">Alpha Xbeta</p></div></div>"
+          },
+          {
+            "parent": "LI",
+            "html": "<div data-globe=\"true\" contenteditable=\"true\"><span data-globe-icon=\"true\" contenteditable=\"false\"><img src=\"data:image/svg+xml,%3c!--%20Modified%20for%20H.I.S.%20Future:%20SVG%20presentation%20attributes%20changed%20(height:%2048%20-%3e%2048px;%20width:%2048%20-%3e%2048px;%20fill:%20(ausente)%20-%3e%20%23e3e3e3).%20Derived%20from%20Google%20Material%20Symbols,%20Apache-2.0.%20See%20docs/legal/material-symbols-provenance.md.%20--%3e%3csvg%20xmlns='http://www.w3.org/2000/svg'%20height='48px'%20viewBox='0%20-960%20960%20960'%20width='48px'%20fill='%23e3e3e3'%3e%3cpath%20d='M220-80q-24%200-42-18t-18-42v-680q0-24%2018-42t42-18h361l219%20219v521q0%2024-18%2042t-42%2018H220Zm331-554v-186H220v680h520v-494H551ZM220-820v186-186%20680-680Z'/%3e%3c/svg%3e\" alt=\"Draft\"></span><div data-globe-content=\"true\" contenteditable=\"true\"><p contenteditable=\"true\">Elemento lista</p></div></div>"
+          }
+        ],
+        "listChildren": [
+          {
+            "tag": "UL",
+            "children": [
+              "LI"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "seed": 20261003,
+      "id": "GLOBE_FROM_ORDERED_LIST_ITEM",
+      "generated": {
+        "html": "<ol><li contenteditable=\"true\"><div data-globe=\"true\" contenteditable=\"true\"><span data-globe-icon=\"true\" contenteditable=\"false\"><img src=\"data:image/svg+xml,%3c!--%20Modified%20for%20H.I.S.%20Future:%20SVG%20presentation%20attributes%20changed%20(height:%2048%20-%3e%2048px;%20width:%2048%20-%3e%2048px;%20fill:%20(ausente)%20-%3e%20%23e3e3e3).%20Derived%20from%20Google%20Material%20Symbols,%20Apache-2.0.%20See%20docs/legal/material-symbols-provenance.md.%20--%3e%3csvg%20xmlns='http://www.w3.org/2000/svg'%20height='48px'%20viewBox='0%20-960%20960%20960'%20width='48px'%20fill='%23e3e3e3'%3e%3cpath%20d='M220-80q-24%200-42-18t-18-42v-680q0-24%2018-42t42-18h361l219%20219v521q0%2024-18%2042t-42%2018H220Zm331-554v-186H220v680h520v-494H551ZM220-820v186-186%20680-680Z'/%3e%3c/svg%3e\" alt=\"Draft\"></span><div data-globe-content=\"true\" contenteditable=\"true\"><p contenteditable=\"true\">Ordinal uno</p></div></div></li><li contenteditable=\"true\">Ordinal dos</li><li contenteditable=\"true\">Ordinal tres</li></ol>",
+        "text": "Ordinal unoOrdinal dosOrdinal tres",
+        "selection": {
+          "text": "",
+          "collapsed": true,
+          "connected": true,
+          "inEditor": true,
+          "focusText": "Ordinal uno",
+          "focusOffset": 0
+        },
+        "globes": [
+          {
+            "parent": "LI",
+            "html": "<div data-globe=\"true\" contenteditable=\"true\"><span data-globe-icon=\"true\" contenteditable=\"false\"><img src=\"data:image/svg+xml,%3c!--%20Modified%20for%20H.I.S.%20Future:%20SVG%20presentation%20attributes%20changed%20(height:%2048%20-%3e%2048px;%20width:%2048%20-%3e%2048px;%20fill:%20(ausente)%20-%3e%20%23e3e3e3).%20Derived%20from%20Google%20Material%20Symbols,%20Apache-2.0.%20See%20docs/legal/material-symbols-provenance.md.%20--%3e%3csvg%20xmlns='http://www.w3.org/2000/svg'%20height='48px'%20viewBox='0%20-960%20960%20960'%20width='48px'%20fill='%23e3e3e3'%3e%3cpath%20d='M220-80q-24%200-42-18t-18-42v-680q0-24%2018-42t42-18h361l219%20219v521q0%2024-18%2042t-42%2018H220Zm331-554v-186H220v680h520v-494H551ZM220-820v186-186%20680-680Z'/%3e%3c/svg%3e\" alt=\"Draft\"></span><div data-globe-content=\"true\" contenteditable=\"true\"><p contenteditable=\"true\">Ordinal uno</p></div></div>"
+          }
+        ],
+        "listChildren": [
+          {
+            "tag": "OL",
+            "children": [
+              "LI",
+              "LI",
+              "LI"
+            ]
+          }
+        ]
+      },
+      "stored": "<ol><li><div data-globe=\"true\"><span data-globe-icon=\"true\" contenteditable=\"false\"><img src=\"data:image/svg+xml,%3c!--%20Modified%20for%20H.I.S.%20Future:%20SVG%20presentation%20attributes%20changed%20(height:%2048%20-%3e%2048px;%20width:%2048%20-%3e%2048px;%20fill:%20(ausente)%20-%3e%20%23e3e3e3).%20Derived%20from%20Google%20Material%20Symbols,%20Apache-2.0.%20See%20docs/legal/material-symbols-provenance.md.%20--%3e%3csvg%20xmlns='http://www.w3.org/2000/svg'%20height='48px'%20viewBox='0%20-960%20960%20960'%20width='48px'%20fill='%23e3e3e3'%3e%3cpath%20d='M220-80q-24%200-42-18t-18-42v-680q0-24%2018-42t42-18h361l219%20219v521q0%2024-18%2042t-42%2018H220Zm331-554v-186H220v680h520v-494H551ZM220-820v186-186%20680-680Z'/%3e%3c/svg%3e\" alt=\"Draft\"></span><div data-globe-content=\"true\"><p>Ordinal uno</p></div></div></li><li>Ordinal dos</li><li>Ordinal tres</li></ol>",
+      "storedOrderedShape": [
+        {
+          "tag": "OL",
+          "children": [
+            "LI",
+            "LI",
+            "LI"
+          ]
+        }
+      ],
+      "reopened": {
+        "html": "<ol><li contenteditable=\"true\"><div data-globe=\"true\" contenteditable=\"true\"><span data-globe-icon=\"true\" contenteditable=\"false\"><img src=\"data:image/svg+xml,%3c!--%20Modified%20for%20H.I.S.%20Future:%20SVG%20presentation%20attributes%20changed%20(height:%2048%20-%3e%2048px;%20width:%2048%20-%3e%2048px;%20fill:%20(ausente)%20-%3e%20%23e3e3e3).%20Derived%20from%20Google%20Material%20Symbols,%20Apache-2.0.%20See%20docs/legal/material-symbols-provenance.md.%20--%3e%3csvg%20xmlns='http://www.w3.org/2000/svg'%20height='48px'%20viewBox='0%20-960%20960%20960'%20width='48px'%20fill='%23e3e3e3'%3e%3cpath%20d='M220-80q-24%200-42-18t-18-42v-680q0-24%2018-42t42-18h361l219%20219v521q0%2024-18%2042t-42%2018H220Zm331-554v-186H220v680h520v-494H551ZM220-820v186-186%20680-680Z'/%3e%3c/svg%3e\" alt=\"Draft\"></span><div data-globe-content=\"true\" contenteditable=\"true\"><p contenteditable=\"true\">Ordinal uno</p></div></div></li><li contenteditable=\"true\">Ordinal dos</li><li contenteditable=\"true\">Ordinal tres</li></ol>",
+        "text": "Ordinal unoOrdinal dosOrdinal tres",
+        "selection": null,
+        "globes": [
+          {
+            "parent": "LI",
+            "html": "<div data-globe=\"true\" contenteditable=\"true\"><span data-globe-icon=\"true\" contenteditable=\"false\"><img src=\"data:image/svg+xml,%3c!--%20Modified%20for%20H.I.S.%20Future:%20SVG%20presentation%20attributes%20changed%20(height:%2048%20-%3e%2048px;%20width:%2048%20-%3e%2048px;%20fill:%20(ausente)%20-%3e%20%23e3e3e3).%20Derived%20from%20Google%20Material%20Symbols,%20Apache-2.0.%20See%20docs/legal/material-symbols-provenance.md.%20--%3e%3csvg%20xmlns='http://www.w3.org/2000/svg'%20height='48px'%20viewBox='0%20-960%20960%20960'%20width='48px'%20fill='%23e3e3e3'%3e%3cpath%20d='M220-80q-24%200-42-18t-18-42v-680q0-24%2018-42t42-18h361l219%20219v521q0%2024-18%2042t-42%2018H220Zm331-554v-186H220v680h520v-494H551ZM220-820v186-186%20680-680Z'/%3e%3c/svg%3e\" alt=\"Draft\"></span><div data-globe-content=\"true\" contenteditable=\"true\"><p contenteditable=\"true\">Ordinal uno</p></div></div>"
+          }
+        ],
+        "listChildren": [
+          {
+            "tag": "OL",
+            "children": [
+              "LI",
+              "LI",
+              "LI"
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "errors": [],
+  "failed": null
+}

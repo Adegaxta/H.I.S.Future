@@ -1,8 +1,8 @@
 use crate::archive_sync::{ArchiveSyncJob, ArchiveSyncManager};
 use crate::persistence::{
-    is_persisted_node_type, nodes_table_sql, project_resource_definition, resource_id_from_content,
-    schema_matches_registry, validate_project_resource, CURRENT_NODAL_SCHEMA_VERSION, LINKS_SCHEMA,
-    NODAL_SCHEMA_VERSION_KEY, PROJECT_META_SCHEMA,
+    is_persisted_node_type, nodes_table_sql, project_resource_definition, project_resource_format, resource_id_from_content,
+    schema_matches_registry, CURRENT_NODAL_SCHEMA_VERSION, LINKS_SCHEMA,
+    AI_CONVERSATION_SCHEMA, NODAL_SCHEMA_VERSION_KEY, PROJECT_META_SCHEMA, TAGS_SCHEMA,
 };
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
@@ -68,12 +68,28 @@ pub struct NodeContentChange {
     pub content: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StoredProjectResource {
+    pub extension: String,
+    pub mime_type: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct EditorImageLayout {
     pub node_id: String,
     pub block_id: String,
     pub width: f64,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TagRecord {
+    pub id: String,
+    pub name: String,
+    pub color: String,
+    pub order: i64,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -87,9 +103,9 @@ pub struct WorkspaceSnapshot {
 pub struct OpenProject {
     pub info: ProjectInfo,
     pub db: Connection,
-    archive_path: Option<PathBuf>,
-    working_folder: PathBuf,
-    archive_dirty: bool,
+    pub(crate) archive_path: Option<PathBuf>,
+    pub(crate) working_folder: PathBuf,
+    pub(crate) archive_dirty: bool,
 }
 
 pub type ProjectState = Mutex<Option<OpenProject>>;
@@ -501,6 +517,10 @@ fn init_database(path: &Path) -> Result<(Connection, bool), String> {
     // its final identity. This keeps their foreign keys pointed at `nodes`.
     db.execute_batch(EDITOR_IMAGE_LAYOUT_SCHEMA)
         .map_err(|err| format!("No se pudo inicializar el layout granular del editor: {err}"))?;
+    db.execute_batch(TAGS_SCHEMA)
+        .map_err(|err| format!("No se pudo inicializar el sistema de Tags: {err}"))?;
+    db.execute_batch(AI_CONVERSATION_SCHEMA)
+        .map_err(|err| format!("No se pudo inicializar GEMITAV V0.1: {err}"))?;
     let broken: bool = db
         .query_row(
             "SELECT EXISTS(SELECT 1 FROM pragma_foreign_key_check)",
@@ -667,7 +687,7 @@ fn write_synced_file(path: &Path, bytes: &[u8]) -> Result<(), String> {
         .map_err(|error| format!("No se pudo confirmar el estado durable: {error}"))
 }
 
-fn mark_archive_dirty(project: &mut OpenProject) -> Result<(), String> {
+pub(crate) fn mark_archive_dirty(project: &mut OpenProject) -> Result<(), String> {
     if project.archive_path.is_some() {
         let marker = project.working_folder.join(ARCHIVE_DIRTY_FILE);
         if !marker.is_file() {
@@ -735,7 +755,7 @@ pub(crate) fn zip_directory(folder: &Path, archive_path: &Path) -> Result<(), St
     result
 }
 
-fn validate_archive_file(path: &Path) -> Result<(), String> {
+pub(crate) fn validate_archive_file(path: &Path) -> Result<(), String> {
     let file = fs::File::open(path)
         .map_err(|error| format!("No se pudo validar el nuevo .his: {error}"))?;
     let mut archive = ZipArchive::new(file)
@@ -798,7 +818,7 @@ fn replace_archive(temporary: &Path, archive_path: &Path) -> Result<(), String> 
     }
 }
 
-fn write_archive(folder: &Path, file: fs::File) -> Result<(), String> {
+pub(crate) fn write_archive(folder: &Path, file: fs::File) -> Result<(), String> {
     let mut writer = ZipWriter::new(file);
     let mut written_entries = HashSet::new();
     let mut entries = vec![folder.to_path_buf()];
@@ -1202,7 +1222,8 @@ pub fn open_project_from_path(path: String) -> Result<OpenProject, String> {
     open_folder(&folder)
 }
 
-pub fn set_open_project(state: &ProjectState, project: OpenProject) -> Result<ProjectInfo, String> {
+pub fn set_open_project(state: &ProjectState, mut project: OpenProject) -> Result<ProjectInfo, String> {
+    crate::image_migration::recover_if_needed(&mut project)?;
     let info = project.info.clone();
     let mut guard = state
         .lock()
@@ -1499,6 +1520,7 @@ pub fn save_workspace_traced(
     hidden_ids: Option<Vec<String>>,
     deleted_nodes: Option<String>,
     trace_id: Option<&str>,
+    node_tags: Option<(String, Vec<String>)>,
 ) -> Result<SaveWorkspaceTimings, String> {
     let total_started = Instant::now();
     let has_complete_trash_snapshot = deleted_nodes.is_some();
@@ -1642,6 +1664,16 @@ pub fn save_workspace_traced(
                 .map_err(|err| format!("No se pudo guardar {key}: {err}"))?;
         }
     }
+    if let Some((node_id, tag_ids)) = node_tags {
+        if !ids.contains(node_id.as_str()) { return Err("El Nodo de los Tags no existe.".into()); }
+        if !tag_ids.is_empty() && !nodes.iter().any(|node| node.id == node_id && matches!(node.node_type.as_str(), "pagina" | "proyecto")) {
+            return Err("Este tipo de Nodo no admite Tags.".into());
+        }
+        for tag_id in tag_ids {
+            changed_rows += tx.execute("INSERT INTO node_tags (node_id, tag_id) VALUES (?1, ?2)", params![node_id, tag_id])
+                .map_err(|err| format!("No se pudo asignar el Tag: {err}"))?;
+        }
+    }
     tx.commit()
         .map_err(|err| format!("No se pudo confirmar el guardado: {err}"))?;
     let sqlite_ms = sqlite_started.elapsed().as_secs_f64() * 1000.0;
@@ -1774,18 +1806,18 @@ pub fn save_workspace(
             nodes.push(primary);
         }
     }
-    save_workspace_traced(state, nodes, hidden_ids, deleted_nodes, None).map(|_| ())
+    save_workspace_traced(state, nodes, hidden_ids, deleted_nodes, None, None).map(|_| ())
 }
 
-type ResourceIdentity = (String, String);
+type ResourceIdentity = (String, String, String);
 
 fn resource_references<'a>(
     nodes: impl Iterator<Item = &'a NodeRecord>,
 ) -> HashSet<ResourceIdentity> {
     nodes
         .filter_map(|node| resource_id_from_content(&node.node_type, &node.content))
-        .filter(|(_, resource_id)| validate_resource_identity(resource_id).is_ok())
-        .map(|(kind, resource_id)| (kind.to_string(), resource_id))
+        .filter(|(_, resource_id, _)| validate_resource_identity(resource_id).is_ok())
+        .map(|(kind, resource_id, extension)| (kind.to_string(), resource_id, extension))
         .collect()
 }
 
@@ -1832,8 +1864,8 @@ fn cleanup_removed_resources(
     current: &HashSet<ResourceIdentity>,
 ) -> bool {
     let mut removed = false;
-    for (kind, resource_id) in previous.difference(current) {
-        match resource_path(project, kind, resource_id) {
+    for (kind, resource_id, extension) in previous.difference(current) {
+        match resource_path(project, kind, resource_id, Some(extension)) {
             Ok(path) if path.exists() => {
                 if let Err(error) = fs::remove_file(&path) {
                     eprintln!("No se pudo limpiar el recurso {}: {error}", path.display());
@@ -1859,30 +1891,50 @@ fn validate_resource_identity(value: &str) -> Result<(), String> {
     Ok(())
 }
 
-fn resource_path(project: &OpenProject, kind: &str, resource_id: &str) -> Result<PathBuf, String> {
+fn resource_path(
+    project: &OpenProject,
+    kind: &str,
+    resource_id: &str,
+    extension: Option<&str>,
+) -> Result<PathBuf, String> {
     validate_resource_identity(resource_id)?;
     let definition = project_resource_definition(kind)
         .ok_or_else(|| format!("Tipo de recurso no compatible: {kind}"))?;
+    let extension = extension.unwrap_or(definition.extension).to_ascii_lowercase();
+    if extension.is_empty() || extension.len() > 5 || !extension.chars().all(|value| value.is_ascii_alphanumeric()) {
+        return Err("Extensión de recurso no válida.".into());
+    }
     Ok(project
         .working_folder
         .join("resources")
         .join(definition.kind)
-        .join(format!("{resource_id}.{}", definition.extension)))
+        .join(format!("{resource_id}.{extension}")))
 }
 
+#[cfg(test)]
 pub fn store_project_resource(
     state: &ProjectState,
     kind: String,
     resource_id: String,
     data: Vec<u8>,
 ) -> Result<(), String> {
-    validate_project_resource(&kind, &data)?;
+    store_project_resource_with_extension(state, kind, resource_id, data, None).map(|_| ())
+}
+
+pub fn store_project_resource_with_extension(
+    state: &ProjectState,
+    kind: String,
+    resource_id: String,
+    data: Vec<u8>,
+    requested_extension: Option<String>,
+) -> Result<StoredProjectResource, String> {
+    let format = project_resource_format(&kind, &data, requested_extension.as_deref())?;
     let mut guard = state
         .lock()
         .map_err(|_| "No se pudo bloquear el estado del proyecto.".to_string())?;
     let project = guard.as_mut().ok_or("No hay un proyecto abierto.")?;
     mark_archive_dirty(project)?;
-    let target = resource_path(project, &kind, &resource_id)?;
+    let target = resource_path(project, &kind, &resource_id, Some(format.extension))?;
     let parent = target
         .parent()
         .ok_or("No se pudo resolver la carpeta del recurso.")?;
@@ -1910,13 +1962,27 @@ pub fn store_project_resource(
         let _ = fs::remove_file(&temporary);
         format!("No se pudo confirmar el recurso importado: {error}")
     })?;
-    mark_archive_dirty(project)
+    mark_archive_dirty(project)?;
+    Ok(StoredProjectResource {
+        extension: format.extension.to_string(),
+        mime_type: format.mime_type.to_string(),
+    })
 }
 
+#[cfg(test)]
 pub fn read_project_resource(
     state: &ProjectState,
     kind: String,
     resource_id: String,
+) -> Result<Vec<u8>, String> {
+    read_project_resource_with_extension(state, kind, resource_id, None)
+}
+
+pub fn read_project_resource_with_extension(
+    state: &ProjectState,
+    kind: String,
+    resource_id: String,
+    extension: Option<String>,
 ) -> Result<Vec<u8>, String> {
     let started = Instant::now();
     let path = {
@@ -1924,7 +1990,7 @@ pub fn read_project_resource(
             .lock()
             .map_err(|_| "No se pudo bloquear el estado del proyecto.".to_string())?;
         let project = guard.as_ref().ok_or("No hay un proyecto abierto.")?;
-        resource_path(project, &kind, &resource_id)?
+        resource_path(project, &kind, &resource_id, extension.as_deref())?
     };
     let bytes = fs::read(path).map_err(|error| format!("No se pudo leer el recurso: {error}"))?;
     eprintln!(
@@ -1935,16 +2001,17 @@ pub fn read_project_resource(
     Ok(bytes)
 }
 
-pub fn delete_project_resource(
+pub fn delete_project_resource_with_extension(
     state: &ProjectState,
     kind: String,
     resource_id: String,
+    extension: Option<String>,
 ) -> Result<(), String> {
     let mut guard = state
         .lock()
         .map_err(|_| "No se pudo bloquear el estado del proyecto.".to_string())?;
     let project = guard.as_mut().ok_or("No hay un proyecto abierto.")?;
-    let path = resource_path(project, &kind, &resource_id)?;
+    let path = resource_path(project, &kind, &resource_id, extension.as_deref())?;
     if !path.exists() {
         return Ok(());
     }
@@ -1953,8 +2020,263 @@ pub fn delete_project_resource(
     Ok(())
 }
 
+pub fn project_resource_exists(
+    state: &ProjectState,
+    kind: String,
+    resource_id: String,
+    extension: Option<String>,
+) -> Result<bool, String> {
+    let guard = state
+        .lock()
+        .map_err(|_| "No se pudo bloquear el estado del proyecto.".to_string())?;
+    let project = guard.as_ref().ok_or("No hay un proyecto abierto.")?;
+    Ok(resource_path(project, &kind, &resource_id, extension.as_deref())?.is_file())
+}
+
+fn validate_tag_name(name: &str) -> Result<String, String> {
+    let trimmed = name.trim();
+    if trimmed.is_empty() || trimmed.chars().count() > 80 {
+        return Err("El nombre del Tag debe tener entre 1 y 80 caracteres.".into());
+    }
+    Ok(trimmed.to_string())
+}
+
+fn validate_tag_color(color: &str) -> Result<String, String> {
+    let valid = color.len() == 7
+        && color.starts_with('#')
+        && color[1..].bytes().all(|value| value.is_ascii_hexdigit());
+    if !valid {
+        return Err("El color del Tag debe usar el formato hexadecimal #RRGGBB.".into());
+    }
+    Ok(color.to_ascii_uppercase())
+}
+
+pub fn list_tags(state: &ProjectState) -> Result<Vec<TagRecord>, String> {
+    let guard = state
+        .lock()
+        .map_err(|_| "No se pudo bloquear el estado del proyecto.".to_string())?;
+    let project = guard.as_ref().ok_or("No hay un proyecto abierto.")?;
+    let mut statement = project
+        .db
+        .prepare(
+            "SELECT id, name, color, sort_order FROM tags ORDER BY sort_order, name COLLATE NOCASE",
+        )
+        .map_err(|err| format!("No se pudo preparar la lista de Tags: {err}"))?;
+    let rows = statement
+        .query_map([], |row| {
+            Ok(TagRecord {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                color: row.get(2)?,
+                order: row.get(3)?,
+            })
+        })
+        .map_err(|err| format!("No se pudieron leer los Tags: {err}"))?;
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|err| format!("Tag ilegible: {err}"))
+}
+
+pub fn list_node_tags(state: &ProjectState, node_id: &str) -> Result<Vec<TagRecord>, String> {
+    let guard = state
+        .lock()
+        .map_err(|_| "No se pudo bloquear el estado del proyecto.".to_string())?;
+    let project = guard.as_ref().ok_or("No hay un proyecto abierto.")?;
+    let mut statement = project
+        .db
+        .prepare(
+            "SELECT tags.id, tags.name, tags.color, tags.sort_order
+         FROM tags INNER JOIN node_tags ON node_tags.tag_id = tags.id
+         WHERE node_tags.node_id = ?1
+         ORDER BY tags.sort_order, tags.name COLLATE NOCASE",
+        )
+        .map_err(|err| format!("No se pudieron preparar los Tags del Nodo: {err}"))?;
+    let rows = statement
+        .query_map([node_id], |row| {
+            Ok(TagRecord {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                color: row.get(2)?,
+                order: row.get(3)?,
+            })
+        })
+        .map_err(|err| format!("No se pudieron leer los Tags del Nodo: {err}"))?;
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|err| format!("Tag del Nodo ilegible: {err}"))
+}
+
+pub fn create_tag(
+    state: &ProjectState,
+    id: String,
+    name: String,
+    color: String,
+) -> Result<TagRecord, String> {
+    if id.trim().is_empty() {
+        return Err("La identidad del Tag no puede estar vacía.".into());
+    }
+    let name = validate_tag_name(&name)?;
+    let color = validate_tag_color(&color)?;
+    let mut guard = state
+        .lock()
+        .map_err(|_| "No se pudo bloquear el estado del proyecto.".to_string())?;
+    let project = guard.as_mut().ok_or("No hay un proyecto abierto.")?;
+    let order: i64 = project
+        .db
+        .query_row(
+            "SELECT COALESCE(MAX(sort_order), -1) + 1 FROM tags",
+            [],
+            |row| row.get(0),
+        )
+        .map_err(|err| format!("No se pudo calcular el orden del Tag: {err}"))?;
+    mark_archive_dirty(project)?;
+    project
+        .db
+        .execute(
+            "INSERT INTO tags (id, name, color, sort_order) VALUES (?1, ?2, ?3, ?4)",
+            params![id, name, color, order],
+        )
+        .map_err(|err| {
+            format!("No se pudo crear el Tag; comprueba que el nombre no esté repetido: {err}")
+        })?;
+    Ok(TagRecord {
+        id,
+        name,
+        color,
+        order,
+    })
+}
+
+pub fn update_tag(
+    state: &ProjectState,
+    id: String,
+    name: String,
+    color: String,
+) -> Result<TagRecord, String> {
+    let name = validate_tag_name(&name)?;
+    let color = validate_tag_color(&color)?;
+    let mut guard = state
+        .lock()
+        .map_err(|_| "No se pudo bloquear el estado del proyecto.".to_string())?;
+    let project = guard.as_mut().ok_or("No hay un proyecto abierto.")?;
+    mark_archive_dirty(project)?;
+    let changed = project
+        .db
+        .execute(
+            "UPDATE tags SET name = ?1, color = ?2 WHERE id = ?3",
+            params![name, color, id],
+        )
+        .map_err(|err| {
+            format!("No se pudo actualizar el Tag; comprueba que el nombre no esté repetido: {err}")
+        })?;
+    if changed == 0 {
+        return Err("El Tag ya no existe.".into());
+    }
+    let order = project
+        .db
+        .query_row("SELECT sort_order FROM tags WHERE id = ?1", [&id], |row| {
+            row.get(0)
+        })
+        .map_err(|err| format!("No se pudo releer el Tag: {err}"))?;
+    Ok(TagRecord {
+        id,
+        name,
+        color,
+        order,
+    })
+}
+
+pub fn delete_tag(state: &ProjectState, id: String) -> Result<(), String> {
+    let mut guard = state
+        .lock()
+        .map_err(|_| "No se pudo bloquear el estado del proyecto.".to_string())?;
+    let project = guard.as_mut().ok_or("No hay un proyecto abierto.")?;
+    mark_archive_dirty(project)?;
+    project
+        .db
+        .execute("DELETE FROM tags WHERE id = ?1", [id])
+        .map_err(|err| format!("No se pudo eliminar el Tag: {err}"))?;
+    Ok(())
+}
+
+pub fn set_node_tag(
+    state: &ProjectState,
+    node_id: String,
+    tag_id: String,
+    assigned: bool,
+) -> Result<(), String> {
+    let mut guard = state
+        .lock()
+        .map_err(|_| "No se pudo bloquear el estado del proyecto.".to_string())?;
+    let project = guard.as_mut().ok_or("No hay un proyecto abierto.")?;
+    let node_type: Option<String> = project
+        .db
+        .query_row("SELECT type FROM nodes WHERE id = ?1", [&node_id], |row| {
+            row.get(0)
+        })
+        .optional()
+        .map_err(|err| format!("No se pudo validar el tipo de Nodo: {err}"))?;
+    if !matches!(node_type.as_deref(), Some("pagina" | "proyecto")) {
+        return Err("Este tipo de Nodo no admite Tags.".into());
+    }
+    mark_archive_dirty(project)?;
+    if assigned {
+        project
+            .db
+            .execute(
+                "INSERT OR IGNORE INTO node_tags (node_id, tag_id) VALUES (?1, ?2)",
+                params![node_id, tag_id],
+            )
+            .map_err(|err| format!("No se pudo asignar el Tag al Nodo: {err}"))?;
+    } else {
+        project
+            .db
+            .execute(
+                "DELETE FROM node_tags WHERE node_id = ?1 AND tag_id = ?2",
+                params![node_id, tag_id],
+            )
+            .map_err(|err| format!("No se pudo desasignar el Tag del Nodo: {err}"))?;
+    }
+    Ok(())
+}
+
+pub fn reorder_tags(state: &ProjectState, ids: Vec<String>) -> Result<(), String> {
+    if ids.iter().collect::<HashSet<_>>().len() != ids.len() {
+        return Err("El nuevo orden de Tags contiene identidades repetidas.".into());
+    }
+    let mut guard = state
+        .lock()
+        .map_err(|_| "No se pudo bloquear el estado del proyecto.".to_string())?;
+    let project = guard.as_mut().ok_or("No hay un proyecto abierto.")?;
+    let count: usize = project
+        .db
+        .query_row("SELECT COUNT(*) FROM tags", [], |row| row.get(0))
+        .map_err(|err| format!("No se pudo validar el orden de Tags: {err}"))?;
+    if count != ids.len() {
+        return Err("El nuevo orden debe incluir todos los Tags una sola vez.".into());
+    }
+    mark_archive_dirty(project)?;
+    let transaction = project
+        .db
+        .transaction()
+        .map_err(|err| format!("No se pudo iniciar el reordenamiento: {err}"))?;
+    for (order, id) in ids.iter().enumerate() {
+        let changed = transaction
+            .execute(
+                "UPDATE tags SET sort_order = ?1 WHERE id = ?2",
+                params![order as i64, id],
+            )
+            .map_err(|err| format!("No se pudo reordenar el Tag: {err}"))?;
+        if changed != 1 {
+            return Err("El nuevo orden contiene un Tag inexistente.".into());
+        }
+    }
+    transaction
+        .commit()
+        .map_err(|err| format!("No se pudo confirmar el orden de Tags: {err}"))?;
+    Ok(())
+}
+
 pub fn get_project_setting(state: &ProjectState, key: String) -> Result<Option<String>, String> {
-    if key != "locale" && key != "loreHiddenIds" && key != "deletedNodes" {
+    if key != "locale" && key != "loreHiddenIds" && key != "deletedNodes" && key != "vaultImage" {
         return Err("Configuración de proyecto no compatible.".into());
     }
     let guard = state
@@ -1976,6 +2298,16 @@ pub fn set_project_setting(state: &ProjectState, key: String, value: String) -> 
     let valid = match key.as_str() {
         "locale" => ["es", "en"].contains(&value.as_str()),
         "loreHiddenIds" => serde_json::from_str::<Vec<String>>(&value).is_ok(),
+        "vaultImage" => serde_json::from_str::<serde_json::Value>(&value).is_ok_and(|v| {
+            v.is_object() && v["version"] == 1
+                && (v["nodeId"].is_null() || v["nodeId"].is_string())
+                && (v["visual"].is_null() || v["visual"].is_object())
+                && (v["presentation"].is_null() || {
+                    let p = &v["presentation"];
+                    ["centerX", "centerY"].iter().all(|key| p[*key].as_f64().is_some_and(|n| (0.0..=1.0).contains(&n)))
+                        && p["zoom"].as_f64().is_some_and(|n| (1.0..=5.0).contains(&n))
+                })
+        }),
         _ => false,
     };
     if !valid {
@@ -2597,6 +2929,26 @@ mod tests {
     }
 
     #[test]
+    fn persists_vault_image_presentation_inside_his_archive() {
+        let root = std::env::temp_dir().join(format!("hisfuture-vault-framing-{}", SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos()));
+        fs::create_dir_all(&root).unwrap();
+        let path = root.join("Vault.his");
+        let state = Mutex::new(Some(create_project_file(path.to_string_lossy().into_owned(), "Vault".into()).unwrap()));
+        let value = r#"{"version":1,"nodeId":"image-1","visual":null,"presentation":{"centerX":0.3,"centerY":0.6,"zoom":1.4}}"#;
+        let page_content = r#"<!--hisfuture-page-meta:{"iconNodeId":"image-1","iconVisual":{"kind":"image","nodeId":"image-1","source":"local","presentation":{"centerX":0.7,"centerY":0.5,"zoom":2}},"coverNodeId":"image-1","coverPresentation":{"centerX":0.3,"centerY":0.6,"zoom":1.4}}--><p>Keep this text</p>"#;
+        let nodes = vec![NodeRecord { id: "page-framing".into(), name: "Page".into(), node_type: "pagina".into(), parent_id: None, order: 0, content: page_content.into() }];
+        save_nodes(&state, nodes.clone()).unwrap();
+        set_project_setting(&state, "vaultImage".into(), value.into()).unwrap();
+        assert!(set_project_setting(&state, "vaultImage".into(), r#"{"version":1,"nodeId":null,"presentation":{"zoom":0}}"#.into()).is_err());
+        close_project(&state).unwrap();
+        let reopened = Mutex::new(Some(open_project_from_path(path.to_string_lossy().into_owned()).unwrap()));
+        assert_eq!(get_project_setting(&reopened, "vaultImage".into()).unwrap(), Some(value.into()));
+        assert_eq!(without_primary(list_nodes(&reopened).unwrap()), nodes);
+        close_project(&reopened).unwrap();
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn persists_pdf_node_and_resource_inside_his_archive() {
         let root = std::env::temp_dir().join(format!(
             "hisfuture-pdf-resource-test-{}",
@@ -2675,6 +3027,166 @@ mod tests {
         assert!(read_project_resource(&reopened_state, "pdf".into(), "resource-1".into()).is_err());
         close_project(&reopened_state).expect("close reopened project");
         fs::remove_dir_all(root).expect("test cleanup");
+    }
+
+    #[test]
+    fn image_resource_is_portable_preserved_in_trash_and_collected_after_permanent_delete() {
+        let root = test_root("image-resource-roundtrip");
+        let archive_path = root.join("Images.his");
+        let state = Mutex::new(Some(
+            create_project_file(archive_path.to_string_lossy().into_owned(), "Images".into())
+                .expect("create image project"),
+        ));
+        let bytes = b"\x89PNG\r\n\x1a\nlarge-image-test-payload".to_vec();
+        let stored = store_project_resource_with_extension(
+            &state,
+            "image".into(),
+            "image-resource-1".into(),
+            bytes.clone(),
+            Some("png".into()),
+        )
+        .expect("store image resource");
+        assert_eq!(stored.extension, "png");
+        assert_eq!(stored.mime_type, "image/png");
+        assert!(project_resource_exists(
+            &state,
+            "image".into(),
+            "image-resource-1".into(),
+            Some("png".into())
+        ).unwrap());
+
+        let image_node = NodeRecord {
+            id: "image-node-1".into(),
+            name: "Portable.png".into(),
+            node_type: "imagen".into(),
+            parent_id: None,
+            order: 0,
+            content: "<!--hisfuture-image-resource:{\"version\":2,\"resourceId\":\"image-resource-1\",\"fileName\":\"Portable.png\",\"fileSize\":32,\"mimeType\":\"image/png\",\"extension\":\"png\",\"hash\":\"abababababababababababababababababababababababababababababababab\",\"description\":\"\",\"provenance\":null}--><p><br></p>".into(),
+        };
+        save_workspace(&state, vec![image_node.clone()], Some(vec![]), Some("[]".into()))
+            .expect("save image node");
+        close_project(&state).expect("pack image project");
+
+        let archive_file = fs::File::open(&archive_path).expect("open portable archive");
+        let mut archive = ZipArchive::new(archive_file).expect("read portable archive");
+        assert!(archive.by_name("resources/image/image-resource-1.png").is_ok());
+        drop(archive);
+
+        let copied_path = root.join("Copied Images.his");
+        fs::copy(&archive_path, &copied_path).expect("copy self-contained archive");
+        let reopened = Mutex::new(Some(
+            open_project_from_path(copied_path.to_string_lossy().into_owned())
+                .expect("open copied archive"),
+        ));
+        assert_eq!(
+            read_project_resource_with_extension(
+                &reopened,
+                "image".into(),
+                "image-resource-1".into(),
+                Some("png".into()),
+            ).expect("read copied resource"),
+            bytes
+        );
+
+        let trash = serde_json::to_string(&vec![image_node.clone()]).unwrap();
+        save_workspace(&reopened, vec![], Some(vec![]), Some(trash))
+            .expect("move image node to Trash");
+        assert!(project_resource_exists(
+            &reopened,
+            "image".into(),
+            "image-resource-1".into(),
+            Some("png".into())
+        ).unwrap());
+        save_workspace(&reopened, vec![], Some(vec![]), Some("[]".into()))
+            .expect("permanently remove image node");
+        assert!(!project_resource_exists(
+            &reopened,
+            "image".into(),
+            "image-resource-1".into(),
+            Some("png".into())
+        ).unwrap());
+        close_project(&reopened).expect("close copied project");
+        fs::remove_dir_all(root).expect("test cleanup");
+    }
+
+    #[test]
+    fn measures_large_image_resource_representation_and_incremental_payload() {
+        let root = test_root("large-image-measurement");
+        let archive_path = root.join("Large Image.his");
+        let state = Mutex::new(Some(
+            create_project_file(archive_path.to_string_lossy().into_owned(), "Large Image".into())
+                .expect("create measurement project"),
+        ));
+
+        // A valid 1920×1440 24-bit BMP with deterministic high-entropy pixels.
+        // It exercises a realistically large image without relying on user data.
+        let width = 1920u32;
+        let height = 1440u32;
+        let pixel_bytes = (width * height * 3) as usize;
+        let mut image = vec![0u8; 54 + pixel_bytes];
+        let image_file_size = image.len() as u32;
+        image[0..2].copy_from_slice(b"BM");
+        image[2..6].copy_from_slice(&image_file_size.to_le_bytes());
+        image[10..14].copy_from_slice(&54u32.to_le_bytes());
+        image[14..18].copy_from_slice(&40u32.to_le_bytes());
+        image[18..22].copy_from_slice(&(width as i32).to_le_bytes());
+        image[22..26].copy_from_slice(&(height as i32).to_le_bytes());
+        image[26..28].copy_from_slice(&1u16.to_le_bytes());
+        image[28..30].copy_from_slice(&24u16.to_le_bytes());
+        image[34..38].copy_from_slice(&(pixel_bytes as u32).to_le_bytes());
+        let mut random = 0x1234_5678u32;
+        for byte in &mut image[54..] {
+            random = random.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+            *byte = (random >> 24) as u8;
+        }
+        let resource_bytes = image.len();
+        store_project_resource_with_extension(
+            &state,
+            "image".into(),
+            "large-image".into(),
+            image,
+            Some("bmp".into()),
+        ).expect("store large image");
+
+        let image_content = format!(
+            "<!--hisfuture-image-resource:{{\"version\":2,\"resourceId\":\"large-image\",\"fileName\":\"Large.bmp\",\"fileSize\":{resource_bytes},\"mimeType\":\"image/bmp\",\"extension\":\"bmp\",\"hash\":\"{}\",\"description\":\"\",\"provenance\":null}}--><p><br></p>",
+            "ab".repeat(32)
+        );
+        let mention = "<span class=\"editor-mention\" data-mention-id=\"large-image-node\" data-mention-mode=\"full\"><img data-his-image-placeholder=\"true\" data-no-resize=\"true\" alt=\"Large.bmp\"></span>";
+        let page_content = format!("<p>antes</p>{mention}<p>entre</p>{mention}<p>después</p>");
+        let nodes = vec![
+            NodeRecord { id: "large-image-node".into(), name: "Large.bmp".into(), node_type: "imagen".into(), parent_id: None, order: 0, content: image_content.clone() },
+            NodeRecord { id: "page".into(), name: "Page".into(), node_type: "pagina".into(), parent_id: None, order: 1, content: page_content.clone() },
+        ];
+        save_workspace(&state, nodes, Some(vec![]), Some("[]".into())).expect("save measured project");
+        let edited_page = page_content.replace("entre", "entre texto editado");
+        let incremental = save_node_contents_traced(
+            &state,
+            vec![NodeContentChange { id: "page".into(), content: edited_page.clone() }],
+            Some("large-image-measurement"),
+        ).expect("incremental edit around image");
+        assert_eq!(incremental.resource_scan_ms, 0.0);
+        assert_eq!(incremental.resource_cleanup_ms, 0.0);
+        assert_eq!(incremental.changed_rows, 1);
+        close_project(&state).expect("pack measured project");
+
+        let archive_bytes = fs::metadata(&archive_path).unwrap().len();
+        let base64_characters = 4 * resource_bytes.div_ceil(3);
+        let legacy_node_bytes = "<p><img src=\"data:image/bmp;base64,\"></p>".len() + base64_characters;
+        let legacy_page_bytes = legacy_node_bytes * 2 + 32;
+        eprintln!(
+            "[image-measurement] resource={resource_bytes} new_node={} page_two_mentions={} undo_snapshot={} incremental_payload={} archive={} legacy_node_estimate={legacy_node_bytes} legacy_page_estimate={legacy_page_bytes}",
+            image_content.len(),
+            page_content.len(),
+            page_content.len(),
+            edited_page.len(),
+            archive_bytes,
+        );
+        assert!(image_content.len() < 512);
+        assert!(page_content.len() < 512);
+        assert!(legacy_node_bytes > resource_bytes);
+        assert!(archive_bytes >= resource_bytes as u64);
+        fs::remove_dir_all(root).expect("measurement cleanup");
     }
 
     #[test]
@@ -2958,6 +3470,105 @@ mod tests {
     }
 
     #[test]
+    fn node_creation_tags_and_reparenting_commit_or_roll_back_together() {
+        let root = test_root("creation-atomic");
+        let project = create_project(root.to_string_lossy().into_owned(), "Creation".into()).unwrap();
+        let folder = project.working_folder.clone();
+        let state = Mutex::new(Some(project));
+        save_nodes(&state, vec![test_node("parent", "pagina", None), test_node("child", "pagina", Some("parent"))]).unwrap();
+        create_tag(&state, "tag_creation".into(), "Creation".into(), "#4DD8C0".into()).unwrap();
+        let before = list_nodes(&state).unwrap();
+        let mut next = before.clone();
+        next.push(test_node("new", "pagina", Some("parent")));
+        next.iter_mut().find(|node| node.id == "child").unwrap().parent_id = Some("new".into());
+        assert!(save_workspace_traced(&state, next.clone(), None, None, None, Some(("new".into(), vec!["missing".into()]))).is_err());
+        let unchanged = list_nodes(&state).unwrap();
+        assert!(!unchanged.iter().any(|node| node.id == "new"));
+        assert_eq!(unchanged.iter().find(|node| node.id == "child").unwrap().parent_id.as_deref(), Some("parent"));
+        save_workspace_traced(&state, next, None, None, None, Some(("new".into(), vec!["tag_creation".into()]))).unwrap();
+        assert_eq!(list_node_tags(&state, "new").unwrap().len(), 1);
+        close_project(&state).unwrap();
+        let reopened = Mutex::new(Some(open_project_from_path(folder.to_string_lossy().into_owned()).unwrap()));
+        assert_eq!(list_nodes(&reopened).unwrap().iter().find(|node| node.id == "child").unwrap().parent_id.as_deref(), Some("new"));
+        assert_eq!(list_node_tags(&reopened, "new").unwrap()[0].id, "tag_creation");
+        close_project(&reopened).unwrap();
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn tags_persist_as_global_entities_with_cascading_node_relations() {
+        let root = test_root("tags");
+        let project = create_project(root.to_string_lossy().into_owned(), "Tags".into())
+            .expect("create tag project");
+        let folder = project.working_folder.clone();
+        let state = Mutex::new(Some(project));
+        let first = NodeRecord {
+            content: "<p>Contenido intacto A</p>".into(),
+            ..test_node("page-a", "pagina", None)
+        };
+        let second = NodeRecord {
+            content: "<p>Contenido intacto B</p>".into(),
+            ..test_node("page-b", "pagina", None)
+        };
+        save_nodes(&state, vec![first.clone(), second.clone()]).expect("save nodes");
+
+        create_tag(&state, "tag_1".into(), "Midasia".into(), "#4DD8C0".into())
+            .expect("create first tag");
+        create_tag(&state, "tag_2".into(), "TEST".into(), "#E74C3C".into())
+            .expect("create second tag");
+        assert!(create_tag(&state, "tag_3".into(), "midasia".into(), "#FFFFFF".into()).is_err());
+        set_node_tag(&state, "page-a".into(), "tag_1".into(), true).expect("assign first tag");
+        set_node_tag(&state, "page-b".into(), "tag_1".into(), true).expect("reuse first tag");
+        set_node_tag(&state, "page-a".into(), "tag_2".into(), true).expect("assign second tag");
+        update_tag(
+            &state,
+            "tag_1".into(),
+            "Midasia Global".into(),
+            "#2F80ED".into(),
+        )
+        .expect("update shared tag");
+        reorder_tags(&state, vec!["tag_2".into(), "tag_1".into()]).expect("persist tag order");
+
+        close_project(&state).expect("close tag project");
+        let reopened = open_project_from_path(folder.to_string_lossy().into_owned())
+            .expect("reopen tag project");
+        let reopened = Mutex::new(Some(reopened));
+        let tags = list_tags(&reopened).expect("list persisted tags");
+        assert_eq!(
+            tags.iter().map(|tag| tag.id.as_str()).collect::<Vec<_>>(),
+            vec!["tag_2", "tag_1"]
+        );
+        assert_eq!(list_node_tags(&reopened, "page-a").unwrap(), tags);
+        assert_eq!(
+            list_node_tags(&reopened, "page-b").unwrap()[0].name,
+            "Midasia Global"
+        );
+        let persisted = without_primary(list_nodes(&reopened).unwrap());
+        assert_eq!(persisted[0].content, first.content);
+        assert_eq!(persisted[1].content, second.content);
+
+        delete_tag(&reopened, "tag_1".into()).expect("delete global tag");
+        assert!(list_node_tags(&reopened, "page-b").unwrap().is_empty());
+        save_nodes(&reopened, vec![second]).expect("delete first node");
+        assert!(list_node_tags(&reopened, "page-a").unwrap().is_empty());
+        let broken: bool = reopened
+            .lock()
+            .unwrap()
+            .as_ref()
+            .unwrap()
+            .db
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM pragma_foreign_key_check)",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert!(!broken);
+        close_project(&reopened).expect("close reopened tag project");
+        fs::remove_dir_all(root).expect("test cleanup");
+    }
+
+    #[test]
     fn clean_archive_close_skips_repack_and_real_changes_mark_it_dirty() {
         let root = test_root("archive-dirty");
         let archive = root.join("Lifecycle.his");
@@ -2995,7 +3606,7 @@ mod tests {
         assert_eq!(primaries.len(), 1);
         assert_eq!(primaries[0].name, "My Vault");
         assert!(
-            save_workspace_traced(&state, vec![], Some(vec![]), Some("[]".into()), None).is_err()
+            save_workspace_traced(&state, vec![], Some(vec![]), Some("[]".into()), None, None).is_err()
         );
         assert_eq!(
             list_nodes(&state)

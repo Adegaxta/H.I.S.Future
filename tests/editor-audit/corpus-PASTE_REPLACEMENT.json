@@ -1,0 +1,35 @@
+{
+  "id": "PASTE_REPLACEMENT",
+  "message": "{\"expected\":\"<literal>😀HeA & BelectionexsxBhtájemplo.test/a?b=2abcdefBlofBlock 3 abcdefefbold underf中文😀f中文😀BA & Befé日本語BlockBlock 10 abcdefBloáمرحباBlA & Box 12 abcdefBlo👨‍👩‍👧‍👦<literal>中文deéBlock 15 abcdefBlock 16 abcdefBht日本語tps://ejemplo.test/a?b=2Blantes حبا18 abcdefcdefA & Bantes Nodo B después中文😀abcdefBlock 22 abcdefBlock 23 abcdefBlock 24 abcdefBlock 25 abcdefBlock 26 abcdefBlock 27 abcdefBlock 28 abcdefBlock 29 abcdefBlock 30 abcdefBlock 31 abcdefBlock 32 abcdefBlock 33 abcdefBlock 34 abcdefBlock 35 abcdefBlock 36 abcdefBlock 37 abcdefBlock 38 abcdefBlock 39 abcdefBlock 40 abcdefBlock 41 abcdefBlock 42 abcdefBlock 43 abcdefBlock 44 abcdefBlock 45 abcdefBlock 46 abcdefBlock 47 abcdefBlock 48 abcdefBlock 49 abcdefBlock 50 abcdefBlock 51 abcdefBlock 52 abcdefBlock 53 abcdefBlock 54 abcdefBlock 55 abcdefBlock 56 abcdefBlock 57 abcdefBlock 58 abcdefBlock 59 abcdefBlock 60 abcdefBlock 61 abcdefBlock 62 abcdefBlock 63 abcdefBlock 64 abcdefBlock 65 abcdefBlock 66 abcdefBlock 67 abcdefBlock 68 abcdefBlock 69 abcdefBlock 70 abcdefBlock 71 abcdefBlock 72 abcdefBlock 73 abcdefBlock 74 abcdefBlock 75 abcdefBlock 76 abcdefBlock 77 abcdefBlock 78 abcdefBlock 79 abcdefBlock 80 abcdefBlock 81 abcdefBlock 82 abcdefBlock 83 abcdefBlock 84 abcdefBlock 85 abcdefBlock 86 abcdefBlock 87 abcdefBlock 88 abcdefBlock 89 abcdefBlock 90 abcdefBlock 91 abcdefBlock 92 abcdefBlock 93 abcdefBlock 94 abcdefBlock 95 abcdefBlock 96 abcdefBlock 97 abcdefBlock 98 abcdefBlock 99 abcdefantes Nodo B después\",\"actual\":\"<literal>😀HeA & BelectionexsxBhtájemplo.test/a?b=2abcdefBlofBlock 3 abcdefefbold underf中文😀f中文😀BA & Befé日本語BlockBlock 10 abcdefBloáمرحباBlA & Box 12 abcdefBlo👨‍👩‍👧‍👦<literal>中文dééBlock 15 abcdefBlock 16 abcdefBht日本語tps://ejemplo.test/a?b=2Blantes حبا18 abcdefcdefA & Bantes Nodo B después中文😀abcdefBlock 22 abcdefBlock 23 abcdefBlock 24 abcdefBlock 25 abcdefBlock 26 abcdefBlock 27 abcdefBlock 28 abcdefBlock 29 abcdefBlock 30 abcdefBlock 31 abcdefBlock 32 abcdefBlock 33 abcdefBlock 34 abcdefBlock 35 abcdefBlock 36 abcdefBlock 37 abcdefBlock 38 abcdefBlock 39 abcdefBlock 40 abcdefBlock 41 abcdefBlock 42 abcdefBlock 43 abcdefBlock 44 abcdefBlock 45 abcdefBlock 46 abcdefBlock 47 abcdefBlock 48 abcdefBlock 49 abcdefBlock 50 abcdefBlock 51 abcdefBlock 52 abcdefBlock 53 abcdefBlock 54 abcdefBlock 55 abcdefBlock 56 abcdefBlock 57 abcdefBlock 58 abcdefBlock 59 abcdefBlock 60 abcdefBlock 61 abcdefBlock 62 abcdefBlock 63 abcdefBlock 64 abcdefBlock 65 abcdefBlock 66 abcdefBlock 67 abcdefBlock 68 abcdefBlock 69 abcdefBlock 70 abcdefBlock 71 abcdefBlock 72 abcdefBlock 73 abcdefBlock 74 abcdefBlock 75 abcdefBlock 76 abcdefBlock 77 abcdefBlock 78 abcdefBlock 79 abcdefBlock 80 abcdefBlock 81 abcdefBlock 82 abcdefBlock 83 abcdefBlock 84 abcdefBlock 85 abcdefBlock 86 abcdefBlock 87 abcdefBlock 88 abcdefBlock 89 abcdefBlock 90 abcdefBlock 91 abcdefBlock 92 abcdefBlock 93 abcdefBlock 94 abcdefBlock 95 abcdefBlock 96 abcdefBlock 97 abcdefBlock 98 abcdefBlock 99 abcdefantes Nodo B después\"}",
+  "stack": "Error: {\"expected\":\"<literal>😀HeA & BelectionexsxBhtájemplo.test/a?b=2abcdefBlofBlock 3 abcdefefbold underf中文😀f中文😀BA & Befé日本語BlockBlock 10 abcdefBloáمرحباBlA & Box 12 abcdefBlo👨‍👩‍👧‍👦<literal>中文deéBlock 15 abcdefBlock 16 abcdefBht日本語tps://ejemplo.test/a?b=2Blantes حبا18 abcdefcdefA & Bantes Nodo B después中文😀abcdefBlock 22 abcdefBlock 23 abcdefBlock 24 abcdefBlock 25 abcdefBlock 26 abcdefBlock 27 abcdefBlock 28 abcdefBlock 29 abcdefBlock 30 abcdefBlock 31 abcdefBlock 32 abcdefBlock 33 abcdefBlock 34 abcdefBlock 35 abcdefBlock 36 abcdefBlock 37 abcdefBlock 38 abcdefBlock 39 abcdefBlock 40 abcdefBlock 41 abcdefBlock 42 abcdefBlock 43 abcdefBlock 44 abcdefBlock 45 abcdefBlock 46 abcdefBlock 47 abcdefBlock 48 abcdefBlock 49 abcdefBlock 50 abcdefBlock 51 abcdefBlock 52 abcdefBlock 53 abcdefBlock 54 abcdefBlock 55 abcdefBlock 56 abcdefBlock 57 abcdefBlock 58 abcdefBlock 59 abcdefBlock 60 abcdefBlock 61 abcdefBlock 62 abcdefBlock 63 abcdefBlock 64 abcdefBlock 65 abcdefBlock 66 abcdefBlock 67 abcdefBlock 68 abcdefBlock 69 abcdefBlock 70 abcdefBlock 71 abcdefBlock 72 abcdefBlock 73 abcdefBlock 74 abcdefBlock 75 abcdefBlock 76 abcdefBlock 77 abcdefBlock 78 abcdefBlock 79 abcdefBlock 80 abcdefBlock 81 abcdefBlock 82 abcdefBlock 83 abcdefBlock 84 abcdefBlock 85 abcdefBlock 86 abcdefBlock 87 abcdefBlock 88 abcdefBlock 89 abcdefBlock 90 abcdefBlock 91 abcdefBlock 92 abcdefBlock 93 abcdefBlock 94 abcdefBlock 95 abcdefBlock 96 abcdefBlock 97 abcdefBlock 98 abcdefBlock 99 abcdefantes Nodo B después\",\"actual\":\"<literal>😀HeA & BelectionexsxBhtájemplo.test/a?b=2abcdefBlofBlock 3 abcdefefbold underf中文😀f中文😀BA & Befé日本語BlockBlock 10 abcdefBloáمرحباBlA & Box 12 abcdefBlo👨‍👩‍👧‍👦<literal>中文dééBlock 15 abcdefBlock 16 abcdefBht日本語tps://ejemplo.test/a?b=2Blantes حبا18 abcdefcdefA & Bantes Nodo B después中文😀abcdefBlock 22 abcdefBlock 23 abcdefBlock 24 abcdefBlock 25 abcdefBlock 26 abcdefBlock 27 abcdefBlock 28 abcdefBlock 29 abcdefBlock 30 abcdefBlock 31 abcdefBlock 32 abcdefBlock 33 abcdefBlock 34 abcdefBlock 35 abcdefBlock 36 abcdefBlock 37 abcdefBlock 38 abcdefBlock 39 abcdefBlock 40 abcdefBlock 41 abcdefBlock 42 abcdefBlock 43 abcdefBlock 44 abcdefBlock 45 abcdefBlock 46 abcdefBlock 47 abcdefBlock 48 abcdefBlock 49 abcdefBlock 50 abcdefBlock 51 abcdefBlock 52 abcdefBlock 53 abcdefBlock 54 abcdefBlock 55 abcdefBlock 56 abcdefBlock 57 abcdefBlock 58 abcdefBlock 59 abcdefBlock 60 abcdefBlock 61 abcdefBlock 62 abcdefBlock 63 abcdefBlock 64 abcdefBlock 65 abcdefBlock 66 abcdefBlock 67 abcdefBlock 68 abcdefBlock 69 abcdefBlock 70 abcdefBlock 71 abcdefBlock 72 abcdefBlock 73 abcdefBlock 74 abcdefBlock 75 abcdefBlock 76 abcdefBlock 77 abcdefBlock 78 abcdefBlock 79 abcdefBlock 80 abcdefBlock 81 abcdefBlock 82 abcdefBlock 83 abcdefBlock 84 abcdefBlock 85 abcdefBlock 86 abcdefBlock 87 abcdefBlock 88 abcdefBlock 89 abcdefBlock 90 abcdefBlock 91 abcdefBlock 92 abcdefBlock 93 abcdefBlock 94 abcdefBlock 95 abcdefBlock 96 abcdefBlock 97 abcdefBlock 98 abcdefBlock 99 abcdefantes Nodo B después\"}\n    at failure (file:///C:/Users/Matias/Documents/COSAS_DE_HIS/H.I.S.Future/hisfuture/tests/editor-audit/run.mjs:19:38)\n    at action (file:///C:/Users/Matias/Documents/COSAS_DE_HIS/H.I.S.Future/hisfuture/tests/editor-audit/run.mjs:31:727)\n    at async execute (file:///C:/Users/Matias/Documents/COSAS_DE_HIS/H.I.S.Future/hisfuture/tests/editor-audit/run.mjs:45:191)\n    at async file:///C:/Users/Matias/Documents/COSAS_DE_HIS/H.I.S.Future/hisfuture/tests/editor-audit/run.mjs:67:95",
+  "index": 111,
+  "seed": 347,
+  "actions": [
+    {
+      "block": 16,
+      "textIndex": 0,
+      "start": 3,
+      "end": 11,
+      "kind": "replace",
+      "value": "é"
+    },
+    {
+      "block": 10,
+      "textIndex": 0,
+      "start": 1,
+      "end": 12,
+      "kind": "key",
+      "key": "Enter"
+    },
+    {
+      "block": 17,
+      "textIndex": 0,
+      "start": 4,
+      "end": 14,
+      "kind": "replace",
+      "value": "é"
+    }
+  ],
+  "attempts": 42,
+  "confirmed": true
+}

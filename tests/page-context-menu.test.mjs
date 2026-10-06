@@ -42,6 +42,9 @@ try {
   const menu = read("src/editor/PageBlockContextMenu.tsx");
   const editor = read("src/editor/RichTextEditor.tsx");
   const html = read("src/editor/html.ts");
+  const dismissibleLayer = read("src/hooks/useDismissibleLayer.ts");
+  assert.ok(dismissibleLayer.includes('window.addEventListener("pointerdown", closeOutside, true)') && dismissibleLayer.includes('window.addEventListener("keydown", closeOnEscape, true)'), "context menus close from window capture on outside click and Escape");
+  assert.ok(dismissibleLayer.includes('window.addEventListener("contextmenu", closeOutside, true)'), "a second right click also dismisses the previous menu");
   assert.ok(menu.includes("useHoverSubpanel") && menu.includes("onPointerEnter={aesthetics.enter}") && menu.includes("onPointerLeave={aesthetics.leave}"));
   assert.ok(menu.includes("checkedIcon") && menu.includes("uncheckedIcon"), "provided checked and unchecked SVG assets are used");
   assert.ok(menu.indexOf("props.imageItems?.map") < menu.indexOf('t("editor.context.moveTo")'), "image actions precede Move to");

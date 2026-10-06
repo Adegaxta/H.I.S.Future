@@ -1,3 +1,7 @@
+import { PresentedImage } from "../../nodes/visuals/PresentedImage";
+import type { ImagePresentation } from "../../utils/imagePresentation";
+import { NodeVisualRenderer } from "../../nodes/visuals/NodeVisualRenderer";
+import type { NodeVisual } from "../../nodes/visuals/types";
 import { NODE_REGISTRY } from "../../defs/nodeTypes";
 import { useLocale } from "../../i18n/LocaleContext";
 import type { BaseNodeType } from "../../types/nodes";
@@ -6,6 +10,8 @@ import type { TimeFormat } from "../../utils/temporalMeta";
 interface ProjectSettingsPanelProps {
   projectName: string;
   projectImage: string | null;
+  projectPresentation?: ImagePresentation;
+  projectVisual?: NodeVisual | null;
   projectInitial: string;
   avatarColor: string;
   defaultNodeType: BaseNodeType;
@@ -18,6 +24,8 @@ interface ProjectSettingsPanelProps {
 export function ProjectSettingsPanel({
   projectName,
   projectImage,
+  projectVisual,
+  projectPresentation,
   projectInitial,
   avatarColor,
   defaultNodeType,
@@ -29,8 +37,8 @@ export function ProjectSettingsPanel({
   const { locale, setLocale, t } = useLocale();
   return <section className="project-settings">
     <div className="project-settings__hero">
-      <div className="project-settings__image" style={projectImage ? { backgroundImage: `url(${projectImage})` } : { backgroundColor: avatarColor }}>
-        {!projectImage && projectInitial}
+      <div className="project-settings__image" style={!projectVisual && !projectPresentation && projectImage ? { backgroundImage: `url(${projectImage})` } : { backgroundColor: avatarColor }}>
+        {projectVisual && projectVisual.kind !== "image" ? <NodeVisualRenderer visual={projectVisual} /> : projectImage && projectPresentation ? <PresentedImage src={projectImage} presentation={projectPresentation} /> : !projectImage && projectInitial}
       </div>
       <div><div className="project-settings__eyebrow">{t("settings.project.heading")}</div><h1>{projectName}</h1></div>
     </div>

@@ -6,7 +6,7 @@ import { useLocale } from "../../i18n/LocaleContext";
 import { UiIcon } from "../../ui/Icon";
 import { NodeIcon } from "../../nodes/NodeIcon";
 import { PrimaryNodeName } from "../../nodes/PrimaryNodeName";
-import { buildNodeCustomVisuals } from "../../nodes/nodeIconSource";
+import { useNodeCustomVisuals } from "../../nodes/nodeIconSource";
 import type { ResolvedNodeVisual } from "../../nodes/visuals/types";
 import { useSearchReveal } from "../../hooks/useSearchReveal";
 import { selectLoreRange } from "../../utils/loreTree";
@@ -55,7 +55,7 @@ export default function NodePanels({ projectKey, panel, nodes, recentNodes, rece
   const searchRef = useSearchReveal(normalizedQuery, `${panel}:${(panel === "recent" ? recentNodes : nodes).filter(matches).map((node) => node.id).join(",")}`);
   const selectedType = nodes.find((node) => node.id === selectedId)?.type;
   const parentIds = useMemo(() => new Set(nodes.map((node) => node.parentId).filter(Boolean)), [nodes]);
-  const customVisuals = useMemo(() => buildNodeCustomVisuals(nodes), [nodes]);
+  const customVisuals = useNodeCustomVisuals(nodes);
   const selectionAnchor = useRef<string | null>(null);
   useEffect(() => {
     if (!selectedIds.length) selectionAnchor.current = null;

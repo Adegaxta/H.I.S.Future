@@ -1,0 +1,30 @@
+import React, {useRef, useState} from 'react';
+import {createRoot} from 'react-dom/client';
+import RichTextEditor from '../../src/editor/RichTextEditor';
+import {LocaleProvider} from '../../src/i18n/LocaleContext';
+import {useWorkspaceNavigation} from '../../src/hooks/useWorkspaceNavigation';
+import {serializeEditorContent, stripTransientEditorState} from '../../src/editor/serialization';
+import {sanitizeEditorHtml, formatPastedText} from '../../src/editor/html';
+import {readInlineMarkState} from '../../src/editor/inlineMarks';
+import {createTable, ensureTableRuntime} from '../../src/editor/table';
+import {clipboardToMatrix} from '../../src/editor/tableClipboard';
+import '../../src/App.css';
+import '../../src/editor/styles.css';
+import '../../src/editor/table.css';
+import '../../src/ui/styles.css';
+import '../../src/nodes/iconStyles.css';
+const base = '<h1>Heading selection</h1>'+Array.from({length:100},(_,i)=>`<p data-test="p${i}">Block ${i} abcdef</p>`).join('')+'<p data-test="mention">antes <span class="editor-mention" data-mention-id="B" contenteditable="false">Nodo B</span> después</p>';
+let reset: (html:string)=>void;
+let renders=0;
+function Fixture(){
+  renders++;
+  const [epoch,setEpoch]=useState(0),[id,setId]=useState('A');
+  const [contents,setContents]=useState<Record<string,string>>({A:base,B:base});
+  const ref=useRef<HTMLDivElement>(null), scroll=useRef<HTMLDivElement>(null);
+  const node={id,name:id,type:'pagina' as const,parentId:null,order:0,content:contents[id]};
+  const nav=useWorkspaceNavigation({selectedId:id,selectedTrashId:null,navigateWithinView:()=>false,onNavigate:e=>setId(e.id),getScrollElement:()=>scroll.current});
+  reset=html=>{setContents({A:html,B:base});setId('A');setEpoch(x=>x+1);};
+  return <><div style={{position:'relative',zIndex:10000,background:'white'}}><button id="visit" onClick={()=>setId(id==='A'?'B':'A')}>Visit</button><button id="back" onClick={nav.back}>Back</button><button id="forward" onClick={nav.forward}>Forward</button><span id="node">{id}</span><output id="saved" hidden>{contents[id]}</output></div><div id="scroll" ref={scroll} style={{height:400,overflow:'auto'}}><RichTextEditor key={epoch} node={node} nodes={[node,{...node,id:id==='A'?'B':'A',name:'Nodo B'}]} deletedNodes={[]} editorRef={ref} onContentChange={(key,html)=>setContents(c=>({...c,[key]:html}))} setSelectedId={setId} setExpanded={()=>{}} pendingNodeDrop={null} onNodeDropHandled={()=>{}} onOpenDeletedNode={()=>{}} onOpenNodeView={()=>{}} style={{}} /></div></>;
+}
+Object.assign(window,{audit:{base,reset:(html=base)=>reset(html),serializeEditorContent,stripTransientEditorState,sanitizeEditorHtml,formatPastedText,readInlineMarkState,createTable,ensureTableRuntime,clipboardToMatrix,getRenders:()=>renders}});
+createRoot(document.getElementById('root')!).render(<LocaleProvider><Fixture/></LocaleProvider>);

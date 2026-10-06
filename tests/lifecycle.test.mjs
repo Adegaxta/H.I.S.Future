@@ -126,6 +126,7 @@ try {
   const pdfViewer = read("src/components/PdfViewer.tsx");
   const resourceRepository = read("src/project/resourceRepository.ts");
   const editorPersistence = read("src/editor/persistence.ts");
+  const editorSerialization = read("src/editor/serialization.ts");
   const richTextPersistence = read("src/editor/useRichTextEditor.ts");
   const editorController = read("src/editor/useEditorController.ts");
   const imageLayoutRepository = read("src/project/editorLayoutRepository.ts");
@@ -159,7 +160,8 @@ try {
   assert.ok(nodeStore.includes("enqueueContentSave") && backend.includes("save_node_contents"), "typing uses the incremental persistence path");
   assert.ok(nodeStore.includes("loadWorkspaceSnapshot") && backend.includes("load_workspace_snapshot"), "initial Node, Lore and Trash hydration uses one backend snapshot");
   assert.ok(project.includes("PRAGMA wal_autocheckpoint = 0"), "interactive saves defer WAL checkpoint work to the durability boundary");
-  assert.ok(editorPersistence.includes("const stripped:") && editorPersistence.includes("element.setAttribute(attribute, value)"), "editor persistence strips transient attributes without cloning large live pages");
+  assert.ok(editorPersistence.includes("serializeEditorContent") && editorSerialization.includes("stripTransientEditorState"), "editor persistence strips transient state through a read-only serialization boundary");
+  assert.equal(editorPersistence.includes("removeAttribute") || editorPersistence.includes("setAttribute"), false, "editor capture never mutates the live DOM");
   assert.ok(richTextPersistence.includes("requestIdleCallback"), "editor snapshots can be deferred to an idle main-thread window");
   assert.ok(editorController.includes("saveEditorImageLayout") && editorController.includes("if (resize.blockIdCreated) syncContent()"), "image resize writes one granular row and snapshots HTML only for one-time legacy identity migration");
   assert.ok(imageLayoutRepository.includes('invoke("save_editor_image_layout"') && imageLayoutRepository.includes("pendingWrites"), "granular layout writes are tracked until the durability boundary");

@@ -1,3 +1,4 @@
+import { imagePresentationGeometry, type ImagePresentation } from "../utils/imagePresentation";
 import { Texture } from "pixi.js";
 import type { ResolvedNodeVisual } from "../nodes/visuals/types";
 
@@ -65,20 +66,23 @@ async function glyphTexture(visual: Extract<ResolvedNodeVisual, { kind: "emoji" 
   return Texture.from(canvas, true);
 }
 
-function imageTexture(source: string, rasterize = false): Promise<Texture> {
+function imageTexture(source: string, rasterize = false, presentation?: ImagePresentation): Promise<Texture> {
   return new Promise((resolve, reject) => {
     const image = new Image();
     image.crossOrigin = "anonymous";
     image.onload = () => {
       try {
         let resource: HTMLImageElement | HTMLCanvasElement = image;
-        if (rasterize) {
+        if (rasterize || presentation) {
           const canvas = document.createElement("canvas");
           canvas.width = GLYPH_TEXTURE_SIZE;
           canvas.height = GLYPH_TEXTURE_SIZE;
           const context = canvas.getContext("2d");
           if (!context) throw new Error("Canvas 2D is unavailable for graph SVG rendering");
-          context.drawImage(image, 0, 0, GLYPH_TEXTURE_SIZE, GLYPH_TEXTURE_SIZE);
+          if (presentation) {
+            const g = imagePresentationGeometry(image.naturalWidth, image.naturalHeight, GLYPH_TEXTURE_SIZE, GLYPH_TEXTURE_SIZE, presentation);
+            context.drawImage(image, g.left, g.top, g.width, g.height);
+          } else context.drawImage(image, 0, 0, GLYPH_TEXTURE_SIZE, GLYPH_TEXTURE_SIZE);
           resource = canvas;
         }
         const texture = Texture.from(resource, true);
@@ -94,13 +98,13 @@ function imageTexture(source: string, rasterize = false): Promise<Texture> {
 }
 
 export function graphVisualTextureKey(visual: ResolvedNodeVisual): string {
-  if (visual.kind === "image") return visual.src;
+  if (visual.kind === "image") return visual.presentation ? `${visual.src}:framing:${JSON.stringify(visual.presentation)}` : visual.src;
   if (visual.kind === "emoji") return `hisfuture-emoji:${visual.style}:${visual.value}`;
   return `hisfuture-icon:${visual.provider}:${visual.name}`;
 }
 
 export async function loadGraphVisualTexture(visual: ResolvedNodeVisual): Promise<Texture> {
-  if (visual.kind === "image") return imageTexture(visual.src);
+  if (visual.kind === "image") return imageTexture(visual.src, false, visual.presentation);
   if (visual.kind === "icon" && visual.provider === "lucide") return imageTexture(await lucideSource(visual.name), true);
   return glyphTexture(visual);
 }

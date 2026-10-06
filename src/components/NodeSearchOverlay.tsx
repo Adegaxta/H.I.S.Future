@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { RefObject } from "react";
 
 interface Props { editorRef: RefObject<HTMLDivElement | null>; initialQuery?: string; onClose: () => void; }
@@ -7,6 +7,13 @@ type HighlightRegistry = {
   set: (name: string, value: unknown) => void;
   delete: (name: string) => void;
 };
+
+const searchRanges = new Map<string, { all: Range[]; active: Range[] }>();
+function publishHighlights(registry: HighlightRegistry | undefined) {
+  registry?.delete("his-search"); registry?.delete("his-search-active");
+  setHighlight(registry, "his-search", [...searchRanges.values()].flatMap(value => value.all));
+  setHighlight(registry, "his-search-active", [...searchRanges.values()].flatMap(value => value.active));
+}
 
 function setHighlight(registry: HighlightRegistry | undefined, name: string, ranges: Range[]): void {
   if (!registry || !ranges.length) return;
@@ -33,6 +40,7 @@ function collectMatches(editor: HTMLElement, query: string): Match[] {
   return matches;
 }
 export default function NodeSearchOverlay({ editorRef, initialQuery = "", onClose }: Props) {
+  const searchId = useId();
   const [query, setQuery] = useState(initialQuery);
   const [active, setActive] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -42,12 +50,13 @@ export default function NodeSearchOverlay({ editorRef, initialQuery = "", onClos
     setActive(0);
     const css = (globalThis.CSS as unknown as { highlights?: HighlightRegistry }).highlights;
     const ranges = matches.map((match) => { const range = document.createRange(); range.setStart(match.node, match.start); range.setEnd(match.node, match.end); return range; });
-    css?.delete("his-search"); css?.delete("his-search-active");
-    setHighlight(css, "his-search", ranges);
+    const local = { all: ranges, active: [] as Range[] };
+    searchRanges.set(searchId, local);
     const activeMatch = matches[0];
-    if (activeMatch) { const range = document.createRange(); range.setStart(activeMatch.node, activeMatch.start); range.setEnd(activeMatch.node, activeMatch.end); setHighlight(css, "his-search-active", [range]); activeMatch.node.parentElement?.scrollIntoView({ block: "center", behavior: "smooth" }); }
-    return () => { css?.delete("his-search"); css?.delete("his-search-active"); };
-  }, [matches]);
+    if (activeMatch) { const range = document.createRange(); range.setStart(activeMatch.node, activeMatch.start); range.setEnd(activeMatch.node, activeMatch.end); local.active = [range]; activeMatch.node.parentElement?.scrollIntoView({ block: "center", behavior: "smooth" }); }
+    publishHighlights(css);
+    return () => { searchRanges.delete(searchId); publishHighlights(css); };
+  }, [matches, searchId]);
   const move = (direction: 1 | -1) => {
     if (!matches.length) return;
     const next = (active + direction + matches.length) % matches.length;
@@ -55,7 +64,7 @@ export default function NodeSearchOverlay({ editorRef, initialQuery = "", onClos
     const match = matches[next];
     match.node.parentElement?.scrollIntoView({ block: "center", behavior: "smooth" });
     const css = (globalThis.CSS as unknown as { highlights?: HighlightRegistry }).highlights;
-    if (css) { const range = document.createRange(); range.setStart(match.node, match.start); range.setEnd(match.node, match.end); setHighlight(css, "his-search-active", [range]); }
+    if (css) { const range = document.createRange(); range.setStart(match.node, match.start); range.setEnd(match.node, match.end); const local = searchRanges.get(searchId); if (local) local.active = [range]; publishHighlights(css); }
   };
-  return <div className="node-search-overlay" role="search" aria-label="Buscar en este Nodo" onKeyDown={(event) => { if (event.key === "Escape") onClose(); else if (event.key === "Enter") { event.preventDefault(); move(event.shiftKey ? -1 : 1); } }}><input ref={inputRef} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar en este Nodo..." aria-label="Buscar en este Nodo" /><span>{matches.length ? `${active + 1}/${matches.length}` : "0/0"}</span><button type="button" onClick={() => move(-1)} aria-label="Coincidencia anterior">↑</button><button type="button" onClick={() => move(1)} aria-label="Coincidencia siguiente">↓</button><button type="button" onClick={onClose} aria-label="Cerrar búsqueda">×</button></div>;
+  return <div className="node-search-overlay" role="search" aria-label="Buscar en este Nodo" onKeyDown={(event) => { if (event.key === "Escape") { event.stopPropagation(); onClose(); } else if (event.key === "Enter") { event.preventDefault(); move(event.shiftKey ? -1 : 1); } }}><input ref={inputRef} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar en este Nodo..." aria-label="Buscar en este Nodo" /><span>{matches.length ? `${active + 1}/${matches.length}` : "0/0"}</span><button type="button" onClick={() => move(-1)} aria-label="Coincidencia anterior">↑</button><button type="button" onClick={() => move(1)} aria-label="Coincidencia siguiente">↓</button><button type="button" onClick={onClose} aria-label="Cerrar búsqueda">×</button></div>;
 }

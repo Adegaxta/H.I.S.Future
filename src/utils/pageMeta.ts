@@ -1,3 +1,4 @@
+import { parseImagePresentation, type ImagePresentation } from "./imagePresentation";
 import { stringifyHtmlMetadata } from "./htmlMetadata";
 import { parseNodeVisual, type NodeVisual } from "../nodes/visuals/types";
 export interface PageMeta {
@@ -5,6 +6,7 @@ export interface PageMeta {
   iconNodeId: string | null;
   iconVisual: NodeVisual | null;
   coverNodeId: string | null;
+  coverPresentation?: ImagePresentation;
   hideDescription: boolean;
   hideIcon: boolean;
   hideCover: boolean;
@@ -50,6 +52,7 @@ export function getPageMeta(content: string): PageMeta {
       iconNodeId,
       iconVisual,
       coverNodeId: typeof parsed.coverNodeId === "string" ? parsed.coverNodeId : null,
+      ...(parseImagePresentation(parsed.coverPresentation) ? { coverPresentation: parseImagePresentation(parsed.coverPresentation) } : {}),
       hideDescription: parsed.hideDescription === true,
       hideIcon: parsed.hideIcon === true,
       hideCover: parsed.hideCover === true,

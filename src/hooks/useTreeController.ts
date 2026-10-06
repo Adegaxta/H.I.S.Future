@@ -17,7 +17,6 @@ export function useTreeController(
 ) {
   const store = useNodeStore(projectKey, projectName, defaultNodeType);
   const [creating, setCreating] = useState<CreatingState | null>(null);
-  const [draftName, setDraftName] = useState("");
   const [draftType, setDraftType] = useState<BaseNodeType>("pagina");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
@@ -83,19 +82,9 @@ export function useTreeController(
 
   const openCreate = (parentId: string | null, initialType: BaseNodeType = defaultNodeType) => {
     setCreating({ parentId });
-    setDraftName("");
     setDraftType(initialType);
     if (parentId !== null)
       store.setExpanded((current) => ({ ...current, [parentId]: true }));
-  };
-
-  const confirmCreate = () => {
-    if (!draftName.trim() || !creating) return;
-    const createdId = store.createNode(draftName, draftType, creating.parentId);
-    if (draftType === "pagina" || draftType === "imagen") {
-      setPendingEditorFocusId(createdId);
-    }
-    setCreating(null);
   };
 
   const startRename = (node: NodeItem) => {
@@ -138,8 +127,6 @@ export function useTreeController(
     ...store,
     creating,
     setCreating,
-    draftName,
-    setDraftName,
     draftType,
     setDraftType,
     editingId,
@@ -155,7 +142,6 @@ export function useTreeController(
     isDraggingNode,
     setIsDraggingNode,
     openCreate,
-    confirmCreate,
     startRename,
     confirmRename,
     deleteNode,

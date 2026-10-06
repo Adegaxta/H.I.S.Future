@@ -9,13 +9,21 @@ function inline(element: Node): string {
   if (element.nodeType !== Node.ELEMENT_NODE) return "";
   const current = element as HTMLElement;
   const content = Array.from(current.childNodes).map(inline).join("");
-  if (current.matches("[data-mention-id], .editor-mention")) return text(current.textContent);
+  if (current.matches("[data-mention-id], .editor-mention")) {
+    const image = current.querySelector("img");
+    if (image) return `[Imagen: ${image.getAttribute("alt") || current.getAttribute("title") || "recurso HIS"}]`;
+    return text(current.textContent);
+  }
   if (current.tagName === "STRONG" || current.tagName === "B") return `**${content}**`;
   if (current.tagName === "EM" || current.tagName === "I") return `*${content}*`;
   if (current.tagName === "S" || current.tagName === "STRIKE" || current.tagName === "DEL") return `~~${content}~~`;
   if (current.tagName === "CODE" && current.parentElement?.tagName !== "PRE") return `\`${content}\``;
   if (current.tagName === "A") return `[${content || text(current.getAttribute("href"))}](${current.getAttribute("href") || ""})`;
-  if (current.tagName === "IMG") return `![${current.getAttribute("alt") || "Imagen"}](${current.getAttribute("src") || ""})`;
+  if (current.tagName === "IMG") {
+    const alt = current.getAttribute("alt") || "Imagen";
+    const source = current.getAttribute("src") || "";
+    return source.startsWith("blob:") ? `[Imagen: ${alt}]` : `![${alt}](${source})`;
+  }
   return content;
 }
 
@@ -54,9 +62,13 @@ function block(element: Element): string {
   return text(inline(element));
 }
 
+export function documentToMarkdown(document: Document, name: string, includeTitle = true): string {
+  const blocks = Array.from(document.body.children).map(block).filter(Boolean);
+  const output = includeTitle ? [`# ${name.trim() || "Sin título"}`, ...blocks] : blocks;
+  return `${output.join("\n\n").trim()}\n`;
+}
+
 export function nodeToMarkdown(node: Pick<NodeItem, "name" | "content">, includeTitle = true): string {
   const document = new DOMParser().parseFromString(node.content, "text/html");
-  const blocks = Array.from(document.body.children).map(block).filter(Boolean);
-  const output = includeTitle ? [`# ${node.name.trim() || "Sin título"}`, ...blocks] : blocks;
-  return `${output.join("\n\n").trim()}\n`;
+  return documentToMarkdown(document, node.name, includeTitle);
 }

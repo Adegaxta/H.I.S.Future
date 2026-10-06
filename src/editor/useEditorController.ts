@@ -1,3 +1,4 @@
+import { mutedEditorBackground } from "./blockColors";
 import { useEffect, useRef, useState } from "react";
 import type {
   ClipboardEvent,
@@ -7,6 +8,8 @@ import type {
 } from "react";
 import { useNodeScopedEditorHistory } from "./useEditorHistory";
 import { useEditorSelection } from "./useEditorSelection";
+import type { SelectionToolbarState } from "./useEditorSelection";
+import { rangeBelongsToEditor, type InlineFormatCommand } from "./inlineMarks";
 import type { NodeItem } from "../types/nodes";
 import type { PickerState } from "./types";
 import { findImportableFile, isImportableDragItem } from "../project/fileNodeImporter";
@@ -17,14 +20,20 @@ import { useEditorBlockSelection, type BlockSelectionOrigin } from "./useEditorB
 import { useEditorMentions } from "./useEditorMentions";
 import { useEditorPickers } from "./useEditorPickers";
 import { useRichTextEditor } from "./useRichTextEditor";
+import { stripTransientEditorState } from "./serialization";
 import draftAsset from "../assets/third-party/google-material/icons/draft.svg";
 import { createEmptyEditorPickerSession, getEditorPickerTrigger, isSameMentionTriggerRange, type MentionTriggerRange } from "./pickerSession";
 import { EDITOR_NON_EDITABLE_BLOCK_SELECTOR, EDITOR_SELECTABLE_BLOCK_SELECTOR, EDITOR_STRUCTURAL_BLOCK_SELECTOR, EDITOR_UI_SELECTOR } from "./blockModel";
-import { applyEditorImageLayouts, isResizableEditorImage } from "./imageResize";
+import {
+  applyEditorImageLayouts,
+  clampEditorImageWidth,
+  getEditorImageMaxWidth,
+  isResizableEditorImage,
+} from "./imageResize";
 import { focusPageHeading } from "./pageIndexNavigation";
 import { loadEditorImageLayouts, saveEditorImageLayout } from "../project/editorLayoutRepository";
 import { getImageResourceInfo } from "../utils/imageResource";
-import { insertTableIntoBlock, isTableEditingTarget } from "./table";
+import { ensureTableRuntime, getTableRootFromNode, insertTableIntoBlock, isTableEditingTarget } from "./table";
 
 interface EditorControllerOptions {
   node: NodeItem;
@@ -36,12 +45,60 @@ interface EditorControllerOptions {
   setExpanded: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
   onOpenDeletedNode: (id: string) => void;
   onFileImport?: (file: File, parentId?: string | null) => Promise<NodeItem | null> | NodeItem | null;
+  recentNodes?: NodeItem[];
+  onMentionCreate?: (kind: "here" | "in") => void;
   onCreatePastedNode?: (name: string) => NodeItem | null;
   onSlashCommand?: (tag: string) => boolean;
 }
 
 const blockSelector = EDITOR_STRUCTURAL_BLOCK_SELECTOR;
 const textLineSelector = EDITOR_SELECTABLE_BLOCK_SELECTOR;
+
+interface EditorSelectionSnapshot {
+  anchorPath: number[];
+  anchorOffset: number;
+  focusPath: number[];
+  focusOffset: number;
+}
+
+interface EditorSnapshot {
+  html: string;
+  selection: EditorSelectionSnapshot | null;
+}
+
+const sameEditorSnapshot = (left: EditorSnapshot, right: EditorSnapshot) =>
+  left.html === right.html;
+
+function getNodePath(root: Node, node: Node): number[] | null {
+  const path: number[] = [];
+  let current: Node | null = node;
+  while (current && current !== root) {
+    const parent: Node | null = current.parentNode;
+    if (!parent) return null;
+    const index = Array.prototype.indexOf.call(parent.childNodes, current) as number;
+    if (index < 0) return null;
+    path.unshift(index);
+    current = parent;
+  }
+  return current === root ? path : null;
+}
+
+function getNodeAtPath(root: Node, path: readonly number[]): Node | null {
+  let current: Node = root;
+  for (const index of path) {
+    const next: Node | undefined = current.childNodes[index];
+    if (!next) return null;
+    current = next;
+  }
+  return current;
+}
+
+function clampSelectionOffset(node: Node, offset: number) {
+  const maximum = node.nodeType === Node.TEXT_NODE
+    ? (node.textContent?.length ?? 0)
+    : node.childNodes.length;
+  return Math.max(0, Math.min(offset, maximum));
+}
 
 export function useEditorController({
   node,
@@ -54,12 +111,12 @@ export function useEditorController({
   onOpenDeletedNode,
   onFileImport,
   onCreatePastedNode,
+  recentNodes,
+  onMentionCreate,
   onSlashCommand,
 }: EditorControllerOptions) {
-  const [selectionToolbar, setSelectionToolbar] = useState<{
-    top: number;
-    left: number;
-  } | null>(null);
+  const [selectionToolbar, setSelectionToolbar] = useState<SelectionToolbarState | null>(null);
+  const savedTextRangeRef = useRef<Range | null>(null);
   const [placeholderBlock, setPlaceholderBlock] = useState<HTMLElement | null>(
     null,
   );
@@ -84,15 +141,26 @@ export function useEditorController({
   const blockSelectionRef = useRef<BlockSelectionOrigin | null>(null);
   const generatedLinesRef = useRef<HTMLElement[]>([]);
   const lineCommandsOpenRef = useRef(false);
-  const structuralHistory = useNodeScopedEditorHistory<string>(node.id, 20);
-  const editorHistory = useNodeScopedEditorHistory<string>(node.id, 50);
+  // Text, formatting and structural edits must share one chronological stack.
+  // Separate stacks made Ctrl+Z prefer an old structural change and skip newer
+  // text/formatting changes, which looked like several actions disappearing.
+  const editorHistory = useNodeScopedEditorHistory<EditorSnapshot>(
+    node.id,
+    100,
+    sameEditorSnapshot,
+  );
+  const inputHistoryGroupRef = useRef<{
+    kind: "insert" | "delete" | "other";
+    at: number;
+    closed: boolean;
+  } | null>(null);
   const [blockSelection, setBlockSelection] = useState<{
     left: number;
     top: number;
     width: number;
     height: number;
   } | null>(null);
-  const pickers = useEditorPickers(nodes);
+  const pickers = useEditorPickers(nodes, recentNodes);
   const mentionTriggerRangeRef = useRef<MentionTriggerRange | null>(null);
   const controls = useBlockControls();
   const { syncContent, scheduleContentSync } = useRichTextEditor({
@@ -132,6 +200,13 @@ export function useEditorController({
     const block = element.closest(blockSelector) as HTMLElement | null;
     return block && block !== editor && editor.contains(block) ? block : null;
   };
+  const getAvailableTableWidth = () => {
+    const editor = editorRef.current;
+    if (!editor) return 0;
+    const styles = getComputedStyle(editor);
+    const horizontalPadding = Number.parseFloat(styles.paddingLeft || "0") + Number.parseFloat(styles.paddingRight || "0");
+    return Math.max(0, editor.getBoundingClientRect().width - horizontalPadding - 32);
+  };
     const getTextEditorBlock = (source: Node | null) => {
     const editor = editorRef.current;
     if (!editor || !source) return null;
@@ -156,6 +231,11 @@ export function useEditorController({
       source.nodeType === Node.ELEMENT_NODE
         ? (source as HTMLElement)
         : source.parentElement;
+    const table = getTableRootFromNode(element);
+    if (table && editor.contains(table)) {
+      const owner = table.parentElement?.closest<HTMLElement>(textLineSelector);
+      return owner && editor.contains(owner) ? owner : table;
+    }
     const line = element?.closest(textLineSelector) as HTMLElement | null;
     if (line && editor.contains(line)) return line;
     const globe = element?.closest("[data-globe]") as HTMLElement | null;
@@ -220,29 +300,25 @@ export function useEditorController({
       });
 
   const toggleLineSelection = (block: HTMLElement) => {
-    clearNativeSelection();
-    setSelectedLineBlocks((current) => {
-      const alreadySelected = current.includes(block);
-      const next = alreadySelected
-        ? current.filter((line) => line !== block)
-        : [...current, block];
-
-      current.forEach((line) => {
-        line.removeAttribute("data-line-selected");
-        if (!isNonEditableBlockType(line)) line.contentEditable = "true";
-      });
-
-      const finalSelection = current.length > 1 && alreadySelected
-        ? current.filter((line) => line !== block)
-        : next;
-
-      finalSelection.forEach((line) => {
-        line.setAttribute("data-line-selected", "true");
-        line.contentEditable = "false";
-      });
-      editorRef.current?.focus();
-      return finalSelection;
+    const editor = editorRef.current;
+    if (!editor || !editor.contains(block)) return;
+    const identity = block.dataset.editorBlockIdentity ||= crypto.randomUUID();
+    window.getSelection()?.removeAllRanges();
+    savedTextRangeRef.current = null;
+    setSelectionToolbar(null);
+    const selectedIds = new Set(Array.from(editor.querySelectorAll<HTMLElement>("[data-line-selected]"))
+      .map((line) => line.dataset.editorBlockIdentity ||= crypto.randomUUID()));
+    if (selectedIds.has(identity)) selectedIds.delete(identity);
+    else selectedIds.add(identity);
+    clearLineSelection();
+    const next = Array.from(editor.querySelectorAll<HTMLElement>("[data-editor-block-identity]"))
+      .filter((line) => selectedIds.has(line.dataset.editorBlockIdentity!));
+    next.forEach((line) => {
+      line.setAttribute("data-line-selected", "true");
+      line.contentEditable = "false";
     });
+    setSelectedLineBlocks(next);
+    editor.focus({ preventScroll: true });
   };
 
   const rememberGeneratedLine = (line: HTMLElement) => {
@@ -254,12 +330,66 @@ export function useEditorController({
   const clearGeneratedLines = () => {
     generatedLinesRef.current = [];
   };
+  const captureSelectionSnapshot = (editor: HTMLElement): EditorSelectionSnapshot | null => {
+    const selection = window.getSelection();
+    if (!selection?.anchorNode || !selection.focusNode) return null;
+    if (!editor.contains(selection.anchorNode) || !editor.contains(selection.focusNode)) return null;
+    const anchorPath = getNodePath(editor, selection.anchorNode);
+    const focusPath = getNodePath(editor, selection.focusNode);
+    if (!anchorPath || !focusPath) return null;
+    return {
+      anchorPath,
+      anchorOffset: selection.anchorOffset,
+      focusPath,
+      focusOffset: selection.focusOffset,
+    };
+  };
+  const captureEditorSnapshot = (editor: HTMLElement): EditorSnapshot => ({
+    html: stripTransientEditorState(editor.innerHTML),
+    selection: captureSelectionSnapshot(editor),
+  });
+  const restoreSelectionSnapshot = (editor: HTMLElement, snapshot: EditorSelectionSnapshot | null) => {
+    const selection = window.getSelection();
+    if (!selection) return;
+    const anchor = snapshot ? getNodeAtPath(editor, snapshot.anchorPath) : null;
+    const focus = snapshot ? getNodeAtPath(editor, snapshot.focusPath) : null;
+    if (anchor && focus && snapshot) {
+      selection.setBaseAndExtent(
+        anchor,
+        clampSelectionOffset(anchor, snapshot.anchorOffset),
+        focus,
+        clampSelectionOffset(focus, snapshot.focusOffset),
+      );
+      return;
+    }
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    range.collapse(false);
+    selection.removeAllRanges();
+    selection.addRange(range);
+  };
+  const restoreEditorSnapshot = (snapshot: EditorSnapshot) => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    clearTransientEditorState();
+    controls.clearBlockControls();
+    setSelectedLineBlocks([]);
+    setLineActionBlock(null);
+    editor.innerHTML = snapshot.html;
+    ensureTableRuntime(editor);
+    clearGeneratedLines();
+    editor.focus();
+    restoreSelectionSnapshot(editor, snapshot.selection);
+    syncContent();
+    updatePlaceholder();
+  };
   const captureStructuralUndo = () => {
     const editor = editorRef.current;
     if (!editor) return;
     const preservedSelection = selectedLineBlocks.filter((line) => line.isConnected);
     clearTransientEditorState();
-    structuralHistory.push(editor.innerHTML);
+    inputHistoryGroupRef.current = null;
+    editorHistory.push(captureEditorSnapshot(editor));
     preservedSelection.forEach((line) => {
       if (!line.isConnected) return;
       line.setAttribute("data-line-selected", "true");
@@ -269,64 +399,55 @@ export function useEditorController({
   const restoreStructuralUndo = () => {
     const editor = editorRef.current;
     if (!editor) return false;
-    const previous = structuralHistory.undo(editor.innerHTML);
+    const previous = editorHistory.undo(captureEditorSnapshot(editor));
     if (previous === undefined) return false;
-    clearTransientEditorState();
-    controls.clearBlockControls();
-    setSelectedLineBlocks([]);
-    setLineActionBlock(null);
-    editor.innerHTML = previous;
-    clearGeneratedLines();
-    editor.focus();
-    syncContent();
-    updatePlaceholder();
+    inputHistoryGroupRef.current = null;
+    restoreEditorSnapshot(previous);
     return true;
   };
   const restoreStructuralRedo = () => {
     const editor = editorRef.current;
     if (!editor) return false;
-    const next = structuralHistory.redo(editor.innerHTML);
+    const next = editorHistory.redo(captureEditorSnapshot(editor));
     if (next === undefined) return false;
-    clearTransientEditorState();
-    controls.clearBlockControls();
-    setSelectedLineBlocks([]);
-    setLineActionBlock(null);
-    editor.innerHTML = next;
-    clearGeneratedLines();
-    editor.focus();
-    syncContent();
-    updatePlaceholder();
+    inputHistoryGroupRef.current = null;
+    restoreEditorSnapshot(next);
     return true;
   };
   const pushEditorHistory = () => {
     const editor = editorRef.current;
     if (!editor) return;
-    editorHistory.push(editor.innerHTML);
+    inputHistoryGroupRef.current = null;
+    editorHistory.push(captureEditorSnapshot(editor));
   };
-  const restoreEditorUndo = () => {
-    const editor = editorRef.current;
-    if (!editor) return false;
-    const previous = editorHistory.undo(editor.innerHTML);
-    if (previous === undefined) return false;
-    editor.innerHTML = previous;
-    editor.focus();
-    syncContent();
-    updatePlaceholder();
-    return true;
-  };
-  const restoreEditorRedo = () => {
-    const editor = editorRef.current;
-    if (!editor) return false;
-    const next = editorHistory.redo(editor.innerHTML);
-    if (next === undefined) return false;
-    editor.innerHTML = next;
-    editor.focus();
-    syncContent();
-    updatePlaceholder();
-    return true;
-  };
-  const clearStructuralUndo = () => {
-    structuralHistory.reset();
+  const restoreEditorUndo = restoreStructuralUndo;
+  const restoreEditorRedo = restoreStructuralRedo;
+  const captureInputUndo = (inputType: string, data: string | null = null) => {
+    if (inputType === "historyUndo") {
+      restoreEditorUndo();
+      return;
+    }
+    if (inputType === "historyRedo") {
+      restoreEditorRedo();
+      return;
+    }
+    const kind = inputType.startsWith("insert")
+      ? "insert"
+      : inputType.startsWith("delete")
+        ? "delete"
+        : "other";
+    const now = performance.now();
+    const previous = inputHistoryGroupRef.current;
+    const beginsGroup = kind === "other" || !previous || previous.closed ||
+      previous.kind !== kind || now - previous.at > 1_000;
+    if (beginsGroup) pushEditorHistory();
+    inputHistoryGroupRef.current = {
+      kind,
+      at: now,
+      // Match the useful part of native editor history: ordinary typing is
+      // grouped into words, while commands/paste remain isolated actions.
+      closed: kind === "other" || (kind === "insert" && Boolean(data && /\s/u.test(data))),
+    };
   };
   const normalizeDividers = () => {
     const editor = editorRef.current;
@@ -455,7 +576,7 @@ export function useEditorController({
       ) {
         return;
       }
-      if (!target?.closest("[data-picker], [data-line-control], .his-context-menu")) {
+      if (!target?.closest("[data-picker], [data-line-control], .his-context-menu, .page-context-menu-layer, [data-color-picker], [data-selection-toolbar]")) {
         dismissEditorMenus();
       }
     };
@@ -539,7 +660,7 @@ export function useEditorController({
           element.removeAttribute("data-line-selected");
           element.contentEditable = "true";
         });
-        const html = container.innerHTML;
+        const html = stripTransientEditorState(container.innerHTML);
         const text = blocks.map((block) => block.textContent || "").join("\n");
         event.clipboardData?.setData("text/html", html);
         event.clipboardData?.setData("text/plain", text);
@@ -574,7 +695,7 @@ export function useEditorController({
           element.removeAttribute("data-line-dragging");
           element.removeAttribute("data-line-drop-target");
         });
-      const html = container.innerHTML;
+      const html = stripTransientEditorState(container.innerHTML);
       if (!html) return;
       event.clipboardData?.setData("text/html", html);
       event.clipboardData?.setData("text/plain", selection.toString());
@@ -584,11 +705,62 @@ export function useEditorController({
     return () => document.removeEventListener("copy", handleCopy);
   }, [selectedLineBlocks]);
 
-  const applyTextFormat = (
-    command: "bold" | "italic" | "underline" | "strikeThrough",
-  ) => {
+  const restoreTextSelection = () => {
+    const editor = editorRef.current;
+    const range = savedTextRangeRef.current;
     const selection = window.getSelection();
+    if (!editor || !range || !selection || !rangeBelongsToEditor(range, editor)) return selection;
+    selection.removeAllRanges();
+    selection.addRange(range.cloneRange());
+    return selection;
+  };
+  const applyMentionFormat = (range: Range, command: InlineFormatCommand, enabled: boolean) => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    editor.querySelectorAll<HTMLElement>(".editor-mention").forEach((mention) => {
+      try {
+        if (!range.intersectsNode(mention)) return;
+      } catch {
+        return;
+      }
+      const label = mention.querySelector<HTMLElement>(":scope > .editor-mention__label");
+      if (!label) return;
+      if (command === "bold") {
+        label.style.removeProperty("font-weight");
+        mention.style.fontWeight = enabled ? "bold" : "";
+      } else if (command === "italic") {
+        label.style.removeProperty("font-style");
+        mention.style.fontStyle = enabled ? "italic" : "";
+      }
+      else if (command === "underline") {
+        if (enabled) mention.dataset.mentionUserUnderline = "true";
+        else mention.removeAttribute("data-mention-user-underline");
+      } else if (command === "strikeThrough") {
+        if (enabled) mention.dataset.mentionStrike = "true";
+        else mention.removeAttribute("data-mention-strike");
+      }
+    });
+  };
+  const applyMentionTextColor = (range: Range, color: string) => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    editor.querySelectorAll<HTMLElement>(".editor-mention").forEach((mention) => {
+      try {
+        if (!range.intersectsNode(mention)) return;
+      } catch {
+        return;
+      }
+      const label = mention.querySelector<HTMLElement>(":scope > .editor-mention__label");
+      if (!label) return;
+      if (color) mention.style.color = color;
+      else mention.style.removeProperty("color");
+      label.style.removeProperty("color");
+    });
+  };
+  const applyTextFormat = (command: InlineFormatCommand) => {
+    pushEditorHistory();
     const blocks = selectedLineBlocks.filter((line) => line.isConnected);
+    const selection = selectionToolbar ? restoreTextSelection() || window.getSelection() : window.getSelection();
     const targetBlocks = blocks.length
       ? blocks
       : lineActionBlock && lineActionBlock.isConnected
@@ -601,18 +773,23 @@ export function useEditorController({
         range.selectNodeContents(block);
         selection?.removeAllRanges();
         if (selection) selection.addRange(range);
+        const enableMentionFormat = !document.queryCommandState(command);
         document.execCommand(command, false);
+        applyMentionFormat(range, command, enableMentionFormat);
       });
     } else if (selection && selection.rangeCount && !selection.isCollapsed) {
+      const range = selection.getRangeAt(0).cloneRange();
+      const enableMentionFormat = selectionToolbar?.marks[command] !== "on";
       document.execCommand(command, false);
+      applyMentionFormat(range, command, enableMentionFormat);
     }
     syncContent();
-    updateSelectionToolbar();
+    window.requestAnimationFrame(updateSelectionToolbar);
   };
   const applyTextColor = (color: string) => {
     pushEditorHistory();
-    const selection = window.getSelection();
     const blocks = selectedLineBlocks.filter((line) => line.isConnected);
+    const selection = selectionToolbar ? restoreTextSelection() || window.getSelection() : window.getSelection();
     const targetBlocks = blocks.length
       ? blocks
       : lineActionBlock && lineActionBlock.isConnected
@@ -622,7 +799,9 @@ export function useEditorController({
             return block ? [block] : [];
           })();
     if (selection && selection.rangeCount && !selection.isCollapsed) {
+      const range = selection.getRangeAt(0).cloneRange();
       document.execCommand("foreColor", false, color);
+      applyMentionTextColor(range, color);
     } else {
       targetBlocks.forEach((block) => {
         if (!block.matches("[data-divider]")) block.style.color = color;
@@ -635,7 +814,7 @@ export function useEditorController({
     pushEditorHistory();
     const selection = window.getSelection();
     if (!targetBlock && selection && selection.rangeCount && !selection.isCollapsed) {
-      document.execCommand("backColor", false, color || "transparent");
+      document.execCommand("backColor", false, mutedEditorBackground(color) || "transparent");
       window.requestAnimationFrame(() => {
         syncContent();
         updateSelectionToolbar();
@@ -655,7 +834,7 @@ export function useEditorController({
             return block ? [block] : [];
           })();
     blocks.forEach((block) => {
-      if (color) block.style.backgroundColor = color;
+      if (color) block.style.backgroundColor = mutedEditorBackground(color);
       else block.style.removeProperty("background-color");
     });
     window.requestAnimationFrame(() => {
@@ -675,6 +854,7 @@ export function useEditorController({
     setSelectedLineBlocks,
     setLineActionBlock,
     setSelectionToolbar,
+    savedTextRangeRef,
     setPlaceholderBlock,
     controls,
     getEditorBlock,
@@ -738,7 +918,7 @@ export function useEditorController({
         clone.contentEditable = "true";
         container.appendChild(clone);
       });
-      event.clipboardData?.setData("text/html", container.innerHTML);
+      event.clipboardData?.setData("text/html", stripTransientEditorState(container.innerHTML));
       event.clipboardData?.setData("text/plain", blocks.map((block) => block.textContent || "").join("\n"));
       event.preventDefault();
       deleteSelectedLine();
@@ -810,6 +990,7 @@ export function useEditorController({
   }, [cancelLineDrag, clearSelectionBox, controls.clearBlockControls, editorRef]);
 
   const mentionController = useEditorMentions({
+    activeNodeId: node.id,
     editorRef,
     nodes,
     deletedNodes,
@@ -884,9 +1065,53 @@ export function useEditorController({
     const editor = editorRef.current;
     if (!editor) return false;
     let changed = false;
+    const headings = Array.from(editor.querySelectorAll<HTMLElement>("h1, h2, h3, h4, h5, h6, [data-heading], .editor-heading, .heading"))
+      .filter((heading) => !heading.closest("[data-page-index], [data-globe]") && Boolean(heading.textContent?.trim()));
     editor.querySelectorAll<HTMLElement>("[data-page-index]").forEach((index) => {
-      index.remove();
-      changed = true;
+      const suppliedItems = index.getAttribute("data-page-index-source") === "anytype"
+        ? Array.from(index.querySelectorAll<HTMLElement>("[data-page-index-item]"))
+        : [];
+      const fragment = document.createDocumentFragment();
+      const entries = suppliedItems.length
+        ? suppliedItems.map((item) => ({
+          label: item.querySelector<HTMLElement>(".editor-page-index__label")?.textContent?.trim() || item.textContent?.trim() || "",
+          level: item.getAttribute("data-page-index-level"),
+        }))
+        : headings.map((heading) => ({
+          label: heading.textContent?.replace(/\s+/g, " ").trim() || "",
+          level: null,
+        }));
+      const usedHeadings = new Set<HTMLElement>();
+      entries.forEach(({ label: entryLabel, level }, entryIndex) => {
+        const heading = headings.find((candidate) =>
+          !usedHeadings.has(candidate) &&
+          candidate.textContent?.replace(/\s+/g, " ").trim() === entryLabel,
+        );
+        if (heading) usedHeadings.add(heading);
+        const headingIndex = heading ? headings.indexOf(heading) : entryIndex;
+        const id = heading?.dataset.pageIndexId || `his-page-index-${headingIndex}`;
+        if (heading) heading.dataset.pageIndexId = id;
+        const item = document.createElement("div");
+        item.dataset.pageIndexItem = "true";
+        if (heading) item.dataset.pageId = id;
+        if (level !== null) item.dataset.pageIndexLevel = level;
+        item.className = "editor-page-index__item";
+        item.contentEditable = "false";
+        const marker = document.createElement("span");
+        marker.className = "editor-page-index__marker";
+        marker.textContent = "•";
+        const labelElement = document.createElement("span");
+        labelElement.className = "editor-page-index__label";
+        labelElement.textContent = entryLabel;
+        item.append(marker, labelElement);
+        fragment.appendChild(item);
+      });
+      const nextHtml = Array.from(fragment.childNodes).map((child) => (child as HTMLElement).outerHTML).join("");
+      if (index.innerHTML !== nextHtml) {
+        index.replaceChildren(fragment);
+        index.contentEditable = "false";
+        changed = true;
+      }
     });
     return changed;
   };
@@ -1014,7 +1239,9 @@ export function useEditorController({
           ? Uint8Array.from(atob(encoded), (character) => character.charCodeAt(0))
           : new TextEncoder().encode(decodeURIComponent(src.slice(separator + 1)));
         const extension = mime.split("/")[1]?.replace("jpeg", "jpg") || "png";
-        const file = new File([bytes], `Imagen de Anytype ${index + 1}.${extension}`, { type: mime });
+        const sourceId = placeholder.dataset.anytypeFileId?.trim();
+        const identity = sourceId ? sourceId.slice(0, 8) : String(index + 1);
+        const file = new File([bytes], `Imagen de Anytype ${identity}.${extension}`, { type: mime });
         const target = await onFileImport(file, node.parentId ?? null);
         if (target) placeholder.replaceWith(createMention(target, "full"));
         else placeholder.remove();
@@ -1089,7 +1316,12 @@ export function useEditorController({
           if (file) target = await onFileImport(file, node.parentId ?? null);
         }
         if (!target) {
-          images.forEach((image) => delete image.dataset.imageRepair);
+          images.forEach((image) => {
+            if (/^(?:data:|blob:)/i.test(source)) {
+              image.remove();
+              changed = true;
+            } else delete image.dataset.imageRepair;
+          });
           continue;
         }
         images.forEach((image) => {
@@ -1108,7 +1340,12 @@ export function useEditorController({
         });
       } catch (error) {
         console.warn("No se pudo convertir una imagen pegada en Nodo Imagen.", error);
-        images.forEach((image) => delete image.dataset.imageRepair);
+        images.forEach((image) => {
+          if (/^(?:data:|blob:)/i.test(source)) {
+            image.remove();
+            changed = true;
+          } else delete image.dataset.imageRepair;
+        });
       } finally {
         imageRepairInFlightRef.current.delete(source);
       }
@@ -1203,6 +1440,27 @@ export function useEditorController({
       pointerY: event.clientY,
     });
   };
+  const insertCreatedMention = (target: NodeItem, caret: Range, query: string, destination?: NodeItem) => {
+    const editor = editorRef.current;
+    if (!editor || !editor.contains(caret.startContainer) || caret.startContainer.nodeType !== Node.TEXT_NODE || caret.startOffset < query.length + 1) return;
+    pushEditorHistory();
+    const range = caret.cloneRange();
+    range.setStart(caret.startContainer, caret.startOffset - query.length - 1);
+    range.deleteContents();
+    insertMentionWithSpacing(range, createMention(target));
+    if (destination) {
+      const paragraph = document.createElement("p");
+      paragraph.appendChild(createMention(target));
+      if (destination.id === node.id) editor.appendChild(paragraph);
+      else onContentChange(destination.id, destination.content + stripTransientEditorState(paragraph.outerHTML));
+    }
+    editor.focus({ preventScroll: true });
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    syncContent();
+    dismissEditorMenus();
+  };
   const executePickerAction = (
     type: "slash" | "mention",
     value: string,
@@ -1210,9 +1468,11 @@ export function useEditorController({
   ) => {
     pushEditorHistory();
     const selection = window.getSelection();
-    if (!selection?.focusNode) return;
-    const range = selection.getRangeAt(0);
+    const isGlobeCommand = type === "slash" && (value === "GLOBO" || value === "GLOBO_INDIVIDUAL");
+    if (!selection || (!selection.focusNode && !isGlobeCommand)) return;
     if (type === "mention") {
+      if (!selection?.focusNode || !selection.rangeCount) return;
+      const range = selection.getRangeAt(0);
       const target = nodes.find((item) => item.id === value);
       const textNode = selection.focusNode;
       if (
@@ -1239,12 +1499,13 @@ export function useEditorController({
       dismissEditorMenus();
       return;
     }
+    const range = selection?.rangeCount ? selection.getRangeAt(0) : null;
     const hasTrigger = pickers.slashPicker?.hasTrigger !== false;
     const length =
       hasTrigger && pickers.slashPicker
         ? pickers.slashPicker.query.length + 1
         : 0;
-    if (hasTrigger && selection.focusOffset >= length) {
+    if (range && selection?.focusNode && hasTrigger && selection.focusOffset >= length) {
       range.setStart(selection.focusNode, selection.focusOffset - length);
       range.setEnd(selection.focusNode, selection.focusOffset);
       document.execCommand("delete", false);
@@ -1266,9 +1527,10 @@ export function useEditorController({
         : selection.focusNode?.parentElement;
     const focusWithinGlobe = selectionElement?.closest("[data-globe-content]") as HTMLElement | null;
     const currentBlock =
-      (focusWithinGlobe
-        ? focusWithinGlobe.querySelector<HTMLElement>(textLineSelector) || focusWithinGlobe
-        : getEditorBlock(selection.focusNode) || lineActionBlock) ?? lineActionBlock;
+      (selection.focusNode ? getEditorBlock(selection.focusNode) : null) ||
+      lineActionBlock ||
+      (focusWithinGlobe?.querySelector<HTMLElement>(textLineSelector) || focusWithinGlobe) ||
+      lineActionBlock;
     const resolveInsertionTarget = (block: HTMLElement) => {
       const globeContent = block.closest("[data-globe-content]") as HTMLElement | null;
       if (globeContent) {
@@ -1284,7 +1546,18 @@ export function useEditorController({
       return !block.closest("[data-page-index]");
     }).map(resolveInsertionTarget).filter((block, index, list) => list.indexOf(block) === index) as HTMLElement[];
 
-    if (value === "DIVISOR") {
+    if (value === "INDICE") {
+      captureStructuralUndo();
+      const blocks = validActionBlocks.length ? validActionBlocks : [currentBlock].filter(Boolean) as HTMLElement[];
+      blocks.forEach((block) => {
+        const index = document.createElement("div");
+        index.dataset.pageIndex = "true";
+        index.className = "editor-page-index";
+        index.contentEditable = "false";
+        block.replaceWith(index);
+      });
+      normalizePageIndices();
+    } else if (value === "DIVISOR") {
       captureStructuralUndo();
       const blocks = validActionBlocks.length ? validActionBlocks : [currentBlock].filter(Boolean) as HTMLElement[];
       blocks.forEach((block) => {
@@ -1315,15 +1588,40 @@ export function useEditorController({
           selection.removeAllRanges();
           selection.addRange(blockRange);
           document.execCommand("insertUnorderedList", false);
+          if (block.tagName === "P") {
+            const generatedList = block.querySelector(":scope > ul");
+            if (generatedList) block.replaceWith(generatedList);
+          }
         });
       }
     } else if (value === "TABLA") {
       const blocks = validActionBlocks.length ? validActionBlocks : [currentBlock].filter(Boolean) as HTMLElement[];
       if (!blocks.length) return;
       captureStructuralUndo();
-      blocks.forEach((block) => insertTableIntoBlock(block));
+      blocks.forEach((block) => insertTableIntoBlock(block, getAvailableTableWidth()));
     } else if (value === "GLOBO" || value === "GLOBO_INDIVIDUAL") {
-      const blocks = actionBlocks.length ? actionBlocks : [getEditorBlock(selection.focusNode)].filter(Boolean) as HTMLElement[];
+      const blocks = actionBlocks.length
+        ? actionBlocks
+        : [selection.focusNode ? getEditorBlock(selection.focusNode) : null].filter(Boolean) as HTMLElement[];
+      if (!blocks.length) {
+        syncContent();
+        dismissEditorMenus();
+        return;
+      }
+      const orderedBlocks = [...blocks].sort((a, b) =>
+        a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1,
+      );
+      const activeRange = selection?.rangeCount ? selection.getRangeAt(0) : null;
+      const caretBlock = orderedBlocks.find((block) =>
+        activeRange && (block === activeRange.startContainer || block.contains(activeRange.startContainer)),
+      ) ?? orderedBlocks[0];
+      let caretOffset = 0;
+      if (activeRange && (caretBlock === activeRange.startContainer || caretBlock.contains(activeRange.startContainer))) {
+        const prefixRange = document.createRange();
+        prefixRange.selectNodeContents(caretBlock);
+        prefixRange.setEnd(activeRange.startContainer, activeRange.startOffset);
+        caretOffset = prefixRange.toString().length;
+      }
       if (blocks.length) captureStructuralUndo();
       const createGlobe = (block: HTMLElement) => {
         if (block.matches("[data-globe], [data-divider]")) return;
@@ -1348,25 +1646,66 @@ export function useEditorController({
         image.alt = "Draft";
         icon.appendChild(image);
         globe.append(icon, content);
-        block.replaceWith(globe);
-        return { content };
+        const isListItem = block.matches("li") && Boolean(block.parentElement?.matches("ul, ol"));
+        if (isListItem) block.replaceChildren(globe);
+        else block.replaceWith(globe);
+        return { content, line: cleanLine };
       };
+      let caretLine: HTMLElement | null = null;
       if (value === "GLOBO_INDIVIDUAL") {
-        blocks.forEach((block) => createGlobe(block));
+        blocks.forEach((block) => {
+          const created = createGlobe(block);
+          if (block === caretBlock && created) caretLine = created.line;
+        });
       } else {
-        const orderedBlocks = [...blocks].sort((a, b) =>
-          a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1,
-        );
         const anchor = orderedBlocks.find(
           (block) => !block.matches("[data-globe], [data-divider]"),
         );
         const first = anchor && createGlobe(anchor);
         if (first) {
+          caretLine = caretBlock === anchor ? first.line : null;
           orderedBlocks.forEach((block) => {
-            if (block !== anchor && !block.matches("[data-globe]"))
-              first.content.appendChild(block);
+            if (block === anchor || block.matches("[data-globe]")) return;
+            if (block.matches("li") && block.parentElement?.matches("ul, ol")) {
+              const list = block.parentElement;
+              const paragraph = document.createElement("p");
+              while (block.firstChild) paragraph.appendChild(block.firstChild);
+              if (!paragraph.hasChildNodes()) paragraph.appendChild(document.createElement("br"));
+              first.content.appendChild(paragraph);
+              if (block === caretBlock) caretLine = paragraph;
+              block.remove();
+              if (!list.querySelector(":scope > li")) list.remove();
+              return;
+            }
+            first.content.appendChild(block);
+            if (block === caretBlock) caretLine = block;
           });
         }
+      }
+      if (caretLine) {
+        const walker = document.createTreeWalker(caretLine, NodeFilter.SHOW_TEXT);
+        let remaining = caretOffset;
+        let textNode = walker.nextNode();
+        let caretRange: Range | null = null;
+        while (textNode) {
+          const text = textNode as Text;
+          if (remaining <= text.length) {
+            caretRange = document.createRange();
+            caretRange.setStart(text, remaining);
+            caretRange.collapse(true);
+            break;
+          }
+          remaining -= text.length;
+          textNode = walker.nextNode();
+        }
+        if (!caretRange) {
+          caretRange = document.createRange();
+          caretRange.selectNodeContents(caretLine);
+          caretRange.collapse(false);
+        }
+        selection?.removeAllRanges();
+        selection?.addRange(caretRange);
+        editorRef.current?.focus({ preventScroll: true });
       }
     } else {
       const blocks = actionBlocks.length ? actionBlocks : [getEditorBlock(selection.focusNode)].filter(Boolean) as HTMLElement[];
@@ -1537,8 +1876,10 @@ export function useEditorController({
     const index = pickers.slashPicker
       ? pickers.slashPickerIndex
       : pickers.callPickerIndex;
+    const createActions = pickers.callPicker?.query.trim() && onMentionCreate ? 2 : 0;
+    const candidateCount = candidates.length + createActions;
     if (picker) {
-      if (!candidates.length) {
+      if (!candidateCount) {
         if (event.key === "Escape") {
           dismissEditorMenus();
         }
@@ -1548,8 +1889,8 @@ export function useEditorController({
         event.preventDefault();
         const next =
           event.key === "ArrowDown"
-            ? (index + 1) % candidates.length
-            : (index - 1 + candidates.length) % candidates.length;
+            ? (index + 1) % candidateCount
+            : (index - 1 + candidateCount) % candidateCount;
         (pickers.slashPicker
           ? pickers.setSlashPickerIndex
           : pickers.setCallPickerIndex)(next);
@@ -1557,13 +1898,14 @@ export function useEditorController({
         event.preventDefault();
         if (pickers.slashPicker)
           executePickerAction("slash", pickers.slashCandidates[index].tag);
+        else if (index >= pickers.callCandidates.length) onMentionCreate?.(index === pickers.callCandidates.length ? "here" : "in");
         else executePickerAction("mention", pickers.callCandidates[index].id);
       } else if (event.key === "Escape") {
         event.preventDefault();
         dismissEditorMenus();
       } else if (event.key === "Tab") {
         event.preventDefault();
-        const next = (index + (event.shiftKey ? -1 : 1) + candidates.length) % candidates.length;
+        const next = (index + (event.shiftKey ? -1 : 1) + candidateCount) % candidateCount;
         (pickers.slashPicker
           ? pickers.setSlashPickerIndex
           : pickers.setCallPickerIndex)(next);
@@ -1650,6 +1992,7 @@ export function useEditorController({
         pickers.setCallPickerIndex(0);
       }
       mentionTriggerRangeRef.current = { container: selection.focusNode, triggerOffset };
+      if (pickers.callPicker?.query !== trigger.query) pickers.setCallPickerIndex(0);
       pickers.setCallPicker((current) =>
         current?.query === trigger.query ? current : { query: trigger.query },
       );
@@ -1664,50 +2007,36 @@ export function useEditorController({
   }, [pickers.callPicker, pickers.imageMentionChoice, pickers.slashPicker]);
   const onPaste = (event: ClipboardEvent<HTMLDivElement>) => {
     event.preventDefault();
+    const pasteEditor = editorRef.current;
+    const liveSelection = window.getSelection();
+    const liveRange = liveSelection?.rangeCount ? liveSelection.getRangeAt(0) : null;
+    const pasteRange = pasteEditor && liveRange && rangeBelongsToEditor(liveRange, pasteEditor)
+      ? liveRange.cloneRange() : null;
+    if (!pasteRange) return;
+    const pasteActiveId = pasteEditor?.getAttribute("data-active-id");
+    pushEditorHistory();
     clearLineSelection();
     setSelectedLineBlocks([]);
     setLineActionBlock(null);
     const insert = (html: string) => {
       const clean = sanitizeEditorHtml(html);
       if (!clean) return;
+      const editor = editorRef.current;
+      if (!editor || editor !== pasteEditor || editor.getAttribute("data-active-id") !== pasteActiveId ||
+          !rangeBelongsToEditor(pasteRange, editor)) return;
+      const pastedContainer = document.createElement("div");
+      pastedContainer.innerHTML = clean;
+      replacePastedMentions(pastedContainer);
+      editor.focus({ preventScroll: true });
       const selection = window.getSelection();
-      const block = getEditorBlock(selection?.focusNode || null);
-      const hasBlockContent = /<(?:div|h[1-6]|li|ol|p|pre|table|ul)\b/i.test(clean);
-      if (block && hasBlockContent && !block.matches("[data-divider], [data-globe]")) {
-        const originalNextLine = block.nextElementSibling;
-        const range = document.createRange();
-        range.selectNode(block);
-        range.collapse(false);
-        const fragment = range.createContextualFragment(clean);
-        const lastInserted = fragment.lastElementChild;
-        replacePastedMentions(fragment);
-        fragment.querySelectorAll<HTMLElement>("[data-page-index]").forEach((index) => index.remove());
-        range.insertNode(fragment);
-        const nextLine = lastInserted || originalNextLine;
-        if (nextLine && nextLine !== originalNextLine) {
-  const nextRange = document.createRange();
-  nextRange.selectNodeContents(nextLine);
-  nextRange.collapse(true);
-  selection?.removeAllRanges();
-  selection?.addRange(nextRange);
-}
-      } else {
-        const editor = editorRef.current;
-        const previousIndices = new Set(
-          editor ? Array.from(editor.querySelectorAll<HTMLElement>("[data-page-index]")) : [],
-        );
-        const pastedContainer = document.createElement("div");
-        pastedContainer.innerHTML = clean;
-        replacePastedMentions(pastedContainer);
-        document.execCommand("insertHTML", false, pastedContainer.innerHTML);
-        if (editor) {
-          Array.from(editor.querySelectorAll<HTMLElement>("[data-page-index]"))
-            .filter((index) => !previousIndices.has(index))
-            .forEach((index) => index.remove());
-        }
-      }
-      syncContent();
-      void repairUnlinkedEditorImages();
+      selection?.removeAllRanges();
+      selection?.addRange(pasteRange);
+      document.execCommand("insertHTML", false, pastedContainer.innerHTML);
+      normalizePageIndices();
+      if (editorRef.current) ensureTableRuntime(editorRef.current);
+      void repairUnlinkedEditorImages().then((repaired) => {
+        if (!repaired) syncContent();
+      });
     };
     const image = Array.from(event.clipboardData.items).find((item) =>
       item.type.startsWith("image/"),
@@ -1719,8 +2048,8 @@ export function useEditorController({
         Promise.resolve(createdNode).then((target) => {
           if (!target) return;
           const selection = window.getSelection();
-          const range = selection?.rangeCount ? selection.getRangeAt(0) : null;
-          if (!selection || !range) return;
+          const range = pasteRange;
+          if (!selection || editorRef.current !== pasteEditor || pasteEditor?.getAttribute("data-active-id") !== pasteActiveId || !pasteEditor || !rangeBelongsToEditor(range, pasteEditor)) return;
           const mention = createMention(target, "full");
           range.deleteContents();
           insertMentionWithSpacing(range, mention);
@@ -1730,21 +2059,14 @@ export function useEditorController({
         });
         return;
       }
-      if (file) {
-        const reader = new FileReader();
-        reader.addEventListener("load", () => {
-          if (typeof reader.result === "string")
-            insert(`<img src="${reader.result}" alt="Imagen pegada" />`);
-        });
-        reader.readAsDataURL(file);
-      }
+      if (file) console.warn("No hay un importador de recursos disponible para la imagen pegada.");
       return;
     }
     const anytypeJson = event.clipboardData.getData("application/json");
     if (anytypeJson) {
-      const anytypeHtml = anytypeClipboardToHtml(anytypeJson);
+      const clipboardHtml = event.clipboardData.getData("text/html");
+      const anytypeHtml = anytypeClipboardToHtml(anytypeJson, getAvailableTableWidth(), clipboardHtml);
       if (anytypeHtml) {
-        const clipboardHtml = event.clipboardData.getData("text/html");
         void prepareAnytypeImages(anytypeHtml, clipboardHtml).then(insert);
         return;
       }
@@ -1759,6 +2081,14 @@ export function useEditorController({
   };
 
   const onEditorPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    const editor = editorRef.current;
+    const target = event.target as HTMLElement;
+    const block = getEditorBlock(target);
+    if (event.button === 0 && (event.ctrlKey || event.metaKey) && editor?.contains(target) && block &&
+        !target.closest("[data-mention-id], [data-page-index], [data-his-table-cell], [data-editor-ui], button")) {
+      event.preventDefault();
+      return;
+    }
     if (beginSelection(event)) {
       return;
     }
@@ -1779,7 +2109,15 @@ export function useEditorController({
       document.body.style.cursor = "default";
       return;
     }
-    const width = Math.max(40, Number.parseFloat(resize.image.style.width) || resize.image.getBoundingClientRect().width);
+    const editor = editorRef.current;
+    const width = editor
+      ? clampEditorImageWidth(
+        resize.image.getBoundingClientRect().width,
+        getEditorImageMaxWidth(resize.image, editor),
+      )
+      : Math.max(40, resize.image.getBoundingClientRect().width);
+    resize.image.style.width = `${width}px`;
+    resize.image.style.maxWidth = "100%";
     imageResizeRef.current = null;
     document.body.style.cursor = "default";
     void saveEditorImageLayout({ nodeId: node.id, blockId: resize.blockId, width })
@@ -1871,6 +2209,7 @@ export function useEditorController({
     dismissEditorMenus,
     resetEditorPickers,
     executePickerAction,
+    insertCreatedMention,
     onKeyDown,
     updatePickers,
     onPaste,
@@ -1887,8 +2226,8 @@ export function useEditorController({
     repairEditorLines,
     clearGeneratedLines,
     focusOrCreatePageLine,
-    clearStructuralUndo,
     captureStructuralUndo,
+    captureInputUndo,
     focusPageIndexEntry,
     repairUnlinkedEditorImages,
     

@@ -105,19 +105,20 @@ export async function loadWorkspaceSnapshot(defaultNodeType: BaseNodeType = "pag
   }
 }
 
-export async function saveNodes(nodes: NodeItem[], deletedNodes: NodeItem[]): Promise<void> {
+export async function saveNodes(nodes: NodeItem[], deletedNodes: NodeItem[], nodeTags?: [string, string[]]): Promise<void> {
   try {
     const serializeStarted = performance.now();
     const payload = {
       nodes: nodes.map(toRecord),
       hiddenIds: nodes.filter((node) => node.loreHidden).map((node) => node.id),
       deletedNodes: JSON.stringify(deletedNodes),
+      nodeTags,
       traceId: getActiveCloseProjectTraceId(),
     };
     console.info(`[lifecycle] persistence.serialize: ${(performance.now() - serializeStarted).toFixed(1)} ms`);
     if (isBrowserDevProjectActive()) {
       await measureLifecyclePhase("persistence.backend-roundtrip", async () => {
-        saveBrowserDevWorkspace(payload.nodes, payload.hiddenIds, payload.deletedNodes);
+        saveBrowserDevWorkspace(payload.nodes, payload.hiddenIds, payload.deletedNodes, nodeTags);
       });
       return;
     }

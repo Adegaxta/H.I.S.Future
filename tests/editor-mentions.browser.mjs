@@ -1,0 +1,76 @@
+import assert from 'node:assert/strict';
+import {createServer} from 'vite';
+import {createRequire} from 'node:module';
+import {join} from 'node:path';
+import {homedir} from 'node:os';
+const require=createRequire(join(homedir(),'.cache/codex-runtimes/codex-primary-runtime/dependencies/node/package.json'));
+const {chromium}=require('playwright');
+const server=await createServer({configFile:false,cacheDir:'node_modules/.vite/editor-interactions',esbuild:{jsx:'automatic'},optimizeDeps:{noDiscovery:true,include:['react/jsx-dev-runtime','react/jsx-runtime','nspell','react','react-dom','react-dom/client','lucide-react','lucide-react/dynamicIconImports']},server:{port:5209,host:'127.0.0.1'},plugins:[{name:'fixture',configureServer(s){s.middlewares.use('/interaction-fixture',async(req,res)=>{res.setHeader('Content-Type','text/html');res.end(await s.transformIndexHtml('/interaction-fixture','<div id="root"></div><script type="module" src="/tests/editor-interactions.fixture.tsx"></script>'));});}}]});
+await server.listen(); console.log('Fixture server ready');
+let browser;
+try {
+ browser=await chromium.launch({channel:'msedge',headless:true});
+ const page=await browser.newPage(); page.setDefaultTimeout(60000); console.log('Browser ready');
+ page.on('pageerror',e=>console.error(e));
+ await page.goto('http://127.0.0.1:5209/interaction-fixture?mentionRegression',{waitUntil:'domcontentloaded'}); console.log('HTML ready');
+ await page.locator('[data-test="p50"]').waitFor(); console.log('Editor ready');
+ await page.locator('[data-test="mention-heading"]').scrollIntoViewIfNeeded();
+ const crossBlock=await page.evaluate(()=>{
+  const start=document.querySelector('[data-test="p97"]'),end=document.querySelector('[data-test="mention-heading"] u');
+  const a=document.createRange();a.setStart(start.firstChild,0);a.setEnd(start.firstChild,1);
+  const b=document.createRange();b.setStart(end.lastChild,end.lastChild.textContent.length-1);b.setEnd(end.lastChild,end.lastChild.textContent.length);
+  const x=a.getBoundingClientRect(),y=b.getBoundingClientRect();return {x:x.left+1,y:x.top+x.height/2,endX:y.right-1,endY:y.top+y.height/2};
+ });
+ await page.mouse.move(crossBlock.x,crossBlock.y);await page.mouse.down();await page.mouse.move(crossBlock.endX,crossBlock.endY,{steps:30});
+ const held=await page.evaluate(()=>getSelection().toString());
+ await page.mouse.up();
+ await page.waitForTimeout(100);
+ assert.equal(await page.evaluate(()=>getSelection().toString()),held,'Cross-block selection survives mouse release');
+ assert.match(held,/Block 97[\s\S]*Ziondehtia[\s\S]*Inicio/);
+ await page.waitForFunction(()=>document.querySelector('[data-test="mention-heading"] .editor-mention').dataset.mentionSelected==='true');
+ const iconHighlight=await page.locator('[data-test="mention-heading"] .editor-mention__node-icon').evaluate(e=>({background:getComputedStyle(e,'::after').backgroundColor,height:parseFloat(getComputedStyle(e,'::after').height),textHeight:(()=>{const r=document.createRange();const block=e.closest('h2');r.selectNodeContents(block.querySelector('u').lastChild);return r.getBoundingClientRect().height;})()}));
+ assert.notEqual(iconHighlight.background,'rgba(0, 0, 0, 0)');assert.equal(iconHighlight.height,iconHighlight.textHeight);
+ await page.locator('[data-test="mention-heading"]').screenshot({path:join(homedir(),'.codex','editor-selected-icon.png')});
+ await page.locator('[data-test="mention"]').scrollIntoViewIfNeeded();
+ await page.locator('[data-test="mention"]').evaluate(e=>e.appendChild(document.createTextNode(' Inicio final')));
+ const drag=await page.locator('[data-test="mention"]').evaluate(e=>{
+  const a=document.createRange();a.setStart(e.firstChild,0);a.setEnd(e.firstChild,1);
+  const b=document.createRange();b.setStart(e.lastChild,e.lastChild.textContent.length-1);b.setEnd(e.lastChild,e.lastChild.textContent.length);
+  const x=a.getBoundingClientRect(),y=b.getBoundingClientRect();return {x:x.left,y:x.top+x.height/2,endX:y.right,endY:y.top+y.height/2};
+ });
+ await page.mouse.move(drag.x,drag.y);await page.mouse.down();await page.mouse.move(drag.endX,drag.endY,{steps:20});await page.mouse.up();
+ assert.match(await page.evaluate(()=>getSelection().toString()),/Ziondehtia.*Inicio/,'Selection crosses the Call into trailing text');
+ await page.mouse.click(drag.x+2,drag.y,{clickCount:2});
+ assert.match(await page.evaluate(()=>getSelection().toString()),/3\..*Ziondehtia.*Inicio final/,'Double click on ordinary text selects the entire block across Calls');
+ await page.locator('[data-test="mention"]').evaluate(e=>{
+  const r=document.createRange();r.selectNodeContents(e);getSelection().removeAllRanges();getSelection().addRange(r);
+ });
+ const selectedCall=await page.locator('[data-test="mention"] .editor-mention').evaluate(e=>({background:getComputedStyle(e).backgroundColor,labelHeight:getComputedStyle(e.querySelector('.editor-mention__label')).lineHeight,lineHeight:getComputedStyle(e.parentElement).lineHeight}));
+ assert.equal(selectedCall.background,'rgba(0, 0, 0, 0)');
+ assert.equal(selectedCall.labelHeight,selectedCall.lineHeight);
+ await page.locator('[data-test="mention"]').evaluate(e=>{
+  e.scrollIntoView({block:'center'});const r=document.createRange();r.selectNodeContents(e);const s=getSelection();s.removeAllRanges();s.addRange(r);
+ });
+ const underline=page.locator('[data-selection-toolbar] button').filter({hasText:'U'});
+ console.log('Selection checks passed; applying underline');
+ await underline.click();
+ const mark=await page.locator('[data-test="mention"] .editor-mention').evaluate(e=>({underline:e.dataset.mentionUserUnderline,decoration:getComputedStyle(e).textDecorationLine,space:getComputedStyle(e,'::before').content,label:getComputedStyle(e.querySelector('.editor-mention__label')).color,color:getComputedStyle(e).color}));
+ assert.equal(mark.underline,'true');assert.ok(mark.decoration.includes('underline'));assert.notEqual(mark.space,'none');assert.equal(mark.label,mark.color);
+ await page.evaluate(()=>getSelection().removeAllRanges());
+ await page.locator('[data-selection-toolbar]').waitFor({state:'hidden'});
+ await page.mouse.move(700,10);
+ await page.locator('[data-test="mention"]').screenshot({path:join(homedir(),'.codex','editor-mention-interaction.png')});
+ const decoration=await page.locator('[data-test="mention"] .editor-mention').evaluate(e=>({padding:getComputedStyle(e).padding,display:getComputedStyle(e.querySelector('.editor-mention__label')).display,selection:getComputedStyle(e,'::selection').backgroundColor,parentSelection:getComputedStyle(e.parentElement,'::selection').backgroundColor}));
+ assert.equal(decoration.padding,'0px');assert.equal(decoration.display,'contents');assert.equal(decoration.selection,decoration.parentSelection);
+ await page.locator('[data-test="mention-heading"]').scrollIntoViewIfNeeded();
+ await page.getByRole('button',{name:'Índice',exact:true}).click();
+ const icon=page.locator('.page-chrome__outline-label .editor-mention__node-icon');
+ const outlineStyle=await icon.evaluate(e=>({position:getComputedStyle(e).position,font:parseFloat(getComputedStyle(e).fontSize),parentFont:parseFloat(getComputedStyle(e.closest('.editor-mention')).fontSize)}));
+ assert.equal(outlineStyle.position,'absolute');assert.ok(Math.abs(outlineStyle.font/outlineStyle.parentFont-.82)<.02,'Outline Call icons scale to their label');
+ await page.keyboard.press('Escape');
+ await page.locator('[data-test="mention"]').scrollIntoViewIfNeeded();
+ console.log('Style and outline checks passed; opening mention');
+ await page.locator('[data-test="mention"] .editor-mention').click();
+ await page.waitForFunction(()=>document.querySelector('#node').textContent==='B');
+ console.log('Block double click, cross-Call drag, uniform selection, underline and normal navigation passed');
+} finally { await browser?.close(); await server.close(); }

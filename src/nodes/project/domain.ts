@@ -11,9 +11,9 @@ export const isVaultPrimaryNode = (node: Pick<NodeItem, "content">): boolean =>
 export function assignVaultPrimaryNode(nodes: readonly NodeItem[], primaryId: string): NodeItem[] {
   return nodes.map((node) => {
     const role = node.id === primaryId ? VAULT_PRIMARY_ROLE : null;
-    return getNodalMeta(node.content).role === role
+    return getNodalMeta(node.content).role === role && !getNodalMeta(node.content).primaryDismissed
       ? node
-      : { ...node, content: setNodalMeta(node.content, { role }) };
+      : { ...node, content: setNodalMeta(node.content, { role, primaryDismissed: false }) };
   });
 }
 
@@ -30,7 +30,8 @@ export function createVaultPrimaryNode(nodes: readonly NodeItem[], vaultName: st
 
 export function reconcileVaultPrimary(nodes: NodeItem[], vaultName: string): NodeItem[] {
   const primaries = nodes.filter(isVaultPrimaryNode).sort((a, b) => a.order - b.order || a.id.localeCompare(b.id));
-  if (primaries.length === 0) return [...nodes, createVaultPrimaryNode(nodes, vaultName)];
+  if (primaries.length === 0) return nodes.some((node) => getNodalMeta(node.content).primaryDismissed)
+    ? nodes : [...nodes, createVaultPrimaryNode(nodes, vaultName)];
   if (primaries.length === 1) return nodes;
   const keepId = primaries[0].id;
   return nodes.map((node) => isVaultPrimaryNode(node) && node.id !== keepId

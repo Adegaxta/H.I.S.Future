@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import type { FormEventHandler, FocusEventHandler, RefObject } from "react";
 import type { NodeItem } from "../types/nodes";
 import { readEditorContent } from "./persistence";
@@ -48,7 +48,7 @@ export function useRichTextEditor({
     };
   }, [editorRef]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!editorRef.current || !node) return;
     if (editorRef.current.getAttribute("data-active-id") === node.id) return;
     cancelScheduled();

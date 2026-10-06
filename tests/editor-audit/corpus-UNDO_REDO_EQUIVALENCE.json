@@ -1,0 +1,17 @@
+{
+  "id": "UNDO_REDO_EQUIVALENCE",
+  "message": "{\"before\":\"<p><ul><li>Contenido 😀</li></ul></p>\",\"after\":\"<p></p><ul><li>Contenido 😀</li></ul><p></p>\"}",
+  "stack": "Error: {\"before\":\"<p><ul><li>Contenido 😀</li></ul></p>\",\"after\":\"<p></p><ul><li>Contenido 😀</li></ul><p></p>\"}\n    at failure (file:///C:/Users/Matias/Documents/COSAS_DE_HIS/H.I.S.Future/hisfuture/tests/editor-audit/run.mjs:19:38)\n    at action (file:///C:/Users/Matias/Documents/COSAS_DE_HIS/H.I.S.Future/hisfuture/tests/editor-audit/run.mjs:35:315)\n    at async execute (file:///C:/Users/Matias/Documents/COSAS_DE_HIS/H.I.S.Future/hisfuture/tests/editor-audit/run.mjs:45:191)\n    at async file:///C:/Users/Matias/Documents/COSAS_DE_HIS/H.I.S.Future/hisfuture/tests/editor-audit/run.mjs:67:95",
+  "index": 1,
+  "seed": 4,
+  "actions": [
+    {
+      "kind": "slashListMotif"
+    },
+    {
+      "kind": "undoRedo"
+    }
+  ],
+  "attempts": 2,
+  "confirmed": true
+}

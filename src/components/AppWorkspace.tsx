@@ -1,3 +1,6 @@
+import { PresentedImage } from "../nodes/visuals/PresentedImage";
+import type { ImagePresentation } from "../utils/imagePresentation";
+import { ImagePickerDialog } from "../nodes/capabilities/ImagePickerDialog";
 import "../workspace/panels/styles.css";
 import "../workspace/navigation/styles.css";
 import "../graph/styles.css";
@@ -6,7 +9,7 @@ import "../nodes/styles.css";
 import { isDesktopRuntime } from "../project/runtime";
 import { useWorkspaceNavigation, type NavigationHandler } from "../hooks/useWorkspaceNavigation";
 import { AVATAR_COLORS } from "../defs/palette";
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { createRef, lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { getNodeDefinition, getNodeDisplayLabel, hasNodeCapability } from "../defs/nodeTypes";
 import { assignVaultPrimaryNode } from "../nodes/project/domain";
 import type { BaseNodeType, NodeItem } from "../types/nodes";
@@ -19,6 +22,7 @@ import DragPreview from "./DragPreview";
 import SidebarTree from "../workspace/navigation/SidebarTree";
 import NodePanels from "../workspace/navigation/NodePanels";
 import LoreAddDialog from "./LoreAddDialog";
+import NodeCreationPanel from "./NodeCreationPanel";
 import { UiIcon } from "../ui/Icon";
 import { usePendingEditorFocus } from "../editor/usePendingEditorFocus";
 import RegisteredNodeView from "./RegisteredNodeView";
@@ -28,10 +32,9 @@ import type { NodeViewHost } from "../nodes/rendering";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { getVersion } from "@tauri-apps/api/app";
 import { useLocale } from "../i18n/LocaleContext";
-import windowCloseAsset from "../assets/original/ui/window_close.svg";
-import windowMaximizeAsset from "../assets/original/ui/window_maximize.svg";
-import windowMinimizeAsset from "../assets/original/ui/window_minimize.svg";
-import { getUniqueNodeName } from "../utils/nodeNames";
+import windowCloseAsset from "../assets/third-party/Lucide.dev/icons/x.svg";
+import windowMaximizeAsset from "../assets/third-party/Lucide.dev/icons/layers-2.svg";
+import windowMinimizeAsset from "../assets/third-party/Lucide.dev/icons/minus.svg";
 import { safeLocalStorageSet } from "../workspace/safeStorage";
 import { useFileNodeImports } from "../workspace/useFileNodeImports";
 import { fileImportAccept } from "../project/fileImportRegistry";
@@ -41,24 +44,39 @@ import { useSidebarResize } from "../workspace/useSidebarResize";
 import { ChangelogPanel } from "../workspace/panels/ChangelogPanel";
 import { ProjectSettingsPanel } from "../workspace/panels/ProjectSettingsPanel";
 import { TrashPanel } from "../workspace/panels/TrashPanel";
-import { TrashNodeView } from "../workspace/panels/TrashNodeView";
 import { finishLifecycleFlow } from "../lifecycle/metrics";
 import { getActiveCloseProjectTraceId, recordCloseProjectPhase } from "../lifecycle/metrics";
 import { readDefaultNodeType } from "../workspace/defaultNodeType";
 import { usePresence } from "../presence/PresenceProvider";
-import PageNodeChrome from "../nodes/page/chrome";
+import NodeTabSurface from "../nodes/page/NodeTabSurface";
+import NodeInspectorView from "../nodes/inspector/NodeInspectorView";
 import WorkspaceHistoryControls from "../workspace/navigation/WorkspaceHistoryControls";
 import { getLoreAncestorIds, getLoreExpandableIds, getNodeSidebarLocation } from "../utils/loreTree";
-import { resolveNodeCustomVisual } from "../nodes/nodeIconSource";
+import { useResolvedNodeCustomVisual } from "../nodes/nodeIconSource";
 import { getNodalMeta, setNodalMeta } from "../nodes/metadata";
 import { nodeToMarkdown } from "../export/nodeMarkdown";
 import NodeActionDialog, { type ExportFormat, type PdfExportSettings } from "./NodeActionDialog";
 import PrintDocument from "./PrintDocument";
-import NodeSearchOverlay from "./NodeSearchOverlay";
 import { save } from "@tauri-apps/plugin-dialog";
 import { invoke } from "@tauri-apps/api/core";
+import { clearImageRuntimeCache } from "../utils/imageRuntimeResolver";
+import { analyzeLegacyImageMigration, migrateLegacyImages, type ImageMigrationPlan } from "../project/imageMigration";
+import BrainCircuit from "lucide-react/dist/esm/icons/brain-circuit.mjs";
+import FileText from "lucide-react/dist/esm/icons/file-text.mjs";
+import Network from "lucide-react/dist/esm/icons/network.mjs";
+import { ViewRegistry } from "../workspace/tabs/ViewRegistry";
+import { WorkspaceSurface } from "../workspace/tabs/WorkspaceSurface";
+import { createTab, createWorkspaceLayout, findPane, restoreWorkspaceLayout, setFocusedTabView, updateTab, type WorkspaceLayout, type WorkspaceViewType } from "../workspace/tabs/model";
+import { NodeIcon } from "../nodes/NodeIcon";
+import { IconCapabilityPicker } from "../nodes/capabilities/IconCapabilityPicker";
+import { NodeVisualRenderer } from "../nodes/visuals/NodeVisualRenderer";
+import { createImageContent, getImageResourceDescriptor } from "../utils/imageResource";
+import type { UnsplashImageSelection } from "../integrations/unsplash/types";
 
 const GraphView = lazy(() => import("../graph/view"));
+const AIWorkspace = lazy(() => import("../ai/AIWorkspace"));
+const TrashNodeView = lazy(() => import("../workspace/panels/TrashNodeView").then((module) => ({ default: module.TrashNodeView })));
+const VIEW_RAIL_WIDTH = 52;
 
 interface AppWorkspaceProps {
   projectKey: string;
@@ -68,7 +86,7 @@ interface AppWorkspaceProps {
 
 interface WorkspaceLocation {
   selectedId: string | null;
-  view: "list" | "graph";
+  view: "list" | "graph" | "ai";
   projectTab: "workspace" | "settings";
   settingsPanel: "general" | "trash" | "changelog";
   sidebarPanel: "lore" | "recent" | "types";
@@ -78,7 +96,7 @@ interface WorkspaceLocation {
 function readWorkspaceLocation(key: string): WorkspaceLocation | null {
   try {
     const parsed = JSON.parse(localStorage.getItem(key) || "null") as Partial<WorkspaceLocation> | null;
-    if (!parsed || (parsed.view !== "list" && parsed.view !== "graph") ||
+    if (!parsed || (parsed.view !== "list" && parsed.view !== "graph" && parsed.view !== "ai") ||
       (parsed.projectTab !== "workspace" && parsed.projectTab !== "settings") ||
       !["general", "trash", "changelog"].includes(parsed.settingsPanel || "") ||
       !["lore", "recent", "types"].includes(parsed.sidebarPanel || "") ||
@@ -102,9 +120,11 @@ export default function AppWorkspace({
     onExitProject,
   }: AppWorkspaceProps) {
   const { locale, t } = useLocale();
+  useEffect(() => () => clearImageRuntimeCache(), [projectKey]);
   const { setPresence } = usePresence();
   const colorStorageKey = `hisfuture.project.color.${projectKey}`;
   const locationStorageKey = `hisfuture.project.location.${projectKey}`;
+  const workspaceLayoutStorageKey = `hisfuture.workspace.layout.v1.${projectKey}`;
   const timeFormatStorageKey = "hisfuture.settings.time-format";
   const trashViewStorageKey = `hisfuture.settings.trash-view.${projectKey}`;
   const [defaultNodeType, setDefaultNodeType] = useState<BaseNodeType>(() => readDefaultNodeType(projectKey));
@@ -112,6 +132,7 @@ export default function AppWorkspace({
     localStorage.getItem(timeFormatStorageKey) === "24h" ? "24h" : "12h",
   );
   const workspace = useTreeController(defaultNodeType, projectKey, projectName);
+  const graphCreationCallback = useRef<((id: string) => void) | null>(null);
   useEffect(() => {
     safeLocalStorageSet(`hisfuture.settings.default-node-type.${projectKey}`, defaultNodeType);
   }, [defaultNodeType, projectKey]);
@@ -133,7 +154,7 @@ export default function AppWorkspace({
       cancelAnimationFrame(secondFrame);
     };
   }, [projectKey, workspace.hydrated]);
-  const { width, startResize } = useSidebarResize();
+  const { width, startResize } = useSidebarResize(projectKey);
   const [sidebarVisible, setSidebarVisible] = useState(() => readWorkspaceLocation(locationStorageKey)?.sidebarVisible ?? true);
   const [sidebarPanel, setSidebarPanel] = useState<"lore" | "recent" | "types">(
     () => readWorkspaceLocation(locationStorageKey)?.sidebarPanel ?? "lore",
@@ -152,7 +173,19 @@ export default function AppWorkspace({
   const [loreAddOpen, setLoreAddOpen] = useState(false);
   const sidebarSearchRef = useRef<HTMLInputElement | null>(null);
   const sidebarImageInputRef = useRef<HTMLInputElement | null>(null);
-  const [view, setView] = useState<"list" | "graph">(() => readWorkspaceLocation(locationStorageKey)?.view ?? "list");
+  const [workspaceLayout, setWorkspaceLayout] = useState<WorkspaceLayout>(() => {
+    const legacy = readWorkspaceLocation(locationStorageKey);
+    const legacyType: WorkspaceViewType = legacy?.view === "ai" ? "ai" : legacy?.view === "graph" ? "graph" : "node";
+    const fallback = createWorkspaceLayout(createTab(legacyType, legacyType === "node" ? legacy?.selectedId ?? undefined : undefined));
+    return restoreWorkspaceLayout(localStorage.getItem(workspaceLayoutStorageKey), fallback);
+  });
+  const focusedWorkspacePane = findPane(workspaceLayout.root, workspaceLayout.focusedPaneId);
+  const focusedWorkspaceTab = focusedWorkspacePane?.tabs.find((tab) => tab.id === focusedWorkspacePane.activeTabId);
+  const view: "list" | "graph" | "ai" = focusedWorkspaceTab?.viewType === "ai" ? "ai" : focusedWorkspaceTab?.viewType === "graph" ? "graph" : "list";
+  const setView = useCallback((next: "list" | "graph" | "ai") => {
+    const type: WorkspaceViewType = next === "list" ? "node" : next;
+    setWorkspaceLayout((current) => setFocusedTabView(current, type, type === "node" ? workspace.selectedId ?? undefined : undefined));
+  }, [workspace.selectedId]);
   const [projectTab, setProjectTab] = useState<"workspace" | "settings">(
     () => readWorkspaceLocation(locationStorageKey)?.projectTab ?? "workspace",
   );
@@ -166,6 +199,7 @@ export default function AppWorkspace({
   const [selectedTrashNodeId, setSelectedTrashNodeId] = useState<string | null>(
     null,
   );
+  const [inspectedNodeId, setInspectedNodeId] = useState<string | null>(null);
   const [fileImportError, setFileImportError] = useState<string | null>(null);
   const [avatarColor] = useState(
     () =>
@@ -185,6 +219,13 @@ export default function AppWorkspace({
   }, [locationStorageKey, workspace.hydrated, workspace.nodes, workspace.setSelectedId]);
 
   useEffect(() => {
+    if (focusedWorkspaceTab?.viewType !== "node" || !focusedWorkspaceTab.resourceId) return;
+    if (workspace.nodes.some((node) => node.id === focusedWorkspaceTab.resourceId) && workspace.selectedId !== focusedWorkspaceTab.resourceId) {
+      workspace.setSelectedId(focusedWorkspaceTab.resourceId);
+    }
+  }, [focusedWorkspaceTab?.id, focusedWorkspaceTab?.resourceId, focusedWorkspaceTab?.viewType, workspace.nodes, workspace.selectedId, workspace.setSelectedId]);
+
+  useEffect(() => {
     if (!workspace.hydrated || !locationRestoredRef.current) return;
     safeLocalStorageSet(locationStorageKey, JSON.stringify({
       selectedId: workspace.selectedId,
@@ -195,6 +236,11 @@ export default function AppWorkspace({
       sidebarVisible,
     } satisfies WorkspaceLocation));
   }, [locationStorageKey, projectTab, settingsPanel, sidebarPanel, sidebarVisible, view, workspace.hydrated, workspace.selectedId]);
+
+  useEffect(() => {
+    if (!workspace.hydrated) return;
+    safeLocalStorageSet(workspaceLayoutStorageKey, JSON.stringify(workspaceLayout));
+  }, [workspace.hydrated, workspaceLayout, workspaceLayoutStorageKey]);
 
   useEffect(() => {
     safeLocalStorageSet(colorStorageKey, avatarColor);
@@ -220,17 +266,23 @@ export default function AppWorkspace({
   >(null);
   const [trashMenu, setTrashMenu] = useState<{ x: number; y: number } | null>(null);
   const [trashActionsMenu, setTrashActionsMenu] = useState<{ x: number; y: number } | null>(null);
-  const [nodeOptionsMenu, setNodeOptionsMenu] = useState<{ x: number; y: number; nodeId: string } | null>(null);
   const [nodeAction, setNodeAction] = useState<"link" | "folder" | "template" | "export" | "confirm" | null>(null);
   const [nodeActionNodeId, setNodeActionNodeId] = useState<string | null>(null);
   const [templateToApply, setTemplateToApply] = useState<{ name: string; type: string; content: string } | null>(null);
-  const [nodeSearchQuery, setNodeSearchQuery] = useState("");
-  const [nodeSearchOpen, setNodeSearchOpen] = useState(false);
   const [printNode, setPrintNode] = useState<NodeItem | null>(null);
   const [printSettings, setPrintSettings] = useState<PdfExportSettings>({ pageSize: "a4", orientation: "portrait", scale: 1, includeTitle: true, includeIcon: true, includeCover: true, includeImages: true });
-  const printReadyRef = useRef<((editor: HTMLDivElement) => void) | null>(null);
+  const printReadyRef = useRef<((editor?: HTMLDivElement, error?: Error) => void) | null>(null);
   const editorRef = useRef<HTMLDivElement | null>(null);
+  const tabEditorRefs = useRef(new Map<string, RefObject<HTMLDivElement | null>>());
+  const getTabEditorRef = (tabId: string) => {
+    const existing = tabEditorRefs.current.get(tabId);
+    if (existing) return existing;
+    const created = createRef<HTMLDivElement>();
+    tabEditorRefs.current.set(tabId, created);
+    return created;
+  };
   const workspaceMainRef = useRef<HTMLElement | null>(null);
+  const pendingWorkspaceScrollTopRef = useRef<number | null>(null);
   const calendarNavigation = useRef<NavigationHandler | null>(null);
   const selectedNode = workspace.nodes.find(
     (node) => node.id === workspace.selectedId,
@@ -241,6 +293,25 @@ export default function AppWorkspace({
   const selectedTrashNode = workspace.deletedNodes.find(
     (node) => node.id === selectedTrashNodeId,
   );
+  useLayoutEffect(() => {
+    editorRef.current = focusedWorkspaceTab ? getTabEditorRef(focusedWorkspaceTab.id).current : null;
+  }, [focusedWorkspaceTab?.id, workspace.nodes]);
+  const preserveWorkspaceScroll = (mutation: () => void) => {
+    pendingWorkspaceScrollTopRef.current = workspaceMainRef.current?.scrollTop ?? 0;
+    mutation();
+  };
+  useLayoutEffect(() => {
+    const scrollTop = pendingWorkspaceScrollTopRef.current;
+    if (scrollTop === null) return;
+    pendingWorkspaceScrollTopRef.current = null;
+    const restore = () => {
+      const main = workspaceMainRef.current;
+      if (main) main.scrollTop = scrollTop;
+    };
+    restore();
+    const frame = requestAnimationFrame(restore);
+    return () => cancelAnimationFrame(frame);
+  }, [workspace.nodes, workspace.deletedNodes]);
   useEffect(() => {
     const surface = projectTab === "settings"
       ? settingsPanel === "trash"
@@ -280,18 +351,7 @@ export default function AppWorkspace({
     window.addEventListener("keydown", handleRenameShortcut);
     return () => window.removeEventListener("keydown", handleRenameShortcut);
   }, [selectedLoreIds, workspace]);
-  useEffect(() => {
-    const handleSearchShortcut = (event: KeyboardEvent) => {
-      if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== "f") return;
-      if (!workspaceMainRef.current?.contains(event.target as Node)) return;
-      event.preventDefault();
-      event.stopPropagation();
-      setNodeSearchQuery("");
-      setNodeSearchOpen(true);
-    };
-    window.addEventListener("keydown", handleSearchShortcut, true);
-    return () => window.removeEventListener("keydown", handleSearchShortcut, true);
-  }, []);
+
 
   const revealNodeInSidebar = (id: string, forceLore = false) => {
     const location = forceLore ? "lore" : getNodeSidebarLocation(workspace.nodes, id);
@@ -309,14 +369,33 @@ export default function AppWorkspace({
     }
   };
   const openNodeView = (id: string) => {
+    setInspectedNodeId(null);
     setSelectedTrashNodeId(null);
     setProjectTab("workspace");
-    setView("list");
-    revealNodeInSidebar(id);
+    setWorkspaceLayout((current) => setFocusedTabView(current, "node", id));
+    if (sidebarPanel === "lore" || focusedWorkspaceTab?.viewType === "graph") revealNodeInSidebar(id);
     workspace.setSelectedId(id);
   };
 
+  const openNodeInspection = (id: string) => {
+    if (!workspace.nodes.some((node) => node.id === id)) return;
+    setSelectedTrashNodeId(null);
+    setProjectTab("workspace");
+    setWorkspaceLayout((current) => setFocusedTabView(current, "node", id));
+    if (sidebarPanel === "lore" || focusedWorkspaceTab?.viewType === "graph") revealNodeInSidebar(id);
+    workspace.setSelectedId(id);
+    setInspectedNodeId(id);
+  };
+
   const workspaceNavigation = useWorkspaceNavigation({
+    getScrollElement: () => {
+      let element = editorRef.current?.parentElement ?? null;
+      while (element) {
+        if (/^(auto|scroll)$/.test(getComputedStyle(element).overflowY)) return element;
+        element = element.parentElement;
+      }
+      return workspaceMainRef.current;
+    },
     selectedId: workspace.selectedId,
     selectedTrashId: selectedTrashNodeId,
     navigateWithinView: (direction) => Boolean(selectedNode && hasNodeCapability(selectedNode.type, "navigateWithinView") && calendarNavigation.current?.(direction)),
@@ -349,18 +428,7 @@ export default function AppWorkspace({
   const previewNode = workspace.nodes.find(
     (node) => node.id === workspace.dragPreviewId,
   );
-  const previewVisual = useMemo(
-    () => previewNode ? resolveNodeCustomVisual(previewNode, workspace.nodes) : undefined,
-    [previewNode, workspace.nodes],
-  );
-  const { exitWorkspace, hideApplication } = useWorkspaceLifecycle({
-    nodes: workspace.nodes,
-    selectedId: workspace.selectedId,
-    editorRef,
-    saveNow: workspace.saveNow,
-    exitProject: onExitProject,
-    reportError: setFileImportError,
-  });
+  const previewVisual = useResolvedNodeCustomVisual(previewNode, workspace.nodes);
   const projectInitial = projectName.trim().charAt(0).toUpperCase() || "P";
   const { importFile: createNodeFromFile } = useFileNodeImports({
     nodes: workspace.nodes,
@@ -375,8 +443,8 @@ export default function AppWorkspace({
     return imported;
   };
   const {
-    projectImage,
-    upload: handleProjectImageUpload,
+    projectImage, projectPresentation, projectImageNodeId, flushImageSelection,
+    projectVisual, selectVisual, clear: clearProjectImage,
     updateImageContent,
     useAsCover,
   } = useProjectCover({
@@ -385,7 +453,30 @@ export default function AppWorkspace({
     nodes: workspace.nodes,
     createNode: workspace.createNode,
     updateContent: workspace.updateContent,
+    reportError: setFileImportError,
   });
+  const saveWorkspaceWithImage = useCallback(async (snapshot?: NodeItem[]) => {
+    await flushImageSelection();
+    await workspace.saveNow(snapshot);
+  }, [flushImageSelection, workspace.saveNow]);
+  const { exitWorkspace, hideApplication } = useWorkspaceLifecycle({
+    nodes: workspace.nodes,
+    selectedId: workspace.selectedId,
+    editorRef,
+    saveNow: saveWorkspaceWithImage,
+    exitProject: onExitProject,
+    reportError: setFileImportError,
+  });
+  const [vaultImagePickerOpen, setVaultImagePickerOpen] = useState(false);
+  const [vaultImageTab, setVaultImageTab] = useState<"local" | "emoji" | "icon" | "unsplash">("local");
+  const chooseVaultImage = (id: string, presentation?: ImagePresentation) => { useAsCover(id, presentation); setVaultImagePickerOpen(false); };
+  const chooseVaultUnsplash = async (selection: UnsplashImageSelection) => {
+    const existing = workspace.nodes.find((item) => {
+      const resource = item.type === "imagen" ? getImageResourceDescriptor(item.content, item.name) : null;
+      return resource?.provenance?.provider === selection.provenance.provider && resource.provenance.resourceId === selection.provenance.resourceId;
+    });
+    return existing?.id ?? workspace.createNode(selection.fileName, "imagen", null, createImageContent(selection.src, selection.fileName, null, null, selection.description, selection.provenance), false);
+  };
   const calendarOperationsHost = {
     nodes: workspace.nodes,
     createNode: workspace.createNode,
@@ -440,13 +531,13 @@ export default function AppWorkspace({
     },
   ];
   const nodeViewHost: NodeViewHost = {
-    data: { nodes: workspace.nodes, deletedNodes: workspace.deletedNodes, timeFormat },
+    data: { nodes: workspace.nodes, deletedNodes: workspace.deletedNodes, timeFormat, recentNodes: workspace.recentNodes },
     mutations: {
       createNode: workspace.createNode,
       updateContent: workspace.updateContent,
       mutateNodes: workspace.mutateNodes,
       renameNode: workspace.renameNode,
-      deleteNode: workspace.deleteNode,
+      deleteNode: (id) => preserveWorkspaceScroll(() => workspace.deleteNode(id)),
     },
     navigation: {
       selectNode: openNodeView,
@@ -466,6 +557,10 @@ export default function AppWorkspace({
       pendingNodeDrop: workspace.pendingEditorNodeDrop,
       clearPendingNodeDrop: workspace.clearPendingEditorNodeDrop,
       createPastedNode,
+      createMentionNode: (name, parentId) => {
+        const id = workspace.createNode(name, "pagina", parentId, undefined, false);
+        return { id, name, type: "pagina", parentId, order: workspace.nodes.filter(n => n.parentId === parentId).length, content: getNodeDefinition("pagina").defaultContent };
+      },
       runSlashCommand: handleSlashCommand,
     },
     contextMenus: { openNodeMenu: setContextMenu },
@@ -475,6 +570,126 @@ export default function AppWorkspace({
     },
   };
 
+  const renderNodeOptions = (optionNode: NodeItem, position: { x: number; y: number }, close: () => void, search: () => void) => {
+    const updateNodeMeta = (key: "favorite" | "pinned" | "protected") => {
+      const meta = getNodalMeta(optionNode.content);
+      workspace.updateContent(optionNode.id, setNodalMeta(optionNode.content, { [key]: !meta[key] }));
+    };
+    return <NodeOptionsMenu
+      node={optionNode}
+      x={position.x}
+      y={position.y}
+      onClose={() => close()}
+      onToggleMeta={updateNodeMeta}
+      onTogglePrimary={() => workspace.mutateNodes((nodes) => getNodalMeta(optionNode.content).role === "vault-primary"
+        ? nodes.map((item) => item.id === optionNode.id ? { ...item, content: setNodalMeta(item.content, { role: null, primaryDismissed: true }) } : item)
+        : assignVaultPrimaryNode(nodes, optionNode.id))}
+      onCreateLink={() => {
+        setNodeActionNodeId(optionNode.id);
+        setNodeAction("link");
+      }}
+      onAddToFolder={() => {
+        setNodeActionNodeId(optionNode.id);
+        setNodeAction("folder");
+      }}
+      onSaveTemplate={() => {
+        const key = `hisfuture.templates.${projectKey}`;
+        const templates = JSON.parse(localStorage.getItem(key) || "[]") as Array<{ name: string; type: string; content: string }>;
+        templates.push({ name: optionNode.name, type: optionNode.type, content: optionNode.content });
+        localStorage.setItem(key, JSON.stringify(templates));
+        close();
+      }}
+      onLoadTemplate={() => {
+        setNodeActionNodeId(optionNode.id);
+        setNodeAction("template");
+      }}
+      onDuplicate={() => {
+        const id = workspace.createNode(`${optionNode.name} (copia)`, optionNode.type, optionNode.parentId, optionNode.content, true);
+        openNodeView(id);
+        close();
+      }}
+      onDelete={() => { workspace.deleteNode(optionNode.id); close(); }}
+      onSearch={search}
+      onExport={() => {
+        setNodeActionNodeId(optionNode.id);
+        setNodeAction("export");
+      }}
+    />;
+
+  };
+
+  const viewRegistry = new ViewRegistry()
+    .register({
+      type: "node",
+      keepAlive: true,
+      title: "Nodo",
+      icon: FileText,
+      resolveTitle: (tab) => workspace.nodes.find((node) => node.id === tab.resourceId)?.name ?? (tab.resourceId ? "Recurso no disponible" : "Nodo"),
+      renderIcon: (tab) => {
+        const node = workspace.nodes.find((candidate) => candidate.id === tab.resourceId);
+        return node ? <NodeIcon type={getEffectiveNodeType(workspace.nodes, node)} className="workspace-tab__node-icon" /> : <FileText size={13} strokeWidth={1.7} />;
+      },
+      renderer: (tab) => {
+        const tabNode = workspace.nodes.find((node) => node.id === tab.resourceId);
+        if (!tab.resourceId) return <div className="workspace-empty-state">Selecciona un nodo desde la barra lateral.</div>;
+        if (!tabNode) return <div className="workspace-resource-missing">Recurso no disponible</div>;
+        const showInspector = inspectedNodeId === tabNode.id;
+        const tabEditorRef = getTabEditorRef(tab.id);
+        const tabNodeViewHost: NodeViewHost = { ...nodeViewHost, editor: { ...nodeViewHost.editor, ref: tabEditorRef } };
+        return <NodeTabSurface key={tab.resourceId} node={tabNode} nodes={workspace.nodes} editorRef={tabEditorRef} projectKey={projectKey}
+          showChrome={!showInspector && (tabNode.type === "pagina" || tabNode.type === "proyecto")}
+          onOpenNode={openNodeView} renderMenu={(position, close, search) => renderNodeOptions(tabNode, position, close, search)}>
+          {showInspector ? (
+            <NodeInspectorView
+              node={tabNode}
+              nodes={workspace.nodes}
+              onBack={() => openNodeView(tabNode.id)}
+              onAnalyzeImageMigration={async () => { await workspace.saveNow(); return analyzeLegacyImageMigration(); }}
+              onMigrateImages={async (plan: ImageMigrationPlan) => {
+                await workspace.saveNow();
+                const result = await migrateLegacyImages(plan);
+                workspace.acceptPersistedSnapshot(result.nodes, result.deletedNodes);
+                clearImageRuntimeCache();
+                return result;
+              }}
+            />
+          ) : <div className={`editor-page editor-page--${tabNode.type}`}><RegisteredNodeView node={tabNode} host={tabNodeViewHost} /></div>}
+        </NodeTabSurface>;
+      },
+    })
+    .register({
+      type: "ai",
+      title: t("ai.title"),
+      icon: BrainCircuit,
+      keepAlive: true,
+      renderer: (tab) => <Suspense fallback={<div className="app-loading-screen" role="status">Cargando IA…</div>}><AIWorkspace
+        nodes={workspace.nodes}
+        projectId={projectKey}
+        initialConversationId={typeof tab.state?.conversationId === "string" ? tab.state.conversationId : undefined}
+        onConversationChange={(conversationId) => setWorkspaceLayout((current) => updateTab(current, tab.id, (currentTab) => ({ ...currentTab, state: { ...currentTab.state, conversationId } })))}
+      /></Suspense>,
+    })
+    .register({
+      type: "graph",
+      title: t("graph.title"),
+      icon: Network,
+      contextHeader: true,
+      renderer: () => <Suspense fallback={<div className="app-loading-screen" role="status">Cargando grafo…</div>}>
+        <GraphView
+          nodes={workspace.nodes}
+          onSelectNode={workspace.setSelectedId}
+          onClearSelection={() => workspace.setSelectedId(null)}
+          onOpenNode={openNodeView}
+          onRequestCreate={(_position, onCreated) => {
+            graphCreationCallback.current = onCreated;
+            workspace.openCreate(null);
+          }}
+          onOpenNodeMenu={(menu) => setContextMenu(menu)}
+          projectKey={projectKey}
+        />
+      </Suspense>,
+    });
+
   return (
     <div
       onContextMenu={(event) => event.preventDefault()}
@@ -482,39 +697,15 @@ export default function AppWorkspace({
     >
       <header
         className="workspace-header"
-        data-tauri-drag-region
         onPointerDown={startWindowDrag}
       >
-        <div className="workspace-header__left">
-          <div className="workspace-header__views">
-            {(["list", "graph"] as const).map((option) => (
-              <button
-                key={option}
-                type="button"
-                onClick={() => setView(option)}
-                className={view === option ? "is-active" : ""}
-              >
-                {t(option === "list" ? "workspace.views.list" : "workspace.views.graph")}
-              </button>
-            ))}
-            <button
-              type="button"
-              className="workspace-header__quick-template"
-              data-tauri-drag-region="false"
-              title={`${t("workspace.exit")} (DEV)`}
-              onPointerDown={(event) => event.stopPropagation()}
-              onClick={() => void exitWorkspace()}
-            >
-              {t("workspace.exitDev")} <b>DEV</b>
-            </button>
-          </div>
-        </div>
-        <div className="workspace-header__right" data-tauri-drag-region="false">
+        <div className="workspace-header__left" data-tauri-drag-region />
+        <div className="workspace-header__right">
           <div className="workspace-header__version">{appVersion ? `v${appVersion}` : "v—"}</div>
           <div className="workspace-header__window-controls">
-            <button type="button" title={t("common.window.minimize")} onClick={() => void getCurrentWindow().minimize()}><img src={windowMinimizeAsset} alt="" /></button>
-            <button type="button" title={t("common.window.maximize")} onClick={() => void getCurrentWindow().toggleMaximize()}><img src={windowMaximizeAsset} alt="" /></button>
-            <button type="button" title={t("common.window.close")} onClick={() => void hideApplication()}><img src={windowCloseAsset} alt="" /></button>
+            <button type="button" title={t("common.window.minimize")} onClick={() => void getCurrentWindow().minimize()}><img className="workspace-header__window-icon" src={windowMinimizeAsset} alt="" /></button>
+            <button type="button" title={t("common.window.maximize")} onClick={() => void getCurrentWindow().toggleMaximize()}><img className="workspace-header__window-icon" src={windowMaximizeAsset} alt="" /></button>
+            <button type="button" title={t("common.window.close")} onClick={() => void hideApplication()}><img className="workspace-header__window-icon" src={windowCloseAsset} alt="" /></button>
           </div>
         </div>
       </header>
@@ -528,35 +719,35 @@ export default function AppWorkspace({
 
       <div className="workspace-body">
         <aside
-          className={`workspace-sidebar${sidebarVisible ? "" : " is-collapsed"}`}
+          className={`workspace-sidebar${sidebarVisible && view !== "ai" ? "" : " is-collapsed"}${view === "ai" ? " is-ai-view" : ""}`}
           data-sidebar="true"
-          style={{ width: `${sidebarVisible ? width : 80}px` }}
+          style={{ width: `${sidebarVisible && view !== "ai" ? width : VIEW_RAIL_WIDTH}px` }}
         >
           <nav className="view-rail" aria-label={t("workspace.panels")}>
-            <button className="view-rail__toggle" type="button" onClick={() => setSidebarVisible((current) => !current)} title={sidebarVisible ? t("sidebar.hide") : t("sidebar.show")}><UiIcon name="sidebar" /></button>
+            <button className="view-rail__toggle" type="button" onClick={() => setSidebarVisible((current) => !current)} aria-label={sidebarVisible ? t("sidebar.hide") : t("sidebar.show")} data-label={sidebarVisible ? t("sidebar.hide") : t("sidebar.show")}><UiIcon name="sidebar" /></button>
               {([
                 ["lore", "sidebar.lore"],
                 ["recent", "sidebar.recent"],
                 ["types", "sidebar.types"],
               ] as const).map(([id, labelKey]) => (
-                <button key={id} type="button" aria-label={t(labelKey)} title={t(labelKey)} className={`view-rail__item ${sidebarPanel === id && view !== "graph" ? "is-active" : ""}`} onClick={() => { cancelLoreMultiSelection(); setSidebarPanel(id); setProjectTab("workspace"); setSidebarQuery(""); setView("list"); }}>
-                  <UiIcon name={id} active={sidebarPanel === id && view !== "graph"} />
-                  {sidebarPanel === id && view !== "graph" && <span>{t(labelKey)}</span>}
+                <button key={id} type="button" aria-label={t(labelKey)} data-label={t(labelKey)} className={`view-rail__item ${sidebarPanel === id && focusedWorkspaceTab?.viewType === "node" && projectTab === "workspace" ? "is-active" : ""}`} onClick={() => { cancelLoreMultiSelection(); setSidebarPanel(id); setProjectTab("workspace"); setSidebarQuery(""); setView("list"); }}>
+                  <UiIcon name={id} active={sidebarPanel === id && focusedWorkspaceTab?.viewType === "node" && projectTab === "workspace"} />
                 </button>
               ))}
-              <button type="button" aria-label={t("graph.title")} title={t("graph.title")} className={`view-rail__item ${view === "graph" ? "is-active" : ""}`} onClick={() => { cancelLoreMultiSelection(); setProjectTab("workspace"); setSidebarQuery(""); setView("graph"); }}>
-                <UiIcon name="graph" active={view === "graph"} />
-                {view === "graph" && <span>{t("graph.title")}</span>}
+              <button type="button" aria-label={t("graph.title")} data-label={t("graph.title")} className={`view-rail__item ${focusedWorkspaceTab?.viewType === "graph" && projectTab === "workspace" ? "is-active" : ""}`} onClick={() => { cancelLoreMultiSelection(); setProjectTab("workspace"); setSidebarQuery(""); setView("graph"); }}>
+                <UiIcon name="graph" active={focusedWorkspaceTab?.viewType === "graph" && projectTab === "workspace"} />
               </button>
-              <button type="button" className="view-rail__exit" onClick={() => void exitWorkspace()} title={t("workspace.exit")}><UiIcon name="exit" /></button>
+              <button type="button" aria-label={t("ai.title")} data-label={t("ai.title")} className={`view-rail__item view-rail__item--ai ${focusedWorkspaceTab?.viewType === "ai" && projectTab === "workspace" ? "is-active" : ""}`} onClick={() => { cancelLoreMultiSelection(); setSelectedTrashNodeId(null); setInspectedNodeId(null); setProjectTab("workspace"); setSidebarQuery(""); setView("ai"); }}>
+                <UiIcon name="ai" active={focusedWorkspaceTab?.viewType === "ai" && projectTab === "workspace"} />
+              </button>
+              <button type="button" className="view-rail__exit" onClick={() => void exitWorkspace()} aria-label={t("workspace.exit")} data-label={t("workspace.exit")}><UiIcon name="exit" /></button>
           </nav>
 
           <section className="context-sidebar" aria-hidden={!sidebarVisible}>
               <header className="context-sidebar__project">
-                <label className="workspace-sidebar__project-avatar" style={projectImage ? { backgroundImage: `url(${projectImage})` } : { backgroundColor: avatarColor }} title={t("workspace.projectImage.change")}>
-                  {!projectImage && projectInitial}
-                  <input type="file" accept="image/*" onChange={(event) => { const file = event.target.files?.[0]; if (file) void handleProjectImageUpload(file); event.currentTarget.value = ""; }} />
-                </label>
+                <button type="button" className="workspace-sidebar__project-avatar" style={!projectVisual && !projectPresentation && projectImage ? { backgroundImage: `url(${projectImage})` } : { backgroundColor: avatarColor }} title={t("workspace.chooseVaultImage")} aria-label={t("workspace.chooseVaultImage")} onPointerDown={(event) => { event.preventDefault(); event.stopPropagation(); }} onClick={(event) => { event.stopPropagation(); setVaultImageTab("local"); setVaultImagePickerOpen(true); }}>
+                  {projectVisual ? <NodeVisualRenderer visual={projectVisual} /> : projectImage && projectPresentation ? <PresentedImage src={projectImage} presentation={projectPresentation} /> : !projectImage && projectInitial}
+                </button>
                 <div className="context-sidebar__identity">
                   <div className="workspace-sidebar__title">{projectName}</div>
                   {projectTab === "workspace" && <div className="workspace-sidebar__count">{t("sidebar.nodeCount", { count: workspace.nodes.length })}</div>}
@@ -595,7 +786,7 @@ export default function AppWorkspace({
                     </div>
                   </div>
                   {sidebarPanel === "lore" ? (
-                    <SidebarTree {...workspace} selectedLoreIds={selectedLoreIds} setSelectedLoreIds={setSelectedLoreIds} query={sidebarQuery} onFileDrop={(file, parentId) => void createNodeFromFileAndOpen(file, parentId)} selectedId={workspace.selectedId} contextMenuNodeId={contextMenu?.context === "lore" ? contextMenu.nodeId : null} setSelectedId={(id) => { setSelectedTrashNodeId(null); workspace.setSelectedId(id); }} setContextMenu={(menu) => setContextMenu({ ...menu, context: "lore" })} />
+                    <SidebarTree {...workspace} selectedLoreIds={selectedLoreIds} setSelectedLoreIds={setSelectedLoreIds} query={sidebarQuery} onFileDrop={(file, parentId) => void createNodeFromFileAndOpen(file, parentId)} selectedId={workspace.selectedId} contextMenuNodeId={contextMenu?.context === "lore" ? contextMenu.nodeId : null} setSelectedId={openNodeView} setContextMenu={(menu) => setContextMenu({ ...menu, context: "lore" })} />
                   ) : (
                     <NodePanels
                       projectKey={projectKey}
@@ -611,10 +802,9 @@ export default function AppWorkspace({
                       selectedId={workspace.selectedId}
                       selectedIds={selectedPanelIds}
                       onSelectionChange={setSelectedPanelIds}
-                      onSelect={(id) => { setSelectedTrashNodeId(null); setSelectedLoreIds([id]); workspace.setSelectedId(id); }}
+                      onSelect={(id) => { setSelectedLoreIds([id]); openNodeView(id); }}
                       onCreateType={(type) => {
-                        const name = getUniqueNodeName(getNodeDisplayLabel(type, t), workspace.nodes);
-                        workspace.createNode(name, type, null);
+                        workspace.openCreate(null, type);
                       }}
                     />
                   )}
@@ -623,17 +813,21 @@ export default function AppWorkspace({
           </section>
         </aside>
 
-        {sidebarVisible && (
+        {sidebarVisible && view !== "ai" && (
           <div onMouseDown={startResize} className="workspace-resizer" />
         )}
 
-        <main
-          ref={workspaceMainRef}
-          className={`workspace-main${view === "graph" ? " workspace-main--graph" : ""}`}
-        >
+        {projectTab === "workspace" ? (
+          <main ref={workspaceMainRef} className="workspace-main workspace-main--tabs">
+            <WorkspaceSurface layout={workspaceLayout} registry={viewRegistry} onChange={setWorkspaceLayout} />
+          </main>
+        ) : (
+        <main ref={workspaceMainRef} className="workspace-main">
           {selectedTrashNode ? (
-            <TrashNodeView node={selectedTrashNode} host={nodeViewHost} onBack={returnToTrash} />
-          ) : projectTab === "settings" && settingsPanel === "trash" ? (
+            <Suspense fallback={null}>
+              <TrashNodeView node={selectedTrashNode} host={nodeViewHost} onBack={returnToTrash} />
+            </Suspense>
+          ) : settingsPanel === "trash" ? (
             <TrashPanel
               nodes={workspace.deletedNodes}
               selectedIds={workspace.selectedDeletedIds}
@@ -646,12 +840,14 @@ export default function AppWorkspace({
               onRestoreSelected={workspace.restoreDeletedNodes}
               onDeleteSelected={workspace.permanentlyDeleteNodes}
             />
-          ) : projectTab === "settings" && settingsPanel === "changelog" ? (
+          ) : settingsPanel === "changelog" ? (
             <ChangelogPanel />
-          ) : projectTab === "settings" ? (
+          ) : (
             <ProjectSettingsPanel
               projectName={projectName}
               projectImage={projectImage}
+              projectVisual={projectVisual}
+              projectPresentation={projectPresentation}
               projectInitial={projectInitial}
               avatarColor={avatarColor}
               defaultNodeType={defaultNodeType}
@@ -660,60 +856,16 @@ export default function AppWorkspace({
               onTimeFormatChange={setTimeFormat}
               appVersion={appVersion}
             />
-          ) : view === "graph" ? (
-            <Suspense fallback={<div className="app-loading-screen" role="status">Cargando grafo…</div>}>
-              <GraphView
-                nodes={workspace.nodes}
-                onSelectNode={workspace.setSelectedId}
-                onClearSelection={() => workspace.setSelectedId(null)}
-                onOpenNode={openNodeView}
-                onCreateNode={(name, type) => {
-                  const id = workspace.createNode(name, type, null);
-                  workspace.setSelectedId(id);
-                  setSelectedLoreIds([id]);
-                  return id;
-                }}
-                onOpenNodeMenu={(menu) => setContextMenu(menu)}
-                projectKey={projectKey}
-              />
-            </Suspense>
-          ) : !selectedNode ? (
-            <div className="workspace-empty-state">
-              <div>
-                {workspace.nodes.length === 0
-                  ? t("workspace.empty.none")
-                  : t("workspace.empty.select")}
-              </div>
-            </div>
-          ) : null}
-
-          {projectTab !== "settings" && view === "list" && selectedNode && selectedType && (
-            <div className="editor-page">
-              <RegisteredNodeView
-                node={selectedNode}
-                host={nodeViewHost}
-              />
-            </div>
-          )}
-          {projectTab !== "settings" && view === "list" && (selectedNode?.type === "pagina" || selectedNode?.type === "proyecto") && (
-            <PageNodeChrome
-              node={selectedNode}
-              nodes={workspace.nodes}
-              editorRef={editorRef}
-              projectKey={projectKey}
-              onOpenNode={openNodeView}
-              onOpenNodeMenu={(position) => setNodeOptionsMenu({ ...position, nodeId: selectedNode.id })}
-            />
           )}
         </main>
-        <WorkspaceHistoryControls
+        )}
+        {view !== "ai" && <WorkspaceHistoryControls
           mainRef={workspaceMainRef}
-          locationKey={`${projectTab}:${settingsPanel}:${view}:${selectedTrashNodeId ?? workspace.selectedId ?? "empty"}`}
           canBack={workspaceNavigation.canBack}
           canForward={workspaceNavigation.canForward}
           onBack={workspaceNavigation.back}
           onForward={workspaceNavigation.forward}
-        />
+        />}
       </div>
 
       {contextMenu && (
@@ -733,6 +885,7 @@ export default function AppWorkspace({
             setSelectedLoreIds([id]);
             workspace.startRename(node);
           }}
+          onInspect={openNodeInspection}
           onView={openNodeView}
           onAddToLore={(id) => {
             const ids = contextMenu.context !== "lore" && selectedPanelIds.includes(id) ? selectedPanelIds : [id];
@@ -751,7 +904,7 @@ export default function AppWorkspace({
             const ids = contextMenu.context === "lore" && selectedLoreIds.includes(id)
               ? selectedLoreIds
               : [id];
-            workspace.deleteNodes(ids);
+            preserveWorkspaceScroll(() => workspace.deleteNodes(ids));
             setSelectedLoreIds((current) => current.filter((selectedId) => !ids.includes(selectedId)));
           }}
           onRemoveFromLore={(id) => {
@@ -762,51 +915,6 @@ export default function AppWorkspace({
           onClose={() => setContextMenu(null)}
         />
       )}
-      {nodeOptionsMenu && (() => {
-        const optionNode = workspace.nodes.find((item) => item.id === nodeOptionsMenu.nodeId);
-        if (!optionNode) return null;
-        const updateNodeMeta = (key: "favorite" | "pinned" | "protected") => {
-          const meta = getNodalMeta(optionNode.content);
-          workspace.updateContent(optionNode.id, setNodalMeta(optionNode.content, { [key]: !meta[key] }));
-        };
-        return <NodeOptionsMenu
-          node={optionNode}
-          x={nodeOptionsMenu.x}
-          y={nodeOptionsMenu.y}
-          onClose={() => setNodeOptionsMenu(null)}
-          onToggleMeta={updateNodeMeta}
-          onCreateLink={() => {
-            setNodeActionNodeId(optionNode.id);
-            setNodeAction("link");
-          }}
-          onAddToFolder={() => {
-            setNodeActionNodeId(optionNode.id);
-            setNodeAction("folder");
-          }}
-          onSaveTemplate={() => {
-            const key = `hisfuture.templates.${projectKey}`;
-            const templates = JSON.parse(localStorage.getItem(key) || "[]") as Array<{ name: string; type: string; content: string }>;
-            templates.push({ name: optionNode.name, type: optionNode.type, content: optionNode.content });
-            localStorage.setItem(key, JSON.stringify(templates));
-            setNodeOptionsMenu(null);
-          }}
-          onLoadTemplate={() => {
-            setNodeActionNodeId(optionNode.id);
-            setNodeAction("template");
-          }}
-          onDuplicate={() => {
-            const id = workspace.createNode(`${optionNode.name} (copia)`, optionNode.type, optionNode.parentId, optionNode.content, true);
-            workspace.setSelectedId(id);
-            setNodeOptionsMenu(null);
-          }}
-          onDelete={() => { workspace.deleteNode(optionNode.id); setNodeOptionsMenu(null); }}
-          onSearch={() => { setNodeOptionsMenu(null); setNodeSearchQuery(""); setNodeSearchOpen(true); }}
-          onExport={() => {
-            setNodeActionNodeId(optionNode.id);
-            setNodeAction("export");
-          }}
-        />;
-      })()}
       {nodeAction && nodeActionNodeId && (() => {
         const actionNode = workspace.nodes.find((item) => item.id === nodeActionNodeId);
         if (!actionNode) return null;
@@ -826,18 +934,26 @@ export default function AppWorkspace({
                     printReadyRef.current = null;
                     reject(new Error(`[PDF] timeout during ${phase} readiness`));
                   }, 30_000);
-                  printReadyRef.current = async () => {
+                  printReadyRef.current = async (_printEditor, hydrationError) => {
                     try {
+                      if (hydrationError) throw hydrationError;
                       logPdf("PrintDocument mounted");
                       phase = "fonts";
                       await document.fonts.ready;
                       logPdf("fonts ready");
                       phase = "images";
                       const images = Array.from(document.querySelectorAll<HTMLImageElement>(".his-print-document img"));
-                      await Promise.all(images.map((image) => image.complete ? Promise.resolve() : new Promise<void>((done) => {
-                        image.addEventListener("load", () => done(), { once: true });
-                        image.addEventListener("error", () => done(), { once: true });
-                      })));
+                      await Promise.all(images.map((image, index) => {
+                        if (image.complete) {
+                          return image.naturalWidth > 0
+                            ? Promise.resolve()
+                            : Promise.reject(new Error(`[PDF] imagen ${index + 1} no disponible`));
+                        }
+                        return new Promise<void>((resolveImage, rejectImage) => {
+                          image.addEventListener("load", () => resolveImage(), { once: true });
+                          image.addEventListener("error", () => rejectImage(new Error(`[PDF] imagen ${index + 1} no disponible`)), { once: true });
+                        });
+                      }));
                       logPdf("images ready");
                       phase = "WebView2 PrintToPdfStream";
                       logPdf("invoke started");
@@ -873,7 +989,7 @@ export default function AppWorkspace({
             throw new Error("La exportación PDF HTML/CSS está implementada actualmente solo para Windows.");
           }
           setNodeAction(null);
-          setNodeOptionsMenu(null);
+
         };
         return <NodeActionDialog
           mode={nodeAction}
@@ -901,26 +1017,28 @@ export default function AppWorkspace({
             }
             setNodeAction(null);
             setNodeActionNodeId(null);
-            setNodeOptionsMenu(null);
+
           }}
           onCreateFolder={(name) => {
             const folderId = workspace.createNode(name, "pagina", null, undefined, false);
             workspace.mutateNodes((nodes) => nodes.map((item) => item.id === actionNode.id ? { ...item, parentId: folderId } : item));
             setNodeAction(null);
             setNodeActionNodeId(null);
-            setNodeOptionsMenu(null);
+
           }}
           onSelectTemplate={(template) => { setTemplateToApply(template); setNodeAction("confirm"); }}
           onExport={(format, settings) => { void download(format, settings).catch((error) => setFileImportError(error instanceof Error ? error.message : String(error))); }}
           confirmation={`Cargar “${templateToApply?.name ?? "esta plantilla"}” sobrescribirá el contenido actual.`}
-          onConfirm={() => { if (templateToApply) workspace.updateContent(actionNode.id, templateToApply.content); setTemplateToApply(null); setNodeAction(null); setNodeActionNodeId(null); setNodeOptionsMenu(null); }}
+          onConfirm={() => { if (templateToApply) workspace.updateContent(actionNode.id, templateToApply.content); setTemplateToApply(null); setNodeAction(null); setNodeActionNodeId(null);  }}
         />;
       })()}
-      {loreAddOpen && <LoreAddDialog nodes={workspace.nodes} onAdd={(ids) => { workspace.addToLore(ids); setSelectedLoreIds(ids); }} onCreate={(name, type) => {
-        const id = workspace.createNode(name, type, null);
-        workspace.setSelectedId(id);
-        setSelectedLoreIds([id]);
-      }} onClose={() => setLoreAddOpen(false)} />}
+      {workspace.creating && <NodeCreationPanel nodes={workspace.nodes} initialType={workspace.draftType} initialParentId={workspace.creating.parentId} onClose={() => { workspace.setCreating(null); graphCreationCallback.current = null; }} onCreate={async draft => {
+        const id = await workspace.createConfiguredNode(draft);
+        graphCreationCallback.current?.(id);
+        openNodeView(id);
+        setSelectedLoreIds(draft.destination === "lore" ? [id] : []);
+      }} />}
+      {loreAddOpen && <LoreAddDialog onRequestCreate={() => { setLoreAddOpen(false); workspace.openCreate(null); }} nodes={workspace.nodes} onAdd={(ids) => { workspace.addToLore(ids); setSelectedLoreIds(ids); }} onClose={() => setLoreAddOpen(false)} />}
       {trashMenu && (
         <HisContextMenu
           x={trashMenu.x}
@@ -945,8 +1063,15 @@ export default function AppWorkspace({
           position={workspace.dragPreviewPosition}
         />
       )}
-      {nodeSearchOpen && selectedNode && <NodeSearchOverlay editorRef={editorRef} initialQuery={nodeSearchQuery} onClose={() => { setNodeSearchOpen(false); setNodeSearchQuery(""); }} />}
-      {printNode && <PrintDocument node={printNode} host={nodeViewHost} settings={printSettings} onReady={(printEditor) => printReadyRef.current?.(printEditor)} />}
+      {vaultImagePickerOpen && <ImagePickerDialog title={t("workspace.chooseVaultImage")} onClose={() => setVaultImagePickerOpen(false)}>
+          <IconCapabilityPicker nodes={workspace.nodes} initialImageId={!projectVisual ? projectImageNodeId : null} currentImageId={projectImageNodeId} currentPresentation={projectPresentation} tab={vaultImageTab} onTabChange={setVaultImageTab} onImageSelect={chooseVaultImage}
+            onImageUpload={async (file) => (await createNodeFromFile(file, null))?.id ?? null}
+            onUnsplashSelect={chooseVaultUnsplash}
+            onEmojiSelect={(value, style) => { selectVisual({ kind: "emoji", value, style }); setVaultImagePickerOpen(false); }}
+            onIconSelect={(provider, name) => { selectVisual({ kind: "icon", provider, name }); setVaultImagePickerOpen(false); }}
+            onClear={() => { clearProjectImage(); setVaultImagePickerOpen(false); }} clearLabel={t("workspace.removeVaultImage")} />
+      </ImagePickerDialog>}
+      {printNode && <PrintDocument node={printNode} host={nodeViewHost} settings={printSettings} onReady={(printEditor) => printReadyRef.current?.(printEditor)} onError={(error) => printReadyRef.current?.(undefined, error)} />}
     </div>
   );
 }

@@ -13,6 +13,9 @@ dist-ssr
 target/
 *.local
 
+# Local AI model weights are developer-managed and must never be versioned.
+local_ai/models/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

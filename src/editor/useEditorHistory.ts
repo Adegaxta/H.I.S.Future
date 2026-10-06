@@ -8,18 +8,21 @@ export interface EditorHistoryController<T> {
   clear: () => void;
 }
 
-export function useEditorHistory<T>(maxItems = 50): EditorHistoryController<T> {
+export function useEditorHistory<T>(
+  maxItems = 50,
+  isEqual: (left: T, right: T) => boolean = Object.is,
+): EditorHistoryController<T> {
   const undoRef = useRef<T[]>([]);
   const redoRef = useRef<T[]>([]);
 
   const push = useCallback(
     (value: T) => {
       const previous = undoRef.current[undoRef.current.length - 1];
-      if (Object.is(previous, value)) return;
+      if (previous !== undefined && isEqual(previous, value)) return;
       undoRef.current = [...undoRef.current.slice(-(maxItems - 1)), value];
       redoRef.current = [];
     },
-    [maxItems],
+    [isEqual, maxItems],
   );
 
   const undo = useCallback(
@@ -59,8 +62,12 @@ export function useEditorHistory<T>(maxItems = 50): EditorHistoryController<T> {
   );
 }
 
-export function useNodeScopedEditorHistory<T>(nodeId: string | undefined, maxItems = 50) {
-  const history = useEditorHistory<T>(maxItems);
+export function useNodeScopedEditorHistory<T>(
+  nodeId: string | undefined,
+  maxItems = 50,
+  isEqual?: (left: T, right: T) => boolean,
+) {
+  const history = useEditorHistory<T>(maxItems, isEqual);
 
   useLayoutEffect(() => {
     history.reset();

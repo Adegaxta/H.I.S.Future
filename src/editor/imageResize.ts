@@ -11,6 +11,33 @@ export interface EditorImageLayout {
   width: number;
 }
 
+const MIN_EDITOR_IMAGE_WIDTH = 40;
+const IMAGE_WIDTH_CONTAINER_SELECTOR = "[data-his-table-cell], [data-his-column], [data-globe-content]";
+
+export function clampEditorImageWidth(width: number, maxWidth: number): number {
+  const safeWidth = Number.isFinite(width) ? width : MIN_EDITOR_IMAGE_WIDTH;
+  const minimum = Math.max(0, Math.min(MIN_EDITOR_IMAGE_WIDTH, maxWidth));
+  return Math.max(minimum, Math.min(safeWidth, maxWidth));
+}
+
+export function getEditorImageMaxWidth(
+  image: HTMLImageElement,
+  editor: HTMLElement,
+): number {
+  const container = image.closest<HTMLElement>(IMAGE_WIDTH_CONTAINER_SELECTOR) ?? editor;
+  const style = window.getComputedStyle(container);
+  const horizontalInsets = Number.parseFloat(style.paddingLeft)
+    + Number.parseFloat(style.paddingRight)
+    + Number.parseFloat(style.borderLeftWidth)
+    + Number.parseFloat(style.borderRightWidth);
+  const measuredWidth = container.getBoundingClientRect().width - horizontalInsets;
+  // A detached/hidden editor can briefly measure as zero while a node opens.
+  // max-width: 100% remains the final safety net until layout is available.
+  return Number.isFinite(measuredWidth) && measuredWidth > 0
+    ? measuredWidth
+    : Number.POSITIVE_INFINITY;
+}
+
 function newBlockId(): string {
   const suffix = typeof crypto !== "undefined" && "randomUUID" in crypto
     ? crypto.randomUUID()
@@ -37,8 +64,9 @@ export function applyEditorImageLayouts(editor: HTMLElement, layouts: EditorImag
   const widths = new Map(layouts.map((layout) => [layout.blockId, layout.width]));
   editor.querySelectorAll<HTMLImageElement>("img[data-block-id]").forEach((image) => {
     const width = widths.get(image.dataset.blockId || "");
-    if (!Number.isFinite(width) || width! < 40) return;
-    image.style.width = `${width}px`;
-    image.style.maxWidth = "none";
+    if (!Number.isFinite(width) || width! < MIN_EDITOR_IMAGE_WIDTH) return;
+    const clampedWidth = clampEditorImageWidth(width!, getEditorImageMaxWidth(image, editor));
+    image.style.width = `${clampedWidth}px`;
+    image.style.maxWidth = "100%";
   });
 }

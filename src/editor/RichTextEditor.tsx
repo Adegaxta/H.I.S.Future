@@ -1,10 +1,14 @@
+import MentionMenu, { MentionDestinationMenu } from "./MentionMenu";
+import SpellingContextMenu from "./SpellingContextMenu";
+import { useEditorSpelling } from "./useEditorSpelling";
+import { applyEditorBlockColor, resetEditorBlockColors } from "./blockColors";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, ReactNode, RefObject, WheelEvent } from "react";
 import { createPortal } from "react-dom";
 import type { NodeItem } from "../types/nodes";
-import { getNodeDefinition } from "../defs/nodeTypes";
 import { getImageResourceInfo } from "../utils/imageResource";
-import { getEffectiveNodeType } from "../utils/nodeTree";
+import { hydrateEditorImageMentions, releaseEditorImageMentions } from "../utils/imageRuntimeResolver";
+import { stripTransientEditorState } from "./serialization";
 import { useLocale } from "../i18n/LocaleContext";
 import { useEditorController } from "./useEditorController";
 import {
@@ -18,14 +22,27 @@ import {
   type BlockTextDevNodeTree,
 } from "./menuTree";
 import draftAsset from "../assets/third-party/google-material/icons/draft.svg";
+import moreHorizAsset from "../assets/third-party/google-material/icons/more_horiz.svg";
 import moreVertAsset from "../assets/third-party/google-material/icons/more_vert.svg";
 import dragIndicatorAsset from "../assets/third-party/google-material/icons/drag_indicator.svg";
 import { useDismissibleLayer } from "../hooks/useDismissibleLayer";
 import { isResizableEditorImage } from "./imageResize";
 import type { HisContextMenuItem } from "../components/HisContextMenu";
 import { getPageMeta } from "../utils/pageMeta";
+import { IconCapabilityPicker } from "../nodes/capabilities/IconCapabilityPicker";
+import { applyGlobeIconState, clearNodeIcon, readGlobeIconState, selectGlobeEmoji, selectGlobeGlyph, selectGlobeImage } from "./globeIcon";
+import { hasPageBlockCapability } from "./blockCapabilities";
+import type { UnsplashImageSelection } from "../integrations/unsplash/types";
+import { NodeVisualRenderer } from "../nodes/visuals/NodeVisualRenderer";
+import { resolveNodeIcon } from "../nodes/capabilities/icon";
+import type { ResolvedNodeVisual } from "../nodes/visuals/types";
 import PageBlockContextMenu from "./PageBlockContextMenu";
-import { addTableControl, findTableControl } from "./table";
+import { addTableControl, ensureTableRuntime, findTableControl, getEditableBlockFromTableCell, getTableRootFromNode, setHoveredTableHandles, setTableColumnCount, updateTableOverflowState } from "./table";
+import TableOptionsMenu, { type TableMenuState } from "./TableOptionsMenu";
+import ColorOptions from "./ColorOptions";
+import { applyTableColor, markTableDropTarget, moveTableColumnTo, moveTableRowTo, resolveTableTarget } from "./tableActions";
+import { clipboardToMatrix, pasteMatrixAtCell, selectedCellsToMatrix, writeCellMatrixToClipboard } from "./tableClipboard";
+import { clearTableCellSelection, focusTableCell, focusTableCellAtPoint, getActiveTableCell, getSelectedTableCells, moveTableCellFocus, selectTableUnit, setActiveTableCell, syncActiveTableCellFromSelection, toggleTableCellSelection } from "./tableSelection";
 import {
   resetPageBlockAesthetics,
   setPageBlockColumnCount,
@@ -48,6 +65,20 @@ function getMentionResourceIdentity(node: NodeItem): number {
 
 function hasAlignableImage(block: Element | null): boolean {
   return Boolean(block && Array.from(block.querySelectorAll<HTMLImageElement>("img")).some(isResizableEditorImage));
+}
+
+function getSelectedTableCellsButtonPosition(cells: readonly HTMLElement[]): { left: number; top: number } | null {
+  const connected = cells.filter((cell) => cell.isConnected);
+  if (!connected.length) return null;
+  const rects = connected.map((cell) => cell.getBoundingClientRect()).filter((rect) => rect.width > 0 && rect.height > 0);
+  if (!rects.length) return null;
+  const left = Math.min(...rects.map((rect) => rect.left));
+  const right = Math.max(...rects.map((rect) => rect.right));
+  const top = Math.min(...rects.map((rect) => rect.top));
+  return {
+    left: Math.max(8, Math.min(window.innerWidth - 36, left + (right - left) / 2 - 14)),
+    top: Math.max(8, top - 28),
+  };
 }
 
 function LineControlIcon({ kind }: { kind: "more" | "drag" }) {
@@ -95,6 +126,9 @@ interface RichTextEditorProps {
   onOpenDeletedNode: (id: string) => void;
   onOpenNodeView: (id: string, x: number, y: number) => void;
   onFileImport?: (file: File, parentId?: string | null) => Promise<NodeItem | null> | NodeItem | null;
+  onCreateImageFromUnsplash?: (selection: UnsplashImageSelection) => Promise<string | null>;
+  recentNodes?: NodeItem[];
+  onCreateMentionNode?: (name: string, parentId: string | null) => NodeItem | null;
   onCreatePastedNode?: (name: string) => NodeItem | null;
   onSlashCommand?: (tag: string) => boolean;
   readOnly?: boolean;
@@ -117,7 +151,10 @@ export default function RichTextEditor({
   onOpenDeletedNode,
   onOpenNodeView,
   onFileImport,
+  onCreateImageFromUnsplash,
   onCreatePastedNode,
+  recentNodes,
+  onCreateMentionNode,
   onSlashCommand,
   readOnly = false,
   mode = "interactive",
@@ -125,13 +162,17 @@ export default function RichTextEditor({
   style,
   beforeContent,
 }: RichTextEditorProps) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
+  const [mentionDestination, setMentionDestination] = useState<{ query: string; name: string; range: Range; position: { top: number; left: number } } | null>(null);
+  useEffect(() => setMentionDestination(null), [node.id]);
   // Editing a page changes the nodes array frequently, but mention labels and
   // image resources usually do not. Keep that expensive DOM reconciliation
   // dormant until one of those resources actually changes.
-  const mentionResourceVersion = useMemo(() => nodes.map((item) =>
-    `${item.id}\u0000${item.type}\u0000${item.name}\u0000${item.type === "imagen" ? getMentionResourceIdentity(item) : item.type === "pagina" ? getPageMeta(item.content).iconNodeId ?? "" : ""}`,
-  ).join("\u0001"), [nodes]);
+  const mentionResourceVersion = useMemo(() => nodes.map((item) => {
+    if (item.type === "imagen") return `${item.id}\u0000${item.type}\u0000${item.name}\u0000${getMentionResourceIdentity(item)}`;
+    const { iconNodeId, iconVisual } = getPageMeta(item.content);
+    return `${item.id}\u0000${item.type}\u0000${item.name}\u0000${JSON.stringify([iconNodeId, iconVisual])}`;
+  }).join("\u0001"), [nodes]);
   const [editorContextMenu, setEditorContextMenu] = useState<{
     imageNodeId: string | null;
     mention: HTMLElement | null;
@@ -140,11 +181,27 @@ export default function RichTextEditor({
     top: number;
     left: number;
   } | null>(null);
+  const [tableMenu, setTableMenu] = useState<TableMenuState | null>(null);
+  const [selectedTableCells, setSelectedTableCells] = useState<HTMLElement[]>([]);
+  const [, setTableSelectionGeometryVersion] = useState(0);
+  const tableDragRef = useRef<{
+    kind: "cell" | "row" | "column";
+    source: ReturnType<typeof resolveTableTarget>;
+    destination: ReturnType<typeof resolveTableTarget>;
+    handle: HTMLElement;
+    pointerId: number;
+    startX: number;
+    startY: number;
+    moved: boolean;
+  } | null>(null);
+  const [globeIconPicker, setGlobeIconPicker] = useState<{ globe: HTMLElement; tab: "local" | "emoji" | "icon" | "unsplash" } | null>(null);
+  const [globeIconVisual, setGlobeIconVisual] = useState<{ target: HTMLElement; visual: ResolvedNodeVisual } | null>(null);
   const [blockColorMenu, setBlockColorMenu] = useState<{
     top: number;
     left: number;
     block: HTMLElement | null;
     kind?: "text" | "background" | "border";
+    cells?: HTMLElement[];
   } | null>(null);
   const [blockTextDevTree, setBlockTextDevTree] = useState<BlockTextDevNodeTree>(
     BLOCK_TEXT_DEV_REGISTRY.closeTree(),
@@ -188,8 +245,83 @@ export default function RichTextEditor({
     onOpenDeletedNode,
     onFileImport,
     onCreatePastedNode,
+    recentNodes,
+    onMentionCreate: onCreateMentionNode ? beginMentionCreation : undefined,
     onSlashCommand,
   });
+  function beginMentionCreation(kind: "here" | "in") {
+    const query = controller.callPicker?.query;
+    const selection = window.getSelection();
+    if (!query?.trim() || !selection?.rangeCount || !onCreateMentionNode || !editorRef.current?.contains(selection.focusNode)) return;
+    const range = selection.getRangeAt(0).cloneRange();
+    const name = query.replace(/\u00a0/g, " ").trim();
+    if (kind === "in") {
+      setMentionDestination({ query, name, range, position: controller.pickerPosition ?? { top: 100, left: 100 } });
+      controller.dismissEditorMenus();
+    } else {
+      const target = onCreateMentionNode(name, null);
+      if (target) controller.insertCreatedMention(target, range, query);
+    }
+  }
+  function closeMentionDestination() {
+    const pending = mentionDestination;
+    setMentionDestination(null);
+    if (pending && editorRef.current?.contains(pending.range.startContainer)) {
+      editorRef.current.focus({ preventScroll: true });
+      const selection = window.getSelection();
+      selection?.removeAllRanges();
+      selection?.addRange(pending.range);
+    }
+  }
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor || readOnly) return;
+    const handleSelectionChange = () => {
+      const cell = syncActiveTableCellFromSelection(editor);
+      if (cell) setSelectedTableCells(getSelectedTableCells(editor));
+    };
+    document.addEventListener("selectionchange", handleSelectionChange);
+    return () => document.removeEventListener("selectionchange", handleSelectionChange);
+  }, [editorRef, node.id, readOnly]);
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor || readOnly) return;
+    const handleCopy = (event: ClipboardEvent) => {
+      const native = window.getSelection();
+      if (native && !native.isCollapsed && native.toString()) return;
+      const matrix = selectedCellsToMatrix(editor);
+      if (!matrix.length) return;
+      if (writeCellMatrixToClipboard(event, matrix)) event.stopImmediatePropagation();
+    };
+    document.addEventListener("copy", handleCopy, true);
+    return () => document.removeEventListener("copy", handleCopy, true);
+  }, [editorRef, node.id, readOnly, selectedTableCells]);
+  useEffect(() => {
+    const connected = selectedTableCells.filter((cell) => cell.isConnected);
+    if (!connected.length) return;
+    const update = () => setTableSelectionGeometryVersion((version) => version + 1);
+    window.addEventListener("resize", update);
+    window.addEventListener("scroll", update, true);
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(update);
+    connected.forEach((cell) => observer?.observe(cell));
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("scroll", update, true);
+      observer?.disconnect();
+    };
+  }, [selectedTableCells]);
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor || readOnly) return;
+    const beforeChange = () => controller.captureStructuralUndo();
+    const afterChange = () => controller.syncContent();
+    editor.addEventListener("his-table-before-change", beforeChange);
+    editor.addEventListener("his-table-change", afterChange);
+    return () => {
+      editor.removeEventListener("his-table-before-change", beforeChange);
+      editor.removeEventListener("his-table-change", afterChange);
+    };
+  }, [editorRef, node.id, readOnly, controller.captureStructuralUndo, controller.syncContent]);
   useEffect(() => {
     const menuOpen = Boolean(blockTextDevTree.root) ||
       Boolean(blockColorMenu) ||
@@ -206,6 +338,7 @@ export default function RichTextEditor({
     };
     const preventScrollKeys = (event: KeyboardEvent) => {
       if (isInsidePopup(event.target)) return;
+      if (controller.callPicker && event.target instanceof Node && editorRef.current?.contains(event.target) && [" ", "Spacebar", "Home", "End"].includes(event.key)) return;
       if (["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End", " ", "Spacebar"].includes(event.key)) {
         event.preventDefault();
       }
@@ -261,6 +394,7 @@ export default function RichTextEditor({
     if (
       block &&
       editor.contains(block) &&
+      !block.closest("[data-his-table-cell]") &&
       !block.textContent?.trim() &&
       !block.querySelector("img, .editor-mention")
     ) {
@@ -297,6 +431,25 @@ export default function RichTextEditor({
   useEffect(() => {
     const editor = editorRef.current;
     if (!editor) return;
+    let disposed = false;
+    const hydrate = () => {
+      if (disposed) return;
+      void hydrateEditorImageMentions(editor, nodes).catch((error) =>
+        console.error("No se pudieron hidratar las imágenes del editor.", error),
+      );
+    };
+    hydrate();
+    const observer = new MutationObserver(hydrate);
+    observer.observe(editor, { childList: true, subtree: true });
+    return () => {
+      disposed = true;
+      observer.disconnect();
+      releaseEditorImageMentions(editor);
+    };
+  }, [editorRef, mentionResourceVersion, node.id]);
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor) return;
     let changed = false;
     const imageNodes = new Map(
       nodes
@@ -317,33 +470,6 @@ export default function RichTextEditor({
         image.alt = resource.fileName;
         changed = true;
       }
-      if (mentionedNode) {
-        mention.style.setProperty("--mention-color", getNodeDefinition(mentionedNode.type).color);
-      }
-      if (mentionedNode?.type === "pagina") {
-        const iconNodeId = getPageMeta(mentionedNode.content).iconNodeId;
-        const iconResource = iconNodeId ? imageNodes.get(iconNodeId) : null;
-        if (iconResource) {
-          if (!image) {
-            image = document.createElement("img");
-            mention.insertBefore(image, mention.firstChild);
-            changed = true;
-          }
-          if (!image.classList.contains("editor-mention__icon") || image.dataset.noResize !== "true") {
-            image.classList.add("editor-mention__icon");
-            image.dataset.noResize = "true";
-            changed = true;
-          }
-          if (image.src !== iconResource.src) {
-            image.src = iconResource.src;
-            image.alt = mentionedNode.name;
-            changed = true;
-          }
-        } else if (image) {
-          image.remove();
-          changed = true;
-        }
-      }
     });
     if (changed) controller.syncContent();
   }, [editorRef, mentionResourceVersion, node.id]);
@@ -355,7 +481,7 @@ export default function RichTextEditor({
       const isDeleted = deletedNodes.some(
         (deletedNode) => deletedNode.id === mention.dataset.mentionId,
       );
-      ["color", "opacity", "text-decoration", "text-underline-offset", "cursor", "gap"].forEach((property) => {
+      ["opacity", "cursor", "gap"].forEach((property) => {
         if (!mention.style.getPropertyValue(property)) return;
         mention.style.removeProperty(property);
         changed = true;
@@ -413,30 +539,27 @@ export default function RichTextEditor({
     repairGlobeIcons();
     return () => observer.disconnect();
   }, [editorRef, node.id, readOnly]);
-  const changeGlobeIcon = (event: React.MouseEvent<HTMLDivElement>) => {
+  const openGlobeIconPicker = (event: React.MouseEvent<HTMLDivElement>) => {
     if (readOnly) return;
-    const icon = (event.target as HTMLElement).closest("[data-globe-icon]");
-    if (!icon || !editorRef.current?.contains(icon)) return;
+    const icon = (event.target as HTMLElement).closest<HTMLElement>("[data-globe-icon]");
+    const globe = icon?.closest<HTMLElement>("[data-globe]");
+    if (!icon || !globe || !editorRef.current?.contains(icon) || !hasPageBlockCapability(globe, "icon")) return;
     event.preventDefault();
     event.stopPropagation();
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = "image/*";
-    input.addEventListener("change", () => {
-      const file = input.files?.[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.addEventListener("load", () => {
-        if (typeof reader.result !== "string") return;
-        const image = document.createElement("img");
-        image.src = reader.result;
-        image.alt = "Icono del globo";
-        icon.replaceChildren(image);
-        controller.syncContent();
-      });
-      reader.readAsDataURL(file);
-    });
-    input.click();
+    const state = readGlobeIconState(globe);
+    const visual = resolveNodeIcon(state, nodes);
+    setGlobeIconVisual(visual ? { target: icon, visual } : null);
+    setGlobeIconPicker({ globe, tab: "local" });
+  };
+
+  const updateGlobeIcon = (state: ReturnType<typeof readGlobeIconState>) => {
+    if (!globeIconPicker) return;
+    applyGlobeIconState(globeIconPicker.globe, state, nodes);
+    const target = globeIconPicker.globe.querySelector<HTMLElement>(":scope > [data-globe-icon]");
+    const visual = resolveNodeIcon(state, nodes);
+    setGlobeIconVisual(target && visual ? { target, visual } : null);
+    controller.syncContent();
+    setGlobeIconPicker(null);
   };
   const closeEditorContextMenu = () => {
     setEditorContextMenu(null);
@@ -516,7 +639,7 @@ export default function RichTextEditor({
     clone.removeAttribute("data-line-selected");
     clone.removeAttribute("data-line-dragging");
     clone.removeAttribute("data-line-drop-target");
-    pageBlockClipboardHtml = clone.outerHTML;
+    pageBlockClipboardHtml = stripTransientEditorState(clone.outerHTML);
     void navigator.clipboard?.writeText(block.textContent || "").catch(() => {});
   };
   const duplicateContextBlock = (block: HTMLElement) => {
@@ -538,29 +661,45 @@ export default function RichTextEditor({
     block.parentNode?.insertBefore(pasted, block.nextSibling);
     controller.syncContent();
   };
+  const ensureCellContentBlock = getEditableBlockFromTableCell;
   const mutateContextBlock = (
     block: HTMLElement,
     mutation: (target: HTMLElement) => HTMLElement | void,
   ) => {
     if (!block.isConnected) return;
-    let next = block;
+    const selected = controller.selectedLineBlocks.filter((line) => line.isConnected);
+    const targets = selected.includes(block) ? selected : [block];
+    const replacements = new Map<HTMLElement, HTMLElement>();
     preserveEditorViewport(() => {
       controller.captureStructuralUndo();
-      next = mutation(block) || block;
+      targets.forEach((source) => {
+        const target = source.matches("[data-his-table-cell]") ? ensureCellContentBlock(source) : source;
+        replacements.set(source, mutation(target) || target);
+      });
+      if (selected.includes(block)) controller.setSelectedLineBlocks(selected.map((line) => replacements.get(line) ?? line));
       controller.syncContent();
     });
-    setEditorContextMenu((current) => current && current.block === block ? { ...current, block: next } : current);
+    setEditorContextMenu((current) => current && current.block === block ? { ...current, block: replacements.get(block) ?? block } : current);
   };
   const deleteContextBlock = (block: HTMLElement) => {
     const selected = controller.selectedLineBlocks.filter((line) => line.isConnected);
-    if (selected.includes(block)) controller.deleteSelectedLine();
+    const table = getTableRootFromNode(block);
+    if (table) controller.removeLine(table);
+    else if (selected.includes(block)) controller.deleteSelectedLine();
     else controller.removeLine(block);
   };
   const getAestheticTarget = (block: HTMLElement) => block.matches("[data-globe]")
     ? block.querySelector<HTMLElement>("[data-globe-content] > p, [data-globe-content] > h1, [data-globe-content] > h2, [data-globe-content] > h3, [data-globe-content] > h4, [data-globe-content] > h5, [data-globe-content] > h6, [data-globe-content] > blockquote, [data-globe-content] > li, [data-globe-content] > pre") ?? block
+    : block.matches("[data-his-table-cell]") ? block.querySelector<HTMLElement>(":scope > p, :scope > h1, :scope > h2, :scope > h3, :scope > h4, :scope > h5, :scope > h6, :scope > blockquote, :scope > li, :scope > pre") ?? block
     : block;
+  const getTableOwnerBlock = (block: HTMLElement) => {
+    const table = getTableRootFromNode(block);
+    if (!table) return block;
+    return table.parentElement?.closest<HTMLElement>("p, h1, h2, h3, h4, h5, h6, blockquote, li, pre") ?? table;
+  };
   const toggleContextCapability = (block: HTMLElement, capability: PageBlockCapabilityDefinition) => {
     if (capability.id === "globe") {
+      if (block.matches("[data-his-table-cell]")) return;
       const nativeGlobe = block.closest<HTMLElement>("[data-globe]");
       if (nativeGlobe) {
         const content = nativeGlobe.querySelector<HTMLElement>(":scope > [data-globe-content]");
@@ -596,13 +735,16 @@ export default function RichTextEditor({
       closeEditorContextMenu();
       return;
     }
-    mutateContextBlock(getAestheticTarget(block), (target) => togglePageBlockCapability(target, capability));
+    mutateContextBlock(block, (target) => togglePageBlockCapability(
+      target.matches("[data-his-table-cell]") ? ensureCellContentBlock(target) : getAestheticTarget(target),
+      capability,
+    ));
   };
   const resetContextAesthetics = (block: HTMLElement) => {
     if (!block.isConnected) return;
     preserveEditorViewport(() => {
       controller.captureStructuralUndo();
-      let target = getAestheticTarget(block);
+      let target = block.matches("[data-his-table-cell]") ? ensureCellContentBlock(block) : getAestheticTarget(block);
       if (target.closest("[data-his-column-layout]")) setPageBlockColumnCount(target, 1);
       target = resetPageBlockAesthetics(target);
       const nativeGlobe = target.closest<HTMLElement>("[data-globe]") ?? (block.matches("[data-globe]") ? block : null);
@@ -618,10 +760,19 @@ export default function RichTextEditor({
     const mention = preferredMention ?? (block.matches("[data-mention-id]") ? block : nestedFullMention);
     const id = mention?.dataset.mentionId;
     const target = id ? nodes.find((item) => item.id === id) : null;
-    const actionBlock = mention || block;
+    const actionBlock = mention || (block.matches("[data-his-table-cell]") ? block : getTableOwnerBlock(block));
     controller.resetEditorPickers();
     setBlockColorMenu(null);
     setBlockTextDevTree(BLOCK_TEXT_DEV_REGISTRY.closeTree());
+    const selected = controller.selectedLineBlocks.filter((line) => line.isConnected);
+    if (!selected.includes(actionBlock)) {
+      controller.clearLineSelection();
+      window.getSelection()?.removeAllRanges();
+      actionBlock.dataset.editorBlockIdentity ||= crypto.randomUUID();
+      actionBlock.dataset.lineSelected = "true";
+      actionBlock.contentEditable = "false";
+      controller.setSelectedLineBlocks([actionBlock]);
+    }
     controller.setLineActionBlock(actionBlock);
     setEditorContextMenu({
       imageNodeId: target?.type === "imagen" ? target.id : null,
@@ -632,6 +783,144 @@ export default function RichTextEditor({
       left,
     });
   };
+  const spelling = useEditorSpelling({ editorRef, nodeId: node.id, locale, enabled: !readOnly && mode === "interactive", replace: (range, suggestion) => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    controller.captureStructuralUndo();
+    editor.focus({ preventScroll: true });
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range.cloneRange());
+    document.execCommand("insertText", false, suggestion);
+    controller.syncContent();
+    controller.updatePlaceholder();
+  } });
+  const closeTableMenu = () => {
+    editorRef.current?.querySelectorAll<HTMLElement>("[data-his-table-handle][aria-expanded=true]").forEach((handle) => handle.removeAttribute("aria-expanded"));
+    setTableMenu(null);
+  };
+  const openTableMenu = (source: HTMLElement, context: "cell" | "row" | "column", x: number, y: number) => {
+    const target = resolveTableTarget(source);
+    if (!target) return false;
+    editorRef.current?.querySelectorAll<HTMLElement>("[data-his-table-handle][aria-expanded=true]").forEach((handle) => handle.removeAttribute("aria-expanded"));
+    source.closest<HTMLElement>("[data-his-table-handle]")?.setAttribute("aria-expanded", "true");
+    setActiveTableCell(editorRef.current!, target.cell);
+    setTableMenu({ context, target, x, y });
+    setEditorContextMenu(null);
+    setBlockColorMenu(null);
+    return true;
+  };
+  const mutateTable = (mutation: () => void) => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    controller.captureStructuralUndo();
+    mutation();
+    ensureTableRuntime(editor);
+    setSelectedTableCells(getSelectedTableCells(editor));
+    controller.syncContent();
+  };
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor || readOnly) return;
+    const updateHoveredHandles = (event: Event) => {
+      setHoveredTableHandles(editor, event.target as Node | null);
+    };
+    const clearHoveredHandles = () => setHoveredTableHandles(editor, null);
+    editor.addEventListener("pointerover", updateHoveredHandles, true);
+    editor.addEventListener("mousemove", updateHoveredHandles, true);
+    editor.addEventListener("mouseleave", clearHoveredHandles);
+    return () => {
+      editor.removeEventListener("pointerover", updateHoveredHandles, true);
+      editor.removeEventListener("mousemove", updateHoveredHandles, true);
+      editor.removeEventListener("mouseleave", clearHoveredHandles);
+    };
+  }, [editorRef, node.id, readOnly]);
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor || readOnly) return;
+    const clearSelectionOutsideTableControls = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      if (target.closest(".his-table-menu-layer, .his-table-multi-selection-handle, [data-color-picker]")) return;
+      if (target.closest("[data-his-table-handle]")) return;
+      const clickedCell = target.closest<HTMLElement>("[data-his-table-cell]");
+      if (clickedCell && editor.contains(clickedCell) && (event.ctrlKey || event.metaKey)) return;
+
+      clearTableCellSelection(editor);
+      setSelectedTableCells([]);
+      editor.querySelectorAll<HTMLElement>("[data-his-table-handle][aria-expanded=true]").forEach((handle) => handle.removeAttribute("aria-expanded"));
+      setTableMenu(null);
+      if (!clickedCell || !editor.contains(clickedCell)) setActiveTableCell(editor, null);
+    };
+    document.addEventListener("pointerdown", clearSelectionOutsideTableControls, true);
+    return () => document.removeEventListener("pointerdown", clearSelectionOutsideTableControls, true);
+  }, [editorRef, node.id, readOnly]);
+  const formatTableCells = (command: "bold" | "italic" | "underline" | "strikeThrough", cells: HTMLElement[]) => {
+    if (!cells.length) return;
+    mutateTable(() => {
+      const selection = window.getSelection();
+      cells.forEach((cell) => {
+        const range = document.createRange();
+        range.selectNodeContents(cell);
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+        document.execCommand(command, false);
+      });
+      selection?.removeAllRanges();
+    });
+  };
+  const clearTableDragUi = () => {
+    const editor = editorRef.current;
+    editor?.querySelectorAll<HTMLElement>("[data-his-table-dragging], [data-his-table-drop-target]").forEach((item) => {
+      item.removeAttribute("data-his-table-dragging");
+      item.removeAttribute("data-his-table-drop-target");
+    });
+    document.body.style.cursor = "";
+    document.body.style.userSelect = "";
+  };
+  const updateTableDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    const drag = tableDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return false;
+    if (drag.kind === "cell") {
+      event.preventDefault();
+      event.stopPropagation();
+      return true;
+    }
+    if (!drag.moved && Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) < 5) return true;
+    drag.moved = true;
+    drag.handle.dataset.hisTableDragging = "true";
+    document.body.style.cursor = "grabbing";
+    document.body.style.userSelect = "none";
+    const hovered = document.elementFromPoint(event.clientX, event.clientY);
+    const destination = resolveTableTarget(hovered);
+    if (!destination || destination.table !== drag.source?.table) return true;
+    drag.destination = destination;
+    markTableDropTarget(destination, drag.kind);
+    event.preventDefault();
+    event.stopPropagation();
+    return true;
+  };
+  const finishTableDrag = (event: React.PointerEvent<HTMLDivElement>, cancelled = false) => {
+    const drag = tableDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId || !drag.source) return false;
+    tableDragRef.current = null;
+    clearTableDragUi();
+    if (!cancelled && drag.moved && drag.destination) {
+      mutateTable(() => drag.kind === "row" ? moveTableRowTo(drag.source!, drag.destination!) : moveTableColumnTo(drag.source!, drag.destination!));
+    } else if (!cancelled && !drag.moved) {
+      if (drag.kind !== "cell") {
+        const editor = editorRef.current!;
+        selectTableUnit(editor, drag.source, drag.kind, drag.handle);
+        setSelectedTableCells([]);
+      }
+      const rect = drag.handle.getBoundingClientRect();
+      openTableMenu(drag.handle, drag.kind, rect.right + 8, rect.top);
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    return true;
+  };
+  const selectedTableCellsButtonPosition = getSelectedTableCellsButtonPosition(selectedTableCells);
   return (
     <div
       className={`editor-selection-surface${className ? ` ${className}-surface` : ""}`}
@@ -647,6 +936,8 @@ export default function RichTextEditor({
         controller.onEditorPointerUp();
       }}
       onClick={(event) => {
+        const selection = window.getSelection();
+        if (selection && !selection.isCollapsed && selection.rangeCount && editorRef.current?.contains(selection.anchorNode) && editorRef.current?.contains(selection.focusNode)) return;
         if (readOnly || event.target !== event.currentTarget || controller.selectedLineBlocks.length > 0) return;
         controller.focusOrCreatePageLine();
       }}
@@ -700,8 +991,8 @@ export default function RichTextEditor({
             className={`editor-line-control-cluster${height <= 32 ? " editor-line-control-cluster--compact" : ""}`}
             onWheel={(event) => forwardEditorControlWheel(event, editorRef.current)}
             onPointerLeave={(event) => {
-              const next = event.relatedTarget as Element | null;
-              if (!next?.closest(".editor-content, [data-line-control], [data-picker]")) {
+              const next = event.relatedTarget;
+              if (!(next instanceof Element) || !next.closest(".editor-content, [data-line-control], [data-picker]")) {
                 controller.setLineControl(null);
               }
             }}
@@ -781,7 +1072,7 @@ export default function RichTextEditor({
               ? controller.lineControl.block.getBoundingClientRect().left + 48
               : controller.lineControl.block.getBoundingClientRect().left,
             right: 24,
-            boxShadow: controller.lineControl.inside ? "0 0 8px #4DD8C0" : "none",
+            boxShadow: controller.lineControl.inside ? "0 0 8px var(--his-accent)" : "none",
           }}
         />
       )}
@@ -798,7 +1089,7 @@ export default function RichTextEditor({
         />,
         document.body,
       )}
-      {!readOnly && controller.selectionToolbar && (
+      {!readOnly && !spelling.menu && controller.selectionToolbar && (
         <SelectionToolbar controller={controller} />
       )}
       <div
@@ -806,10 +1097,27 @@ export default function RichTextEditor({
         className={`editor-content${className ? ` ${className}` : ""}`}
         data-block-selecting={controller.blockSelection ? "true" : undefined}
         contentEditable={!readOnly}
+        lang={locale === "es" ? "es-ES" : "en-US"}
+        spellCheck={!readOnly}
+        autoCorrect="on"
         suppressContentEditableWarning
         style={style}
+        onDoubleClick={(event) => {
+          const target = event.target as HTMLElement;
+          if (target.closest("[data-mention-id], [data-editor-ui], [data-page-index], button, img")) return;
+          const block = target.closest("p, li, h1, h2, h3, h4, h5, h6, blockquote, pre, [data-his-table-cell]");
+          if (!block || !event.currentTarget.contains(block)) return;
+          event.preventDefault();
+          const range = document.createRange();
+          range.selectNodeContents(block);
+          const selection = window.getSelection();
+          selection?.removeAllRanges();
+          selection?.addRange(range);
+        }}
         onFocus={readOnly ? undefined : controller.updatePlaceholder}
         onInput={(event) => {
+          const table = getTableRootFromNode(event.target as HTMLElement);
+          if (table) updateTableOverflowState(table);
           const changedSyncBlock = (event.target as HTMLElement).closest<HTMLElement>("[data-his-synced]");
           const syncId = changedSyncBlock?.dataset.hisSynced;
           if (changedSyncBlock && syncId) {
@@ -818,7 +1126,6 @@ export default function RichTextEditor({
             });
           }
           controller.clearGeneratedLines();
-          controller.clearStructuralUndo();
           if (event.currentTarget.childElementCount === 0) {
             controller.ensureEditorLine();
           }
@@ -826,17 +1133,50 @@ export default function RichTextEditor({
           controller.updatePlaceholder();
           controller.updatePickers();
         }}
-        onPaste={readOnly ? undefined : controller.onPaste}
+        onPaste={readOnly ? undefined : (event) => {
+          const editor = editorRef.current;
+          const active = editor ? getActiveTableCell(editor) : null;
+          const selection = window.getSelection();
+          const replacesText = Boolean(selection?.rangeCount && !selection.isCollapsed &&
+            editor?.contains(selection.getRangeAt(0).startContainer) &&
+            editor?.contains(selection.getRangeAt(0).endContainer));
+          if (editor && active && !replacesText) {
+            const matrix = clipboardToMatrix(event.clipboardData);
+            if (matrix.length) {
+              event.preventDefault();
+              mutateTable(() => pasteMatrixAtCell(active, matrix));
+              return;
+            }
+          }
+          controller.onPaste(event);
+        }}
         onContextMenu={(event) => {
           if (readOnly) return;
-          const block = controller.getEditorBlock(event.target as Node);
+          const target = event.target as HTMLElement;
+          const cell = (event.target as HTMLElement).closest<HTMLElement>("[data-his-table-cell]");
+          if (cell) {
+            event.preventDefault();
+            event.stopPropagation();
+            openTableMenu(cell, "cell", event.clientX, event.clientY);
+            return;
+          }
+          const block = controller.getEditorBlock(event.target as Node) ||
+            target.closest<HTMLElement>("[data-his-table-cell]");
           if (!block) return;
           event.preventDefault();
           event.stopPropagation();
-          openEditorBlockContextMenu(block, event.clientX, event.clientY, (event.target as HTMLElement).closest<HTMLElement>("[data-mention-id]"));
+          const openBlock = () => openEditorBlockContextMenu(block, event.clientX, event.clientY, target.closest<HTMLElement>("[data-mention-id]"));
+          const selected = controller.selectedLineBlocks.filter((line) => line.isConnected);
+          if (!selected.length && !event.shiftKey && !target.closest("[data-mention-id], [data-editor-ui], [data-page-index], [data-divider]") &&
+              spelling.request(event.clientX, event.clientY, openBlock)) {
+            setEditorContextMenu(null);
+            return;
+          }
+          openBlock();
         }}
         onMouseMove={readOnly ? undefined : controller.updateLineControl}
         onMouseLeave={(event) => {
+          if (!readOnly && editorRef.current) setHoveredTableHandles(editorRef.current, null);
           const related = event.relatedTarget;
           if (
             !(related instanceof Element) ||
@@ -856,7 +1196,43 @@ export default function RichTextEditor({
           controller.updatePlaceholder();
         }}
         onClick={(event) => {
+          const selection = window.getSelection();
+          if (selection && !selection.isCollapsed && selection.rangeCount && event.currentTarget.contains(selection.anchorNode) && event.currentTarget.contains(selection.focusNode)) {
+            event.stopPropagation();
+            return;
+          }
           const target = event.target as HTMLElement;
+          if (target.closest("[data-mention-id]")) {
+            return;
+          }
+          const clickedCell = target.closest<HTMLElement>("[data-his-table-cell]");
+          if (!readOnly && clickedCell && (event.ctrlKey || event.metaKey)) {
+            event.preventDefault();
+            event.stopPropagation();
+            toggleTableCellSelection(event.currentTarget, clickedCell);
+            setSelectedTableCells(getSelectedTableCells(event.currentTarget));
+            controller.clearLineSelection?.();
+            controller.setSelectedLineBlocks?.([]);
+            return;
+          }
+          if (!readOnly && clickedCell) {
+            setActiveTableCell(event.currentTarget, clickedCell);
+            if (getSelectedTableCells(event.currentTarget).length) {
+              clearTableCellSelection(event.currentTarget);
+              setSelectedTableCells([]);
+            }
+            if (target === clickedCell) {
+              focusTableCell(clickedCell, true);
+            } else if (!target.closest("[data-editor-ui], a, button, input, textarea, select")) {
+              window.requestAnimationFrame(() => {
+                const selection = window.getSelection();
+                const focusedCell = selection?.rangeCount ? selection.focusNode?.parentElement?.closest<HTMLElement>("[data-his-table-cell]") ?? null : null;
+                const landedOnCellShell = selection?.focusNode === clickedCell;
+                if ((focusedCell !== clickedCell || landedOnCellShell) && clickedCell.isConnected)
+                  focusTableCellAtPoint(clickedCell, event.clientX, event.clientY);
+              });
+            }
+          }
           const dropdown = target.closest<HTMLElement>("[data-his-dropdown]");
           const todo = target.closest<HTMLElement>('[data-his-list="todo"]');
           if (!readOnly && todo && event.clientX <= todo.getBoundingClientRect().left + 28) {
@@ -905,14 +1281,39 @@ export default function RichTextEditor({
               return;
             }
           }
-          changeGlobeIcon(event);
+          openGlobeIconPicker(event);
           if (!readOnly && controller.ensureEditorLine()) {
             controller.syncContent();
           }
           if (clickedDivider) controller.setPlaceholderBlock?.(null);
           else controller.updatePlaceholder();
         }}
-        onKeyDown={readOnly ? undefined : controller.onKeyDown}
+        onKeyDown={readOnly ? undefined : (event) => {
+          const editor = editorRef.current;
+          const active = editor ? getActiveTableCell(editor) : null;
+          if (event.key === "Escape" && tableDragRef.current) {
+            tableDragRef.current = null;
+            clearTableDragUi();
+          }
+          if (event.key === "Tab" && active) {
+            const next = moveTableCellFocus(active, event.shiftKey);
+            if (next) {
+              event.preventDefault();
+              event.stopPropagation();
+              setActiveTableCell(editor!, next);
+              return;
+            }
+          }
+          if (event.key === "Escape" && editor && (tableMenu || getSelectedTableCells(editor).length)) {
+            event.preventDefault();
+            event.stopPropagation();
+            closeTableMenu();
+            clearTableCellSelection(editor);
+            setSelectedTableCells([]);
+            return;
+          }
+          controller.onKeyDown(event);
+        }}
         onBeforeInput={
           readOnly
             ? undefined
@@ -920,6 +1321,12 @@ export default function RichTextEditor({
                 const input = event.nativeEvent as InputEvent;
                 const inputType =
                   typeof input.inputType === "string" ? input.inputType : "";
+                if (inputType === "historyUndo" || inputType === "historyRedo") {
+                  event.preventDefault();
+                  controller.captureInputUndo(inputType, input.data);
+                  return;
+                }
+                controller.captureInputUndo(inputType, input.data);
                 if (!inputType.startsWith("delete")) return;
                 const selection = window.getSelection();
                 if (!selection?.rangeCount) return;
@@ -943,7 +1350,7 @@ export default function RichTextEditor({
         }
         onBlur={(event) => {
           const relatedTarget = event.relatedTarget;
-          if (relatedTarget instanceof Element && relatedTarget.closest(".his-context-menu")) {
+          if (relatedTarget instanceof Element && relatedTarget.closest(".his-context-menu, .page-context-menu-layer, [data-color-picker]")) {
             return;
           }
           if (!readOnly) controller.ensureEditorLine();
@@ -955,12 +1362,32 @@ export default function RichTextEditor({
           controller.dismissEditorMenus();
         }}
         onPointerDown={readOnly ? undefined : (event) => {
+          const handle = (event.target as HTMLElement).closest<HTMLElement>("[data-his-table-handle]");
+          if (handle) {
+            event.preventDefault();
+            event.stopPropagation();
+            const kind = handle.dataset.hisTableHandle as "cell" | "row" | "column";
+            tableDragRef.current = {
+              kind,
+              source: resolveTableTarget(handle),
+              destination: null,
+              handle,
+              pointerId: event.pointerId,
+              startX: event.clientX,
+              startY: event.clientY,
+              moved: false,
+            };
+            try { handle.setPointerCapture(event.pointerId); } catch {}
+            return;
+          }
           const tableControl = findTableControl(event.target as HTMLElement);
           if (tableControl) {
             event.preventDefault();
             event.stopPropagation();
             controller.captureStructuralUndo();
             addTableControl(tableControl);
+            if (editorRef.current) ensureTableRuntime(editorRef.current);
+            updateTableOverflowState(tableControl.table);
             controller.syncContent();
             return;
           }
@@ -969,12 +1396,17 @@ export default function RichTextEditor({
         onPointerMove={
           readOnly
             ? undefined
-            : (event) => {
+             : (event) => {
+                if (updateTableDrag(event)) return;
                 controller.onEditorPointerMove(event);
                 controller.onEditorSelectionMove(event);
               }
         }
-        onPointerUp={readOnly ? undefined : controller.onEditorPointerUp}
+        onPointerUp={readOnly ? undefined : (event) => {
+          if (finishTableDrag(event)) return;
+          controller.onEditorPointerUp();
+        }}
+        onPointerCancel={readOnly ? undefined : (event) => { finishTableDrag(event, true); }}
       />
       {((blockTextDevTree.root && controller.slashPicker && controller.slashCandidates.length > 0) || (controller.pickerPosition && controller.slashPicker && controller.slashCandidates.length > 0)) && (
             <PickerMenu
@@ -1029,33 +1461,31 @@ export default function RichTextEditor({
             onDeleteLine={controller.deleteSelectedLine}
           />
         )}
-      {controller.pickerPosition &&
-        controller.callPicker &&
-        !controller.imageMentionChoice &&
-        controller.callCandidates.length > 0 && (
-          <PickerMenu
-            title={t("editor.commands.linkNode")}
-            position={controller.pickerPosition}
-            items={controller.callCandidates.map((item) => ({
-              id: item.id,
-              label: item.name,
-            }))}
-            activeIndex={controller.callPickerIndex}
-            onSelect={(id) => {
-              const target = nodes.find((item) => item.id === id);
-              if (target?.type === "imagen") controller.setImageMentionChoice(id);
-              else controller.executePickerAction("mention", id);
-            }}
-            colorFor={(id) =>
-              getNodeDefinition(
-                getEffectiveNodeType(
-                  nodes,
-                  nodes.find((item) => item.id === id)!,
-                )
-              ).color
-            }
-          />
-        )}
+      {controller.pickerPosition && controller.callPicker && !controller.imageMentionChoice && (
+        <MentionMenu
+          position={controller.pickerPosition} query={controller.callPicker.query} nodes={nodes}
+          candidates={controller.callCandidates} activeIndex={controller.callPickerIndex}
+          canCreate={Boolean(onCreateMentionNode)} onCreate={beginMentionCreation}
+          onClose={controller.dismissEditorMenus}
+          onSelect={(id) => {
+            const target = nodes.find(item => item.id === id);
+            if (target?.type === "imagen") controller.setImageMentionChoice(id);
+            else controller.executePickerAction("mention", id);
+          }}
+        />
+      )}
+      {mentionDestination && (
+        <MentionDestinationMenu position={mentionDestination.position} name={mentionDestination.name} nodes={nodes}
+          onClose={closeMentionDestination}
+          onSelect={(destination) => {
+            const pending = mentionDestination;
+            if (!editorRef.current?.contains(pending.range.startContainer)) return;
+            const target = onCreateMentionNode?.(pending.name, null);
+            if (target) controller.insertCreatedMention(target, pending.range, pending.query, destination);
+            setMentionDestination(null);
+          }}
+        />
+      )}
       {controller.imageMentionChoice && controller.pickerPosition && (
         <ImageMentionModeMenu
           position={controller.pickerPosition}
@@ -1065,28 +1495,75 @@ export default function RichTextEditor({
           onCancel={controller.dismissEditorMenus}
         />
       )}
+      {tableMenu && tableMenu.target.cell.isConnected && (
+        <TableOptionsMenu
+          state={tableMenu}
+          selectedCells={selectedTableCells}
+          onClose={closeTableMenu}
+          onMutate={mutateTable}
+          onFormat={formatTableCells}
+        />
+      )}
+      {selectedTableCellsButtonPosition && createPortal(
+        <button
+          type="button"
+          className="his-table-multi-selection-handle"
+          style={selectedTableCellsButtonPosition}
+          aria-label="Opciones de celdas seleccionadas"
+          title="Opciones de celdas seleccionadas"
+          data-editor-ui="true"
+          onPointerDown={(event) => { event.preventDefault(); event.stopPropagation(); }}
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            const target = selectedTableCells.find((cell) => cell.isConnected);
+            if (!target) return;
+            const rect = event.currentTarget.getBoundingClientRect();
+            openTableMenu(target, "cell", rect.left, rect.bottom + 6);
+          }}
+        >
+          <img src={moreHorizAsset} alt="" aria-hidden="true" draggable={false} />
+        </button>,
+        document.body,
+      )}
+      {spelling.menu && createPortal(<SpellingContextMenu menu={spelling.menu} onClose={spelling.close} onCorrect={spelling.correct} onAdd={spelling.add} />, document.body)}
       {editorContextMenu && (
         <PageBlockContextMenu
           x={editorContextMenu.left}
           y={editorContextMenu.top}
           block={editorContextMenu.block}
           capabilityBlock={getAestheticTarget(editorContextMenu.block)}
-          supportsAesthetics={!editorContextMenu.imageNodeId && editorContextMenu.block.matches("p, h1, h2, h3, h4, h5, h6, blockquote, li, pre, [data-globe]")}
+          supportsAesthetics={!editorContextMenu.imageNodeId && getAestheticTarget(editorContextMenu.block).matches("p, h1, h2, h3, h4, h5, h6, blockquote, li, pre, [data-globe]")}
           imageItems={editorContextImageItems.filter((item) => item.id !== "image-delete")}
           onClose={closeEditorContextMenu}
           onCapability={(capability) => toggleContextCapability(editorContextMenu.block, capability)}
-          onColumns={(count) => mutateContextBlock(getAestheticTarget(editorContextMenu.block), (block) => setPageBlockColumnCount(block, count))}
-          onResetAesthetics={() => resetContextAesthetics(editorContextMenu.block)}
-          onOpenColors={(kind) => {
-            setBlockColorMenu({ top: editorContextMenu.top, left: editorContextMenu.left + 274, block: editorContextMenu.block, kind });
+          onColumns={(count) => {
+            const table = getTableRootFromNode(editorContextMenu.block);
+            if (table) {
+              controller.captureStructuralUndo();
+              setTableColumnCount(table, count);
+              updateTableOverflowState(table);
+              controller.syncContent();
+              return;
+            }
+            mutateContextBlock(getAestheticTarget(editorContextMenu.block), (block) => setPageBlockColumnCount(block, count));
           }}
-          onResetColors={() => mutateContextBlock(editorContextMenu.block, (block) => {
-            block.style.removeProperty("color");
-            block.style.removeProperty("background-color");
-            block.style.removeProperty("border-color");
-          })}
+          onResetAesthetics={() => resetContextAesthetics(editorContextMenu.block)}
+          onApplyColor={(kind, color) => {
+            const target = editorContextMenu.block;
+            const table = getTableRootFromNode(target);
+            const cells = table ? getSelectedTableCells(table) : [];
+            if (cells.length) {
+              mutateTable(() => applyTableColor(cells, kind, color));
+              return;
+            }
+            mutateContextBlock(target, (block) => applyEditorBlockColor(block, kind, color));
+          }}
+          onResetColors={() => mutateContextBlock(editorContextMenu.block, resetEditorBlockColors)}
           onConversion={() => {
-            const block = editorContextMenu.block;
+            const block = editorContextMenu.block.matches("[data-his-table-cell]")
+              ? ensureCellContentBlock(editorContextMenu.block)
+              : editorContextMenu.block;
             window.requestAnimationFrame(() => controller.openLineCommands(block));
           }}
           onCopy={() => copyContextBlock(editorContextMenu.block)}
@@ -1110,7 +1587,8 @@ export default function RichTextEditor({
           }}
           onApplyText={(color) => {
             const target = blockColorMenu?.block ?? findBlockTextDevChild("block-text-color-option")?.block ?? null;
-            if (target?.isConnected) mutateContextBlock(target, (block) => {
+            if (blockColorMenu?.cells?.length) mutateTable(() => applyTableColor(blockColorMenu.cells!, "text", color));
+            else if (target?.isConnected) mutateContextBlock(target, (block) => {
               if (color) block.style.color = color;
               else block.style.removeProperty("color");
             });
@@ -1119,15 +1597,45 @@ export default function RichTextEditor({
           }}
           onApplyBackground={(color) => {
             const target = blockColorMenu?.block ?? findBlockTextDevChild("block-text-color-option")?.block ?? null;
-            if (target && blockColorMenu?.kind === "border") {
+            if (blockColorMenu?.cells?.length) {
+              mutateTable(() => applyTableColor(blockColorMenu.cells!, blockColorMenu.kind === "border" ? "border" : "background", color));
+            } else if (target && blockColorMenu?.kind === "border") {
               mutateContextBlock(target, (block) => {
-                if (color) block.style.borderColor = color;
-                else block.style.removeProperty("border-color");
+                applyEditorBlockColor(block, "border", color);
               });
-            } else controller.applyBlockBackgroundColor(color, target);
+            } else if (target?.isConnected) mutateContextBlock(target, (block) => applyEditorBlockColor(block, "background", color));
+            else controller.applyBlockBackgroundColor(color);
             closeBlockTextDevTree();
           }}
         />
+      )}
+      {globeIconPicker && (
+        <div className="page-image-picker" role="dialog" aria-modal="true" aria-label={t("page.chooseIcon")}>
+          <div className="page-image-picker__panel">
+            <div className="page-image-picker__header">
+              <strong>{t("page.chooseIcon")}</strong>
+              <button type="button" onClick={() => setGlobeIconPicker(null)} aria-label={t("common.actions.close")}>X</button>
+            </div>
+            <IconCapabilityPicker
+              nodes={nodes}
+              tab={globeIconPicker.tab}
+              onTabChange={(tab) => setGlobeIconPicker((current) => current ? { ...current, tab } : current)}
+              currentImageId={readGlobeIconState(globeIconPicker.globe).iconNodeId}
+              currentPresentation={(() => { const state = readGlobeIconState(globeIconPicker.globe); return state.iconVisual?.kind === "image" ? state.iconVisual.presentation : undefined; })()}
+              onImageSelect={(id, presentation, source) => updateGlobeIcon(selectGlobeImage(readGlobeIconState(globeIconPicker.globe), nodes, id, source, presentation))}
+              onImageUpload={async (file) => (await onFileImport?.(file, node.parentId))?.id ?? null}
+              onUnsplashSelect={async (selection) => (await onCreateImageFromUnsplash?.(selection)) ?? null}
+              onEmojiSelect={(value, style) => updateGlobeIcon(selectGlobeEmoji(readGlobeIconState(globeIconPicker.globe), value, style))}
+              onIconSelect={(provider, name) => updateGlobeIcon(selectGlobeGlyph(readGlobeIconState(globeIconPicker.globe), provider, name))}
+              onClear={() => updateGlobeIcon(clearNodeIcon(readGlobeIconState(globeIconPicker.globe)))}
+              clearLabel={t("page.removeIcon")}
+            />
+          </div>
+        </div>
+      )}
+      {globeIconVisual && globeIconVisual.target.isConnected && createPortal(
+        <NodeVisualRenderer visual={globeIconVisual.visual} className="editor-globe-icon-visual" />,
+        globeIconVisual.target,
       )}
       </>
     </div>
@@ -1189,6 +1697,7 @@ function ColorPickerMenu({
   onApplyBackground: (color: string) => void;
 }) {
   const { t } = useLocale();
+  const [colorTarget, setColorTarget] = useState<"text" | "background">("text");
   const [customTextColor, setCustomTextColor] = useState("#FFFFFF");
   const [customBackgroundColor, setCustomBackgroundColor] = useState("#FFFFFF");
   const [recentColors, setRecentColors] = useState<string[]>(() => {
@@ -1245,6 +1754,22 @@ function ColorPickerMenu({
   const top = Math.min(Math.max(position.top, 18), Math.max(18, window.innerHeight - 360));
   const left = Math.min(Math.max(position.left, 18), Math.max(18, window.innerWidth - 270));
 
+  if (colorTarget) return (
+    <div
+      data-color-picker="true"
+      className="his-table-menu__submenu editor-block-color-menu"
+      onMouseDown={(event) => event.preventDefault()}
+      style={{ position: "fixed", top, left, zIndex: 80 }}
+    >
+      <header><span>{colorTarget === "text" ? "Color de texto" : "Color de fondo"}</span></header>
+      <div className="editor-block-color-menu__tabs">
+        <button type="button" className={colorTarget === "text" ? "is-active" : ""} onMouseDown={(event) => { event.preventDefault(); setColorTarget("text"); }}>Texto</button>
+        <button type="button" className={colorTarget === "background" ? "is-active" : ""} onMouseDown={(event) => { event.preventDefault(); setColorTarget("background"); }}>Fondo</button>
+      </div>
+      <ColorOptions kind={colorTarget} onApply={colorTarget === "text" ? onApplyText : onApplyBackground} />
+    </div>
+  );
+
   return (
     <div
       data-color-picker="true"
@@ -1258,15 +1783,15 @@ function ColorPickerMenu({
         overflowY: "auto",
         overflowX: "hidden",
         padding: "8px",
-        background: "#1A1D21",
-        border: "none",
-        borderRadius: 0,
+        background: "#121417",
+        border: "1px solid #2E3338",
+        borderRadius: "10px",
         boxShadow: "none",
-        zIndex: 35,
+        zIndex: 80,
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "2px 4px 6px" }}>
-        <div style={{ fontSize: "10px", color: "#5A5F66", letterSpacing: "0.1em" }}>{t("editor.colors.title")}</div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "2px 4px 8px", marginBottom: "8px", borderBottom: "1px solid #343940" }}>
+        <div style={{ fontSize: "11px", color: "var(--his-accent)", letterSpacing: "0.08em" }}>{t("editor.colors.title")}</div>
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
           <span title={t("editor.colors.currentText")} style={{ display: "inline-block", width: "12px", height: "12px", borderRadius: "50%", border: "1px solid rgba(255,255,255,0.25)", background: currentTextColor }} />
           <span title={t("editor.colors.currentBackground")} style={{ display: "inline-block", width: "12px", height: "12px", borderRadius: "50%", border: currentBackgroundColor === "transparent" ? "1px dashed rgba(255,255,255,0.25)" : "1px solid rgba(255,255,255,0.25)", background: currentBackgroundColor === "transparent" ? "transparent" : currentBackgroundColor }} />
@@ -1331,7 +1856,7 @@ function ColorPickerMenu({
                   border: swatch.value ? "1px solid rgba(255,255,255,0.2)" : "1px dashed rgba(255,255,255,0.25)",
                   background: swatch.value || "transparent",
                   display: "inline-block",
-                  boxShadow: "0 0 0 0 rgba(77,216,192,0)",
+                  boxShadow: "none",
                   transition: "box-shadow 0.12s ease, transform 0.12s ease",
                 }}
               />
@@ -1389,7 +1914,7 @@ function ColorPickerMenu({
                   border: swatch.value ? "1px solid rgba(0,0,0,0.2)" : "1px dashed rgba(255,255,255,0.25)",
                   background: swatch.value || "transparent",
                   display: "inline-block",
-                  boxShadow: "0 0 0 0 rgba(77,216,192,0)",
+                  boxShadow: "none",
                   transition: "box-shadow 0.12s ease, transform 0.12s ease",
                 }}
               />
@@ -1451,6 +1976,11 @@ function SelectionToolbar({
   };
 
   const onApplyTextColor = (color: string) => {
+    if (color === "") {
+      controller.applyTextColor("");
+      setColorMenuOpen(false);
+      return;
+    }
     const normalized = normalizeHexColor(color);
     if (!normalized) return;
     controller.applyTextColor(normalized);
@@ -1481,17 +2011,22 @@ function SelectionToolbar({
         display: "flex",
         gap: "2px",
         padding: "4px",
-        background: "#1A1D21",
-        border: "none",
-        borderRadius: 0,
+        background: "var(--his-popover-surface)",
+        border: "1px solid var(--his-border-neutral)",
+        borderRadius: "9px",
+        boxShadow: "0 12px 28px rgb(0 0 0 / 28%)",
         zIndex: 30,
       }}
     >
-      {formats.map((format) => (
-        <button
+      {formats.map((format) => {
+        const markState = controller.selectionToolbar!.marks[format.command];
+        return <button
           key={format.command}
           type="button"
           title={format.title}
+          aria-pressed={markState === "mixed" ? "mixed" : markState === "on"}
+          data-mark-state={markState}
+          className="editor-selection-toolbar__format"
           onMouseDown={(event) => {
             event.preventDefault();
             controller.applyTextFormat(format.command);
@@ -1499,9 +2034,10 @@ function SelectionToolbar({
           style={{
             width: "30px",
             height: "30px",
-            border: "none",
-            background: "transparent",
-            color: "#E8E9EA",
+            border: "1px solid transparent",
+            borderRadius: "5px",
+            background: markState === "on" ? "color-mix(in srgb, var(--his-accent) 15%, transparent)" : "transparent",
+            color: markState === "off" ? "var(--his-icon-neutral)" : "var(--his-accent)",
             fontFamily: "Georgia, serif",
             fontSize: "15px",
             fontWeight: format.command === "bold" ? 700 : 400,
@@ -1515,8 +2051,8 @@ function SelectionToolbar({
           }}
         >
           {format.label}
-        </button>
-      ))}
+        </button>;
+      })}
       <button
         type="button"
         title={t("editor.commands.color")}
@@ -1529,8 +2065,8 @@ function SelectionToolbar({
           height: "30px",
           border: "none",
           borderRadius: 0,
-          background: "#111518",
-          color: "#E8E9EA",
+          background: "transparent",
+          color: "var(--his-icon-neutral)",
           fontSize: "15px",
           fontWeight: 700,
           cursor: "pointer",
@@ -1553,6 +2089,22 @@ function SelectionToolbar({
       {colorMenuOpen && (
         <div
           data-color-picker="true"
+          className="his-table-menu__submenu editor-selection-color-menu"
+          onMouseDown={(event) => event.preventDefault()}
+          style={{
+            position: "fixed",
+            top: Math.min(controller.selectionToolbar!.top + 42, window.innerHeight - 440),
+            left: Math.min(controller.selectionToolbar!.left + 150, window.innerWidth - 240),
+            zIndex: 35,
+          }}
+        >
+          <header><span>Color de texto</span></header>
+          <ColorOptions kind="text" onApply={onApplyTextColor} />
+        </div>
+      )}
+      {false && colorMenuOpen && (
+        <div
+          data-color-picker="true"
           onMouseDown={(event) => event.preventDefault()}
           style={{
             position: "fixed",
@@ -1560,10 +2112,10 @@ function SelectionToolbar({
             left: Math.min(controller.selectionToolbar!.left + 150, window.innerWidth - 270),
             width: "240px",
             padding: "8px",
-            background: "#1A1D21",
-            border: "none",
-            borderRadius: 0,
-            boxShadow: "none",
+            background: "var(--his-popover-surface)",
+            border: "1px solid var(--his-border-neutral)",
+            borderRadius: "9px",
+            boxShadow: "0 12px 28px rgb(0 0 0 / 28%)",
             zIndex: 35,
           }}
         >

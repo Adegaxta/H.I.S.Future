@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-export type NavigationEntry = { kind: "node" | "trash"; id: string };
+export type NavigationEntry = { kind: "node" | "trash"; id: string; scrollTop?: number; scrollLeft?: number };
 export interface WorkspaceNavigationHistory { entries: NavigationEntry[]; index: number }
 export type NavigationHandler = (direction: -1 | 1) => boolean;
 
@@ -18,38 +18,89 @@ export function stepWorkspaceNavigation(history: WorkspaceNavigationHistory, dir
   return history.entries[next];
 }
 
-// Navigation records destinations only. It cannot mutate nodes or editor history.
-export function useWorkspaceNavigation({ selectedId, selectedTrashId, navigateWithinView, onNavigate }: {
+// Navigation owns destinations and entry-local view positions, never document history.
+export function useWorkspaceNavigation({ selectedId, selectedTrashId, navigateWithinView, onNavigate, getScrollElement }: {
   selectedId: string | null;
   selectedTrashId: string | null;
   navigateWithinView: NavigationHandler;
   onNavigate: (entry: NavigationEntry) => void;
+  getScrollElement?: () => HTMLElement | null;
 }) {
   const [history, setHistory] = useState<WorkspaceNavigationHistory>({ entries: [], index: -1 });
   const historyRef = useRef(history);
   const navigateWithinViewRef = useRef(navigateWithinView);
   const onNavigateRef = useRef(onNavigate);
+  const getScrollElementRef = useRef(getScrollElement);
+  getScrollElementRef.current = getScrollElement;
   historyRef.current = history;
   navigateWithinViewRef.current = navigateWithinView;
   onNavigateRef.current = onNavigate;
   useEffect(() => {
-    if (!selectedId) return;
-    setHistory((current) => {
-      const next = recordWorkspaceVisit(current, { kind: "node", id: selectedId });
-      historyRef.current = next;
-      return next;
-    });
-  }, [selectedId]);
+    const entry: NavigationEntry | null = selectedTrashId
+      ? { kind: "trash", id: selectedTrashId }
+      : selectedId ? { kind: "node", id: selectedId } : null;
+    if (!entry) return;
+    const next = recordWorkspaceVisit(historyRef.current, entry);
+    historyRef.current = next;
+    setHistory(next);
+  }, [selectedId, selectedTrashId]);
   useEffect(() => {
-    if (!selectedTrashId) return;
-    setHistory((current) => {
-      const next = recordWorkspaceVisit(current, { kind: "trash", id: selectedTrashId });
-      historyRef.current = next;
-      return next;
-    });
-  }, [selectedTrashId]);
+    const entry = historyRef.current.entries[historyRef.current.index];
+    const element = getScrollElementRef.current?.();
+    if (!entry || !element) return;
+    const top = entry.scrollTop ?? 0;
+    const left = entry.scrollLeft ?? 0;
+    let restoring = true;
+    const restore = () => {
+      if (!restoring) return;
+      // Content hydration can happen after navigation; observe actual layout.
+      element.scrollTop = top;
+      element.scrollLeft = left;
+      if (element.scrollHeight - element.clientHeight >= top) {
+        restoring = false;
+        mutations.disconnect();
+        resize.disconnect();
+      }
+    };
+    const mutations = new MutationObserver(restore);
+    const resize = new ResizeObserver(restore);
+    mutations.observe(element, { childList: true, subtree: true });
+    resize.observe(element);
+    if (element.firstElementChild) resize.observe(element.firstElementChild);
+    const remember = () => {
+      if (restoring || historyRef.current.entries[historyRef.current.index] !== entry) return;
+      entry.scrollTop = element.scrollTop;
+      entry.scrollLeft = element.scrollLeft;
+    };
+    const cancelRestoration = () => {
+      restoring = false;
+      mutations.disconnect();
+      resize.disconnect();
+      remember();
+    };
+    restore();
+    element.addEventListener("scroll", remember, { passive: true });
+    document.addEventListener("pointerdown", remember, true);
+    element.addEventListener("wheel", cancelRestoration, { passive: true });
+    element.addEventListener("pointerdown", cancelRestoration);
+    return () => {
+      mutations.disconnect();
+      resize.disconnect();
+      element.removeEventListener("scroll", remember);
+      document.removeEventListener("pointerdown", remember, true);
+      element.removeEventListener("wheel", cancelRestoration);
+      element.removeEventListener("pointerdown", cancelRestoration);
+    };
+  }, [selectedId, selectedTrashId]);
+
   const navigate = useCallback((direction: -1 | 1) => {
     if (navigateWithinViewRef.current(direction)) return true;
+    const current = historyRef.current.entries[historyRef.current.index];
+    const element = getScrollElementRef.current?.();
+    if (current && element) {
+      current.scrollTop = element.scrollTop;
+      current.scrollLeft = element.scrollLeft;
+    }
     const nextHistory = { ...historyRef.current, entries: [...historyRef.current.entries] };
     const entry = stepWorkspaceNavigation(nextHistory, direction);
     if (!entry) return false;

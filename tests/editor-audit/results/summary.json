@@ -1,0 +1,88 @@
+{
+  "productionFilesHashed": 608,
+  "productionChanged": [],
+  "browserActionsInitial": 1800,
+  "browserActionsFinal": 1800,
+  "persistenceModelSeeds": 300,
+  "persistenceModelActions": 30000,
+  "propertyInputsPerRun": 3000,
+  "propertyAssertionsPerRun": 18000,
+  "sqliteCycles": 40,
+  "uiReopenCycles": 5,
+  "nativeFindingsConfirmed": [
+    "SANITIZE_TEXT",
+    "PLAIN_TEXT_HTML_DECODE",
+    "MENTION_SELECTED_SERIALIZATION"
+  ],
+  "knownRegressionResults": [
+    {
+      "name": "ctrlClick-scroll-multiselect",
+      "status": "pass"
+    },
+    {
+      "name": "H1-selection",
+      "status": "pass"
+    },
+    {
+      "name": "back-forward-scroll",
+      "status": "pass"
+    },
+    {
+      "name": "paste-full-partial-html",
+      "status": "pass"
+    },
+    {
+      "name": "marks-toolbar-mention",
+      "status": "pass"
+    },
+    {
+      "name": "toolbar-on-off-mixed-and-strike",
+      "status": "pass"
+    },
+    {
+      "name": "slash-headings-list",
+      "status": "fail",
+      "error": "{\"before\":\"<p><ul><li>Contenido 😀</li></ul></p>\",\"after\":\"<p></p><ul><li>Contenido 😀</li></ul><p></p>\"}"
+    },
+    {
+      "name": "table-runtime-roundtrip",
+      "status": "pass"
+    },
+    {
+      "name": "ctrlA-copy-delete-undo",
+      "status": "fail",
+      "error": "[{\"id\":\"B\",\"html\":\"<span class=\\\"editor-mention\\\" data-mention-id=\\\"B\\\" title=\\\"Nodo B\\\" aria-label=\\\"Nodo B\\\"><span class=\\\"sidebar-icon node-type-icon node-type-icon--pagina editor-mention__visual editor-mention__node-icon\\\" data-mention-node-visual=\\\"true\\\" data-editor-ui=\\\"true\\\" data-no-resize=\\\"true\\\" aria-hidden=\\\"true\\\"></span><span class=\\\"editor-mention__label\\\">Nodo B</span></span>\"}]"
+    },
+    {
+      "name": "node-drop-mention-undo",
+      "status": "pass"
+    }
+  ],
+  "findings": [
+    {
+      "id": "AUDIT-001",
+      "severity": "CRITICAL",
+      "seed": 347,
+      "corpus": "corpus-sanitizer-entities.json"
+    },
+    {
+      "id": "AUDIT-002",
+      "severity": "CRITICAL",
+      "seed": 347,
+      "corpus": "corpus-plain-html.json"
+    },
+    {
+      "id": "AUDIT-003",
+      "severity": "HIGH",
+      "seed": 3,
+      "corpus": "corpus-mention-undo.json"
+    },
+    {
+      "id": "AUDIT-004",
+      "severity": "MEDIUM",
+      "seed": 4,
+      "corpus": "corpus-list-undo.json"
+    }
+  ],
+  "blindSpotsSee": "docs/editor-audit-2026-10-02.md"
+}

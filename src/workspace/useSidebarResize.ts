@@ -1,11 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { safeLocalStorageSet } from "./safeStorage";
+import {
+  DEFAULT_SIDEBAR_WIDTH,
+  MAX_SIDEBAR_WIDTH,
+  MIN_SIDEBAR_WIDTH,
+  parseSidebarWidth,
+  sidebarWidthStorageKey,
+} from "./navigationPreferences";
 
-const MIN_SIDEBAR_WIDTH = 280;
-const MAX_SIDEBAR_WIDTH = 440;
-
-export function useSidebarResize(initialWidth = 305) {
-  const [width, setWidth] = useState(initialWidth);
+export function useSidebarResize(projectKey: string, initialWidth = DEFAULT_SIDEBAR_WIDTH) {
+  const storageKey = sidebarWidthStorageKey(projectKey);
+  const [width, setWidth] = useState(() => parseSidebarWidth(localStorage.getItem(storageKey), initialWidth));
+  const widthRef = useRef(width);
   const resizing = useRef(false);
+  widthRef.current = width;
 
   const startResize = useCallback(() => {
     resizing.current = true;
@@ -14,12 +22,15 @@ export function useSidebarResize(initialWidth = 305) {
 
   useEffect(() => {
     const finishResize = () => {
+      if (resizing.current) safeLocalStorageSet(storageKey, String(widthRef.current));
       resizing.current = false;
       document.body.style.cursor = "default";
     };
     const resize = (event: MouseEvent) => {
       if (!resizing.current) return;
-      setWidth(Math.min(MAX_SIDEBAR_WIDTH, Math.max(MIN_SIDEBAR_WIDTH, event.clientX)));
+      const nextWidth = Math.min(MAX_SIDEBAR_WIDTH, Math.max(MIN_SIDEBAR_WIDTH, event.clientX));
+      widthRef.current = nextWidth;
+      setWidth(nextWidth);
     };
     window.addEventListener("mousemove", resize);
     window.addEventListener("mouseup", finishResize);
@@ -28,7 +39,11 @@ export function useSidebarResize(initialWidth = 305) {
       window.removeEventListener("mouseup", finishResize);
       if (resizing.current) document.body.style.cursor = "default";
     };
-  }, []);
+  }, [storageKey]);
+
+  useEffect(() => {
+    setWidth(parseSidebarWidth(localStorage.getItem(storageKey), initialWidth));
+  }, [initialWidth, storageKey]);
 
   return { width, startResize };
 }

@@ -22,15 +22,19 @@ tauri = { version = "2", features = ["tray-icon"] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+base64 = "0.22"
+sha2 = "0.10"
 tauri-plugin-sql = { version = "2", features = ["sqlite"] }
 tauri-plugin-dialog = "2"
 rusqlite = { version = "0.32", features = ["bundled"] }
 zip = "2"
 discord-rich-presence = "1.1.0"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+tokio = { version = "1", features = ["io-util", "macros", "process", "rt-multi-thread", "sync", "time"] }
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.59", features = ["Win32_Graphics_Dwm", "Win32_Storage_FileSystem", "Win32_UI_Shell"] }
 webview2-com = "0.38.2"
-windows = { version = "0.61.2", features = ["Win32_System_Com"] }
+windows = { version = "0.61.2", features = ["Win32_System_Com", "Win32_Globalization"] }
 winreg = "0.55"
 tauri-plugin-updater = "2"

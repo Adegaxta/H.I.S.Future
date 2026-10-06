@@ -35,6 +35,8 @@ import {
 interface CalendarNodeViewProps {
   node: NodeItem;
   nodes: NodeItem[];
+  recentNodes?: NodeItem[];
+  onCreateMentionNode?: (name: string, parentId: string | null) => NodeItem | null;
   deletedNodes: NodeItem[];
   timeFormat: TimeFormat;
   onContentChange: (id: string, content: string) => void;
@@ -112,7 +114,7 @@ function TempoSummary({ tempo, timeFormat, compact = false, onOpen, onContextMen
 export default function CalendarNodeView({
   node, nodes, deletedNodes, timeFormat, onContentChange, onCreateTempo,
   onMoveTempo, onRenameTempo, onDeleteTempo, setExpanded, onOpenDeletedNode,
-  onOpenNodeView, onFileImport, onSlashCommand,
+  onOpenNodeView, onFileImport, onSlashCommand, recentNodes, onCreateMentionNode,
   onRegisterNavigation, showTypeLabel = true,
 }: CalendarNodeViewProps) {
   const { locale, t } = useLocale();
@@ -382,7 +384,7 @@ export default function CalendarNodeView({
           showTempoMenu(event, id);
         }} onBack={() => selectView("week")} />
       <aside className="calendar-day-inspector">
-        {selectedWeeklyTempo ? <TempoInspector tempo={selectedWeeklyTempo} nodes={nodes} deletedNodes={deletedNodes} timeFormat={timeFormat}
+        {selectedWeeklyTempo ? <TempoInspector tempo={selectedWeeklyTempo} nodes={nodes} recentNodes={recentNodes} onCreateMentionNode={onCreateMentionNode} deletedNodes={deletedNodes} timeFormat={timeFormat}
           onRename={onRenameTempo} onContentChange={onContentChange} setExpanded={setExpanded}
           onOpenDeletedNode={onOpenDeletedNode} onOpenNodeView={onOpenNodeView}
           onFileImport={onFileImport} onSlashCommand={onSlashCommand} />

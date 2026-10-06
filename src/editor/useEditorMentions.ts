@@ -1,16 +1,23 @@
-import { useCallback, useEffect } from "react";
+import { applyDomImagePresentation } from "../utils/domImagePresentation";
+import { useCallback, useLayoutEffect } from "react";
 import type {
   Dispatch,
   PointerEvent,
+  MouseEvent,
   RefObject,
   SetStateAction,
 } from "react";
 import type { NodeItem } from "../types/nodes";
-import { getNodeDefinition } from "../defs/nodeTypes";
-import { ensureEditorImageBlockId, isResizableEditorImage } from "./imageResize";
+import {
+  clampEditorImageWidth,
+  ensureEditorImageBlockId,
+  getEditorImageMaxWidth,
+  isResizableEditorImage,
+} from "./imageResize";
 import { dynamicIconImports } from "lucide-react/dynamic.mjs";
-import { resolveNodeCustomVisual } from "../nodes/nodeIconSource";
+import { resolveNodeCustomVisual, useNodeCustomVisuals } from "../nodes/nodeIconSource";
 import type { ResolvedNodeVisual } from "../nodes/visuals/types";
+import { IMAGE_PLACEHOLDER_ATTRIBUTE } from "../utils/imageRuntimeResolver";
 
 type LucideIconData = {
   size?: number;
@@ -19,6 +26,20 @@ type LucideIconData = {
 
 const toSvgAttribute = (name: string) => name.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
 const mentionVisualSignatures = new WeakMap<HTMLElement, string>();
+
+function ensureMentionLabel(mention: HTMLElement): HTMLElement | null {
+  const existing = mention.querySelector<HTMLElement>(":scope > .editor-mention__label");
+  if (existing) return existing;
+  const content = Array.from(mention.childNodes).filter((node) =>
+    !(node instanceof Element && node.matches("[data-mention-node-visual], .editor-mention__icon, .editor-mention__node-icon, .node-visual")),
+  );
+  if (!content.length) return null;
+  const label = document.createElement("span");
+  label.className = "editor-mention__label";
+  content.forEach((node) => label.appendChild(node));
+  mention.appendChild(label);
+  return label;
+}
 
 function renderLucideVisual(host: HTMLElement, name: string): void {
   const loader = (dynamicIconImports as Record<string, (() => Promise<unknown>) | undefined>)[name];
@@ -69,31 +90,42 @@ function createMentionVisual(visual: ResolvedNodeVisual | undefined, type: NodeI
     }
     icon = span;
   }
+  if (icon instanceof HTMLImageElement) {
+    const wrapper = document.createElement("span");
+    wrapper.appendChild(icon);
+    icon = wrapper;
+  }
   icon.classList.add("editor-mention__visual", "editor-mention__node-icon");
   icon.dataset.mentionNodeVisual = "true";
+  icon.dataset.editorUi = "true";
   icon.dataset.noResize = "true";
   icon.setAttribute("aria-hidden", "true");
+  if (visual?.kind === "image" && visual.presentation) {
+    icon.classList.add("his-presented-image");
+    const image = icon.querySelector<HTMLImageElement>("img");
+    if (image) applyDomImagePresentation(image, visual.presentation);
+  }
   return icon;
 }
 
-function syncMentionVisual(mention: HTMLElement, target: NodeItem, nodes: readonly NodeItem[]): void {
+function syncMentionVisual(mention: HTMLElement, target: NodeItem, nodes: readonly NodeItem[], resolvedVisual?: ResolvedNodeVisual): void {
   if (target.type === "imagen") return;
-  const visual = resolveNodeCustomVisual(target, nodes);
+  const visual = resolvedVisual ?? resolveNodeCustomVisual(target, nodes);
   const signature = JSON.stringify([target.type, visual ?? null]);
   const hasVisual = Boolean(mention.querySelector(":scope > [data-mention-node-visual]"));
-  if (mentionVisualSignatures.get(mention) === signature && (hasVisual || (target.type === "pagina" && !visual))) return;
+  if (mentionVisualSignatures.get(mention) === signature && hasVisual) return;
   Array.from(mention.children).forEach((child) => {
     if (child.matches("[data-mention-node-visual], .editor-mention__icon, .editor-mention__node-icon, .node-visual")) child.remove();
   });
-  // Una Página sin personalización conserva el marcador Article del enlace.
-  // En cuanto tiene un visual propio, este ocupa exactamente ese lugar.
-  if (visual || target.type !== "pagina") {
-    mention.insertBefore(createMentionVisual(visual, target.type), mention.firstChild);
-  }
+  const label = ensureMentionLabel(mention);
+  // Every node mention owns a real node icon. The fallback comes from the node
+  // type, while a custom visual replaces it without changing stored text.
+  mention.insertBefore(createMentionVisual(visual, target.type), label ?? mention.firstChild);
   mentionVisualSignatures.set(mention, signature);
 }
 
 interface UseEditorMentionsOptions {
+  activeNodeId: string;
   editorRef: RefObject<HTMLDivElement | null>;
   nodes: NodeItem[];
   deletedNodes: NodeItem[];
@@ -118,6 +150,7 @@ interface UseEditorMentionsOptions {
 }
 
 export function useEditorMentions({
+  activeNodeId,
   editorRef,
   nodes,
   deletedNodes,
@@ -132,6 +165,7 @@ export function useEditorMentions({
   controls,
   captureStructuralUndo,
 }: UseEditorMentionsOptions) {
+  const customVisuals = useNodeCustomVisuals(nodes);
   const createMention = useCallback((target: NodeItem, imageMode: "inserted" | "full" = "inserted") => {
     const mention = document.createElement("span");
     mention.contentEditable = "false";
@@ -140,46 +174,56 @@ export function useEditorMentions({
     mention.dataset.noResize = "true";
     mention.title = target.name;
     mention.setAttribute("aria-label", target.name);
-    mention.style.setProperty("--mention-color", getNodeDefinition(target.type).color);
     if (target.type === "imagen") mention.dataset.mentionMode = imageMode;
     if (deletedNodes.some((item) => item.id === target.id)) {
       mention.dataset.deletedMention = "true";
     }
 
     if (target.type === "pagina") {
-      syncMentionVisual(mention, target, nodes);
       mention.appendChild(document.createTextNode(target.name));
+      syncMentionVisual(mention, target, nodes, customVisuals.get(target.id));
       return mention;
     }
 
     if (target.type === "imagen") {
-      const source = new DOMParser().parseFromString(target.content, "text/html").querySelector("img")?.getAttribute("src");
-      if (source) {
-        const image = document.createElement("img");
-        image.src = source;
-        image.alt = target.name;
-        if (imageMode === "inserted") image.className = "editor-mention__icon";
-        image.dataset.noResize = "true";
-        if (imageMode === "full") ensureEditorImageBlockId(image);
-        mention.appendChild(image);
-        if (imageMode === "inserted") mention.appendChild(document.createTextNode(target.name));
-      } else mention.textContent = target.name;
+      const image = document.createElement("img");
+      image.setAttribute(IMAGE_PLACEHOLDER_ATTRIBUTE, "true");
+      image.alt = target.name;
+      if (imageMode === "inserted") image.className = "editor-mention__icon";
+      image.dataset.noResize = "true";
+      if (imageMode === "full") ensureEditorImageBlockId(image);
+      mention.appendChild(image);
+      if (imageMode === "inserted") {
+        mention.appendChild(document.createTextNode(target.name));
+        ensureMentionLabel(mention);
+      }
       return mention;
     }
 
-    syncMentionVisual(mention, target, nodes);
     mention.appendChild(document.createTextNode(target.name));
+    syncMentionVisual(mention, target, nodes, customVisuals.get(target.id));
     return mention;
-  }, [deletedNodes, nodes]);
+  }, [customVisuals, deletedNodes, nodes]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const editor = editorRef.current;
     if (!editor) return;
-    editor.querySelectorAll<HTMLElement>("[data-mention-id]").forEach((mention) => {
-      const target = nodes.find((item) => item.id === mention.dataset.mentionId);
-      if (target && target.type !== "imagen") syncMentionVisual(mention, target, nodes);
-    });
-  }, [editorRef, nodes]);
+    const targets = new Map(nodes.map((target) => [target.id, target]));
+    const hydrate = () => {
+      editor.querySelectorAll<HTMLElement>("[data-mention-id]").forEach((mention) => {
+        const target = targets.get(mention.dataset.mentionId ?? "");
+        if (!target || target.type === "imagen") return;
+        ensureMentionLabel(mention);
+        syncMentionVisual(mention, target, nodes, customVisuals.get(target.id));
+      });
+    };
+    // Content loads before this layout effect, so icons exist before painting.
+    hydrate();
+    // Undo and paste can restore persisted HTML without its runtime visuals.
+    const observer = new MutationObserver(hydrate);
+    observer.observe(editor, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, [activeNodeId, customVisuals, editorRef, nodes]);
 
   const getAdjacentRangeCharacter = useCallback((range: Range, side: "left" | "right") => {
     const container = range.startContainer;
@@ -261,7 +305,7 @@ export function useEditorMentions({
     if (target) insertNodeReference(target, x, y);
   }, [insertNodeReference, nodes]);
 
-  const onMentionPointerDown = useCallback((event: PointerEvent<HTMLDivElement>) => {
+  const onMentionPointerDown = useCallback((event: PointerEvent<HTMLDivElement> | MouseEvent<HTMLDivElement>) => {
     const target = (event.target as HTMLElement).closest<HTMLElement>(
       "[data-mention-id]",
     );
@@ -304,9 +348,8 @@ export function useEditorMentions({
       return;
     }
     if (target.closest("[data-mention-id]") || target.closest(".editor-mention") || target.closest("[data-no-resize='true']")) {
-      if (target.closest("[data-mention-id]")) {
-        onMentionPointerDown(event);
-      }
+      if (target.closest("[data-mention-id]")) onMentionPointerDown(event);
+      // Atomic Calls navigate on press; ordinary text keeps native gestures.
       event.preventDefault();
       event.stopPropagation();
       return;
@@ -378,11 +421,16 @@ export function useEditorMentions({
       return;
     }
     event.preventDefault();
-    const width = Math.max(40, resize.startWidth + event.clientX - resize.startX);
+    const editor = editorRef.current;
+    if (!editor) return;
+    const width = clampEditorImageWidth(
+      resize.startWidth + event.clientX - resize.startX,
+      getEditorImageMaxWidth(resize.image, editor),
+    );
     resize.image.style.width = `${width}px`;
-    resize.image.style.maxWidth = "none";
+    resize.image.style.maxWidth = "100%";
     return;
-  }, [imageResizeRef]);
+  }, [editorRef, imageResizeRef]);
 
   const onEditorPointerUp = useCallback(() => {
     if (!imageResizeRef.current) return;

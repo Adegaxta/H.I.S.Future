@@ -1,3 +1,4 @@
+import { PresentedImage } from "./PresentedImage";
 import { lazy, Suspense } from "react";
 import type { IconName } from "lucide-react/dynamic.mjs";
 import "@material-symbols/font-400/rounded.css";
@@ -16,6 +17,7 @@ interface NodeVisualRendererProps {
 export function NodeVisualRenderer({ visual, className = "", label = "", decorative = true }: NodeVisualRendererProps) {
   const accessibility = decorative ? { "aria-hidden": true as const } : { role: "img", "aria-label": label };
   if (visual.kind === "image") {
+    if (visual.presentation) return <PresentedImage src={visual.src} presentation={visual.presentation} className={className} label={label} decorative={decorative} />;
     return <img className={className} src={visual.src} alt={decorative ? "" : label} aria-hidden={decorative || undefined} />;
   }
   if (visual.kind === "emoji") {

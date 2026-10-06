@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef } from "react";
 import type { Dispatch, MouseEvent, PointerEvent, SetStateAction } from "react";
 import type { LineControlState, PickerState } from "./types";
+import type { SelectionToolbarState } from "./useEditorSelection";
+import { getTableRootFromNode } from "./table";
 
 interface UseEditorBlocksOptions {
   editorRef: React.RefObject<HTMLDivElement | null>;
@@ -11,7 +13,7 @@ interface UseEditorBlocksOptions {
   setSelectedLineBlocks: Dispatch<SetStateAction<HTMLElement[]>>;
   setLineActionBlock: Dispatch<SetStateAction<HTMLElement | null>>;
   setPlaceholderBlock: Dispatch<SetStateAction<HTMLElement | null>>;
-  setSelectionToolbar: Dispatch<SetStateAction<{ top: number; left: number } | null>>;
+  setSelectionToolbar: Dispatch<SetStateAction<SelectionToolbarState | null>>;
   controls: {
     lineControl: LineControlState | null;
     setLineControl: Dispatch<SetStateAction<LineControlState | null>>;
@@ -241,6 +243,11 @@ export function useEditorBlocks({
   ) => {
     const editor = editorRef.current;
     if (!editor || !editor.contains(block)) return;
+    const table = getTableRootFromNode(block);
+    if (table && table !== block) {
+      removeLine(table, caretAtEnd, options);
+      return;
+    }
     if (options.captureUndo !== false) captureStructuralUndo();
     const globeContent = block.closest("[data-globe-content]") as HTMLElement | null;
     const column = block.closest("[data-his-column]") as HTMLElement | null;
@@ -259,6 +266,20 @@ export function useEditorBlocks({
     );
     block.remove();
     let focusLine = nextLine || previousLine;
+    if (focusLine?.matches("[data-page-index]")) {
+      const following = focusLine.nextElementSibling;
+      if (following instanceof HTMLElement && following.matches(textLineSelector) && !following.matches("[data-page-index]")) {
+        focusLine = following;
+      } else {
+        const line = document.createElement("p");
+        line.removeAttribute("style");
+        line.appendChild(document.createElement("br"));
+        line.contentEditable = "true";
+        focusLine.parentElement?.insertBefore(line, focusLine.nextSibling);
+        rememberGeneratedLine(line);
+        focusLine = line;
+      }
+    }
     if (!candidates.length && column && !globeContent) {
       const layout = column.parentElement?.matches("[data-his-column-layout]")
         ? column.parentElement

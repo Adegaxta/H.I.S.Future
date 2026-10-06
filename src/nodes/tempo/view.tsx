@@ -9,6 +9,8 @@ import { useLocale } from "../../i18n/LocaleContext";
 interface TempoInspectorProps {
   tempo: NodeItem;
   nodes: NodeItem[];
+  recentNodes?: NodeItem[];
+  onCreateMentionNode?: (name: string, parentId: string | null) => NodeItem | null;
   deletedNodes: NodeItem[];
   timeFormat: TimeFormat;
   variant?: "panel" | "standalone";
@@ -39,6 +41,8 @@ const WEEKDAYS: IsoWeekday[] = [1, 2, 3, 4, 5, 6, 7];
 export default function TempoInspector({
   tempo,
   nodes,
+  recentNodes,
+  onCreateMentionNode,
   deletedNodes,
   timeFormat,
   variant = "panel",
@@ -145,6 +149,8 @@ export default function TempoInspector({
           <RichTextEditor
             node={tempo}
             nodes={nodes}
+            recentNodes={recentNodes}
+            onCreateMentionNode={onCreateMentionNode}
             deletedNodes={deletedNodes}
             editorRef={editorRef}
             onContentChange={onContentChange}

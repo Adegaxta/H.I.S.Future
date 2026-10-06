@@ -4,7 +4,7 @@ import { createTempoNode, moveTempoNode } from "./operations";
 
 export function CalendarNodeRenderer({ node, host, embedded = false }: NodeRendererProps & { embedded?: boolean }) {
   const operationsHost = { nodes: host.data.nodes, createNode: host.mutations.createNode, selectNode: host.navigation.selectNode, setExpanded: host.tree.setExpanded, updateContent: host.mutations.updateContent };
-  return <CalendarNodeView key={node.id} node={node} nodes={host.data.nodes} deletedNodes={host.data.deletedNodes} timeFormat={host.data.timeFormat}
+  return <CalendarNodeView key={node.id} node={node} nodes={host.data.nodes} recentNodes={host.data.recentNodes} onCreateMentionNode={host.editor.createMentionNode} deletedNodes={host.data.deletedNodes} timeFormat={host.data.timeFormat}
     onContentChange={host.mutations.updateContent}
     onCreateTempo={(date, startTime, subtype, endDate, weeklyVisualOrder) => createTempoNode(operationsHost, node.id, date, startTime, subtype, endDate, weeklyVisualOrder)}
     onMoveTempo={(id, meta) => moveTempoNode(operationsHost, id, meta)} onRenameTempo={host.mutations.renameNode} onDeleteTempo={host.mutations.deleteNode}

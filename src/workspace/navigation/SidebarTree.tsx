@@ -11,7 +11,7 @@ import type {
   NodeItem,
   RenderNodeType,
 } from "../../types/nodes";
-import { NODE_REGISTRY, getNodeDefinition, getNodeDisplayLabel, hasNodeCapability } from "../../defs/nodeTypes";
+import { getNodeDefinition, hasNodeCapability } from "../../defs/nodeTypes";
 import { getEffectiveNodeType, opensNodeViewOnClick } from "../../utils/nodeTree";
 import { useLocale } from "../../i18n/LocaleContext";
 import { findImportableFile, isImportableDragItem } from "../../project/fileNodeImporter";
@@ -20,7 +20,7 @@ import { PrimaryNodeName } from "../../nodes/PrimaryNodeName";
 import { useSearchReveal } from "../../hooks/useSearchReveal";
 import { useEffect, useMemo, useRef } from "react";
 import { getLoreConnectorTopology, getLoreNodes, selectLoreRange } from "../../utils/loreTree";
-import { buildNodeCustomVisuals } from "../../nodes/nodeIconSource";
+import { useNodeCustomVisuals } from "../../nodes/nodeIconSource";
 
 interface SidebarTreeProps {
   selectedLoreIds: string[];
@@ -31,19 +31,16 @@ interface SidebarTreeProps {
   expanded: Record<string, boolean>;
   creating: CreatingState | null;
   setCreating: (creating: CreatingState | null) => void;
-  draftName: string;
   draftType: BaseNodeType;
   editingId: string | null;
   editingName: string;
   dropTarget: DropTarget | null;
   setExpanded: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
-  setDraftName: (name: string) => void;
   setDraftType: (type: BaseNodeType) => void;
   setEditingName: (name: string) => void;
   setEditingId: (id: string | null) => void;
   setSelectedId: (id: string) => void;
   openCreate: (parentId: string | null, initialType?: BaseNodeType) => void;
-  confirmCreate: () => void;
   confirmRename: () => void;
   startRename: (node: NodeItem) => void;
   setContextMenu: (menu: {
@@ -78,14 +75,12 @@ export default function SidebarTree(props: SidebarTreeProps) {
     contextMenuNodeId,
     expanded,
     creating,
-    draftName,
-    draftType,
     editingId,
     editingName,
     dropTarget,
   } = props;
   const nodes = useMemo(() => getLoreNodes(projectNodes), [projectNodes]);
-  const customVisuals = useMemo(() => buildNodeCustomVisuals(projectNodes), [projectNodes]);
+  const customVisuals = useNodeCustomVisuals(projectNodes);
   const nodesById = useMemo(() => new Map(nodes.map((node) => [node.id, node])), [nodes]);
   const childrenByParent = useMemo(() => {
     const index = new Map<string | null, NodeItem[]>();
@@ -175,40 +170,7 @@ export default function SidebarTree(props: SidebarTreeProps) {
     return () => document.removeEventListener("pointerdown", collapseSelectionOutsideTree);
   }, [props.selectedLoreIds, selectedId]);
 
-  const renderCreateForm = () => (
-    <div className="lore-create-form"
-      onClick={(event) => event.stopPropagation()}
-    >
-      <input
-        autoFocus
-        value={draftName}
-        onChange={(event) => props.setDraftName(event.target.value)}
-        onKeyDown={(event) => {
-          if (event.key === "Enter") props.confirmCreate();
-          if (event.key === "Escape") props.setCreating(null);
-        }}
-        placeholder={t("sidebar.nodeName")}
-      />
-      <div className="lore-create-form__actions">
-        {NODE_REGISTRY.availableForCreation().map(({ type }) => (
-          <button
-            key={type}
-            onClick={() => props.setDraftType(type)}
-            className={draftType === type ? "is-active" : ""}
-            style={{ "--node-color": getNodeDefinition(type).color } as CSSProperties}
-          >
-            {getNodeDisplayLabel(type, t)}
-          </button>
-        ))}
-        <button
-          onClick={props.confirmCreate}
-          className="lore-create-form__confirm"
-        >
-          {t("sidebar.create")}
-        </button>
-      </div>
-    </div>
-  );
+  const renderCreateForm = () => null;
 
   const renderNode = (node: NodeItem, depth: number): React.ReactNode => {
     const children = childrenOf(node.id);
@@ -216,10 +178,10 @@ export default function SidebarTree(props: SidebarTreeProps) {
     const isFolder = hasNodeCapability(type, "containChildren");
     const visibleChildCount = children.length + Number(creating?.parentId === node.id);
     const connectorTopology = getLoreConnectorTopology(visibleChildCount);
-    const singleConnectorClass = connectorTopology === "single" ? "lore-node--single-connector" : "";
     const canContainChildren =
       isFolder || children.length > 0 || creating?.parentId === node.id;
     const isExpanded = expanded[node.id] || (Boolean(normalizedQuery) && visibleIds.has(node.id));
+    const singleConnectorClass = connectorTopology === "single" && isExpanded ? "lore-node--single-connector" : "";
     const isSelected = contextMenuNodeId === node.id || (props.selectedLoreIds.length || selectionAnchor.current ? props.selectedLoreIds.includes(node.id) : node.id === selectedId);
     const activeDropPosition =
       dropTarget?.id === node.id ? dropTarget.position : null;

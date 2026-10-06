@@ -29,6 +29,11 @@ try {
   assert.equal(repaired.find(domain.isVaultPrimaryNode).id, renamed.id, "the established earliest primary is preserved");
   assert.equal(domain.isVaultPrimaryNode(repaired.find((item) => item.id === "duplicate")), false);
   assert.ok(repaired.find((item) => item.id === "duplicate").content.endsWith("<p></p>"), "demotion preserves duplicate content");
+  const dismissed = reassigned.map(item => domain.isVaultPrimaryNode(item) ? { ...item, content: metadata.setNodalMeta(item.content, { role: null, primaryDismissed: true }) } : item);
+  assert.equal(domain.reconcileVaultPrimary(dismissed, "My Vault"), dismissed, "explicit primary removal survives reconciliation and reopening");
+  const restored = domain.assignVaultPrimaryNode(dismissed, renamed.id);
+  assert.equal(restored.filter(domain.isVaultPrimaryNode).length, 1);
+  assert.ok(restored.every(item => !metadata.getNodalMeta(item.content).primaryDismissed), "assigning primary clears the explicit opt-out");
   const primaryPoint = { ...renamed, kind: "node", provenance: "nodal-node", label: renamed.name, color: "#FFFFFF", nodeType: "proyecto", isPrimaryProject: true, x: 0, y: 0 };
   const secondaryPoint = { ...primaryPoint, id: "secondary-point", isPrimaryProject: false };
   assert.ok(scene.graphNodeRadius(primaryPoint, "detail", false) > scene.graphNodeRadius(secondaryPoint, "detail", false));

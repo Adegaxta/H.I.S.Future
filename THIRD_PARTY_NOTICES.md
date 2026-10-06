@@ -1,5 +1,9 @@
 # H.I.S. Future — avisos del build de prueba
 
+## HIS Lexicon V1
+
+El build actual no incluye datos de Wiktionary/Kaikki, código de Wiktextract ni Open English WordNet. Solo contiene el HIS Domain Lexicon original. Los avisos y obligaciones que deberán acompañar una distribución futura de esos datasets están registrados en `docs/legal/lexicon/`; su incorporación está bloqueada hasta aprobar fuente, versión, tamaño, checksum y alcance de redistribución.
+
 Pre-Distribution V0, 2026-09-06. Matias Escobedo es el licenciante del código original, como persona natural. Los terceros conservan sus derechos y licencias; la elección PolyForm no los relicencia. **Persisten bloqueos de procedencia de assets: no se declara cumplimiento completo para distribuir.**
 
 ## Textos y alcance real
@@ -39,3 +43,10 @@ option-ext 0.2.0 sí tiene artefacto release de runtime. No se certifica retenci
 ## Documentación acompañante
 
 Se prepara una carpeta de revisión junto al ejecutable con licencias, NOTICE, estos avisos, textos de terceros y fuente MPL. El ejecutable aislado no constituye una entrega documental completa. Véase el [informe de cierre](docs/pre-distribution-audit.md) para bloqueos y límites. Sin installer, updater ni release.
+
+
+## Offline editor spelling
+
+- nspell 2.1.5: MIT. Source: https://github.com/wooorm/nspell. Full notice: public/licenses/spelling/nspell.txt.
+- dictionary-en 4.0.0: MIT AND BSD (SCOWL / English Hunspell). Source: https://github.com/wooorm/dictionaries/tree/main/dictionaries/en. Full notice: public/licenses/spelling/dictionary-en.txt.
+- dictionary-es 4.0.0: distributed under the MPL-1.1 alternative of its GPL-3.0 OR LGPL-3.0 OR MPL-1.1 license. Source: https://github.com/wooorm/dictionaries/tree/main/dictionaries/es. Full notice: public/licenses/spelling/dictionary-es.txt. The unmodified dictionary data is available as index.aff and index.dic in the published npm package.

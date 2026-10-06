@@ -1,5 +1,5 @@
 export type UiIconName =
-  | "sidebar" | "settings" | "search" | "lore" | "recent" | "types" | "graph"
+  | "sidebar" | "settings" | "search" | "lore" | "recent" | "types" | "graph" | "ai"
   | "add" | "folder" | "image-add" | "general" | "history" | "trash" | "exit"
   | "arrow-open" | "arrow-close" | "expand-all" | "collapse-all" | "chevron-down";
 

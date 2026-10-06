@@ -1,12 +1,16 @@
-import { lazy, startTransition, Suspense, useEffect, useRef, useState } from "react";
+import { IconCapabilityPicker } from "../capabilities/IconCapabilityPicker";
+import { PresentedImage } from "../visuals/PresentedImage";
+import type { ImagePresentation } from "../../utils/imagePresentation";
+import { ImagePickerDialog } from "../capabilities/ImagePickerDialog";
+import { startTransition, useEffect, useRef, useState } from "react";
 import type { NodeItem } from "../../types/nodes";
 import NodeTypeLabel from "../../components/NodeTypeLabel";
-import { getImageResourceInfo } from "../../utils/imageResource";
+import { getImageResourceDescriptor } from "../../utils/imageResource";
+import { useResolvedImageSource } from "../../utils/imageRuntimeResolver";
 import { DEFAULT_PAGE_META, getPageBlockWidthPercent, getPageMeta, setPageMeta, type PageMeta } from "../../utils/pageMeta";
 import { useNodeScopedEditorHistory } from "../../editor/useEditorHistory";
 import { isEditableElement } from "../../utils/dom";
 import { useLocale } from "../../i18n/LocaleContext";
-import UnsplashImagePicker from "../../integrations/unsplash/UnsplashImagePicker";
 import type { UnsplashImageSelection } from "../../integrations/unsplash/types";
 import imageAsset from "../../assets/third-party/google-material/icons/image.svg";
 import coverAsset from "../../assets/third-party/google-material/icons/image_inset.svg";
@@ -16,12 +20,10 @@ import sourceAsset from "../../assets/third-party/google-material/icons/hide_sou
 import moreAsset from "../../assets/third-party/google-material/icons/more_horiz.svg";
 import { openWebUrl } from "../viewPrimitives";
 import { NodeVisualRenderer } from "../visuals/NodeVisualRenderer";
-import type { EmojiVisualStyle, IconVisualProvider, ResolvedNodeVisual } from "../visuals/types";
-import { fileImportAccept } from "../../project/fileImportRegistry";
-
-const EmojiPicker = lazy(() => import("../visuals/EmojiPicker").then((module) => ({ default: module.EmojiPicker })));
-const IconPicker = lazy(() => import("../visuals/IconPicker").then((module) => ({ default: module.IconPicker })));
-const IMAGE_FILE_ACCEPT = fileImportAccept(["imagen"]);
+import type { EmojiVisualStyle, IconVisualProvider } from "../visuals/types";
+import { clearNodeIcon, selectNodeIconEmoji, selectNodeIconGlyph, selectNodeIconImage, useResolvedNodeIcon } from "../capabilities/icon";
+import { hasNodeCapability } from "../registry";
+import { NodeTags } from "../../tags/NodeTags";
 
 interface PageNodeHeaderProps {
   mode?: "interactive" | "print";
@@ -51,6 +53,14 @@ export default function PageNodeHeader({
   const [meta, setMeta] = useState<PageMeta>(() => getPageMeta(node.content));
   const [choice, setChoice] = useState<ImageChoice | null>(null);
   const [choiceTab, setChoiceTab] = useState<ChoiceTab>("local");
+  const [initialImageId, setInitialImageId] = useState<string | null>(null);
+  const coverMeasureRef = useRef<HTMLDivElement>(null);
+  const [coverAspectRatio, setCoverAspectRatio] = useState(1);
+  useEffect(() => {
+    const element = coverMeasureRef.current!;
+    const observer = new ResizeObserver(([entry]) => { if (entry.contentRect.height > 0) setCoverAspectRatio(entry.contentRect.width / entry.contentRect.height); });
+    observer.observe(element); return () => observer.disconnect();
+  }, []);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [visibilityOpen, setVisibilityOpen] = useState(false);
   const [headerPositionOpen, setHeaderPositionOpen] = useState(false);
@@ -132,14 +142,10 @@ export default function PageNodeHeader({
     };
   }, [settingsOpen, visibilityOpen]);
 
-  const imageNodes = nodes.filter((item) => item.type === "imagen");
-  const icon = meta.iconNodeId ? nodes.find((item) => item.id === meta.iconNodeId) : null;
   const cover = meta.coverNodeId ? nodes.find((item) => item.id === meta.coverNodeId) : null;
-  const iconResource = icon ? getImageResourceInfo(icon.content, icon.name) : null;
-  const coverResource = cover ? getImageResourceInfo(cover.content, cover.name) : null;
-  const iconVisual: ResolvedNodeVisual | null = meta.iconVisual?.kind === "image"
-    ? (iconResource ? { kind: "image", src: iconResource.src } : null)
-    : meta.iconVisual;
+  const coverResource = cover ? getImageResourceDescriptor(cover.content, cover.name) : null;
+  const resolvedCover = useResolvedImageSource(cover);
+  const iconVisual = useResolvedNodeIcon(meta, nodes);
 
   const updateMeta = (next: PageMeta) => {
     if (JSON.stringify(next) === JSON.stringify(metaRef.current)) return;
@@ -149,43 +155,30 @@ export default function PageNodeHeader({
     startTransition(() => onContentChange(node.id, setPageMeta(node.content, next)));
   };
 
-  const chooseImage = (id: string, source?: "local" | "unsplash") => {
+  const chooseImage = (id: string, presentation?: ImagePresentation, source?: "local" | "unsplash") => {
     if (choice === "iconNodeId") {
-      const selectedNode = nodes.find((item) => item.id === id);
-      const selectedResource = selectedNode ? getImageResourceInfo(selectedNode.content, selectedNode.name) : null;
-      const imageSource = source ?? (selectedResource?.provenance?.provider === "unsplash" ? "unsplash" : "local");
-      updateMeta({ ...metaRef.current, iconNodeId: id, iconVisual: { kind: "image", nodeId: id, source: imageSource } });
+      updateMeta({ ...metaRef.current, ...selectNodeIconImage(metaRef.current, nodes, id, source, presentation) });
     } else {
-      updateMeta({ ...metaRef.current, coverNodeId: id });
+      updateMeta({ ...metaRef.current, coverNodeId: id, coverPresentation: presentation });
     }
     setChoice(null);
   };
 
   const chooseEmoji = (value: string, style: EmojiVisualStyle) => {
-    updateMeta({ ...metaRef.current, iconNodeId: null, iconVisual: { kind: "emoji", value, style } });
+    updateMeta({ ...metaRef.current, ...selectNodeIconEmoji(metaRef.current, value, style) });
     setChoice(null);
   };
 
   const chooseIcon = (provider: IconVisualProvider, name: string) => {
-    updateMeta({ ...metaRef.current, iconNodeId: null, iconVisual: { kind: "icon", provider, name } });
+    updateMeta({ ...metaRef.current, ...selectNodeIconGlyph(metaRef.current, provider, name) });
     setChoice(null);
-  };
-
-  const chooseUnsplashImage = async (selection: UnsplashImageSelection) => {
-    const id = await onUnsplashImageSelect(selection);
-    if (id) chooseImage(id, "unsplash");
-  };
-
-  const uploadImage = async (file: File) => {
-    const id = await onImageFileUpload(file);
-    if (id) chooseImage(id, "local");
   };
 
   const clearImage = () => {
     if (!choice) return;
     updateMeta(choice === "iconNodeId"
-      ? { ...metaRef.current, iconNodeId: null, iconVisual: null }
-      : { ...metaRef.current, coverNodeId: null });
+      ? { ...metaRef.current, ...clearNodeIcon(metaRef.current) }
+      : { ...metaRef.current, coverNodeId: null, coverPresentation: undefined });
     setChoice(null);
   };
 
@@ -221,11 +214,17 @@ export default function PageNodeHeader({
   return (
     <>
       <div className="page-node-header">
-        {coverResource && !meta.hideCover && (
+        <div aria-hidden="true" style={{ height: 0, overflow: "hidden", visibility: "hidden" }}><div ref={coverMeasureRef} className="page-node-header__cover" /></div>
+        {coverResource && resolvedCover.src && !meta.hideCover && (
           <div
             className="page-node-header__cover has-image"
-            style={{ backgroundImage: `url(${coverResource.src})` }}
+            style={meta.coverPresentation ? undefined : { backgroundImage: `url(${resolvedCover.src})` }}
+            role={mode === "interactive" ? "button" : undefined} tabIndex={mode === "interactive" ? 0 : undefined} aria-label={t("page.chooseCover")}
+            onPointerDown={(event) => { if (mode === "interactive" && !(event.target as Element).closest(".page-node-header__cover-attribution")) { event.preventDefault(); event.stopPropagation(); } }}
+            onClick={(event) => { if (mode !== "interactive" || (event.target as Element).closest(".page-node-header__cover-attribution")) return; event.stopPropagation(); setInitialImageId(meta.coverNodeId); setChoice("coverNodeId"); }}
+            onKeyDown={(event) => { if (mode === "interactive" && event.target === event.currentTarget && ["Enter", " "].includes(event.key)) { event.preventDefault(); setInitialImageId(meta.coverNodeId); setChoice("coverNodeId"); } }}
           >
+            {meta.coverPresentation && <PresentedImage src={resolvedCover.src} presentation={meta.coverPresentation} />}
             {coverResource.provenance?.provider === "unsplash" && (
               <div className="page-node-header__cover-attribution">
                 <span>{t("page.unsplash.photoBy")}</span>
@@ -239,14 +238,14 @@ export default function PageNodeHeader({
         <div className="page-node-header__content">
           <div className={`page-node-header__block page-node-header__block--${meta.headerPosition}`}>
             <div className={`page-node-header__title-row${iconVisual && !meta.hideIcon ? " has-icon" : ""}`}>
-            {iconVisual && !meta.hideIcon && <NodeVisualRenderer visual={iconVisual} className="page-node-header__icon" />}
+            {iconVisual && !meta.hideIcon && <span className="page-node-header__icon-target" role={mode === "interactive" ? "button" : undefined} tabIndex={mode === "interactive" ? 0 : undefined} aria-label={t("page.chooseIcon")} onPointerDown={(e) => { if (mode === "interactive") { e.preventDefault(); e.stopPropagation(); } }} onClick={(e) => { if (mode === "interactive") { e.stopPropagation(); setInitialImageId(meta.iconNodeId); setChoice("iconNodeId"); } }} onKeyDown={(e) => { if (mode === "interactive" && ["Enter", " "].includes(e.key)) { e.preventDefault(); setInitialImageId(meta.iconNodeId); setChoice("iconNodeId"); } }}><NodeVisualRenderer visual={iconVisual} className="page-node-header__icon" /></span>}
             <div className="page-node-header__title-content">
               <div className="page-node-header__type-row">
                 {!meta.hideSource && <NodeTypeLabel type={type} node={node} />}
                   {mode === "interactive" && <div className="page-node-header__actions">
                   <span className="page-node-header__separator" aria-hidden="true" />
-                  <button type="button" className="page-node-header__icon-button" onClick={() => { setChoiceTab("local"); setChoice("iconNodeId"); }} title={t("page.chooseIcon")} aria-label={t("page.chooseIcon")}><img src={imageAsset} alt="" /></button>
-                  <button type="button" className="page-node-header__icon-button" onClick={() => { setChoiceTab("local"); setChoice("coverNodeId"); }} title={t("page.chooseCover")} aria-label={t("page.chooseCover")}><img src={coverAsset} alt="" /></button>
+                  <button type="button" className="page-node-header__icon-button" onClick={() => { setInitialImageId(null); setChoiceTab("local"); setChoice("iconNodeId"); }} title={t("page.chooseIcon")} aria-label={t("page.chooseIcon")}><img src={imageAsset} alt="" /></button>
+                  <button type="button" className="page-node-header__icon-button" onClick={() => { setInitialImageId(null); setChoiceTab("local"); setChoice("coverNodeId"); }} title={t("page.chooseCover")} aria-label={t("page.chooseCover")}><img src={coverAsset} alt="" /></button>
                   <button
                     type="button"
                     className={`page-node-header__icon-button${meta.hideDescription ? " is-active" : ""}`}
@@ -377,6 +376,7 @@ export default function PageNodeHeader({
                   rows={1}
                 />
               )}
+              {hasNodeCapability(type, "tags") && <NodeTags nodeId={node.id} interactive={mode === "interactive"} />}
             </div>
             </div>
           </div>
@@ -384,55 +384,9 @@ export default function PageNodeHeader({
       </div>
 
       {choice && (
-        <div className="page-image-picker" role="dialog" aria-modal="true" aria-label={t("page.chooseImage")}>
-          <div className="page-image-picker__panel">
-            <div className="page-image-picker__header">
-              <strong>{t(choice === "coverNodeId" ? "page.chooseCover" : "page.chooseIcon")}</strong>
-              <button type="button" onClick={() => setChoice(null)} aria-label={t("common.actions.close")}>X</button>
-            </div>
-            <div className="page-image-picker__tabs" role="tablist">
-              <button type="button" className={choiceTab === "local" ? "is-active" : ""} onClick={() => setChoiceTab("local")}>{t("page.localImages")}</button>
-              {choice === "iconNodeId" && <button type="button" className={choiceTab === "emoji" ? "is-active" : ""} onClick={() => setChoiceTab("emoji")}>{t("page.emojis.tab")}</button>}
-              {choice === "iconNodeId" && <button type="button" className={choiceTab === "icon" ? "is-active" : ""} onClick={() => setChoiceTab("icon")}>{t("page.icons.tab")}</button>}
-              <button type="button" className={choiceTab === "unsplash" ? "is-active" : ""} onClick={() => setChoiceTab("unsplash")}>{t("page.unsplash.tab")}</button>
-            </div>
-            {choiceTab === "local" ? (
-              <>
-                <div className="page-image-picker__gallery">
-                  <label className="page-image-picker__upload-card">
-                    <span aria-hidden="true">+</span>
-                    <strong>{t("page.uploadImage")}</strong>
-                    <input type="file" accept={IMAGE_FILE_ACCEPT} onChange={(event) => {
-                      const file = event.target.files?.[0];
-                      if (file) void uploadImage(file);
-                      event.currentTarget.value = "";
-                    }} />
-                  </label>
-                  {imageNodes.map((imageNode) => {
-                    const resource = getImageResourceInfo(imageNode.content, imageNode.name);
-                    if (!resource) return null;
-                    return (
-                      <button type="button" key={imageNode.id} onClick={() => chooseImage(imageNode.id)} title={imageNode.name}>
-                        <img src={resource.src} alt={imageNode.name} />
-                        <span>{imageNode.name}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-                {imageNodes.length === 0 && <div className="page-image-picker__empty">{t("page.noImages")}</div>}
-              </>
-            ) : choiceTab === "emoji" ? (
-              <Suspense fallback={<div className="page-image-picker__empty">{t("page.visuals.loading")}</div>}><EmojiPicker onSelect={chooseEmoji} /></Suspense>
-            ) : choiceTab === "icon" ? (
-              <Suspense fallback={<div className="page-image-picker__empty">{t("page.visuals.loading")}</div>}><IconPicker onSelect={chooseIcon} /></Suspense>
-            ) : (
-              <UnsplashImagePicker onSelect={chooseUnsplashImage} />
-            )}
-            <button type="button" className="page-image-picker__delete" onClick={clearImage}>
-              {t(choice === "coverNodeId" ? "page.removeCover" : "page.removeIcon")}
-            </button>
-          </div>
-        </div>
+        <ImagePickerDialog title={t(choice === "coverNodeId" ? "page.chooseCoverFor" : "page.chooseIconFor", { name: node.name })} onClose={() => setChoice(null)}>
+          <IconCapabilityPicker nodes={nodes} tab={choiceTab} onTabChange={setChoiceTab} onImageSelect={chooseImage} onImageUpload={onImageFileUpload} onUnsplashSelect={onUnsplashImageSelect} onEmojiSelect={chooseEmoji} onIconSelect={chooseIcon} onClear={clearImage} clearLabel={t(choice === "coverNodeId" ? "page.removeCover" : "page.removeIcon")} allowSemanticIcons={choice === "iconNodeId"} aspectRatio={choice === "coverNodeId" ? coverAspectRatio : 1} currentImageId={choice === "coverNodeId" ? meta.coverNodeId : meta.iconNodeId} currentPresentation={choice === "coverNodeId" ? meta.coverPresentation : meta.iconVisual?.kind === "image" ? meta.iconVisual.presentation : undefined} initialImageId={initialImageId} />
+        </ImagePickerDialog>
       )}
     </>
   );

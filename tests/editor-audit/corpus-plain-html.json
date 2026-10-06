@@ -1,0 +1,6 @@
+{
+  "id": "AUDIT-002",
+  "seed": 347,
+  "expectedFailureId": "PASTE_REPLACEMENT",
+  "actions": [{"kind":"replace","block":1,"start":0,"end":999,"value":"L<b>B</b>R"}]
+}

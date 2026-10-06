@@ -8,6 +8,7 @@ export interface NodeViewHost {
     nodes: NodeItem[];
     deletedNodes: NodeItem[];
     timeFormat: TimeFormat;
+    recentNodes?: NodeItem[];
   };
   mutations: {
     createNode: (name: string, type: BaseNodeType, parentId: string | null, content?: string, selectCreated?: boolean) => string;
@@ -32,6 +33,7 @@ export interface NodeViewHost {
     ref: RefObject<HTMLDivElement | null>;
     pendingNodeDrop: { nodeId: string; x: number; y: number } | null;
     clearPendingNodeDrop: () => void;
+    createMentionNode?: (name: string, parentId: string | null) => NodeItem | null;
     createPastedNode?: (name: string) => NodeItem | null;
     runSlashCommand?: (tag: string) => boolean;
   };

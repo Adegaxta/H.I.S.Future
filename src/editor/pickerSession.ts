@@ -6,7 +6,9 @@ export function getEditorPickerTrigger(textBeforeCaret: string): EditorPickerTri
   const slash = textBeforeCaret.match(/(?:^|\n|\s)\/([a-zA-Z0-9]*)$/);
   if (slash) return { type: "slash", query: slash[1] };
 
-  const mention = textBeforeCaret.match(/(?:^|\s)@([^\s@]*)$/);
+  // A mention query may contain spaces because node names are not restricted to
+  // one word. New lines and a second @ still delimit the active trigger.
+  const mention = textBeforeCaret.match(/(?:^|\s)@([^@\n\r]*)$/);
   return mention ? { type: "mention", query: mention[1] } : null;
 }
 

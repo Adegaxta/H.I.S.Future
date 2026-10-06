@@ -1,7 +1,7 @@
 const highlightTimers = new WeakMap<HTMLElement, number>();
 
 export function focusPageHeading(target: HTMLElement): void {
-  const scrollHost = target.closest<HTMLElement>(".workspace-main");
+  const scrollHost = target.closest<HTMLElement>(".node-tab-content") ?? target.closest<HTMLElement>(".workspace-main");
   const hostTop = scrollHost?.getBoundingClientRect().top ?? 0;
   const distance = Math.abs(target.getBoundingClientRect().top - hostTop);
 

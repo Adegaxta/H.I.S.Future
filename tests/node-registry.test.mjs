@@ -7,6 +7,8 @@ const root = path.resolve(import.meta.dirname, "..");
 const server = await createServer({ root, configFile: false, optimizeDeps: { noDiscovery: true, include: [] }, server: { middlewareMode: true, hmr: false, watch: null }, appType: "custom" });
 try {
   const registry = await server.ssrLoadModule("/src/nodes/registry.ts");
+  const iconCapability = await server.ssrLoadModule("/src/nodes/capabilities/icon.ts");
+  const pageMeta = await server.ssrLoadModule("/src/utils/pageMeta.ts");
   const catalogs = await server.ssrLoadModule("/src/i18n/translations.ts");
   const definitions = registry.NODE_REGISTRY.all();
   const persistedTypes = ["categoria", "pagina", "proyecto", "imagen", "calendario", "tempo", "pdf", "curso", "tarea", "video"];
@@ -33,6 +35,10 @@ try {
   assert.equal(registry.getNodeRenderer("pagina-carpeta"), "page");
   assert.equal(registry.hasNodeCapability("categoria", "containChildren"), true);
   assert.equal(registry.hasNodeCapability("pagina", "containChildren"), false);
+  assert.equal(registry.hasNodeCapability("pagina", "icon"), true);
+  assert.equal(registry.hasNodeCapability("pagina-carpeta", "icon"), true);
+  assert.equal(registry.hasNodeCapability("proyecto", "icon"), true);
+  assert.equal(registry.hasNodeCapability("categoria", "icon"), false);
   assert.equal(registry.hasNodeCapability("pagina-carpeta", "containChildren"), true);
   assert.equal(registry.hasNodeCapability("proyecto", "containChildren"), true);
   assert.equal(registry.hasNodeCapability("categoria", "openOnPrimaryAction"), false);
@@ -43,12 +49,28 @@ try {
   assert.equal(registry.hasComposableNodeCapability("proyecto", "rich-text"), true);
   assert.equal(registry.getComposableNodeCapability("proyecto", "rich-text").id, "rich-text");
   assert.equal(registry.getComposableNodeCapability("pagina", "rich-text"), null, "Page has not been migrated to capability declarations");
+  const persistedIcon = pageMeta.setPageMeta("<p>Contenido</p>", {
+    ...pageMeta.DEFAULT_PAGE_META,
+    iconNodeId: "image-1",
+    iconVisual: { kind: "image", nodeId: "image-1", source: "local" },
+  });
+  assert.deepEqual(iconCapability.getNodeIconState(persistedIcon), {
+    iconNodeId: "image-1",
+    iconVisual: { kind: "image", nodeId: "image-1", source: "local" },
+  }, "icon capability reads the existing persisted icon format");
+  const changedIcon = iconCapability.selectNodeIconGlyph(iconCapability.getNodeIconState(persistedIcon), "lucide", "sparkles");
+  assert.equal(changedIcon.iconNodeId, null);
+  assert.deepEqual(iconCapability.getNodeIconState(iconCapability.setNodeIconState(persistedIcon, changedIcon)), {
+    iconNodeId: null,
+    iconVisual: { kind: "icon", provider: "lucide", name: "sparkles" },
+  }, "icon capability writes through the existing Page metadata contract");
+  assert.deepEqual(iconCapability.clearNodeIcon(changedIcon).iconVisual, null, "icon capability supports clearing the icon");
   assert.deepEqual(registry.getNodeRelationPolicy("curso").syllabus, { cardinality: "one", targetTypes: ["pdf"] });
   assert.deepEqual(registry.getNodeRelationPolicy("curso").class, { cardinality: "many", targetTypes: ["video"] });
   assert.deepEqual(registry.getNodeRelationPolicy("tarea").tempo, { cardinality: "one", targetTypes: ["tempo"] });
   assert.deepEqual(registry.getNodeRelationPolicy("tempo").calendar, { cardinality: "one", targetTypes: ["calendario"] });
   assert.deepEqual(registry.getNodeRelationPolicy("pagina"), {});
-  assert.deepEqual(registry.NODE_REGISTRY.availableForCreation().map(({ type }) => type), ["categoria", "pagina", "curso", "tarea", "video"]);
+  assert.deepEqual(registry.NODE_REGISTRY.availableForCreation().map(({ type }) => type), ["categoria", "pagina", "proyecto", "imagen", "calendario", "pdf", "curso", "tarea", "video"]);
 
   const workspace = fs.readFileSync(path.join(root, "src/components/AppWorkspace.tsx"), "utf8");
   const app = fs.readFileSync(path.join(root, "src/App.tsx"), "utf8");
@@ -60,6 +82,8 @@ try {
   const tempoStyles = fs.readFileSync(path.join(root, "src/nodes/tempo/styles.css"), "utf8");
   const calendarView = fs.readFileSync(path.join(root, "src/nodes/calendar/view.tsx"), "utf8");
   const pageHeader = fs.readFileSync(path.join(root, "src/nodes/page/header.tsx"), "utf8");
+  const iconPicker = fs.readFileSync(path.join(root, "src/nodes/visuals/IconPicker.tsx"), "utf8");
+  const iconCapabilitySource = fs.readFileSync(path.join(root, "src/nodes/capabilities/icon.ts"), "utf8");
   const workspaceSource = fs.readFileSync(path.join(root, "src/components/AppWorkspace.tsx"), "utf8");
   const richTextEditor = fs.readFileSync(path.join(root, "src/editor/RichTextEditor.tsx"), "utf8");
   const projectRenderer = fs.readFileSync(path.join(root, "src/nodes/project/renderer.tsx"), "utf8");
@@ -67,6 +91,7 @@ try {
   const editorBlocks = fs.readFileSync(path.join(root, "src/editor/useEditorBlocks.ts"), "utf8");
   const imageResize = fs.readFileSync(path.join(root, "src/editor/imageResize.ts"), "utf8");
   const editorPersistence = fs.readFileSync(path.join(root, "src/editor/persistence.ts"), "utf8");
+  const editorSerialization = fs.readFileSync(path.join(root, "src/editor/serialization.ts"), "utf8");
   const editorStyles = fs.readFileSync(path.join(root, "src/editor/styles.css"), "utf8");
   const workspacePanelStyles = fs.readFileSync(path.join(root, "src/workspace/panels/styles.css"), "utf8");
   const workspaceNavigationStyles = fs.readFileSync(path.join(root, "src/workspace/navigation/styles.css"), "utf8");
@@ -181,7 +206,11 @@ try {
   assert.ok(projectRenderer.includes('type="proyecto"'), "Project keeps its independent type while reusing Page behavior");
   assert.ok(pageHeader.includes("type?: NodeItem[\"type\"]"), "Page header supports independent Node identities");
   assert.ok(pageHeader.includes("<NodeTypeLabel type={type} node={node} />"), "Type labels keep the semantic Node icon instead of the custom header visual");
-  assert.ok(workspaceSource.includes('selectedNode?.type === "pagina" || selectedNode?.type === "proyecto"'), "Project receives native Page chrome capabilities");
+  assert.ok(pageHeader.includes("useResolvedNodeIcon"), "Page consumes the reusable runtime-aware icon capability");
+  assert.equal(pageHeader.includes('iconVisual: { kind: "icon"'), false, "Page does not construct icon provider state inline");
+  assert.ok(iconCapabilitySource.includes("pageNodeIconPersistence"), "Page persistence is an explicit adapter of the icon capability");
+  assert.equal((iconPicker.match(/export function IconPicker/g) || []).length, 1, "the existing visual picker remains the single icon picker implementation");
+  assert.ok(workspaceSource.includes('tabNode.type === "pagina" || tabNode.type === "proyecto"'), "Project receives native Page chrome capabilities");
   assert.equal(composableContent.includes('=== "proyecto"'), false, "the capability host does not know its consumer Node type");
   assert.equal(fs.existsSync(path.join(root, "src/components/GraphView.tsx")), false, "Graph view stays out of shared components");
   for (const file of ["view.tsx", "projection.ts", "preferences.ts", "runtime.ts", "scene.ts", "PixiGraphRenderer.ts", "iconSource.ts", "styles.css"]) {
@@ -222,7 +251,7 @@ try {
   assert.ok(richTextEditor.includes("isResizableEditorImage"), "image actions use the shared resize guard");
   assert.ok(imageResize.includes('mention.dataset.mentionMode === "full"'), "Node image mentions resize only in full mode");
   assert.ok(editorBlocks.includes("{ captureUndo: false, sync: false }"), "batch block deletion stays atomic");
-  assert.ok(editorPersistence.includes("EDITOR_TRANSIENT_BLOCK_ATTRIBUTES"), "temporary block selection state must not persist in Node HTML");
+  assert.ok(editorSerialization.includes("EDITOR_TRANSIENT_BLOCK_ATTRIBUTES"), "temporary block selection state must not persist in Node HTML");
   assert.equal(editorBlocks.includes("if (!hasTextLineAfter(block)) removeLine(block)"), false, "opening options must not delete an empty block");
   for (const phrase of ["Restablecer diseño", "Ancho del bloque", "Subir imagen", "Quitar portada", "Quitar icono"]) {
     assert.equal(pageHeader.includes(phrase), false, `Page header must translate ${phrase}`);

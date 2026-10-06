@@ -38,3 +38,6 @@
 .sidebar-icon--types { --icon-url: url("../assets/third-party/google-material/icons/nodetype_inactive.svg"); }
 .sidebar-icon--types.is-active { --icon-url: url("../assets/modified/google-material/icons/nodetype_active.svg"); }
 .sidebar-icon--graph { --icon-url: url("../assets/third-party/google-material/icons/graph_7.svg"); }
+.sidebar-icon--ai { --icon-url: url("../assets/third-party/Lucide.dev/icons/brain-circuit.svg"); }
+
+[data-his-foreground][popover]::backdrop { background: transparent; pointer-events: none; }

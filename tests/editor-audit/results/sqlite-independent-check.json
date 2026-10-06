@@ -1,0 +1,12 @@
+{
+  "database": "C:\\Users\\Matias\\AppData\\Local\\Temp\\hisfuture-dev-31484\\DEV\\lore.sqlite",
+  "readonly": true,
+  "integrity": [
+    [
+      "ok"
+    ]
+  ],
+  "rows": 82,
+  "expectedRows": 82,
+  "mismatches": []
+}

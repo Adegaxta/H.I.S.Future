@@ -15,6 +15,10 @@ export function LocaleProvider({ projectKey, children }: { projectKey?: string; 
   const [locale, setLocaleState] = useState<Locale>(() => getInitialLocale(localStorage, projectKey));
 
   useEffect(() => {
+    document.documentElement.lang = locale === "es" ? "es-ES" : "en-US";
+  }, [locale]);
+
+  useEffect(() => {
     if (!projectKey) return;
     let active = true;
     void getProjectSetting("locale").then((stored) => {

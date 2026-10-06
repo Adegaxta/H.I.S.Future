@@ -1,0 +1,6 @@
+{
+  "id": "AUDIT-004",
+  "seed": 4,
+  "expectedFailureId": "UNDO_REDO_EQUIVALENCE",
+  "actions": [{"kind":"slashListMotif"},{"kind":"undoRedo"}]
+}

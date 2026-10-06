@@ -1,0 +1,654 @@
+{
+  "project": {
+    "name": "DEV",
+    "folderPath": "C:\\Users\\Matias\\AppData\\Local\\Temp\\hisfuture-dev-71860\\DEV",
+    "databasePath": "C:\\Users\\Matias\\AppData\\Local\\Temp\\hisfuture-dev-71860\\DEV\\lore.sqlite",
+    "lastEdited": 1790961593
+  },
+  "pid": 71860,
+  "profile": "C:\\Users\\Matias\\AppData\\Local\\Temp\\his-editor-audit-zJd673",
+  "cycles": [
+    {
+      "cycle": 0,
+      "seed": 938271,
+      "changed": 20,
+      "bytes": 233389,
+      "ms": 230.80000001192093,
+      "mismatch": []
+    },
+    {
+      "cycle": 1,
+      "seed": 938271,
+      "changed": 20,
+      "bytes": 233869,
+      "ms": 176.5999999642372,
+      "mismatch": []
+    },
+    {
+      "cycle": 2,
+      "seed": 938271,
+      "changed": 20,
+      "bytes": 234349,
+      "ms": 126.40000003576279,
+      "mismatch": []
+    },
+    {
+      "cycle": 3,
+      "seed": 938271,
+      "changed": 20,
+      "bytes": 234829,
+      "ms": 124.09999996423721,
+      "mismatch": []
+    },
+    {
+      "cycle": 4,
+      "seed": 938271,
+      "changed": 20,
+      "bytes": 235309,
+      "ms": 268.60000002384186,
+      "mismatch": []
+    },
+    {
+      "cycle": 5,
+      "seed": 938271,
+      "changed": 20,
+      "bytes": 235789,
+      "ms": 84.30000001192093,
+      "mismatch": []
+    },
+    {
+      "cycle": 6,
+      "seed": 938271,
+      "changed": 20,
+      "bytes": 236269,
+      "ms": 100.60000002384186,
+      "mismatch": []
+    },
+    {
+      "cycle": 7,
+      "seed": 938271,
+      "changed": 20,
+      "bytes": 236749,
+      "ms": 89.10000002384186,
+      "mismatch": []
+    },
+    {
+      "cycle": 8,
+      "seed": 938271,
+      "changed": 20,
+      "bytes": 237229,
+      "ms": 340.0999999642372,
+      "mismatch": []
+    },
+    {
+      "cycle": 9,
+      "seed": 938271,
+      "changed": 20,
+      "bytes": 237709,
+      "ms": 111.60000002384186,
+      "mismatch": []
+    },
+    {
+      "cycle": 10,
+      "seed": 938271,
+      "changed": 20,
+      "bytes": 238209,
+      "ms": 90.30000001192093,
+      "mismatch": []
+    },
+    {
+      "cycle": 11,
+      "seed": 938271,
+      "changed": 20,
+      "bytes": 238709,
+      "ms": 88,
+      "mismatch": []
+    },
+    {
+      "cycle": 12,
+      "seed": 938271,
+      "changed": 20,
+      "bytes": 239209,
+      "ms": 334.7999999523163,
+      "mismatch": []
+    },
+    {
+      "cycle": 13,
+      "seed": 938271,
+      "changed": 20,
+      "bytes": 239709,
+      "ms": 157.30000001192093,
+      "mismatch": []
+    },
+    {
+      "cycle": 14,
+      "seed": 938271,
+      "changed": 20,
+      "bytes": 240209,
+      "ms": 229.5,
+      "mismatch": []
+    },
+    {
+      "cycle": 15,
+      "seed": 938271,
+      "changed": 20,
+      "bytes": 240709,
+      "ms": 156.4000000357628,
+      "mismatch": []
+    },
+    {
+      "cycle": 16,
+      "seed": 938271,
+      "changed": 20,
+      "bytes": 241209,
+      "ms": 460.89999997615814,
+      "mismatch": []
+    },
+    {
+      "cycle": 17,
+      "seed": 938271,
+      "changed": 20,
+      "bytes": 241709,
+      "ms": 161.89999997615814,
+      "mismatch": []
+    },
+    {
+      "cycle": 18,
+      "seed": 938271,
+      "changed": 20,
+      "bytes": 242209,
+      "ms": 150.80000001192093,
+      "mismatch": []
+    },
+    {
+      "cycle": 19,
+      "seed": 938271,
+      "changed": 20,
+      "bytes": 242709,
+      "ms": 137.60000002384186,
+      "mismatch": []
+    },
+    {
+      "cycle": 20,
+      "seed": 938271,
+      "changed": 20,
+      "bytes": 243209,
+      "ms": 312.2000000476837,
+      "mismatch": []
+    },
+    {
+      "cycle": 21,
+      "seed": 938271,
+      "changed": 20,
+      "bytes": 243709,
+      "ms": 148.5,
+      "mismatch": []
+    },
+    {
+      "cycle": 22,
+      "seed": 938271,
+      "changed": 20,
+      "bytes": 244209,
+      "ms": 136.4000000357628,
+      "mismatch": []
+    },
+    {
+      "cycle": 23,
+      "seed": 938271,
+      "changed": 20,
+      "bytes": 244709,
+      "ms": 134.69999998807907,
+      "mismatch": []
+    },
+    {
+      "cycle": 24,
+      "seed": 938271,
+      "changed": 20,
+      "bytes": 245209,
+      "ms": 214.30000001192093,
+      "mismatch": []
+    },
+    {
+      "cycle": 25,
+      "seed": 938271,
+      "changed": 20,
+      "bytes": 245709,
+      "ms": 158.30000001192093,
+      "mismatch": []
+    },
+    {
+      "cycle": 26,
+      "seed": 938271,
+      "changed": 20,
+      "bytes": 246209,
+      "ms": 185.0999999642372,
+      "mismatch": []
+    },
+    {
+      "cycle": 27,
+      "seed": 938271,
+      "changed": 20,
+      "bytes": 246709,
+      "ms": 173.80000001192093,
+      "mismatch": []
+    },
+    {
+      "cycle": 28,
+      "seed": 938271,
+      "changed": 20,
+      "bytes": 247209,
+      "ms": 248.10000002384186,
+      "mismatch": []
+    },
+    {
+      "cycle": 29,
+      "seed": 938271,
+      "changed": 20,
+      "bytes": 247709,
+      "ms": 150,
+      "mismatch": []
+    },
+    {
+      "cycle": 30,
+      "seed": 938271,
+      "changed": 20,
+      "bytes": 248209,
+      "ms": 95.89999997615814,
+      "mismatch": []
+    },
+    {
+      "cycle": 31,
+      "seed": 938271,
+      "changed": 20,
+      "bytes": 248709,
+      "ms": 96.79999995231628,
+      "mismatch": []
+    },
+    {
+      "cycle": 32,
+      "seed": 938271,
+      "changed": 20,
+      "bytes": 249209,
+      "ms": 225.5,
+      "mismatch": []
+    },
+    {
+      "cycle": 33,
+      "seed": 938271,
+      "changed": 20,
+      "bytes": 249709,
+      "ms": 183,
+      "mismatch": []
+    },
+    {
+      "cycle": 34,
+      "seed": 938271,
+      "changed": 20,
+      "bytes": 250209,
+      "ms": 144.0999999642372,
+      "mismatch": []
+    },
+    {
+      "cycle": 35,
+      "seed": 938271,
+      "changed": 20,
+      "bytes": 250709,
+      "ms": 144.19999998807907,
+      "mismatch": []
+    },
+    {
+      "cycle": 36,
+      "seed": 938271,
+      "changed": 20,
+      "bytes": 251209,
+      "ms": 242.4000000357628,
+      "mismatch": []
+    },
+    {
+      "cycle": 37,
+      "seed": 938271,
+      "changed": 20,
+      "bytes": 251709,
+      "ms": 136.10000002384186,
+      "mismatch": []
+    },
+    {
+      "cycle": 38,
+      "seed": 938271,
+      "changed": 20,
+      "bytes": 252209,
+      "ms": 162.89999997615814,
+      "mismatch": []
+    },
+    {
+      "cycle": 39,
+      "seed": 938271,
+      "changed": 20,
+      "bytes": 252709,
+      "ms": 227.30000001192093,
+      "mismatch": []
+    }
+  ],
+  "ui": [
+    {
+      "cycle": 0,
+      "value": "Audit 0: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا & símbolo",
+      "before": "<p>Inicio auditAudit 0: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símbolo</p>",
+      "after": "<p>Inicio auditAudit 0: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símbolo</p>",
+      "editors": [
+        {
+          "id": "audit-page-ui",
+          "text": "Inicio auditAudit 0: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا & símbolo",
+          "html": "<p contenteditable=\"true\">Inicio auditAudit 0: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símbolo</p>"
+        }
+      ]
+    },
+    {
+      "cycle": 0,
+      "value": "Audit 0: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا & símbolo",
+      "before": "<p>Inicio auditAudit 0: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símbolo</p>",
+      "after": "<p>Inicio auditAudit 0: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símbolo</p>",
+      "dom": "<p contenteditable=\"true\">Inicio auditAudit 0: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símbolo</p>"
+    },
+    {
+      "cycle": 1,
+      "value": "Audit 1: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا & símbolo",
+      "before": "<p>Inicio auditAudit 0: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símboloAudit 1: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símbolo</p>",
+      "after": "<p>Inicio auditAudit 0: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símboloAudit 1: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símbolo</p>",
+      "editors": [
+        {
+          "id": "audit-page-ui",
+          "text": "Inicio auditAudit 0: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا & símboloAudit 1: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا & símbolo",
+          "html": "<p contenteditable=\"true\">Inicio auditAudit 0: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símboloAudit 1: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símbolo</p>"
+        }
+      ]
+    },
+    {
+      "cycle": 1,
+      "value": "Audit 1: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا & símbolo",
+      "before": "<p>Inicio auditAudit 0: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símboloAudit 1: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símbolo</p>",
+      "after": "<p>Inicio auditAudit 0: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símboloAudit 1: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símbolo</p>",
+      "dom": "<p contenteditable=\"true\">Inicio auditAudit 0: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símboloAudit 1: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símbolo</p>"
+    },
+    {
+      "cycle": 2,
+      "value": "Audit 2: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا & símbolo",
+      "before": "<p>Inicio auditAudit 0: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símboloAudit 1: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símboloAudit 2: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símbolo</p>",
+      "after": "<p>Inicio auditAudit 0: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símboloAudit 1: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símboloAudit 2: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símbolo</p>",
+      "editors": [
+        {
+          "id": "audit-page-ui",
+          "text": "Inicio auditAudit 0: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا & símboloAudit 1: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا & símboloAudit 2: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا & símbolo",
+          "html": "<p contenteditable=\"true\">Inicio auditAudit 0: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símboloAudit 1: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símboloAudit 2: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símbolo</p>"
+        }
+      ]
+    },
+    {
+      "cycle": 2,
+      "value": "Audit 2: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا & símbolo",
+      "before": "<p>Inicio auditAudit 0: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símboloAudit 1: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símboloAudit 2: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símbolo</p>",
+      "after": "<p>Inicio auditAudit 0: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símboloAudit 1: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símboloAudit 2: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símbolo</p>",
+      "dom": "<p contenteditable=\"true\">Inicio auditAudit 0: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símboloAudit 1: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símboloAudit 2: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símbolo</p>"
+    },
+    {
+      "cycle": 3,
+      "value": "Audit 3: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا & símbolo",
+      "before": "<p>Inicio auditAudit 0: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símboloAudit 1: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símboloAudit 2: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símboloAudit 3: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símbolo</p>",
+      "after": "<p>Inicio auditAudit 0: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símboloAudit 1: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símboloAudit 2: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símboloAudit 3: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símbolo</p>",
+      "editors": [
+        {
+          "id": "audit-page-ui",
+          "text": "Inicio auditAudit 0: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا & símboloAudit 1: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا & símboloAudit 2: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا & símboloAudit 3: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا & símbolo",
+          "html": "<p contenteditable=\"true\">Inicio auditAudit 0: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símboloAudit 1: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símboloAudit 2: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símboloAudit 3: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símbolo</p>"
+        }
+      ]
+    },
+    {
+      "cycle": 3,
+      "value": "Audit 3: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا & símbolo",
+      "before": "<p>Inicio auditAudit 0: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símboloAudit 1: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símboloAudit 2: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símboloAudit 3: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símbolo</p>",
+      "after": "<p>Inicio auditAudit 0: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símboloAudit 1: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símboloAudit 2: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símboloAudit 3: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símbolo</p>",
+      "dom": "<p contenteditable=\"true\">Inicio auditAudit 0: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símboloAudit 1: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símboloAudit 2: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símboloAudit 3: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símbolo</p>"
+    },
+    {
+      "cycle": 4,
+      "value": "Audit 4: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا & símbolo",
+      "before": "<p>Inicio auditAudit 0: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símboloAudit 1: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símboloAudit 2: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símboloAudit 3: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símboloAudit 4: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símbolo</p>",
+      "after": "<p>Inicio auditAudit 0: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símboloAudit 1: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símboloAudit 2: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símboloAudit 3: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símboloAudit 4: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símbolo</p>",
+      "editors": [
+        {
+          "id": "audit-page-ui",
+          "text": "Inicio auditAudit 0: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا & símboloAudit 1: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا & símboloAudit 2: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا & símboloAudit 3: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا & símboloAudit 4: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا & símbolo",
+          "html": "<p contenteditable=\"true\">Inicio auditAudit 0: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símboloAudit 1: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símboloAudit 2: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símboloAudit 3: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símboloAudit 4: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símbolo</p>"
+        }
+      ]
+    },
+    {
+      "cycle": 4,
+      "value": "Audit 4: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا & símbolo",
+      "before": "<p>Inicio auditAudit 0: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símboloAudit 1: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símboloAudit 2: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símboloAudit 3: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símboloAudit 4: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símbolo</p>",
+      "after": "<p>Inicio auditAudit 0: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símboloAudit 1: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símboloAudit 2: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símboloAudit 3: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símboloAudit 4: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símbolo</p>",
+      "dom": "<p contenteditable=\"true\">Inicio auditAudit 0: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símboloAudit 1: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símboloAudit 2: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símboloAudit 3: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símboloAudit 4: español é 😀 👨‍👩‍👧‍👦 中文 日本語 مرحبا &amp; símbolo</p>"
+    }
+  ],
+  "findings": [
+    {
+      "id": "SANITIZE_TEXT",
+      "mime": "text/html",
+      "input": "<p>L&lt;literal&gt;R</p>",
+      "expected": "L<literal>R",
+      "actual": "L<literal>R",
+      "stored": "<p>L&lt;literal&gt;R</p>",
+      "reopened": "L<literal>R",
+      "confirmed": false,
+      "seed": 347
+    },
+    {
+      "id": "PLAIN_TEXT_HTML_DECODE",
+      "mime": "text/plain",
+      "input": "L<b>B</b>R",
+      "expected": "L<b>B</b>R",
+      "actual": "L<b>B</b>R",
+      "stored": "<p>L&lt;b&gt;B&lt;/b&gt;R</p>",
+      "reopened": "L<b>B</b>R",
+      "confirmed": false,
+      "seed": 347
+    },
+    {
+      "id": "MENTION_SELECTED_SERIALIZATION",
+      "seed": 3,
+      "before": {
+        "html": "<span class=\"editor-mention\" contenteditable=\"false\" data-no-resize=\"true\" data-mention-id=\"vault-primary\" data-mention-mode=\"inserted\" data-mention-selected=\"true\"><span class=\"sidebar-icon node-type-icon node-type-icon--proyecto editor-mention__visual editor-mention__node-icon\" data-mention-node-visual=\"true\" data-editor-ui=\"true\" data-no-resize=\"true\" aria-hidden=\"true\" style=\"--mention-selection-left: -0.975006103515625px; --mention-selection-width: 15px; --mention-selection-top: -3.850006103515625px; --mention-selection-height: 20px;\"></span><span class=\"editor-mention__label\">Proyecto</span></span>",
+        "editable": "false",
+        "selected": true
+      },
+      "stored": "<p>antes <span class=\"editor-mention\" contenteditable=\"false\" data-no-resize=\"true\" data-mention-id=\"vault-primary\" data-mention-mode=\"inserted\"><span class=\"editor-mention__label\">Proyecto</span></span> después</p>",
+      "after": {
+        "html": "<span class=\"editor-mention\" contenteditable=\"false\" data-no-resize=\"true\" data-mention-id=\"vault-primary\" data-mention-mode=\"inserted\" title=\"DEV\" aria-label=\"DEV\"><span class=\"sidebar-icon node-type-icon node-type-icon--proyecto editor-mention__visual editor-mention__node-icon\" data-mention-node-visual=\"true\" data-editor-ui=\"true\" data-no-resize=\"true\" aria-hidden=\"true\"></span><span class=\"editor-mention__label\">Proyecto</span></span>",
+        "editable": "false",
+        "inheritsEditable": false
+      },
+      "confirmed": false,
+      "expected": "contentEditable false after reopening selected mention"
+    }
+  ],
+  "errors": [],
+  "warnings": [],
+  "nativeLogs": [
+    "[discord-presence] activity published large_image=hisfuture_icon small_image=none\n",
+    "[discord-presence] activity published large_image=hisfuture_icon small_image=none\n",
+    "[lifecycle][no-trace] project.save resources=0.07ms sqlite=0.37ms cleanup=0.",
+    "01ms changed_rows=3 total=0.62ms\n",
+    "[lifecycle][no-trace] project.close durable_checkpoint=0.00ms archive_queued=false home_ready=4.59ms\n",
+    "[discord-presence] activity published large_image=hisfuture_icon small_image=none\n",
+    "[discord-presence] activity published large_image=hisfuture_icon small_image=node_page\n",
+    "[lifecycle][no-trace] project.save resources=0.",
+    "07ms sqlite=0.50ms cleanup=0.00ms changed_rows=0 total=0.74ms\n",
+    "[lifecycle][no-trace] project.save resources=0.",
+    "12ms sqlite=1.10ms cleanup=0.00ms changed_rows=0 total=1.",
+    "47ms\n",
+    "[lifecycle][no-trace] project.save-incremental sqlite=5.82ms changed_rows=1 total=6.05ms\n",
+    "[lifecycle][no-trace] project.close durable_checkpoint=0.00ms archive_queued=false home_ready=6.41ms\n",
+    "[lifecycle][no-trace] project.save resources=0.15ms sqlite=0.57ms cleanup=0.00ms changed_rows=",
+    "0 total=1.19ms\n",
+    "[lifecycle][no-trace] project.save resources=0.07ms sqlite=0.29ms cleanup=0.00ms changed_rows=0 total=0.53ms\n",
+    "[lifecycle][no-trace] project.save-incremental sqlite=4.58ms changed_rows=1 total=4.77ms\n",
+    "[lifecycle][no-trace] project.close durable_checkpoint=0.00ms archive_queued=false home_ready=4.44ms\n",
+    "[lifecycle][no-trace] project.save resources=0.11ms sqlite=0.41ms cleanup=",
+    "0.00ms changed_rows=0 total=0.79ms\n",
+    "[lifecycle][no-trace] project.save resources=0.07ms sqlite=0.28ms cleanup=0.",
+    "00ms changed_rows=0 total=0.48ms\n",
+    "[lifecycle][no-trace] project.save-incremental sqlite=6.84ms changed_rows=1 total=6.97ms\n",
+    "[lifecycle][no-trace] project.close durable_checkpoint=0.00ms archive_queued=false home_ready=4.40ms\n",
+    "[lifecycle][no-trace] project.save resources=0.07ms sqlite=0.92ms cleanup=0.00ms changed_rows=0 total=1.14ms\n",
+    "[lifecycle][no-trace] project.save resources=0.0",
+    "7ms sqlite=0.27ms cleanup=0.00ms changed_rows=0 total=0.51ms\n",
+    "[discord-presence] activity published large_image=hisfuture_icon small_image=none\n[discord-presence] activity published large_image=hisfuture_icon",
+    " small_image=node_page\n",
+    "[lifecycle][no-trace] project.save-incremental sqlite=4.53ms changed_rows=1 total=4.88ms\n",
+    "[lifecycle][no-trace] project.close durable_checkpoint=0.00ms archive_queued=false home_ready=4.67ms\n",
+    "[lifecycle][no-trace] project.save resources=0.32ms sqlite=1.",
+    "22ms cleanup=0.01ms changed_rows=0 total=2.30ms\n",
+    "[lifecycle][no-trace] project.save resources=0.06ms sqlite=0.40",
+    "ms cleanup=0.00ms changed_rows=0 total=0.59ms\n",
+    "[lifecycle][no-trace] project.save-incremental sqlite=3.88ms changed_rows=1 total=4.02ms\n",
+    "[lifecycle][no-trace] project.close durable_checkpoint=0.00ms archive_queued=false home_ready=5.60ms\n",
+    "[lifecycle][no-trace] project.save resources=0.34ms sqlite=3.78ms cleanup=0.01ms changed_rows=1 total=5.04ms\n",
+    "[lifecycle][no-trace] project.close durable_checkpoint=0.00ms archive_queued=false home_ready=6.29ms\n",
+    "[lifecycle][no-trace] project.save resources=0.30ms sqlite=5.65ms cleanup=0.00ms changed_rows=1 total=6.25",
+    "ms\n",
+    "[lifecycle][no-trace] project.close durable_checkpoint=0.00ms archive_queued=false home_ready=6.18ms\n",
+    "[lifecycle][no-trace] project.save resources=0.24ms sqlite=7.33ms cleanup=0.00ms changed_rows=1 total=8.05ms\n",
+    "[lifecycle][no-trace] project.close durable_checkpoint=0.00ms archive_queued=false home_ready=5.68ms\n",
+    "[lifecycle][no-trace] project.save resources=0.19ms sqlite=22.07ms cleanup=0.01ms changed_rows=80 total=23.05ms\n",
+    "[lifecycle][no-trace] project.save-incremental sqlite=4.61ms changed_rows=20 total=8.15ms\n",
+    "[lifecycle][no-trace] project.close durable_checkpoint=0.00ms archive_queued=false home_ready=7.93ms\n",
+    "[lifecycle][no-trace] project.save-incremental sqlite=6.65ms changed_rows=20 total=7.29ms\n",
+    "[lifecycle][no-trace] project.close durable_checkpoint=0.00ms archive_queued=false home_ready=7.29ms\n",
+    "[lifecycle][no-trace] project.save-incremental sqlite=6.68ms changed_rows=20 total=7.35ms\n",
+    "[lifecycle][no-trace] project.close durable_checkpoint=0.00ms archive_queued=false home_ready=9.94ms\n",
+    "[lifecycle][no-trace] project.save-incremental sqlite=4.20ms changed_rows=20 total=5.34ms\n",
+    "[lifecycle][no-trace] project.close durable_checkpoint=0.00ms archive_queued=false home_ready=5.08ms\n",
+    "[lifecycle][no-trace] project.save-incremental sqlite=9.35ms changed_rows=20 total=10.93ms\n",
+    "[lifecycle][no-trace] project.close durable_checkpoint=0.00ms archive_queued=false home_ready=8.54ms\n",
+    "[lifecycle][no-trace] project.save-incremental sqlite=6.26ms changed_rows=20 total=7.26ms\n",
+    "[lifecycle][no-trace] project.close durable_checkpoint=0.00ms archive_queued=false home_ready=4",
+    ".44ms\n",
+    "[lifecycle][no-trace] project.save-incremental sqlite=4.84ms changed_rows=20 total=5.29ms\n",
+    "[lifecycle][no-trace] project.close durable_checkpoint=0.00ms archive_queued=false home_ready=8.26ms\n",
+    "[lifecycle][no-trace] project.save-incremental sqlite=3.06ms changed_rows=20 total=3.72ms\n",
+    "[lifecycle][no-trace] project.close durable_checkpoint=0.00ms archive_queued=false home_ready=5.37ms\n",
+    "[lifecycle][no-trace] project.save-incremental sqlite=13.06ms changed_rows=20 total=15.50ms\n",
+    "[lifecycle][no-trace] project.close durable_checkpoint=0.00ms archive_queued=false home_ready=12.68ms\n",
+    "[lifecycle][no-trace] project.save-incremental sqlite=8.42ms changed_rows=20 total=9.29ms\n",
+    "[lifecycle][no-trace] project.close durable_checkpoint=0.00ms archive_queued=false home_ready=9.45ms\n",
+    "[lifecycle][no-trace] project.save-incremental sqlite=8.29ms changed_rows=20 total=8.93ms\n",
+    "[lifecycle][no-trace] project.close durable_checkpoint=0.00ms archive_queued=false home_ready=4.74ms\n",
+    "[lifecycle][no-trace] project.save-incremental sqlite=6.58ms changed_rows=20 total=7.22ms\n",
+    "[lifecycle][no-trace] project.close durable_checkpoint=0.00ms archive_queued=false home_ready=5.48ms\n",
+    "[lifecycle][no-trace] project.save-incremental sqlite=6.22ms changed_rows=20 total=8.32ms\n",
+    "[lifecycle][no-trace] project.close durable_checkpoint=0.00ms archive_queued=false home_ready=13.92ms\n",
+    "[lifecycle][no-trace] project.save-incremental sqlite=20.09ms changed_rows=20 total=20.97ms\n",
+    "[lifecycle][no-trace] project.close durable_checkpoint=0.00ms archive_queued=false home_ready=45.66ms\n",
+    "[lifecycle][no-trace] project.save-incremental sqlite=34.13ms changed_rows=20",
+    " total=34.57ms\n",
+    "[lifecycle][no-trace] project.close durable_checkpoint=0.00ms archive_queued=false home_ready=71",
+    ".17ms\n",
+    "[lifecycle][no-trace] project.save-incremental sqlite=23.46",
+    "ms changed_rows=20 total=25.25ms\n",
+    "[lifecycle][no-trace] project.close durable_checkpoint=",
+    "0.00ms archive_queued=false home_ready=30.63ms\n",
+    "[lifecycle][no-trace] project.save-incremental sqlite=244.",
+    "89ms changed_rows=20 total=248.32ms\n",
+    "[lifecycle][no-trace] project.close durable_checkpoint=0.00ms archive_queued=false home_ready=53.",
+    "67ms\n",
+    "[lifecycle][no-trace] project.save-incremental sqlite=27.",
+    "96ms changed_rows=20 total=28.91ms\n",
+    "[lifecycle][no-trace] project.close durable_checkpoint=0.00ms archive_queued=false",
+    " home_ready=30.27ms\n",
+    "[lifecycle][no-trace] project.save-incremental sqlite=23.",
+    "84ms changed_rows=20 total=24.62ms\n",
+    "[lifecycle][no-trace] project.close durable_checkpoint=0.00ms archive_queued=",
+    "false home_ready=30.78ms\n",
+    "[lifecycle][no-trace] project.save-incremental sqlite=20.",
+    "03ms changed_rows=20 total=21.26ms\n",
+    "[lifecycle][no-trace] project.close durable_checkpoint=0.00ms archive_queued=false home_ready=33.30ms\n",
+    "[lifecycle][no-trace] project.save-incremental sqlite=28.16ms changed_rows=20 total=30.",
+    "98ms\n",
+    "[lifecycle][no-trace] project.close durable_checkpoint=0.00ms archive_queued=false home_ready=120.40",
+    "ms\n",
+    "[lifecycle][no-trace] project.save-incremental sqlite=23.72",
+    "ms changed_rows=20 total=24.85ms\n",
+    "[lifecycle][no-trace] project.close durable_checkpoint=0.00ms archive_queued=false home_ready=",
+    "28.78ms\n",
+    "[lifecycle][no-trace] project.save-incremental sqlite=35.",
+    "18ms changed_rows=20 total=36.05ms\n",
+    "[lifecycle][no-trace] project.close durable_checkpoint=0.00ms archive_queued=false home_ready=25.85ms\n",
+    "[lifecycle][no-trace] project.save-incremental sqlite=28.14ms changed_rows=",
+    "20 total=28.97ms\n",
+    "[lifecycle][no-trace] project.close durable_checkpoint=0.00",
+    "ms archive_queued=false home_ready=30.50ms\n",
+    "[lifecycle][no-trace] project.save-incremental sqlite=40.48ms changed_rows=20 total=42.75ms\n",
+    "[lifecycle][no-trace] project.close durable_checkpoint=0.00ms archive_queued=false home_ready=22.69ms\n",
+    "[lifecycle][no-trace] project.save-incremental sqlite=29",
+    ".81ms changed_rows=20 total=30.56ms\n",
+    "[lifecycle][no-trace] project.close durable_checkpoint=0.00ms archive_queued=false",
+    " home_ready=",
+    "34.49ms\n",
+    "[lifecycle][no-trace] project.save-incremental sqlite=35.17ms changed_rows=20 total=36.01ms\n",
+    "[lifecycle][no-trace] project.close durable_checkpoint=0.00",
+    "ms archive_queued=false home_ready=34.92ms\n",
+    "[lifecycle][no-trace] project.save-incremental sqlite=27.23ms changed_rows=20 total=28",
+    ".99ms\n",
+    "[lifecycle][",
+    "no-trace] project.close durable_checkpoint=0.00ms archive_queued=false home_ready=29.81ms\n",
+    "[lifecycle][no-trace] project.save-incremental sqlite=34.87ms changed_rows=20 total=36.75ms\n",
+    "[discord-presence] activity published large_image=hisfuture_icon small_image=none\n",
+    "[discord-presence] activity published large_image=hisfuture_icon",
+    " small_image=node_page\n",
+    "[lifecycle][no-trace] project.close durable_checkpoint=0.00ms archive_queued=false home_ready=45",
+    ".75ms\n",
+    "[lifecycle][no-trace] project.save-incremental sqlite=25.78ms changed_rows=20 total=26.",
+    "53ms\n",
+    "[lifecycle][no-trace] project.close durable_checkpoint=0.00ms archive_queued=false home_ready=5.",
+    "00ms\n",
+    "[lifecycle][no-trace] project.save-incremental sqlite=4.12ms changed_rows=20 total=4",
+    ".94ms\n",
+    "[lifecycle][no-trace] project.close durable_checkpoint=0.00ms archive_queued=false home_ready=4.48ms\n",
+    "[lifecycle][no-trace] project.save-incremental sqlite=14.32",
+    "ms changed_rows=20 total=15.11ms\n",
+    "[lifecycle][no-trace] project.close durable_checkpoint=0.00ms archive_queued=false home_ready=6",
+    ".94ms\n",
+    "[lifecycle][no-trace] project.save-incremental sqlite=28",
+    ".65ms changed_rows=20 total=30.51ms\n",
+    "[lifecycle][no-trace] project.close durable_checkpoint=0.00ms archive_queued=",
+    "false home_ready=34.56ms\n",
+    "[lifecycle][no-trace] project.save-incremental sqlite=35",
+    ".83ms changed_rows=20 total=37.55ms\n",
+    "[lifecycle][no-trace] project.close durable_checkpoint=0.00ms archive_queued=",
+    "false home_ready=30.30ms\n",
+    "[lifecycle][no-trace] project.save-incremental sqlite=27.21ms changed_rows=20 total=28.00ms\n",
+    "[lifecycle][no-trace] project.close durable_checkpoint=0.00ms archive_queued=false",
+    " home_ready=26.48ms\n",
+    "[lifecycle][no-trace] project.save-incremental sqlite=",
+    "24.28ms changed_rows=20 total=25.62",
+    "ms\n",
+    "[lifecycle][no-trace] project.close durable_checkpoint=0.00",
+    "ms archive_queued=false home_ready=27.52ms\n",
+    "[lifecycle][no-trace] project.save-incremental sqlite=37.",
+    "05ms changed_rows=20 total=39.49ms\n",
+    "[lifecycle][no-trace] project.close durable_checkpoint=0.00ms archive_queued=false home_ready=43.55ms\n",
+    "[lifecycle][no-trace] project.save-incremental sqlite=24.64ms changed_rows=20 total=25.99ms\n",
+    "[lifecycle][no-trace] project.close durable_checkpoint=0.00ms archive_queued=false home_ready=",
+    "21.89ms\n",
+    "[lifecycle][no-trace] project.save-incremental sqlite=39.",
+    "32ms changed_rows=20 total=40.58ms\n",
+    "[lifecycle][no-trace] project.close durable_checkpoint=0.00ms archive_queued=false home_ready=30.42ms\n",
+    "[lifecycle][no-trace] project.save-incremental sqlite=40.78",
+    "ms changed_rows=20 total=42.43ms\n",
+    "[lifecycle][no-trace] project.close durable_checkpoint=0.00",
+    "ms archive_queued=false home_ready=36.87ms\n",
+    "[lifecycle][no-trace] project.close durable_checkpoint=",
+    "0.00ms archive_queued=false home_ready=2.29ms\n"
+  ]
+}

@@ -1,4 +1,5 @@
 export type PageBlockCapabilityGroup = "format" | "property" | "list";
+export type PageBlockComposableCapability = "icon";
 import type { TranslationKey } from "../i18n/translations";
 
 export interface PageBlockCapabilityDefinition {
@@ -59,6 +60,14 @@ export const PAGE_BLOCK_COMPATIBILITY = {
   list: { exclusive: true },
   properties: { composable: true },
 } as const;
+
+export const PAGE_BLOCK_COMPOSABLE_CAPABILITIES: Readonly<Record<string, readonly PageBlockComposableCapability[]>> = {
+  globe: ["icon"],
+};
+
+export function hasPageBlockCapability(block: HTMLElement, capability: PageBlockComposableCapability): boolean {
+  return block.matches("[data-globe]") && PAGE_BLOCK_COMPOSABLE_CAPABILITIES.globe.includes(capability);
+}
 
 export function isPageTextBlock(block: Element | null): block is HTMLElement {
   return block instanceof HTMLElement && block.matches(PAGE_TEXT_BLOCK_SELECTOR);
@@ -185,7 +194,7 @@ export function resetPageBlockAesthetics(block: HTMLElement): HTMLElement {
   delete target.dataset.hisTodoChecked;
   target.style.removeProperty("color");
   target.style.removeProperty("background-color");
-  target.style.removeProperty("border-color");
+  target.style.removeProperty("border");
   if (!target.getAttribute("style")) target.removeAttribute("style");
   return target;
 }

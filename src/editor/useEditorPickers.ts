@@ -5,7 +5,7 @@ import { SLASH_REGISTRY } from "./commands";
 import type { PickerState } from "./types";
 import { useLocale } from "../i18n/LocaleContext";
 
-export function useEditorPickers(nodes: NodeItem[]) {
+export function useEditorPickers(nodes: NodeItem[], recentNodes: NodeItem[] = []) {
   const { t } = useLocale();
   const [callPicker, setCallPicker] = useState<PickerState | null>(null);
   const [callPickerIndex, setCallPickerIndex] = useState(0);
@@ -18,9 +18,9 @@ export function useEditorPickers(nodes: NodeItem[]) {
   } | null>(null);
 
   const callCandidates = callPicker
-    ? nodes.filter((node) =>
-        node.name.toLowerCase().includes(callPicker.query.toLowerCase()),
-      )
+    ? (callPicker.query.trim()
+      ? nodes.filter((node) => normalizeSearchText(node.name).includes(normalizeSearchText(callPicker.query.trim().replace(/\s+/g, " "))))
+      : recentNodes.slice(0, 4))
     : [];
   const slashCandidates = slashPicker
     ? SLASH_REGISTRY.all().map((command) => ({

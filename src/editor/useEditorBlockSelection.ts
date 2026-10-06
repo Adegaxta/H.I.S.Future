@@ -6,6 +6,7 @@ import type {
   SetStateAction,
 } from "react";
 import { EDITOR_NON_EDITABLE_BLOCK_SELECTOR, keepOutermostBlocks } from "./blockModel";
+import { getTableRootFromNode } from "./table";
 
 interface UseEditorBlockSelectionOptions {
   editorRef: RefObject<HTMLDivElement | null>;
@@ -61,7 +62,7 @@ export function useEditorBlockSelection({
 
   const beginSelection = useCallback((event: PointerEvent<HTMLDivElement>) => {
   const editor = editorRef.current;
-  if (!editor) return false;
+  if (!editor || event.button !== 0) return false;
 
   const target = event.target as HTMLElement;
   const selectionModifier = event.ctrlKey || event.metaKey || event.shiftKey;
@@ -188,10 +189,12 @@ export function useEditorBlockSelection({
     const editor = editorRef.current;
     if (editor && currentBox.width > 6 && currentBox.height > 6) {
       const selectableBlocks = Array.from(
-        editor.querySelectorAll<HTMLElement>(`${textLineSelector}, [data-globe]`),
+        editor.querySelectorAll<HTMLElement>(`${textLineSelector}, [data-globe], [data-his-table]`),
       ).filter((block) => {
         const containingGlobe = block.closest<HTMLElement>("[data-globe]");
-        return !containingGlobe || containingGlobe === block;
+        if (containingGlobe && containingGlobe !== block) return false;
+        const containingTable = getTableRootFromNode(block);
+        return !containingTable || containingTable === block;
       });
       const intersecting = selectableBlocks.filter((block) => {
         const rect = block.getBoundingClientRect();

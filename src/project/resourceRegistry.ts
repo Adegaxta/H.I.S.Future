@@ -8,6 +8,7 @@ export interface ProjectResourceDefinition {
 
 export const PROJECT_RESOURCE_DEFINITIONS = [
   { kind: "pdf", nodeType: "pdf", extension: "pdf" },
+  { kind: "image", nodeType: "imagen", extension: "png" },
 ] as const satisfies readonly ProjectResourceDefinition[];
 
 export type ProjectResourceKind = (typeof PROJECT_RESOURCE_DEFINITIONS)[number]["kind"];

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { createServer } from "vite";
 
 const server = await createServer({ configFile: false, optimizeDeps: { noDiscovery: true, include: [] }, server: { middlewareMode: true, hmr: false, watch: null }, appType: "custom" });
@@ -8,6 +9,8 @@ try {
   assert.equal(getLoreConnectorTopology(1), "single", "one visible child uses SINGLE");
   assert.equal(getLoreConnectorTopology(2), "multiple", "two visible children use MULTIPLE");
   assert.equal(getLoreConnectorTopology(10), "multiple", "ten visible children use MULTIPLE");
+  const sidebarTreeSource = await readFile(new URL("../src/workspace/navigation/SidebarTree.tsx", import.meta.url), "utf8");
+  assert.match(sidebarTreeSource, /connectorTopology === "single" && isExpanded/, "single-child guide lines are only drawn for expanded branches");
   const nodes = [
     { id: "folder", name: "Folder", type: "categoria", parentId: null, order: 0, content: "folder content" },
     { id: "child", name: "Page", type: "pagina", parentId: "folder", order: 0, content: "page content" },

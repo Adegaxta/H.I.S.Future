@@ -1,0 +1,18 @@
+{
+  "id": "ATOMIC_MENTION_EDITABLE",
+  "message": "[{\"id\":\"B\",\"html\":\"<span class=\\\"editor-mention\\\" data-mention-id=\\\"B\\\" title=\\\"Nodo B\\\" aria-label=\\\"Nodo B\\\"><span class=\\\"sidebar-icon node-type-icon node-type-icon--pagina editor-mention__visual editor-mention__node-icon\\\" data-mention-node-visual=\\\"true\\\" data-editor-ui=\\\"true\\\" data-no-resize=\\\"true\\\" aria-hidden=\\\"true\\\"></span><span class=\\\"editor-mention__label\\\">Nodo B</span></span>\"}]",
+  "stack": "Error: [{\"id\":\"B\",\"html\":\"<span class=\\\"editor-mention\\\" data-mention-id=\\\"B\\\" title=\\\"Nodo B\\\" aria-label=\\\"Nodo B\\\"><span class=\\\"sidebar-icon node-type-icon node-type-icon--pagina editor-mention__visual editor-mention__node-icon\\\" data-mention-node-visual=\\\"true\\\" data-editor-ui=\\\"true\\\" data-no-resize=\\\"true\\\" aria-hidden=\\\"true\\\"></span><span class=\\\"editor-mention__label\\\">Nodo B</span></span>\"}]\n    at failure (file:///C:/Users/Matias/Documents/COSAS_DE_HIS/H.I.S.Future/hisfuture/tests/editor-audit/run.mjs:19:38)\n    at invariant (file:///C:/Users/Matias/Documents/COSAS_DE_HIS/H.I.S.Future/hisfuture/tests/editor-audit/run.mjs:24:999)\n    at async action (file:///C:/Users/Matias/Documents/COSAS_DE_HIS/H.I.S.Future/hisfuture/tests/editor-audit/run.mjs:41:2)\n    at async execute (file:///C:/Users/Matias/Documents/COSAS_DE_HIS/H.I.S.Future/hisfuture/tests/editor-audit/run.mjs:45:191)\n    at async file:///C:/Users/Matias/Documents/COSAS_DE_HIS/H.I.S.Future/hisfuture/tests/editor-audit/run.mjs:67:95",
+  "index": 1,
+  "seed": 3,
+  "actions": [
+    {
+      "kind": "press",
+      "key": "Control+a"
+    },
+    {
+      "kind": "saveSelectedReload"
+    }
+  ],
+  "attempts": 2,
+  "confirmed": true
+}

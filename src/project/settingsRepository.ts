@@ -6,7 +6,7 @@ import {
   setBrowserDevSetting,
 } from "./browserDevBackend";
 
-export async function getProjectSetting(key: "locale" | "loreHiddenIds" | "deletedNodes"): Promise<string | null> {
+export async function getProjectSetting(key: "locale" | "loreHiddenIds" | "deletedNodes" | "vaultImage"): Promise<string | null> {
   if (isBrowserDevProjectActive()) return getBrowserDevSetting(key);
   try {
     return await invoke<string | null>("get_project_setting", { key });
@@ -15,7 +15,7 @@ export async function getProjectSetting(key: "locale" | "loreHiddenIds" | "delet
   }
 }
 
-export async function setProjectSetting(key: "locale" | "loreHiddenIds", value: string): Promise<void> {
+export async function setProjectSetting(key: "locale" | "loreHiddenIds" | "vaultImage", value: string): Promise<void> {
   if (isBrowserDevProjectActive()) {
     setBrowserDevSetting(key, value);
     return;

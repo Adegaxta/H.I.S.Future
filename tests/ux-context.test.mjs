@@ -15,6 +15,42 @@ try {
   const { ES_TRANSLATIONS } = await server.ssrLoadModule("/src/i18n/translations.ts");
   const { opensNodeViewOnClick } = await server.ssrLoadModule("/src/utils/nodeTree.ts");
   const { changedNodeIds, recordRecentActivity } = await server.ssrLoadModule("/src/utils/recentActivity.ts");
+  const { resolveNodeCustomVisual } = await server.ssrLoadModule("/src/nodes/nodeIconSource.ts");
+  const { inspectNode } = await server.ssrLoadModule("/src/nodes/inspector/inspection.ts");
+  const { analyzeSource } = await server.ssrLoadModule("/src/nodes/inspector/sourceAnalysis.ts");
+  const navigationPreferences = await server.ssrLoadModule("/src/workspace/navigationPreferences.ts");
+
+  assert.equal(navigationPreferences.DEFAULT_SIDEBAR_WIDTH, 350, "the contextual sidebar starts at the roomier requested width");
+  assert.equal(navigationPreferences.parseSidebarWidth("999"), 440);
+  assert.equal(navigationPreferences.parseSidebarWidth("10"), 280);
+  assert.deepEqual(
+    navigationPreferences.parseLoreExpansion('{"root":true,"closed":false,"invalid":"yes"}'),
+    { root: true },
+    "only expanded Lore branches survive preference restoration",
+  );
+  assert.equal(
+    navigationPreferences.serializeLoreExpansion({ root: true, closed: false }),
+    '{"root":true}',
+  );
+
+  const projectWithIcon = {
+    id: "project-with-icon",
+    name: "Proyecto con icono",
+    type: "proyecto",
+    parentId: null,
+    order: 0,
+    content: '<!--hisfuture-page-meta:{"iconVisual":{"kind":"emoji","value":"🚀","style":"noto"}}--><p><br></p>',
+  };
+  assert.deepEqual(
+    resolveNodeCustomVisual(projectWithIcon, [projectWithIcon]),
+    { kind: "emoji", value: "🚀", style: "noto" },
+    "calls reuse the configured icon of every icon-capable Node type",
+  );
+  assert.equal(
+    resolveNodeCustomVisual({ ...projectWithIcon, id: "project-without-icon", content: "<p><br></p>" }, []),
+    undefined,
+    "calls fall back to the Node type icon only when no custom icon is configured",
+  );
 
   const t = (key, params = {}) => Object.entries(params).reduce(
     (text, [name, value]) => text.replaceAll(`{${name}}`, String(value)),
@@ -25,6 +61,7 @@ try {
   assert.deepEqual(clampContextMenuPosition(-20, -10, 170, 180, 800, 600), { left: 8, top: 8 });
   const callbacks = {
     onCreate: (id) => calls.push(["create", id]),
+    onInspect: (id) => calls.push(["inspect", id]),
     onView: (id) => calls.push(["view", id]),
     onSetPrimary: (id) => calls.push(["set-primary", id]),
     onAddToLore: (id) => calls.push(["add-lore", id]),
@@ -38,7 +75,7 @@ try {
     menu: { context: "lore", nodeId: "folder", x: 0, y: 0 },
     removeCount: 1,
   });
-  assert.deepEqual(loreItems.map((item) => item.id), ["create", "rename", "view", "set-primary", "remove-lore"]);
+  assert.deepEqual(loreItems.map((item) => item.id), ["inspect", "create", "rename", "view", "set-primary", "remove-lore"]);
   loreItems.find((item) => item.id === "remove-lore").onSelect();
   assert.deepEqual(calls, [["remove-lore", "folder"]], "Lore removal does not invoke entity deletion");
 
@@ -57,7 +94,7 @@ try {
     t,
     menu: { context: "types", nodeId: "page", x: 0, y: 0 },
   });
-  assert.deepEqual(typeItems.map((item) => item.id), ["rename", "view", "set-primary", "delete"]);
+  assert.deepEqual(typeItems.map((item) => item.id), ["inspect", "rename", "view", "set-primary", "delete"]);
   typeItems.find((item) => item.id === "delete").onSelect();
   assert.deepEqual(calls, [["delete", "page"]]);
 
@@ -68,7 +105,7 @@ try {
     canAddToLore: true,
     menu: { context: "types", nodeId: "page", x: 0, y: 0 },
   });
-  assert.deepEqual(hiddenTypeItems.map((item) => item.id), ["rename", "view", "add-lore", "set-primary", "delete"]);
+  assert.deepEqual(hiddenTypeItems.map((item) => item.id), ["inspect", "rename", "view", "add-lore", "set-primary", "delete"]);
   hiddenTypeItems.find((item) => item.id === "add-lore").onSelect();
   assert.deepEqual(calls, [["add-lore", "page"]]);
 
@@ -97,6 +134,39 @@ try {
     "domain mutations attribute activity only to Nodes whose persisted state changed",
   );
 
+  const inspectedPage = {
+    ...page,
+    parentId: "folder",
+    content: '<!--hisfuture-page-meta:{"blockWidth":160}--><!--hisfuture-nodal-meta:{"relations":[{"role":"content","targetId":"missing-relation"}]}--><h1>Hola mundo</h1><p data-his-synced="true">Tres <span data-mention-id="missing-mention">Nodo</span></p><div data-globe="true"><p>Interior</p></div>',
+  };
+  const related = {
+    ...page,
+    id: "related",
+    content: '<!--hisfuture-nodal-meta:{"relations":[{"role":"relatedWork","targetId":"page"}]}--><p>Relacionado</p>',
+  };
+  const inspection = inspectNode(inspectedPage, [folder, inspectedPage, related]);
+  assert.equal(inspection.words, 5);
+  assert.equal(inspection.structure.editorBlocks, 4);
+  assert.equal(inspection.children, 0);
+  assert.equal(inspection.depth, 1);
+  assert.equal(inspection.incomingRelations, 1);
+  assert.deepEqual(inspection.brokenMentionIds, ["missing-mention"]);
+  assert.deepEqual(inspection.brokenRelationIds, ["missing-relation"]);
+  assert.equal(inspection.pageMeta.blockWidth, 160);
+  assert.ok(inspection.timings.totalMs >= 0, "on-demand Inspector reports its own measured cost");
+
+  const embedded = analyzeSource('<p><img src="data:image/png;base64,QUJD" alt="A"><img src="data:image/png;base64,QUJD" alt="B"></p>');
+  assert.equal(embedded.resources.length, 2);
+  assert.equal(embedded.resources[0].payloadBytes, 3, "Base64 payload size is calculated without decoding it");
+  assert.equal(embedded.duplicateGroups.length, 1);
+  assert.equal(embedded.duplicateGroups[0].occurrences, 2);
+  assert.equal(embedded.parseableHtml.includes("QUJD"), false, "the DOM parser input omits embedded payloads");
+  assert.equal(
+    embedded.storage.total.bytes,
+    embedded.storage.htmlSourceText.bytes + embedded.storage.htmlSyntax.bytes + embedded.storage.hisMetadata.bytes + embedded.storage.unclassified.bytes,
+    "exclusive storage categories exactly partition NodeItem.content",
+  );
+
   const [pageChrome, pageStyles, editorController, editorMentions, pageHeader, editorStyles, workspaceImports, workspaceView, sidebarTree] = await Promise.all([
     readFile(new URL("../src/nodes/page/chrome.tsx", import.meta.url), "utf8"),
     readFile(new URL("../src/nodes/page/styles.css", import.meta.url), "utf8"),
@@ -115,7 +185,12 @@ try {
   assert.ok(pageHeader.includes("page-node-header__cover-attribution") && pageHeader.includes("provenance?.creatorUrl") && pageHeader.includes("provenance?.resourceUrl"), "Unsplash covers retain direct attribution links");
   assert.ok(editorStyles.includes("article_shortcut.svg") && editorStyles.includes("--mention-color"), "mentions use the requested article marker and semantic hover color");
   assert.ok(editorMentions.includes("resolveNodeCustomVisual") && editorMentions.includes("dynamicIconImports") && editorMentions.includes("syncMentionVisual"), "Node calls follow image, emoji, Material and Lucide custom visuals");
-  assert.ok(editorStyles.includes(".editor-mention__visual") && editorStyles.includes("box-shadow: 0 1px 0 currentColor"), "the call underline continues beneath its icon");
+  assert.ok(
+    editorStyles.includes(".editor-mention__label") &&
+      editorStyles.includes("color-mix(in srgb, currentColor 46%, transparent)") &&
+      editorStyles.includes("box-shadow: none"),
+    "the semantic mention line belongs to the text label and never crosses its icon",
+  );
   assert.ok(workspaceImports.includes("onGlobalImportRef.current?.(node)") && workspaceView.includes("onGlobalImport: (imported) => openNodeView(imported.id)"), "external drops open their imported Node");
   assert.ok(sidebarTree.includes("customVisuals.get(node.id)"), "a Page's typed custom visual propagates to its Lore identity");
 

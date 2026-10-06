@@ -12,8 +12,28 @@ import { AppLifecycleProvider, useAppLifecycle } from "./lifecycle/AppLifecycle"
 import { invoke } from "@tauri-apps/api/core";
 import progressActivityAsset from "./assets/third-party/google-material/icons/progress_activity.svg";
 import type { ProjectInfo } from "./project/types";
+import WorkspaceLoadBoundary from "./components/WorkspaceLoadBoundary";
 
-const loadAppWorkspace = () => import("./components/AppWorkspace");
+const WORKSPACE_LOAD_RETRY = "hisfuture.workspace-load-retry";
+let workspaceBundle: Promise<typeof import("./components/AppWorkspace")> | undefined;
+const loadAppWorkspace = () => workspaceBundle ??= import("./components/AppWorkspace").then((module) => {
+  try { sessionStorage.removeItem(WORKSPACE_LOAD_RETRY); } catch { /* Optional storage. */ }
+  return module;
+}).catch((error: unknown) => {
+  // A rejected ESM dependency stays cached: reload the document, not the import.
+  // This is safe before the workspace mounts, while the native project stays open.
+  const message = error instanceof Error ? error.message : String(error);
+  if (/fetch|import|module|network|load/i.test(message)) {
+    try {
+      if (!sessionStorage.getItem(WORKSPACE_LOAD_RETRY)) {
+        sessionStorage.setItem(WORKSPACE_LOAD_RETRY, "1");
+        window.location.reload();
+        return new Promise<typeof import("./components/AppWorkspace")>(() => {});
+      }
+    } catch { /* Show the recovery screen when storage is unavailable. */ }
+  }
+  throw error;
+});
 const AppWorkspace = lazy(loadAppWorkspace);
 
 function AppLoadingScreen() {
@@ -75,7 +95,7 @@ function AppContent() {
   // A cold launch that only shows Home never pays for the workspace, graph,
   // editor and node-renderer modules.
   useEffect(() => {
-    if (session.busy || session.project) void loadAppWorkspace();
+    if (session.busy || session.project) void loadAppWorkspace().catch((error) => console.error("Workspace preload failed", error));
   }, [session.busy, session.project]);
 
   useEffect(() => {
@@ -122,13 +142,13 @@ function AppContent() {
         onRemoveRecent={session.removeRecent}
       />
       ) : (
-      <Suspense fallback={<AppLoadingScreen />}>
+      <WorkspaceLoadBoundary><Suspense fallback={<AppLoadingScreen />}>
         <AppWorkspace
           projectKey={session.project.folderPath}
           projectName={session.project.name}
           onExitProject={session.close}
         />
-      </Suspense>
+      </Suspense></WorkspaceLoadBoundary>
       )}
     </LocaleProvider>
     </>

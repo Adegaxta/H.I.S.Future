@@ -3,6 +3,7 @@ import {
   EDITOR_BACKGROUND_COLORS,
   EDITOR_TEXT_COLORS,
 } from "../defs/palette";
+import { createTableMarkup } from "./table";
 
 const SAFE_URL = /^(https?:|data:image\/|blob:)/i;
 
@@ -109,8 +110,7 @@ function formatMarkdownInline(value: string): string {
 export function formatPastedText(text: string): string {
   const cssEnd = text.indexOf("ul { margin: 0px; }");
   const source = cssEnd >= 0 ? text.slice(cssEnd + "ul { margin: 0px; }".length) : text;
-  const decoded = new DOMParser().parseFromString(source, "text/html").body.textContent || source;
-  const separated = decoded
+  const separated = source
     .replace(/\r/g, "")
     .replace(/(?<!^)\s*(?=(?:🟣|❤️|⚪|🔵|🟢|🟡|🟠|🔴)(?:Eventos|Texto descriptivo|Necesario|Catalizador|Muy Importante|Importante|Poco relevante|Relleno))/gu, "\n")
     .replace(/(?<!^)\s*(?=(?:Resumen|Índice|Leyenda de Utilidad en el Lore):?\s)/giu, "\n")
@@ -275,11 +275,23 @@ function safeInlineStyle(style: string, element?: HTMLElement): string {
     const value = parts.join(":").trim();
     if (!property || !value) return [];
     const normalized = property.trim().toLowerCase();
-    if (normalized === "color" || normalized === "background-color" || normalized === "background") {
+    if (normalized === "color" || normalized === "background-color" || normalized === "background" || normalized === "border-color") {
       if ((normalized === "background" || normalized === "background-color") && isLightBackground(value)) return [];
       const color = resolveAnytypeColor(value, normalized);
       if ((normalized === "background" || normalized === "background-color") && (!color || isLightBackground(color))) return [];
       return color ? [`${normalized}: ${color}`] : [];
+    }
+    if (normalized === "--his-table-content-width" && /^\d+(?:\.\d+)?px$/i.test(value)) {
+      return [`${normalized}: ${value}`];
+    }
+    if (normalized === "--his-table-columns" && /^\d+$/.test(value)) {
+      return [`${normalized}: ${value}`];
+    }
+    if (normalized === "--his-table-columns-template" && /^(?:\d+(?:\.\d+)?px\s*)+$/i.test(value)) {
+      return [`${normalized}: ${value.trim()}`];
+    }
+    if (normalized === "--his-table-cell-align" && ["start", "center", "end"].includes(value.toLowerCase())) {
+      return [`${normalized}: ${value.toLowerCase()}`];
     }
     if (normalized.startsWith("--") && /(?:^|-)color(?:-|$)|background/i.test(normalized)) {
       const targetProperty = /background/i.test(normalized) ? "background-color" : "color";
@@ -288,7 +300,7 @@ function safeInlineStyle(style: string, element?: HTMLElement): string {
       if (targetProperty === "background-color" && isLightBackground(color || "")) return [];
       return color ? [`${targetProperty}: ${color}`] : [];
     }
-      if (normalized === "text-align" && ["left", "center", "right"].includes(value.toLowerCase()))
+      if (normalized === "text-align" && ["left", "center", "right", "justify"].includes(value.toLowerCase()))
         return [`text-align: ${value.toLowerCase()}`];
       return [];
   });
@@ -448,26 +460,40 @@ function anytypeIndexToHtml(element: HTMLElement): string | null {
     isIndexContainer ||
     ((isDirectIndexHeading || nestedIndexHeading) && (hasDirectIndexItems || hasIndexItems));
   if (!isIndexLike) return null;
-  const semanticItems = Array.from(
-    element.querySelectorAll<HTMLElement>("li, a, [data-index-item], [data-toc-item]"),
-  );
+  const listItems = Array.from(element.querySelectorAll<HTMLElement>("li"));
+  const semanticItems = listItems.length
+    ? listItems
+    : Array.from(element.querySelectorAll<HTMLElement>("a, [data-index-item], [data-toc-item]"));
   const items = (semanticItems.length ? semanticItems : Array.from(
     element.querySelectorAll<HTMLElement>("p, div"),
   ))
-    .map((item) => item.textContent?.replace(/\s+/g, " ").trim() ?? "")
-    .filter((label) => label.length > 1 && !/^\d+\.?\s*$/.test(label))
-    .filter((label, index, list) => list.indexOf(label) === index)
+    .map((item) => {
+      const clone = item.cloneNode(true) as HTMLElement;
+      clone.querySelectorAll("li").forEach((nested) => nested.remove());
+      let level = 0;
+      let ancestor = item.parentElement?.closest("li") || null;
+      while (ancestor) {
+        level += 1;
+        ancestor = ancestor.parentElement?.closest("li") || null;
+      }
+      return {
+        label: clone.textContent?.replace(/\s+/g, " ").trim() ?? "",
+        level,
+      };
+    })
+    .filter(({ label }) => label.length > 1 && !/^\d+\.?\s*$/.test(label))
+    .filter(({ label }, index, list) => list.findIndex((item) => item.label === label) === index)
     .slice(0, 24);
 
   if (!items.length) return null;
 
   const rows = items
-    .map((label) => 
-      `<div data-page-index-item="true" class="editor-page-index__item"><span class="editor-page-index__marker">•</span><span class="editor-page-index__label">${escapeHtml(label)}</span></div>`,
+    .map(({ label, level }) =>
+      `<div data-page-index-item="true" data-page-index-level="${level}" class="editor-page-index__item"><span class="editor-page-index__marker">•</span><span class="editor-page-index__label">${escapeHtml(label)}</span></div>`,
     )
     .join("");
 
-  return `<div data-page-index="true" class="editor-page-index">${rows}</div>`;
+  return `<div data-page-index="true" data-page-index-source="anytype" class="editor-page-index">${rows}</div>`;
 }
 
 // Numeric values fixed by Anytype's own protobuf schema (Block.Content.Text.Mark.Type / Style),
@@ -502,6 +528,13 @@ const ANYTYPE_BLOCK_STYLE = {
   ToggleHeader1: 14,
   ToggleHeader2: 15,
   ToggleHeader3: 16,
+} as const;
+
+const ANYTYPE_LAYOUT_STYLE = {
+  Row: 0,
+  Column: 1,
+  TableRows: 4,
+  TableColumns: 5,
 } as const;
 
 interface AnytypeMark {
@@ -588,6 +621,18 @@ function isAnytypeImageBlock(block: AnytypeBlock): boolean {
   return content.type === 2;
 }
 
+function isAnytypeProcessableBlock(block: AnytypeBlock): boolean {
+  const layoutStyle = typeof block.content === "object" && block.content !== null
+    ? (block.content as Record<string, unknown>).style
+    : undefined;
+  return isAnytypeTextBlock(block) ||
+    block.type === "tableOfContents" ||
+    block.type === "table" ||
+    block.type === "div" ||
+    (block.type === "layout" && (layoutStyle === ANYTYPE_LAYOUT_STYLE.Row || layoutStyle === ANYTYPE_LAYOUT_STYLE.Column)) ||
+    isAnytypeImageBlock(block);
+}
+
 function isAnytypeClipboard(value: unknown): value is AnytypeClipboard {
   if (typeof value !== "object" || value === null) return false;
   const payload = value as Record<string, unknown>;
@@ -595,7 +640,7 @@ function isAnytypeClipboard(value: unknown): value is AnytypeClipboard {
     Array.isArray(payload.blocks) &&
     payload.blocks.length > 0 &&
     payload.blocks.every(isAnytypeBlock) &&
-    payload.blocks.some(isAnytypeTextBlock)
+    payload.blocks.some(isAnytypeProcessableBlock)
   );
 }
 
@@ -657,6 +702,7 @@ function anytypeMarksToHtml(text: string, marks: AnytypeMark[]): string {
 function anytypeBlockToHtml(
   block: AnytypeTextBlock,
   blocksById: ReadonlyMap<string, AnytypeBlock>,
+  availableWidth = 0,
   ancestors: ReadonlySet<string> = new Set(),
 ): string {
   const content = block.content;
@@ -700,7 +746,7 @@ function anytypeBlockToHtml(
         .map((id) => blocksById.get(id))
         .filter((child): child is AnytypeBlock => child !== undefined)
         .filter((child) => !nextAncestors.has(child.id))
-        .map((child) => anytypeStructuralBlockToHtml(child, blocksById, nextAncestors))
+        .map((child) => anytypeStructuralBlockToHtml(child, blocksById, availableWidth, nextAncestors))
         .join("");
       return `<div data-globe="true"${blockStyle}>${icon}<div data-globe-content="true"><p>${inner}</p>${children}</div></div>`;
     }
@@ -709,12 +755,96 @@ function anytypeBlockToHtml(
   }
 }
 
+function anytypeCellBlockToHtml(block: AnytypeTextBlock): string {
+  const content = block.content;
+  const marks = Array.isArray(content.marks) ? content.marks : [];
+  const inner = anytypeMarksToHtml(content.text, marks) || "<br>";
+  const styleParts: string[] = [];
+  const resolvedColor = content.color ? HIS_COLOR_NAMES[content.color.toLowerCase()] : null;
+  const backgroundToken = block.bgColor || block.backgroundColor;
+  const resolvedBackground = backgroundToken ? HIS_BACKGROUND_COLORS[backgroundToken.toLowerCase()] : null;
+  if (resolvedColor) styleParts.push(`color: ${resolvedColor}`);
+  if (resolvedBackground) styleParts.push(`background-color: ${resolvedBackground}`);
+  const style = styleParts.length ? ` style="${escapeHtml(styleParts.join("; "))}"` : "";
+  return `<span${style}>${inner}</span>`;
+}
+
+function anytypeTableToHtml(block: AnytypeBlock, blocksById: ReadonlyMap<string, AnytypeBlock>, availableWidth: number): string | null {
+  const layouts = (block.childrenIds || [])
+    .map((id) => blocksById.get(id))
+    .filter((child): child is AnytypeBlock => child !== undefined);
+  const columnsLayout = layouts.find((layout) =>
+    typeof layout.content === "object" && layout.content !== null &&
+    (layout.content as Record<string, unknown>).style === ANYTYPE_LAYOUT_STYLE.TableColumns,
+  );
+  const rowsLayout = layouts.find((layout) =>
+    typeof layout.content === "object" && layout.content !== null &&
+    (layout.content as Record<string, unknown>).style === ANYTYPE_LAYOUT_STYLE.TableRows,
+  );
+  if (!columnsLayout || !rowsLayout) return null;
+  const columnIds = columnsLayout.childrenIds || [];
+  const rowIds = rowsLayout.childrenIds || [];
+  if (!columnIds.length || !rowIds.length) return null;
+  if (!columnIds.every((columnId) => blocksById.get(columnId)?.type === "tableColumn")) return null;
+  const rows: string[][] = [];
+  for (const rowId of rowIds) {
+    const row = blocksById.get(rowId);
+    if (!row || row.type !== "tableRow") return null;
+    const materializedCells = new Map(
+      (row.childrenIds || [])
+        .map((cellId) => [cellId, blocksById.get(cellId)] as const)
+        .filter((entry): entry is readonly [string, AnytypeBlock] => entry[1] !== undefined),
+    );
+    rows.push(columnIds.map((columnId) => {
+      const cell = materializedCells.get(`${row.id}-${columnId}`);
+      return cell && isAnytypeTextBlock(cell) ? anytypeCellBlockToHtml(cell) : "";
+    }));
+  }
+  return createTableMarkup(rows, availableWidth, availableWidth);
+}
+
+function getAnytypeLayoutStyle(block: AnytypeBlock): number | null {
+  if (block.type !== "layout" || typeof block.content !== "object" || block.content === null) return null;
+  const style = (block.content as Record<string, unknown>).style;
+  return typeof style === "number" ? style : null;
+}
+
+function anytypeRowLayoutToHtml(
+  block: AnytypeBlock,
+  blocksById: ReadonlyMap<string, AnytypeBlock>,
+  availableWidth: number,
+  ancestors: ReadonlySet<string> = new Set(),
+): string | null {
+  if (getAnytypeLayoutStyle(block) !== ANYTYPE_LAYOUT_STYLE.Row || ancestors.has(block.id)) return null;
+  const columns = (block.childrenIds || [])
+    .map((id) => blocksById.get(id))
+    .filter((child): child is AnytypeBlock => Boolean(child))
+    .filter((child) => getAnytypeLayoutStyle(child) === ANYTYPE_LAYOUT_STYLE.Column);
+  if (columns.length < 2 || columns.length !== (block.childrenIds || []).length) return null;
+  const nextAncestors = new Set(ancestors).add(block.id);
+  const html = columns.map((column) => {
+    const columnAncestors = new Set(nextAncestors).add(column.id);
+    const content = (column.childrenIds || [])
+      .map((id) => blocksById.get(id))
+      .filter((child): child is AnytypeBlock => Boolean(child))
+      .filter((child) => !columnAncestors.has(child.id))
+      .map((child) => anytypeStructuralBlockToHtml(child, blocksById, availableWidth, columnAncestors))
+      .join("");
+    return `<div data-his-column="true">${content || "<p><br></p>"}</div>`;
+  }).join("");
+  return `<div data-his-column-layout="true">${html}</div>`;
+}
+
 function anytypeStructuralBlockToHtml(
   block: AnytypeBlock,
   blocksById: ReadonlyMap<string, AnytypeBlock>,
+  availableWidth: number,
   ancestors: ReadonlySet<string> = new Set(),
 ): string {
-  if (isAnytypeTextBlock(block)) return anytypeBlockToHtml(block, blocksById, ancestors);
+  if (isAnytypeTextBlock(block)) return anytypeBlockToHtml(block, blocksById, availableWidth, ancestors);
+  if (getAnytypeLayoutStyle(block) === ANYTYPE_LAYOUT_STYLE.Row)
+    return anytypeRowLayoutToHtml(block, blocksById, availableWidth, ancestors) || "";
+  if (block.type === "table") return anytypeTableToHtml(block, blocksById, availableWidth) || "";
   if (block.type === "div")
     return '<div data-divider="true" contenteditable="false"><hr /></div>';
   if (block.type === "tableOfContents")
@@ -729,7 +859,7 @@ function anytypeStructuralBlockToHtml(
  * alongside text/html — the only flavor that actually carries text/background color).
  * Returns null on any structural mismatch so callers can fall back to the standard text/html path.
  */
-export function anytypeClipboardToHtml(json: string): string | null {
+export function anytypeClipboardToHtml(json: string, availableWidth = 0, clipboardHtml = ""): string | null {
   let parsed: unknown;
   try {
     parsed = JSON.parse(json);
@@ -739,22 +869,44 @@ export function anytypeClipboardToHtml(json: string): string | null {
   if (!isAnytypeClipboard(parsed)) return null;
   const blocksById = new Map(parsed.blocks.map((block) => [block.id, block]));
   const calloutDescendants = new Set<string>();
-  const collectDescendants = (block: AnytypeBlock, ancestors: ReadonlySet<string> = new Set()) => {
+  const tableDescendants = new Set<string>();
+  const columnLayoutDescendants = new Set<string>();
+  const collectDescendants = (block: AnytypeBlock, target: Set<string>, ancestors: ReadonlySet<string> = new Set()) => {
     if (ancestors.has(block.id)) return;
     const nextAncestors = new Set(ancestors).add(block.id);
     (block.childrenIds || []).forEach((id) => {
-      calloutDescendants.add(id);
+      target.add(id);
       const child = blocksById.get(id);
-      if (child) collectDescendants(child, nextAncestors);
+      if (child) collectDescendants(child, target, nextAncestors);
     });
   };
   parsed.blocks
     .filter(isAnytypeTextBlock)
     .filter((block) => block.content.style === ANYTYPE_BLOCK_STYLE.Callout)
-    .forEach((block) => collectDescendants(block));
+    .forEach((block) => collectDescendants(block, calloutDescendants));
+  parsed.blocks
+    .filter((block) => block.type === "table")
+    .forEach((block) => {
+      collectDescendants(block, tableDescendants);
+    });
+  parsed.blocks
+    .filter((block) => getAnytypeLayoutStyle(block) === ANYTYPE_LAYOUT_STYLE.Row)
+    .filter((block) => anytypeRowLayoutToHtml(block, blocksById, availableWidth) !== null)
+    .forEach((block) => collectDescendants(block, columnLayoutDescendants));
+  const externalIndices = clipboardHtml
+    ? Array.from(new DOMParser().parseFromString(clipboardHtml, "text/html").body.querySelectorAll<HTMLElement>("body *"))
+      .map(anytypeIndexToHtml)
+      .filter((value): value is string => Boolean(value))
+    : [];
+  let externalIndex = 0;
   const html = parsed.blocks
-    .filter((block) => !calloutDescendants.has(block.id))
-    .map((block) => anytypeStructuralBlockToHtml(block, blocksById))
+    .filter((block) => !calloutDescendants.has(block.id) && !tableDescendants.has(block.id) && !columnLayoutDescendants.has(block.id))
+    .map((block) => {
+      if (block.type === "tableOfContents") {
+        return externalIndices[externalIndex++] || anytypeStructuralBlockToHtml(block, blocksById, availableWidth);
+      }
+      return anytypeStructuralBlockToHtml(block, blocksById, availableWidth);
+    })
     .join("");
   return html || null;
 }
@@ -844,6 +996,8 @@ export function sanitizeEditorHtml(html: string): string {
     "data-mention-id",
     "data-mention-align",
     "data-no-resize",
+    "data-block-id",
+    "data-his-image-placeholder",
     "data-his-dropdown",
     "data-his-globe",
     "data-his-highlighted",
@@ -856,13 +1010,22 @@ export function sanitizeEditorHtml(html: string): string {
     "data-his-collapsed",
     "data-his-dropdown-content",
     "data-his-todo-checked",
+    "data-page-index-item",
+    "data-page-index-level",
+    "data-page-id",
+    "data-his-table",
+    "data-his-table-grid",
+    "data-his-table-row",
+    "data-his-table-cell",
+    "data-his-table-header",
     "href",
+    "role",
     "rowspan",
     "src",
     "title",
   ]);
   const visit = (node: Node): string => {
-    if (node.nodeType === Node.TEXT_NODE) return node.textContent || "";
+    if (node.nodeType === Node.TEXT_NODE) return escapeHtml(node.textContent || "");
     if (node.nodeType !== Node.ELEMENT_NODE) return "";
     const element = node as HTMLElement;
     if (["STYLE", "SCRIPT", "NOSCRIPT"].includes(element.tagName)) return "";
@@ -877,7 +1040,10 @@ export function sanitizeEditorHtml(html: string): string {
         const sourceAttribute = element.getAttribute("data-page-index-source") === "anytype"
           ? ' data-page-index-source="anytype"'
           : "";
-        return `<div data-page-index="true"${sourceAttribute}></div>`;
+        const children = element.getAttribute("data-page-index-source") === "anytype"
+          ? Array.from(element.childNodes).map(visit).join("")
+          : "";
+        return `<div data-page-index="true"${sourceAttribute}>${children}</div>`;
       }
       const isNativeGlobe = element.hasAttribute("data-globe") || element.hasAttribute("data-globe-content");
       const anytypeIndex = isNativeGlobe ? null : anytypeIndexToHtml(element);
@@ -913,6 +1079,26 @@ export function sanitizeEditorHtml(html: string): string {
     }
     if (element.tagName === "SPAN" && element.hasAttribute("data-his-dropdown-content")) {
       return `<span data-his-dropdown-content="true">${children}</span>`;
+    }
+    if (element.tagName === "SPAN" && (
+      element.hasAttribute("data-his-table") ||
+      element.hasAttribute("data-his-table-grid") ||
+      element.hasAttribute("data-his-table-row") ||
+      element.hasAttribute("data-his-table-cell")
+    )) {
+      const structuralAttributes = [
+        "data-his-table",
+        "data-his-table-grid",
+        "data-his-table-row",
+        "data-his-table-cell",
+        "data-his-table-header",
+        "role",
+      ].filter((attribute) => element.hasAttribute(attribute))
+        .map((attribute) => ` ${attribute}="${escapeHtml(element.getAttribute(attribute) || "")}"`)
+        .join("");
+      const safeStyle = safeInlineStyle(element.getAttribute("style") || "", element);
+      const styleAttribute = safeStyle ? ` style="${escapeHtml(safeStyle)}"` : "";
+      return `<span${structuralAttributes}${styleAttribute}>${children}</span>`;
     }
     if (element.tagName === "SPAN") {
       const mentionId = element.getAttribute("data-mention-id");

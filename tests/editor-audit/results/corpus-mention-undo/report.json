@@ -1,0 +1,28 @@
+{
+  "timestamp": "2026-10-02T17:24:36.382Z",
+  "productionUnchanged": true,
+  "runs": [
+    {
+      "seed": 3,
+      "requested": 2,
+      "executed": 2,
+      "failed": null
+    }
+  ],
+  "regressions": [],
+  "properties": [
+    {
+      "checks": 0,
+      "failures": []
+    }
+  ],
+  "findings": [],
+  "soak": [],
+  "errors": [],
+  "warnings": [
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "approvalStatus": "approved-local-import-complete",
+  "runtimeNetworkAccess": false,
+  "observedAt": "2026-09-28",
+  "sources": [
+    {
+      "id": "kaikki-eswiktionary-raw",
+      "originPage": "https://kaikki.org/dictionary/rawdata.html",
+      "directDownloadUrl": "https://kaikki.org/dictionary/downloads/es/es-extract.jsonl.gz",
+      "upstreamDumpDate": "2026-09-01",
+      "language": "es",
+      "compressedBytes": 102038407,
+      "publishedSize": "97.3 MB compressed; 1.1 GB uncompressed JSONL",
+      "sha256": "4fcf69796d5c6e5a44370ecf0ffa2caf878399c0d2f230d2ba8e1ed593ca6bdb",
+      "license": "Wiktionary CC BY-SA and GFDL",
+      "processor": "Wiktextract",
+      "processorLicense": "MIT",
+      "proposedOutput": "../.his-lexicon-data/wiktionary.sqlite",
+      "generatedBytes": 310530048,
+      "generatedSha256": "8afe83a646cba5f8dcf06f53853f146b966fa9e7ff8848cf5c4745e2f9553975",
+      "redistribute": false
+    },
+    {
+      "id": "open-english-wordnet-2025-json",
+      "originPage": "https://en-word.net/downloads",
+      "directDownloadUrl": "https://en-word.net/downloads/english-wordnet-2025-json.zip",
+      "release": "2025",
+      "compressedBytes": 9986555,
+      "publishedSize": "9.5 MB ZIP",
+      "sha256": "7d749f6e2c39e6970e4997839dcf6e42fd281f3c2fae0171d2192bae8cfa4b51",
+      "license": "CC BY 4.0 plus Princeton WordNet notice",
+      "proposedOutput": "../.his-lexicon-data/open-english-wordnet.sqlite",
+      "generatedBytes": 64053248,
+      "generatedSha256": "9509fedadd75165733e965f9478a581762c5355fe80f7b8f27c69c6e570931b8",
+      "redistribute": false
+    }
+  ]
+}

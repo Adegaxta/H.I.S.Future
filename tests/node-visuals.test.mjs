@@ -51,8 +51,9 @@ try {
   const pickerSource = fs.readFileSync(path.join(root, "src/nodes/visuals/EmojiPicker.tsx"), "utf8");
   assert.ok(pickerSource.includes('setStyle("noto")') && pickerSource.includes('setStyle("twemoji")'), "both emoji styles are selectable");
   const headerSource = fs.readFileSync(path.join(root, "src/nodes/page/header.tsx"), "utf8");
-  assert.ok(headerSource.indexOf("page-image-picker__upload-card") < headerSource.indexOf("imageNodes.map"), "upload is the first local-library card");
-  assert.ok(headerSource.includes('fileImportAccept(["imagen"])') && headerSource.includes("onImageFileUpload(file)"), "local upload reuses the registered project image importer and its accepted formats");
+  const sharedPickerSource = fs.readFileSync(path.join(root, "src/nodes/capabilities/IconCapabilityPicker.tsx"), "utf8");
+  assert.ok(sharedPickerSource.indexOf("page-image-picker__upload-card") < sharedPickerSource.indexOf("imageNodes.map"), "upload is the first local-library card");
+  assert.ok(sharedPickerSource.includes('fileImportAccept(["imagen"])') && headerSource.includes("onImageUpload={onImageFileUpload}"), "local upload reuses the registered project image importer and its accepted formats");
 
   console.log("Node visual tests passed");
 } finally {

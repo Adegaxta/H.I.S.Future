@@ -26,14 +26,13 @@ import resetColorIcon from "../assets/third-party/google-material/icons/format_c
 import columnIcon from "../assets/third-party/google-material/icons/view_column_256dp_E3E3E3_FILL0_wght400_GRAD0_opsz48.svg";
 import checkedIcon from "../assets/third-party/google-material/icons/check_box_256dp_E3E3E3_FILL0_wght400_GRAD0_opsz48.svg";
 import uncheckedIcon from "../assets/third-party/google-material/icons/check_box_outline_blank_256dp_E3E3E3_FILL0_wght400_GRAD0_opsz48.svg";
-import plusIcon from "../assets/third-party/google-material/icons/add.svg";
-import minusIcon from "../assets/third-party/google-material/icons/remove.svg";
-import asteriskIcon from "../assets/third-party/google-material/icons/asterisk.svg";
 import { useLocale } from "../i18n/LocaleContext";
 import arrowDownIcon from "../assets/third-party/google-material/icons/arrow_drop_down_256dp_E3E3E3_FILL0_wght400_GRAD0_opsz48.svg";
 import arrowUpIcon from "../assets/third-party/google-material/icons/arrow_drop_up_256dp_E3E3E3_FILL0_wght400_GRAD0_opsz48.svg";
-
-export type HisActionSymbol = "+" | "-" | "*" | "++" | "-+";
+import { getTableColumnCount, getTableRootFromNode } from "./table";
+import ColorOptions, { type ColorTarget } from "./ColorOptions";
+import chevronLeftIcon from "../assets/third-party/Lucide.dev/icons/chevron-left.svg";
+import chevronRightIcon from "../assets/third-party/Lucide.dev/icons/chevron-right.svg";
 
 interface Props {
   x: number;
@@ -46,7 +45,7 @@ interface Props {
   onCapability: (capability: PageBlockCapabilityDefinition) => void;
   onColumns: (count: number) => void;
   onResetAesthetics: () => void;
-  onOpenColors: (kind: "text" | "background" | "border") => void;
+  onApplyColor: (kind: ColorTarget, color: string) => void;
   onResetColors: () => void;
   onConversion: () => void;
   onCopy: () => void;
@@ -55,12 +54,6 @@ interface Props {
   onDuplicate: () => void;
   onInsert: (above: boolean) => void;
   onDelete: () => void;
-}
-
-const symbolAssets = { "+": [plusIcon], "-": [minusIcon], "*": [asteriskIcon], "++": [plusIcon, plusIcon], "-+": [minusIcon, plusIcon] } as const;
-
-function Symbol({ value }: { value: HisActionSymbol }) {
-  return <span className="page-context-menu__symbol" aria-hidden="true">{symbolAssets[value].map((src, index) => <img src={src} alt="" key={`${value}-${index}`} />)}</span>;
 }
 
 function useHoverSubpanel(delay = 110) {
@@ -73,12 +66,12 @@ function useHoverSubpanel(delay = 110) {
   return { open, enter, leave };
 }
 
-function MenuAction({ icon, label, symbol, shortcut, disabled, active, onSelect, onEnter, onLeave }: {
-  icon: string; label: string; symbol?: HisActionSymbol; shortcut?: string; disabled?: boolean; active?: boolean; onSelect: () => void; onEnter?: () => void; onLeave?: () => void;
+function MenuAction({ icon, label, shortcut, disabled, active, onSelect, onEnter, onLeave }: {
+  icon: string; label: string; shortcut?: string; disabled?: boolean; active?: boolean; onSelect: () => void; onEnter?: () => void; onLeave?: () => void;
 }) {
   return <button type="button" className={`page-context-menu__action${active ? " is-active" : ""}`} disabled={disabled} onClick={onSelect} onPointerEnter={onEnter} onPointerLeave={onLeave}>
     <img className="page-context-menu__action-icon" src={icon} alt="" aria-hidden="true" />
-    <span>{label}</span>{symbol && <Symbol value={symbol} />}{shortcut && <kbd>{shortcut}</kbd>}
+    <span>{label}</span>{shortcut && <kbd>{shortcut}</kbd>}
   </button>;
 }
 
@@ -88,19 +81,20 @@ export default function PageBlockContextMenu(props: Props) {
   const [position, setPosition] = useState({ left: props.x, top: props.y });
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [colorKind, setColorKind] = useState<ColorTarget | null>(null);
   const aesthetics = useHoverSubpanel();
   useDismissibleLayer(rootRef, props.onClose);
   useLayoutEffect(() => {
     const rect = rootRef.current?.getBoundingClientRect();
     if (!rect) return;
     const menuWidth = rect.width;
-    const expandedWidth = menuWidth + 548;
+    const expandedWidth = menuWidth + (aesthetics.open ? 548 : colorKind ? 232 : 0);
     const canFitExpanded = window.innerWidth >= expandedWidth + 16;
     const maxLeft = aesthetics.open && canFitExpanded
       ? window.innerWidth - expandedWidth - 8
       : window.innerWidth - menuWidth - 8;
     setPosition({ left: Math.max(8, Math.min(props.x, maxLeft)), top: Math.max(8, Math.min(props.y, window.innerHeight - rect.height - 8)) });
-  }, [props.x, props.y, aesthetics.open]);
+  }, [props.x, props.y, aesthetics.open, colorKind]);
   const select = (action: () => void, keepOpen = false) => { action(); if (!keepOpen) props.onClose(); };
   const format = PAGE_BLOCK_CAPABILITIES.filter((item) => item.group === "format");
   const properties = PAGE_BLOCK_CAPABILITIES.filter((item) => item.group === "property");
@@ -114,39 +108,50 @@ export default function PageBlockContextMenu(props: Props) {
     if (searchQuery.trim() && PAGE_BLOCK_CAPABILITIES.some(capabilityMatches)) aesthetics.enter();
   }, [searchQuery]);
   const panelOnRight = position.left + 258 + 8 + 540 + 8 <= window.innerWidth;
+  const colorPanelOnRight = position.left + 258 + 8 + 224 + 8 <= window.innerWidth;
   const capabilityBlock = props.capabilityBlock ?? props.block;
+  const table = getTableRootFromNode(capabilityBlock);
+  const columnCount = table ? getTableColumnCount(table) : getPageBlockColumnCount(capabilityBlock);
   return <div ref={rootRef} className="page-context-menu-layer" style={position} onContextMenu={(event) => event.preventDefault()}>
     <div className="page-context-menu" role="menu">
+      <div className="page-context-menu__title">Opciones de bloque</div>
       <div className={`page-context-menu__toolbar${searchOpen ? " is-searching" : ""}`}>
         <button className="page-context-menu__search-button" type="button" aria-label={t("editor.context.search")} onClick={() => { setSearchOpen((current) => !current); setSearchQuery(""); }}><img src={searchIcon} alt="" /></button>
         <input autoFocus={searchOpen} value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} aria-label={t("editor.context.search")} />
         <div className="page-context-menu__color-tools">
-          {[textColorIcon, fillColorIcon, borderColorIcon, resetColorIcon].map((icon, index) => <button key={icon} type="button" aria-label={t((["editor.context.textColor", "editor.context.backgroundColor", "editor.context.borderColor", "editor.context.resetColor"] as const)[index])} onClick={() => index === 3 ? select(props.onResetColors) : select(() => props.onOpenColors((["text", "background", "border"] as const)[index]))}><img src={icon} alt="" /></button>)}
+          {[textColorIcon, fillColorIcon, borderColorIcon, resetColorIcon].map((icon, index) => {
+            const kind = (["text", "background", "border"] as const)[index];
+            return <button key={icon} type="button" className={kind && colorKind === kind ? "is-active" : ""} aria-label={t((["editor.context.textColor", "editor.context.backgroundColor", "editor.context.borderColor", "editor.context.resetColor"] as const)[index])} onClick={() => index === 3 ? select(props.onResetColors) : setColorKind(colorKind === kind ? null : kind)}><img src={icon} alt="" /></button>;
+          })}
         </div>
       </div>
       {props.supportsAesthetics && <div className="page-context-menu__section">
-        {matches(t("editor.context.aesthetics")) && <MenuAction icon={aestheticsIcon} label={t("editor.context.aesthetics")} symbol="+" active={aesthetics.open} onSelect={aesthetics.enter} onEnter={aesthetics.enter} onLeave={aesthetics.leave} />}
-        {matches(t("editor.context.conversion")) && <MenuAction icon={conversionIcon} label={t("editor.context.conversion")} symbol="+" onSelect={() => select(props.onConversion)} />}
-        {matches(t("editor.context.resetAesthetics")) && <MenuAction icon={resetIcon} label={t("editor.context.resetAesthetics")} symbol="-" onSelect={() => select(props.onResetAesthetics)} />}
+        {matches(t("editor.context.aesthetics")) && <MenuAction icon={aestheticsIcon} label={t("editor.context.aesthetics")} active={aesthetics.open} onSelect={aesthetics.enter} onEnter={aesthetics.enter} onLeave={aesthetics.leave} />}
+        {matches(t("editor.context.conversion")) && <MenuAction icon={conversionIcon} label={t("editor.context.conversion")} onSelect={() => select(props.onConversion)} />}
+        {matches(t("editor.context.resetAesthetics")) && <MenuAction icon={resetIcon} label={t("editor.context.resetAesthetics")} onSelect={() => select(props.onResetAesthetics)} />}
       </div>}
       <div className="page-context-menu__section">
         {props.imageItems?.filter((item) => matches(item.label)).map((item) => <MenuAction key={item.id} icon={moveIcon} label={item.label} disabled={item.disabled} onSelect={() => select(item.onSelect)} />)}
-        {matches(t("editor.context.moveTo")) && <MenuAction icon={moveIcon} label={t("editor.context.moveTo")} symbol="++" disabled onSelect={() => {}} />}
+        {matches(t("editor.context.moveTo")) && <MenuAction icon={moveIcon} label={t("editor.context.moveTo")} disabled onSelect={() => {}} />}
       </div>
       <div className="page-context-menu__section">
-        {matches(t("editor.context.copy")) && <MenuAction icon={copyIcon} label={t("editor.context.copy")} symbol="*" shortcut="Ctrl + C" onSelect={() => select(props.onCopy)} />}
-        {matches(t("editor.context.cut")) && <MenuAction icon={cutIcon} label={t("editor.context.cut")} symbol="-+" shortcut="Ctrl + X" onSelect={() => select(props.onCut)} />}
-        {matches(t("editor.context.paste")) && <MenuAction icon={pasteIcon} label={t("editor.context.paste")} symbol="+" shortcut="Ctrl + V" onSelect={() => select(props.onPaste)} />}
-        {matches(t("editor.context.duplicate")) && <MenuAction icon={duplicateIcon} label={t("editor.context.duplicate")} symbol="++" shortcut="Ctrl + D" onSelect={() => select(props.onDuplicate)} />}
-        {matches(t("editor.context.insertAbove")) && <MenuAction icon={aboveIcon} label={t("editor.context.insertAbove")} symbol="+" onSelect={() => select(() => props.onInsert(true))} />}
-        {matches(t("editor.context.insertBelow")) && <MenuAction icon={belowIcon} label={t("editor.context.insertBelow")} symbol="+" onSelect={() => select(() => props.onInsert(false))} />}
-        {matches(t("editor.context.delete")) && <MenuAction icon={deleteIcon} label={t("editor.context.delete")} symbol="-" shortcut={t("editor.context.deleteShortcut")} onSelect={() => select(props.onDelete)} />}
+        {matches(t("editor.context.copy")) && <MenuAction icon={copyIcon} label={t("editor.context.copy")} shortcut="Ctrl + C" onSelect={() => select(props.onCopy)} />}
+        {matches(t("editor.context.cut")) && <MenuAction icon={cutIcon} label={t("editor.context.cut")} shortcut="Ctrl + X" onSelect={() => select(props.onCut)} />}
+        {matches(t("editor.context.paste")) && <MenuAction icon={pasteIcon} label={t("editor.context.paste")} shortcut="Ctrl + V" onSelect={() => select(props.onPaste)} />}
+        {matches(t("editor.context.duplicate")) && <MenuAction icon={duplicateIcon} label={t("editor.context.duplicate")} shortcut="Ctrl + D" onSelect={() => select(props.onDuplicate)} />}
+        {matches(t("editor.context.insertAbove")) && <MenuAction icon={aboveIcon} label={t("editor.context.insertAbove")} onSelect={() => select(() => props.onInsert(true))} />}
+        {matches(t("editor.context.insertBelow")) && <MenuAction icon={belowIcon} label={t("editor.context.insertBelow")} onSelect={() => select(() => props.onInsert(false))} />}
+        {matches(t("editor.context.delete")) && <MenuAction icon={deleteIcon} label={t("editor.context.delete")} shortcut={t("editor.context.deleteShortcut")} onSelect={() => select(props.onDelete)} />}
       </div>
     </div>
+    {colorKind && <div className={`page-context-menu__color-panel ${colorPanelOnRight ? "is-right" : "is-left"}`}>
+      <header><img src={colorPanelOnRight ? chevronRightIcon : chevronLeftIcon} alt="" /><span>{colorKind === "text" ? "Color de texto" : colorKind === "background" ? "Color de fondo" : "Color de borde"}</span></header>
+      <ColorOptions kind={colorKind} onApply={(color) => props.onApplyColor(colorKind, color)} />
+    </div>}
     {props.supportsAesthetics && aesthetics.open && <div className={`page-context-menu__aesthetics ${panelOnRight ? "is-right" : "is-left"}`} onPointerEnter={aesthetics.enter} onPointerLeave={aesthetics.leave}>
       <CapabilityColumn title={t("editor.context.format")} items={visibleFormat} block={capabilityBlock} onToggle={(item) => select(() => props.onCapability(item), true)}>
         <div className="page-context-menu__cap-divider" />
-        <div className="page-context-menu__column-row"><img src={columnIcon} alt="" /><span>{t("editor.context.column")}</span><output>{getPageBlockColumnCount(capabilityBlock)}</output><span className="page-context-menu__column-stepper"><button type="button" aria-label="+" onClick={() => props.onColumns(getPageBlockColumnCount(capabilityBlock) + 1)}><img src={arrowUpIcon} alt="" /></button><button type="button" aria-label="−" onClick={() => props.onColumns(getPageBlockColumnCount(capabilityBlock) - 1)}><img src={arrowDownIcon} alt="" /></button></span></div>
+        <div className="page-context-menu__column-row"><img src={columnIcon} alt="" /><span>{t("editor.context.column")}</span><output>{columnCount}</output><span className="page-context-menu__column-stepper"><button type="button" aria-label="+" onClick={() => props.onColumns(columnCount + 1)}><img src={arrowUpIcon} alt="" /></button><button type="button" aria-label="−" onClick={() => props.onColumns(columnCount - 1)}><img src={arrowDownIcon} alt="" /></button></span></div>
       </CapabilityColumn>
       <CapabilityColumn title={t("editor.context.properties")} items={visibleProperties} block={capabilityBlock} onToggle={(item) => select(() => props.onCapability(item), true)}>
         <div className="page-context-menu__cap-divider" />

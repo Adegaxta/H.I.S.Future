@@ -164,6 +164,7 @@ try {
   const page = await server.ssrLoadModule("/src/utils/pageMeta.ts");
   const blockModel = await server.ssrLoadModule("/src/editor/blockModel.ts");
   const editorPersistence = await server.ssrLoadModule("/src/editor/persistence.ts");
+  const editorSerialization = await server.ssrLoadModule("/src/editor/serialization.ts");
   const workspaceLifecycle = await server.ssrLoadModule("/src/workspace/useWorkspaceLifecycle.ts");
   const pdf = await server.ssrLoadModule("/src/utils/pdfResource.ts");
   const temporal = await server.ssrLoadModule("/src/utils/temporalMeta.ts");
@@ -179,16 +180,35 @@ try {
   assert.equal(page.getPageBlockWidthPercent({ blockWidth: 250 }), 100, "legacy out-of-range width remains safe");
   assert.equal(blockModel.EDITOR_STRUCTURAL_BLOCK_SELECTOR.includes("[data-globe]"), true);
   assert.equal(blockModel.EDITOR_SELECTABLE_BLOCK_SELECTOR.includes("[data-globe]"), false, "a Globe group must not compete with its selectable children");
-  assert.deepEqual(blockModel.EDITOR_TRANSIENT_BLOCK_ATTRIBUTES, ["data-line-selected", "data-line-dragging", "data-line-drop-target"]);
-  const removedEditorAttributes = [];
-  const transientBlock = { removeAttribute: (attribute) => removedEditorAttributes.push(attribute) };
-  const fakeEditor = { cloneNode: () => ({ querySelectorAll: () => [transientBlock], innerHTML: "<p>body</p>" }) };
+  assert.deepEqual(blockModel.EDITOR_TRANSIENT_BLOCK_ATTRIBUTES.slice(0, 3), ["data-line-selected", "data-line-dragging", "data-line-drop-target"]);
+  assert.equal(blockModel.EDITOR_TRANSIENT_BLOCK_ATTRIBUTES.includes("data-his-table-active"), true, "runtime table focus is excluded from persistence");
+  assert.equal(blockModel.EDITOR_TRANSIENT_BLOCK_ATTRIBUTES.includes("data-his-table-dragging"), true, "runtime table drag state is excluded from persistence");
+  const fakeEditor = { innerHTML: '<p contenteditable="true">body</p>' };
   assert.equal(editorPersistence.readEditorContent(fakeEditor, base("persisted-page", "pagina")), "<p>body</p>");
-  assert.deepEqual(removedEditorAttributes, ["data-editor-placeholder", ...blockModel.EDITOR_TRANSIENT_BLOCK_ATTRIBUTES]);
+  const interactiveHtml = '<p contenteditable="true" data-editor-placeholder="hint" data-line-selected="true">literal contenteditable="true"</p>' +
+    '<div contenteditable="false" data-divider="true"><hr><button data-editor-ui="true"><span>control</span></button><img data-editor-ui="true" src="control.svg"></div>' +
+    '<!-- contenteditable="true" remains a comment -->';
+  assert.equal(
+    editorSerialization.stripTransientEditorState(interactiveHtml),
+    '<p>literal contenteditable="true"</p><div contenteditable="false" data-divider="true"><hr></div><!-- contenteditable="true" remains a comment -->',
+    "persistence removes editor-only state without touching document text, comments or semantic non-editability",
+  );
+  const structuredEditorHtml = '<div data-his-table="true"><button data-editor-ui="true"><img src="handle.svg"></button><div data-his-table-cell="true" contenteditable="true" data-his-table-active="true"><p contenteditable="true">Cell</p></div></div>' +
+    '<div data-globe="true" contenteditable="true"><span data-globe-icon="true" contenteditable="false"><img src="icon.png"></span><div data-globe-content="true" contenteditable="true"><h2 contenteditable="true">Heading</h2></div></div>' +
+    '<div data-page-index="true" contenteditable="false"><div data-page-index-item="true" contenteditable="false">Heading</div></div>' +
+    '<span data-mention-id="node-1" contenteditable="false">Mention</span><p data-his-synced="sync-1" contenteditable="true"><img src="embed.png"></p>';
+  assert.equal(
+    editorSerialization.stripTransientEditorState(structuredEditorHtml),
+    '<div data-his-table="true"><div data-his-table-cell="true"><p>Cell</p></div></div>' +
+      '<div data-globe="true"><span data-globe-icon="true" contenteditable="false"><img src="icon.png"></span><div data-globe-content="true"><h2>Heading</h2></div></div>' +
+      '<div data-page-index="true" contenteditable="false"><div data-page-index-item="true" contenteditable="false">Heading</div></div>' +
+      '<span data-mention-id="node-1" contenteditable="false">Mention</span><p data-his-synced="sync-1"><img src="embed.png"></p>',
+    "tables, Globes, headings, page indices, mentions, synced blocks and embeds retain document semantics",
+  );
   const snapshotNode = { ...base("snapshot-page", "pagina"), content: "<p>old</p>" };
   const snapshotEditor = {
     getAttribute: (name) => name === "data-active-id" ? snapshotNode.id : null,
-    cloneNode: () => ({ querySelectorAll: () => [], innerHTML: "<p>latest</p>" }),
+    innerHTML: "<p>latest</p>",
   };
   const liveSnapshot = workspaceLifecycle.getWorkspaceSnapshot([snapshotNode], snapshotNode.id, snapshotEditor);
   assert.equal(liveSnapshot[0].content, "<p>latest</p>", "closing captures unsynchronized editor HTML");

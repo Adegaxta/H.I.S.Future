@@ -7,6 +7,7 @@ interface ContextMenuProps {
   menu: ContextMenuState;
   onCreate?: (parentId: string | null) => void;
   onRename: (nodeId: string) => void;
+  onInspect: (nodeId: string) => void;
   onView: (nodeId: string) => void;
   onSetPrimary: (nodeId: string) => void;
   onAddToLore: (nodeId: string) => void;
@@ -25,6 +26,7 @@ export function buildNodeContextMenuItems({
   menu,
   onCreate,
   onRename,
+  onInspect,
   onView,
   onSetPrimary,
   onAddToLore,
@@ -37,6 +39,10 @@ export function buildNodeContextMenuItems({
   t,
 }: ContextMenuActions): HisContextMenuItem[] {
   const items: HisContextMenuItem[] = [];
+  if (menu.nodeId) {
+    const id = menu.nodeId;
+    items.push({ id: "inspect", label: t("context.inspect"), onSelect: () => onInspect(id) });
+  }
   if (menu.context === "lore" && onCreate) items.push({
     id: "create",
     label: t(menu.nodeId ? "context.createInside" : "context.createRoot"),

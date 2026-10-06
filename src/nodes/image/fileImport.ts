@@ -1,37 +1,56 @@
 import type { FileImportModule } from "../../project/fileImportTypes";
 import { FileNodeImportError } from "../../project/fileImportTypes";
-import { createImageContent, getImageResourceInfo, hashImageFile } from "../../utils/imageResource";
+import { hashFileBytes } from "../../project/fileHash";
+import { deleteProjectResource, storeProjectResource } from "../../project/resourceRepository";
+import { createProjectImageContent, getImageResourceDescriptor } from "../../utils/imageResource";
 
 export const imageFileImportModule: FileImportModule = {
   definition: {
     kind: "image",
     nodeType: "imagen",
-    storage: "inline",
+    storage: "project-resource",
     extensions: ["png", "jpg", "jpeg", "gif", "webp", "bmp", "svg", "ico", "avif", "heic", "heif", "jfif"],
     mimePrefixes: ["image/"],
   },
   async prepare(file, context) {
-    const hash = await hashImageFile(file);
-    const existing = context.nodes.find((node) => node.type === "imagen" && (
-      getImageResourceInfo(node.content, node.name)?.hash === hash ||
-      getImageResourceInfo(node.content, node.name)?.fileName === file.name
-    ));
+    const data = new Uint8Array(await file.arrayBuffer());
+    const hash = await hashFileBytes(data);
+    // File names are labels, not identities. Anytype and screenshots routinely
+    // reuse names such as "Imagen de Anytype 1.jpg" for different pixels.
+    const existing = context.nodes.find((node) => {
+      if (node.type !== "imagen") return false;
+      const resource = getImageResourceDescriptor(node.content, node.name);
+      // A new import must never silently choose the legacy inline representation.
+      // Deduplication is limited to already canonical project resources.
+      return resource?.storage === "project-resource" && resource.hash === hash;
+    });
     if (existing) return { existing };
 
-    const source = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => typeof reader.result === "string"
-        ? resolve(reader.result)
-        : reject(new FileNodeImportError("fileImport.failed"));
-      reader.onerror = () => reject(new FileNodeImportError("fileImport.failed"));
-      reader.readAsDataURL(file);
-    });
+    const resourceId = crypto.randomUUID();
+    const requestedExtension = file.name.includes(".") ? file.name.slice(file.name.lastIndexOf(".") + 1) : undefined;
+    let stored;
+    try {
+      stored = await storeProjectResource("image", resourceId, data, requestedExtension);
+    } catch (error) {
+      console.error(error);
+      throw new FileNodeImportError("fileImport.failed");
+    }
     return {
       draft: {
         name: file.name,
         type: "imagen",
-        content: createImageContent(source, file.name, file.size, hash, ""),
+        content: createProjectImageContent({
+          resourceId,
+          fileName: file.name,
+          fileSize: data.byteLength,
+          mimeType: stored.mimeType,
+          extension: stored.extension,
+          hash,
+          description: "",
+          provenance: null,
+        }),
       },
+      rollback: () => deleteProjectResource("image", resourceId, stored.extension),
     };
   },
 };

@@ -1,18 +1,91 @@
 mod archive_sync;
+mod ai_conversation;
 mod discord_presence;
+mod image_migration;
+mod local_ai_runtime;
 mod persistence;
 mod project;
+mod spelling;
 #[cfg(windows)]
 mod windows_print;
 
 use archive_sync::{ArchiveSyncManager, ArchiveSyncStatus};
+use ai_conversation::{ConversationRecord, MessageRecord, NewMessage};
 use discord_presence::{DiscordPresenceManager, PresenceActivity};
+use local_ai_runtime::{LocalAIRuntimeConfig, LocalAIRuntimeManager, LocalAIRuntimeSnapshot};
 use project::{
     CloseProjectTimings, EditorImageLayout, NodeContentChange, NodeRecord, ProjectInfo,
-    ProjectState, SaveWorkspaceTimings, WorkspaceSnapshot,
+    ProjectState, SaveWorkspaceTimings, TagRecord, WorkspaceSnapshot,
 };
 use std::sync::{Arc, Mutex};
 use tauri::{Emitter, Manager};
+
+const AI_DIAGNOSTIC_PREFIX: &str = "__HIS_AI_EVENT__";
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct AIDiagnosticEvent {
+    timestamp: String,
+    category: String,
+    request_id: Option<String>,
+    message: String,
+    level: String,
+    metadata: Option<serde_json::Value>,
+    detail: Option<String>,
+}
+
+#[tauri::command]
+fn emit_ai_diagnostic(event: AIDiagnosticEvent) -> Result<(), String> {
+    const CATEGORIES: [&str; 31] = [
+        "his",
+        "lexicon",
+        "scope",
+        "memory",
+        "resolve",
+        "plan",
+        "retrieval",
+        "graph",
+        "expand",
+        "evidence",
+        "context",
+        "act",
+        "route",
+        "answer_spec",
+        "draft",
+        "validate",
+        "repair",
+        "nlg",
+        "final",
+        "model",
+        "llama",
+        "warn",
+        "error",
+        "chat",
+        "semantic",
+        "reference",
+        "conversation_state",
+        "memory_write",
+        "memory_retrieve",
+        "summary",
+        "context_assembly",
+    ];
+    if !CATEGORIES.contains(&event.category.as_str()) {
+        return Err("Categoría de diagnóstico de IA no válida.".into());
+    }
+    if !matches!(event.level.as_str(), "normal" | "debug") {
+        return Err("Nivel de diagnóstico de IA no válido.".into());
+    }
+    if event.message.len() > 200 || event.request_id.as_ref().is_some_and(|id| id.len() > 12) {
+        return Err("Evento de diagnóstico de IA demasiado largo.".into());
+    }
+    if event.detail.as_ref().is_some_and(|detail| detail.len() > 16_000) {
+        return Err("Detalle de diagnóstico de IA demasiado largo.".into());
+    }
+    let serialized = serde_json::to_string(&event)
+        .map_err(|error| format!("No se pudo serializar el diagnóstico de IA: {error}"))?;
+    eprintln!("{AI_DIAGNOSTIC_PREFIX}{serialized}");
+    Ok(())
+}
 
 struct LaunchProjectPath(Mutex<Option<String>>);
 
@@ -185,11 +258,12 @@ fn current_project(state: tauri::State<ProjectState>) -> Result<Option<ProjectIn
 }
 
 #[tauri::command]
-fn exit_application(
+async fn exit_application(
     app: tauri::AppHandle,
-    state: tauri::State<ProjectState>,
-    archive_sync: tauri::State<ArchiveSyncManager>,
-    presence: tauri::State<DiscordPresenceManager>,
+    state: tauri::State<'_, ProjectState>,
+    archive_sync: tauri::State<'_, ArchiveSyncManager>,
+    presence: tauri::State<'_, DiscordPresenceManager>,
+    local_ai: tauri::State<'_, LocalAIRuntimeManager>,
 ) -> Result<(), String> {
     let reopen = project::current_project(&state)?;
     project::close_project_background_traced(&state, &archive_sync, Some("application-exit"))?;
@@ -206,10 +280,26 @@ fn exit_application(
         "[lifecycle] application.exit archive_queue_drain={:.2}ms exit_ready=true",
         drain_started.elapsed().as_secs_f64() * 1000.0
     );
+    if let Err(error) = local_ai.shutdown().await {
+        eprintln!(
+            "[local-ai] fallo durante el cierre administrado: {} {}",
+            error.message,
+            error.detail.unwrap_or_default()
+        );
+    }
     presence.shutdown();
     app.remove_tray_by_id("main-tray");
     app.exit(0);
     Ok(())
+}
+
+#[tauri::command]
+async fn ensure_local_ai_server(
+    app: tauri::AppHandle,
+    config: LocalAIRuntimeConfig,
+    runtime: tauri::State<'_, LocalAIRuntimeManager>,
+) -> Result<LocalAIRuntimeSnapshot, local_ai_runtime::LocalAIRuntimeError> {
+    runtime.ensure(&app, config).await
 }
 
 #[tauri::command]
@@ -241,6 +331,7 @@ fn load_workspace_snapshot(
 #[tauri::command]
 fn save_nodes(
     nodes: Vec<NodeRecord>,
+    node_tags: Option<(String, Vec<String>)>,
     hidden_ids: Option<Vec<String>>,
     deleted_nodes: Option<String>,
     trace_id: Option<String>,
@@ -252,6 +343,7 @@ fn save_nodes(
         hidden_ids,
         deleted_nodes,
         trace_id.as_deref(),
+        node_tags,
     )
 }
 
@@ -290,31 +382,124 @@ fn save_editor_image_layout(
 }
 
 #[tauri::command]
+fn list_tags(state: tauri::State<ProjectState>) -> Result<Vec<TagRecord>, String> {
+    project::list_tags(&state)
+}
+
+#[tauri::command]
+fn list_node_tags(
+    node_id: String,
+    state: tauri::State<ProjectState>,
+) -> Result<Vec<TagRecord>, String> {
+    project::list_node_tags(&state, &node_id)
+}
+
+#[tauri::command]
+fn create_tag(
+    id: String,
+    name: String,
+    color: String,
+    state: tauri::State<ProjectState>,
+) -> Result<TagRecord, String> {
+    project::create_tag(&state, id, name, color)
+}
+
+#[tauri::command]
+fn update_tag(
+    id: String,
+    name: String,
+    color: String,
+    state: tauri::State<ProjectState>,
+) -> Result<TagRecord, String> {
+    project::update_tag(&state, id, name, color)
+}
+
+#[tauri::command]
+fn delete_tag(id: String, state: tauri::State<ProjectState>) -> Result<(), String> {
+    project::delete_tag(&state, id)
+}
+
+#[tauri::command]
+fn set_node_tag(
+    node_id: String,
+    tag_id: String,
+    assigned: bool,
+    state: tauri::State<ProjectState>,
+) -> Result<(), String> {
+    project::set_node_tag(&state, node_id, tag_id, assigned)
+}
+
+#[tauri::command]
+fn reorder_tags(ids: Vec<String>, state: tauri::State<ProjectState>) -> Result<(), String> {
+    project::reorder_tags(&state, ids)
+}
+
+#[tauri::command]
 fn store_project_resource(
     kind: String,
     resource_id: String,
     data: Vec<u8>,
+    extension: Option<String>,
     state: tauri::State<ProjectState>,
-) -> Result<(), String> {
-    project::store_project_resource(&state, kind, resource_id, data)
+) -> Result<project::StoredProjectResource, String> {
+    project::store_project_resource_with_extension(&state, kind, resource_id, data, extension)
 }
 
 #[tauri::command]
 fn read_project_resource(
     kind: String,
     resource_id: String,
+    extension: Option<String>,
     state: tauri::State<ProjectState>,
 ) -> Result<tauri::ipc::Response, String> {
-    project::read_project_resource(&state, kind, resource_id).map(tauri::ipc::Response::new)
+    project::read_project_resource_with_extension(&state, kind, resource_id, extension).map(tauri::ipc::Response::new)
 }
 
 #[tauri::command]
 fn delete_project_resource(
     kind: String,
     resource_id: String,
+    extension: Option<String>,
     state: tauri::State<ProjectState>,
 ) -> Result<(), String> {
-    project::delete_project_resource(&state, kind, resource_id)
+    project::delete_project_resource_with_extension(&state, kind, resource_id, extension)
+}
+
+#[tauri::command]
+fn project_resource_exists(
+    kind: String,
+    resource_id: String,
+    extension: Option<String>,
+    state: tauri::State<ProjectState>,
+) -> Result<bool, String> {
+    project::project_resource_exists(&state, kind, resource_id, extension)
+}
+
+#[tauri::command]
+fn analyze_legacy_image_migration(
+    state: tauri::State<ProjectState>,
+) -> Result<image_migration::ImageMigrationPlan, String> {
+    image_migration::analyze(&state)
+}
+
+#[tauri::command]
+fn migrate_legacy_images(
+    plan: image_migration::ImageMigrationPlan,
+    app: tauri::AppHandle,
+    state: tauri::State<ProjectState>,
+    cancellation: tauri::State<image_migration::MigrationCancellation>,
+) -> Result<image_migration::ImageMigrationResult, String> {
+    cancellation.reset();
+    image_migration::execute(&state, plan, |progress| {
+        let _ = app.emit("image-migration-progress", progress);
+    }, || cancellation.requested())
+}
+
+#[tauri::command]
+fn cancel_legacy_image_migration(
+    cancellation: tauri::State<image_migration::MigrationCancellation>,
+) {
+    cancellation.cancel();
 }
 
 #[tauri::command]
@@ -332,6 +517,91 @@ fn set_project_setting(
     state: tauri::State<ProjectState>,
 ) -> Result<(), String> {
     project::set_project_setting(&state, key, value)
+}
+
+#[tauri::command]
+fn list_ai_conversations(include_archived: bool, limit: u32, state: tauri::State<ProjectState>) -> Result<Vec<ConversationRecord>, String> {
+    ai_conversation::list_conversations(&state, include_archived, limit)
+}
+
+#[tauri::command]
+fn create_ai_conversation(id: String, project_id: Option<String>, vault_id: Option<String>, title: String, now: String, state: tauri::State<ProjectState>) -> Result<ConversationRecord, String> {
+    ai_conversation::create_conversation(&state, id, project_id, vault_id, title, now)
+}
+
+#[tauri::command]
+fn rename_ai_conversation(id: String, title: String, now: String, state: tauri::State<ProjectState>) -> Result<(), String> {
+    ai_conversation::rename_conversation(&state, id, title, now)
+}
+
+#[tauri::command]
+fn archive_ai_conversation(id: String, archived: bool, now: String, state: tauri::State<ProjectState>) -> Result<(), String> {
+    ai_conversation::archive_conversation(&state, id, archived, now)
+}
+
+#[tauri::command]
+fn delete_ai_conversation(id: String, state: tauri::State<ProjectState>) -> Result<(), String> {
+    ai_conversation::delete_conversation(&state, id)
+}
+
+#[tauri::command]
+fn append_ai_message(message: NewMessage, state: tauri::State<ProjectState>) -> Result<MessageRecord, String> {
+    ai_conversation::append_message(&state, message)
+}
+
+#[tauri::command]
+fn list_ai_messages(conversation_id: String, before_sequence: Option<i64>, limit: u32, state: tauri::State<ProjectState>) -> Result<Vec<MessageRecord>, String> {
+    ai_conversation::list_messages(&state, conversation_id, before_sequence, limit)
+}
+
+#[tauri::command]
+fn list_ai_message_range(conversation_id: String, start: i64, end: i64, limit: u32, state: tauri::State<ProjectState>) -> Result<Vec<MessageRecord>, String> {
+    ai_conversation::list_message_range(&state, conversation_id, start, end, limit)
+}
+
+#[tauri::command]
+fn ai_messages_around(conversation_id: String, message_id: String, radius: u32, state: tauri::State<ProjectState>) -> Result<Vec<MessageRecord>, String> {
+    ai_conversation::messages_around(&state, conversation_id, message_id, radius)
+}
+
+#[tauri::command]
+fn search_ai_messages(conversation_id: String, query: String, limit: u32, state: tauri::State<ProjectState>) -> Result<Vec<MessageRecord>, String> {
+    ai_conversation::search_messages(&state, conversation_id, query, limit)
+}
+
+#[tauri::command]
+fn save_ai_conversation_state(conversation_id: String, state_json: serde_json::Value, now: String, state: tauri::State<ProjectState>) -> Result<(), String> {
+    ai_conversation::save_conversation_state(&state, conversation_id, state_json, now)
+}
+
+#[tauri::command]
+fn load_ai_conversation_state(conversation_id: String, state: tauri::State<ProjectState>) -> Result<Option<serde_json::Value>, String> {
+    ai_conversation::load_conversation_state(&state, conversation_id)
+}
+
+#[tauri::command]
+fn save_ai_semantic_mentions(mentions: Vec<serde_json::Value>, state: tauri::State<ProjectState>) -> Result<(), String> {
+    ai_conversation::save_semantic_mentions(&state, mentions)
+}
+
+#[tauri::command]
+fn save_ai_memory_records(records: Vec<serde_json::Value>, state: tauri::State<ProjectState>) -> Result<(), String> {
+    ai_conversation::save_memory_records(&state, records)
+}
+
+#[tauri::command]
+fn list_ai_memory_records(conversation_id: String, now: String, limit: u32, state: tauri::State<ProjectState>) -> Result<Vec<serde_json::Value>, String> {
+    ai_conversation::list_memory_records(&state, conversation_id, now, limit)
+}
+
+#[tauri::command]
+fn save_ai_conversation_summary(summary: serde_json::Value, state: tauri::State<ProjectState>) -> Result<(), String> {
+    ai_conversation::save_summary(&state, summary)
+}
+
+#[tauri::command]
+fn load_ai_conversation_summary(conversation_id: String, state: tauri::State<ProjectState>) -> Result<Option<serde_json::Value>, String> {
+    ai_conversation::load_latest_summary(&state, conversation_id)
 }
 
 #[tauri::command]
@@ -443,11 +713,15 @@ pub fn run() {
         })
         .manage(Mutex::<Option<project::OpenProject>>::new(None))
         .manage(LaunchProjectPath(Mutex::new(launch_project_path())))
+        .manage(image_migration::MigrationCancellation::default())
+        .manage(LocalAIRuntimeManager::new())
         .manage(DiscordPresenceManager::new())
         .plugin(tauri_plugin_sql::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
+            spelling::get_spelling_suggestions,
+            spelling::add_spelling_word,
             set_discord_presence,
             clear_discord_presence,
             take_launch_project_path,
@@ -459,6 +733,25 @@ pub fn run() {
             close_project,
             current_project,
             exit_application,
+            ensure_local_ai_server,
+            emit_ai_diagnostic,
+            list_ai_conversations,
+            create_ai_conversation,
+            rename_ai_conversation,
+            archive_ai_conversation,
+            delete_ai_conversation,
+            append_ai_message,
+            list_ai_messages,
+            list_ai_message_range,
+            ai_messages_around,
+            search_ai_messages,
+            save_ai_conversation_state,
+            load_ai_conversation_state,
+            save_ai_semantic_mentions,
+            save_ai_memory_records,
+            list_ai_memory_records,
+            save_ai_conversation_summary,
+            load_ai_conversation_summary,
             archive_sync_status,
             list_nodes,
             load_workspace_snapshot,
@@ -466,9 +759,20 @@ pub fn run() {
             save_node_contents,
             list_editor_image_layouts,
             save_editor_image_layout,
+            list_tags,
+            list_node_tags,
+            create_tag,
+            update_tag,
+            delete_tag,
+            set_node_tag,
+            reorder_tags,
             store_project_resource,
             read_project_resource,
             delete_project_resource,
+            project_resource_exists,
+            analyze_legacy_image_migration,
+            migrate_legacy_images,
+            cancel_legacy_image_migration,
             get_project_setting,
             set_project_setting,
             save_image_file,
