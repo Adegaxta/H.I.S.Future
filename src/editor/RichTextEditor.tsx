@@ -21,7 +21,6 @@ import { stripTransientEditorState } from "./serialization";
 import { useLocale } from "../i18n/LocaleContext";
 import { useEditorController } from "./useEditorController";
 import {
-  EDITOR_BACKGROUND_COLORS,
   EDITOR_TEXT_COLORS,
 } from "../defs/palette";
 import {
@@ -2125,36 +2124,6 @@ export default function RichTextEditor({
   );
 }
 
-const TEXT_COLOR_SWATCHES = [
-  { nameKey: "editor.colors.default", value: "" },
-  { nameKey: "editor.colors.grey", value: EDITOR_TEXT_COLORS.grey },
-  { nameKey: "editor.colors.brown", value: EDITOR_TEXT_COLORS.brown },
-  { nameKey: "editor.colors.orange", value: EDITOR_TEXT_COLORS.orange },
-  { nameKey: "editor.colors.yellow", value: EDITOR_TEXT_COLORS.yellow },
-  { nameKey: "editor.colors.amber", value: EDITOR_TEXT_COLORS.amber },
-  { nameKey: "editor.colors.teal", value: EDITOR_TEXT_COLORS.teal },
-  { nameKey: "editor.colors.green", value: EDITOR_TEXT_COLORS.green },
-  { nameKey: "editor.colors.blue", value: EDITOR_TEXT_COLORS.blue },
-  { nameKey: "editor.colors.ice", value: EDITOR_TEXT_COLORS.ice },
-  { nameKey: "editor.colors.purple", value: EDITOR_TEXT_COLORS.purple },
-  { nameKey: "editor.colors.pink", value: EDITOR_TEXT_COLORS.pink },
-  { nameKey: "editor.colors.red", value: EDITOR_TEXT_COLORS.red },
-] as const;
-
-const BLOCK_BACKGROUND_SWATCHES = [
-  { nameKey: "editor.colors.default", value: "" },
-  { nameKey: "editor.background.grey", value: EDITOR_BACKGROUND_COLORS.gray },
-  { nameKey: "editor.background.brown", value: EDITOR_BACKGROUND_COLORS.brown },
-  { nameKey: "editor.background.orange", value: EDITOR_BACKGROUND_COLORS.orange },
-  { nameKey: "editor.background.yellow", value: EDITOR_BACKGROUND_COLORS.yellow },
-  { nameKey: "editor.background.green", value: EDITOR_BACKGROUND_COLORS.green },
-  { nameKey: "editor.background.blue", value: EDITOR_BACKGROUND_COLORS.blue },
-  { nameKey: "editor.background.ice", value: EDITOR_BACKGROUND_COLORS.ice },
-  { nameKey: "editor.background.purple", value: EDITOR_BACKGROUND_COLORS.purple },
-  { nameKey: "editor.background.pink", value: EDITOR_BACKGROUND_COLORS.pink },
-  { nameKey: "editor.background.red", value: EDITOR_BACKGROUND_COLORS.red },
-] as const;
-
 function normalizeHexColor(value: string): string {
   const trimmed = value.trim();
   if (!trimmed) return "";
@@ -2168,7 +2137,7 @@ function normalizeHexColor(value: string): string {
 
 function ColorPickerMenu({
   position,
-  block,
+  block: _block,
   onClose,
   onApplyText,
   onApplyBackground,
@@ -2179,18 +2148,7 @@ function ColorPickerMenu({
   onApplyText: (color: string) => void;
   onApplyBackground: (color: string) => void;
 }) {
-  const { t } = useLocale();
   const [colorTarget, setColorTarget] = useState<"text" | "background">("text");
-  const [customTextColor, setCustomTextColor] = useState("#FFFFFF");
-  const [customBackgroundColor, setCustomBackgroundColor] = useState("#FFFFFF");
-  const [recentColors, setRecentColors] = useState<string[]>(() => {
-    try {
-      const raw = window.localStorage.getItem("hisfuture-recent-text-colors");
-      return raw ? JSON.parse(raw) : [];
-    } catch {
-      return [];
-    }
-  });
 
   useEffect(() => {
     const closeOnPointer = (event: PointerEvent) => {
@@ -2210,34 +2168,10 @@ function ColorPickerMenu({
     };
   }, [onClose]);
 
-  useEffect(() => {
-    try {
-      window.localStorage.setItem("hisfuture-recent-text-colors", JSON.stringify(recentColors.slice(0, 6)));
-    } catch {
-      // ignore localStorage quota issues from temporary UI state
-    }
-  }, [recentColors]);
-
-  const currentTextColor = block ? (block.style.color || getComputedStyle(block).color || "#E8E9EA") : "#E8E9EA";
-  const currentBackgroundColor = block ? (block.style.backgroundColor || getComputedStyle(block).backgroundColor || "transparent") : "transparent";
-
-  const rememberRecent = (color: string) => {
-    const cleaned = normalizeHexColor(color);
-    if (!cleaned) return;
-    setRecentColors((current) => [cleaned, ...current.filter((item) => item !== cleaned)].slice(0, 6));
-  };
-
-  const applyTextColor = (color: string) => {
-    const cleaned = normalizeHexColor(color);
-    if (!cleaned && color !== "") return;
-    if (cleaned) rememberRecent(cleaned);
-    onApplyText(color === "" ? "" : cleaned);
-  };
-
   const top = Math.min(Math.max(position.top, 18), Math.max(18, window.innerHeight - 360));
   const left = Math.min(Math.max(position.left, 18), Math.max(18, window.innerWidth - 270));
 
-  if (colorTarget) return (
+  return (
     <div
       data-color-picker="true"
       className="his-table-menu__submenu editor-block-color-menu"
@@ -2246,170 +2180,22 @@ function ColorPickerMenu({
     >
       <header><span>{colorTarget === "text" ? "Color de texto" : "Color de fondo"}</span></header>
       <div className="editor-block-color-menu__tabs">
-        <button type="button" className={colorTarget === "text" ? "is-active" : ""} onMouseDown={(event) => { event.preventDefault(); setColorTarget("text"); }}>Texto</button>
-        <button type="button" className={colorTarget === "background" ? "is-active" : ""} onMouseDown={(event) => { event.preventDefault(); setColorTarget("background"); }}>Fondo</button>
+        <button
+          type="button"
+          className={colorTarget === "text" ? "is-active" : ""}
+          onMouseDown={(event) => { event.preventDefault(); setColorTarget("text"); }}
+        >
+          Texto
+        </button>
+        <button
+          type="button"
+          className={colorTarget === "background" ? "is-active" : ""}
+          onMouseDown={(event) => { event.preventDefault(); setColorTarget("background"); }}
+        >
+          Fondo
+        </button>
       </div>
       <ColorOptions kind={colorTarget} onApply={colorTarget === "text" ? onApplyText : onApplyBackground} />
-    </div>
-  );
-
-  return (
-    <div
-      data-color-picker="true"
-      onMouseDown={(event) => event.preventDefault()}
-      style={{
-        position: "fixed",
-        top,
-        left,
-        width: "min(260px, calc(100vw - 24px))",
-        maxHeight: "min(340px, 70vh)",
-        overflowY: "auto",
-        overflowX: "hidden",
-        padding: "8px",
-        background: "#121417",
-        border: "1px solid #2E3338",
-        borderRadius: "10px",
-        boxShadow: "none",
-        zIndex: 80,
-      }}
-    >
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "2px 4px 8px", marginBottom: "8px", borderBottom: "1px solid #343940" }}>
-        <div style={{ fontSize: "11px", color: "var(--his-accent)", letterSpacing: "0.08em" }}>{t("editor.colors.title")}</div>
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <span title={t("editor.colors.currentText")} style={{ display: "inline-block", width: "12px", height: "12px", borderRadius: "50%", border: "1px solid rgba(255,255,255,0.25)", background: currentTextColor }} />
-          <span title={t("editor.colors.currentBackground")} style={{ display: "inline-block", width: "12px", height: "12px", borderRadius: "50%", border: currentBackgroundColor === "transparent" ? "1px dashed rgba(255,255,255,0.25)" : "1px solid rgba(255,255,255,0.25)", background: currentBackgroundColor === "transparent" ? "transparent" : currentBackgroundColor }} />
-          <button type="button" onMouseDown={(event) => { event.preventDefault(); onClose(); }} style={{ border: "none", background: "transparent", color: "#9AA0A6", cursor: "pointer", fontSize: "11px" }}>{t("common.actions.close")}</button>
-        </div>
-      </div>
-      {recentColors.length > 0 && (
-        <div style={{ padding: "0 0 8px" }}>
-          <div style={{ fontSize: "9px", color: "#5A5F66", letterSpacing: "0.1em", padding: "0 4px 4px" }}>{t("editor.colors.recent")}</div>
-          <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-            {recentColors.map((color) => (
-              <button
-                key={color}
-                type="button"
-                title={color}
-                onMouseDown={(event) => { event.preventDefault(); applyTextColor(color); }}
-                style={{ width: "18px", height: "18px", borderRadius: "50%", border: "1px solid rgba(255,255,255,0.2)", background: color, cursor: "pointer" }}
-              />
-            ))}
-          </div>
-        </div>
-      )}
-      <div style={{ padding: "0 0 8px" }}>
-        <div style={{ fontSize: "9px", color: "#5A5F66", letterSpacing: "0.1em", padding: "0 4px 4px" }}>{t("editor.colors.text")}</div>
-        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-          {TEXT_COLOR_SWATCHES.map((swatch) => (
-            <button
-              key={swatch.nameKey}
-              type="button"
-              title={t(swatch.nameKey)}
-              onMouseDown={(event) => { event.preventDefault(); applyTextColor(swatch.value); }}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-                width: "100%",
-                padding: "5px 6px",
-                border: "none",
-                borderRadius: 0,
-                background: "transparent",
-                color: "#E8E9EA",
-                cursor: "pointer",
-                textAlign: "left",
-                transition: "background 0.12s ease, transform 0.12s ease",
-              }}
-              onMouseEnter={(event) => {
-                const target = event.currentTarget;
-                target.style.background = "rgba(255,255,255,0.04)";
-                target.style.transform = "translateX(1px)";
-              }}
-              onMouseLeave={(event) => {
-                const target = event.currentTarget;
-                target.style.background = "transparent";
-                target.style.transform = "translateX(0)";
-              }}
-            >
-              <span
-                style={{
-                  width: "18px",
-                  height: "18px",
-                  borderRadius: "50%",
-                  border: swatch.value ? "1px solid rgba(255,255,255,0.2)" : "1px dashed rgba(255,255,255,0.25)",
-                  background: swatch.value || "transparent",
-                  display: "inline-block",
-                  boxShadow: "none",
-                  transition: "box-shadow 0.12s ease, transform 0.12s ease",
-                }}
-              />
-              <span style={{ fontSize: "11px", flex: 1 }}>{t(swatch.nameKey)}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-      <div style={{ paddingTop: "8px" }}>
-        <div style={{ fontSize: "9px", color: "#5A5F66", letterSpacing: "0.1em", padding: "0 4px 4px" }}>{t("editor.colors.custom")}</div>
-        <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-          <input type="text" value={customTextColor} onChange={(event) => setCustomTextColor(event.target.value)} placeholder="#AABBCC" style={{ flex: 1, minWidth: 0, padding: "6px 8px", border: "none", borderRadius: 0, background: "#121417", color: "#E8E9EA", fontSize: "11px" }} />
-          <button type="button" onMouseDown={(event) => { event.preventDefault(); applyTextColor(customTextColor); }} style={{ padding: "6px 8px", border: "none", borderRadius: 0, background: "#20262B", color: "#E8E9EA", cursor: "pointer", fontSize: "11px" }}>OK</button>
-        </div>
-      </div>
-      <div style={{ paddingTop: "8px", marginTop: "8px" }}>
-        <div style={{ fontSize: "9px", color: "#5A5F66", letterSpacing: "0.1em", padding: "0 4px 4px" }}>{t("editor.colors.background")}</div>
-        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-          {BLOCK_BACKGROUND_SWATCHES.map((swatch) => (
-            <button
-              key={swatch.nameKey}
-              type="button"
-              title={t(swatch.nameKey)}
-              onMouseDown={(event) => { event.preventDefault(); onApplyBackground(swatch.value); }}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-                width: "100%",
-                padding: "5px 6px",
-                border: "none",
-                borderRadius: 0,
-                background: "transparent",
-                color: "#E8E9EA",
-                cursor: "pointer",
-                textAlign: "left",
-                transition: "background 0.12s ease, transform 0.12s ease",
-              }}
-              onMouseEnter={(event) => {
-                const target = event.currentTarget;
-                target.style.background = "rgba(255,255,255,0.04)";
-                target.style.transform = "translateX(1px)";
-              }}
-              onMouseLeave={(event) => {
-                const target = event.currentTarget;
-                target.style.background = "transparent";
-                target.style.transform = "translateX(0)";
-              }}
-            >
-              <span
-                style={{
-                  width: "18px",
-                  height: "18px",
-                  borderRadius: "50%",
-                  border: swatch.value ? "1px solid rgba(0,0,0,0.2)" : "1px dashed rgba(255,255,255,0.25)",
-                  background: swatch.value || "transparent",
-                  display: "inline-block",
-                  boxShadow: "none",
-                  transition: "box-shadow 0.12s ease, transform 0.12s ease",
-                }}
-              />
-              <span style={{ fontSize: "11px", flex: 1 }}>{t(swatch.nameKey)}</span>
-            </button>
-          ))}
-        </div>
-        <div style={{ display: "flex", gap: "6px", alignItems: "center", marginTop: "8px" }}>
-          <input type="text" value={customBackgroundColor} onChange={(event) => setCustomBackgroundColor(event.target.value)} placeholder="#D9E8FF" style={{ flex: 1, minWidth: 0, padding: "6px 8px", border: "none", borderRadius: 0, background: "#121417", color: "#E8E9EA", fontSize: "11px" }} />
-          <button type="button" onMouseDown={(event) => { event.preventDefault(); const cleaned = normalizeHexColor(customBackgroundColor); if (cleaned) onApplyBackground(cleaned); }} style={{ padding: "6px 8px", border: "none", borderRadius: 0, background: "#20262B", color: "#E8E9EA", cursor: "pointer", fontSize: "11px" }}>OK</button>
-        </div>
-      </div>
     </div>
   );
 }
@@ -2848,7 +2634,7 @@ function SelectionToolbar({
             padding: "0 6px",
             height: "30px",
             border: "1px solid transparent",
-            borderRadius: "5px",
+            borderRadius: "6px",
             background: formatMenuOpen ? "color-mix(in srgb, var(--his-accent) 15%, transparent)" : "transparent",
             color: formatMenuOpen ? "var(--his-accent)" : "var(--his-icon-neutral)",
             fontSize: "12px",
@@ -2881,7 +2667,7 @@ function SelectionToolbar({
                 width: "30px",
                 height: "30px",
                 border: "1px solid transparent",
-                borderRadius: "5px",
+                borderRadius: "6px",
                 background: markState === "on" ? "color-mix(in srgb, var(--his-accent) 15%, transparent)" : "transparent",
                 color: markState === "off" ? "var(--his-icon-neutral)" : "var(--his-accent)",
                 fontFamily: "Georgia, serif",
@@ -2915,7 +2701,7 @@ function SelectionToolbar({
             width: "30px",
             height: "30px",
             border: "1px solid transparent",
-            borderRadius: "5px",
+            borderRadius: "6px",
             background: isCodeActive() ? "color-mix(in srgb, var(--his-accent) 15%, transparent)" : "transparent",
             color: isCodeActive() ? "var(--his-accent)" : "var(--his-icon-neutral)",
             fontFamily: "monospace",
@@ -2945,7 +2731,7 @@ function SelectionToolbar({
             width: "30px",
             height: "30px",
             border: "1px solid transparent",
-            borderRadius: "5px",
+            borderRadius: "6px",
             background: linkInputOpen ? "color-mix(in srgb, var(--his-accent) 15%, transparent)" : "transparent",
             color: linkInputOpen ? "var(--his-accent)" : "var(--his-icon-neutral)",
             cursor: "pointer",
@@ -3030,7 +2816,7 @@ function SelectionToolbar({
             width: "30px",
             height: "30px",
             border: "none",
-            borderRadius: "5px",
+            borderRadius: "6px",
             background: moreMenuOpen ? "color-mix(in srgb, var(--his-accent) 15%, transparent)" : "transparent",
             color: moreMenuOpen ? "var(--his-accent)" : "var(--his-icon-neutral)",
             cursor: "pointer",
@@ -3219,91 +3005,50 @@ function PickerMenu({
   return (
     <div
       data-picker="true"
+      className="editor-slash-picker"
       style={{
-        position: "fixed",
         top: position.top,
         left: position.left,
-        width: "min(260px, calc(100vw - 28px))",
-        maxHeight: "420px",
-        overflowY: "auto",
-        overflowX: "hidden",
-        padding: "4px",
-        background: "#1A1D21",
-        border: "none",
-        borderRadius: 0,
-        boxShadow: "none",
-        zIndex: 20,
       }}
     >
-      <div
-        style={{
-          padding: "4px 8px",
-          fontSize: "10px",
-          color: "#5A5F66",
-          letterSpacing: "0.1em",
-        }}
-      >
+      <div className="editor-slash-picker__header">
         {title}
       </div>
       {Object.entries(categories).map(([category, categoryItems]) => (
         <div key={category}>
-          <div style={{ padding: "7px 8px 3px", fontSize: "9px", color: "#5A5F66", letterSpacing: "0.1em" }}>{category}</div>
+          <div className="editor-slash-picker__group-title">{category}</div>
           {categoryItems.map((item) => {
             const itemIndex = index++;
+            const isActive = itemIndex === activeIndex;
             return (
               <button
                 key={item.id}
                 data-picker-menu-item={item.id}
                 type="button"
-                onMouseEnter={(event) => {
+                className={`editor-slash-picker__item${isActive ? " is-active" : ""}`}
+                onMouseEnter={() => {
                   if (item.tag === "COLOR" && onColorMenuOpen) {
-                    const rect = event.currentTarget.getBoundingClientRect();
-                    onColorMenuOpen({
-                      top: rect.bottom + 8,
-                      left: rect.right + 8,
-                    });
+                    const rect = document.querySelector<HTMLElement>(`[data-picker-menu-item="${CSS.escape(item.id)}"]`)?.getBoundingClientRect();
+                    if (rect) {
+                      onColorMenuOpen({
+                        top: rect.bottom + 8,
+                        left: rect.right + 8,
+                      });
+                    }
                   }
-                  const target = event.currentTarget;
-                  target.style.background = "rgba(255,255,255,0.04)";
-                  target.style.transform = "translateX(1px)";
-                }}
-                onMouseLeave={(event) => {
-                  const target = event.currentTarget;
-                  target.style.background = itemIndex === activeIndex ? "#252B2D" : "transparent";
-                  target.style.transform = "translateX(0)";
                 }}
                 onMouseDown={(event) => {
                   event.preventDefault();
                   onSelect(item.id);
                 }}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  width: "100%",
-                  padding: "7px 8px",
-                  border: "none",
-                  borderRadius: 0,
-                  background: itemIndex === activeIndex ? "#252B2D" : "transparent",
-                  color: "#E8E9EA",
-                  textAlign: "left",
-                  cursor: "pointer",
-                  transition: "background 0.12s ease, border-color 0.12s ease, transform 0.12s ease",
-                }}
               >
                 <span
-                  style={{
-                    background: "#121417",
-                    border: "none",
-                    borderRadius: 0,
-                    padding: "2px 6px",
-                    fontSize: "10px",
-                    color: colorFor ? colorFor(item.id) : "#A7A9AC",
-                  }}
+                  className="editor-slash-picker__item-icon"
+                  style={colorFor ? { color: colorFor(item.id) } : undefined}
                 >
                   {item.icon || "•"}
                 </span>
-                {item.label}
+                <span>{item.label}</span>
               </button>
             );
           })}
@@ -3312,34 +3057,18 @@ function PickerMenu({
       {showDeleteLine && onDeleteLine && (
         <button
           type="button"
-          onMouseEnter={(event) => {
-            const target = event.currentTarget;
-            target.style.background = "rgba(255,255,255,0.04)";
-            target.style.transform = "translateX(1px)";
-          }}
-          onMouseLeave={(event) => {
-            const target = event.currentTarget;
-            target.style.background = "transparent";
-            target.style.transform = "translateX(0)";
-          }}
+          className="editor-slash-picker__item editor-slash-picker__item--danger"
           onMouseDown={(event) => {
             event.preventDefault();
             onDeleteLine();
           }}
-          style={{
-            display: "block",
-            width: "100%",
-            padding: "7px 8px",
-            border: "none",
-            background: "transparent",
-            color: "#D87878",
-            textAlign: "left",
-            cursor: "pointer",
-            borderRadius: 0,
-            transition: "background 0.12s ease, transform 0.12s ease",
-          }}
         >
-          {t("editor.line.delete")}
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M3 6h18" />
+            <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+            <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+          </svg>
+          <span>{t("editor.line.delete")}</span>
         </button>
       )}
     </div>
@@ -3357,49 +3086,26 @@ function LineActionMenu({
   return (
     <div
       data-picker="true"
+      className="editor-line-action-menu"
       style={{
-        position: "fixed",
         top: position.top,
         left: position.left,
-        minWidth: "160px",
-        padding: "4px",
-        background: "#1A1D21",
-        border: "none",
-        borderRadius: 0,
-        boxShadow: "none",
-        zIndex: 20,
       }}
     >
       <button
         type="button"
-        onMouseEnter={(event) => {
-          const target = event.currentTarget;
-          target.style.background = "rgba(255,255,255,0.04)";
-          target.style.transform = "translateX(1px)";
-        }}
-        onMouseLeave={(event) => {
-          const target = event.currentTarget;
-          target.style.background = "transparent";
-          target.style.transform = "translateX(0)";
-        }}
+        className="editor-line-action-menu__delete"
         onMouseDown={(event) => {
           event.preventDefault();
           onDeleteLine();
         }}
-        style={{
-          display: "block",
-          width: "100%",
-          padding: "7px 8px",
-          border: "none",
-          background: "transparent",
-          color: "#D87878",
-          textAlign: "left",
-          cursor: "pointer",
-          borderRadius: 0,
-          transition: "background 0.12s ease, transform 0.12s ease",
-        }}
       >
-        {t("editor.line.delete")}
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M3 6h18" />
+          <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+          <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+        </svg>
+        <span>{t("editor.line.delete")}</span>
       </button>
     </div>
   );

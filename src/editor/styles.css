@@ -439,10 +439,10 @@
   max-height: 380px;
   overflow-y: auto;
   padding: 6px;
-  background: #14171a;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 9px;
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.5);
+  background: var(--his-popover-surface, #14171a);
+  border: 1px solid var(--his-border-neutral, rgba(255, 255, 255, 0.12));
+  border-radius: 12px;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.42);
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -454,7 +454,7 @@
 .block-format-menu__divider {
   height: 1px;
   margin: 4px 6px;
-  background: rgba(255, 255, 255, 0.07);
+  background: var(--his-border-neutral, rgba(255, 255, 255, 0.08));
 }
 
 .block-format-menu__item {
@@ -475,7 +475,7 @@
 
 .block-format-menu__item:hover,
 .block-format-menu__item.is-active {
-  background: rgba(255, 255, 255, 0.08);
+  background: color-mix(in srgb, var(--his-accent) 16%, rgba(255, 255, 255, 0.06));
   color: #ffffff;
 }
 
@@ -502,10 +502,10 @@
 .block-format-preview-card {
   width: 190px;
   padding: 12px;
-  background: #181b1f;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 9px;
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.5);
+  background: var(--his-popover-surface, #14171a);
+  border: 1px solid var(--his-border-neutral, rgba(255, 255, 255, 0.12));
+  border-radius: 12px;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.42);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -586,11 +586,11 @@
 
 .block-more-menu {
   width: 175px;
-  padding: 5px;
+  padding: 6px;
   background: var(--his-popover-surface, #14171a);
   border: 1px solid var(--his-border-neutral, rgba(255, 255, 255, 0.12));
-  border-radius: 9px;
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.5);
+  border-radius: 12px;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.42);
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -617,7 +617,7 @@
 
 .block-more-menu__item:hover,
 .block-more-menu__item.is-active {
-  background: rgba(255, 255, 255, 0.08);
+  background: color-mix(in srgb, var(--his-accent) 16%, rgba(255, 255, 255, 0.06));
   color: #ffffff;
 }
 
@@ -628,11 +628,11 @@
 
 .block-more-submenu {
   width: 170px;
-  padding: 5px;
+  padding: 6px;
   background: var(--his-popover-surface, #14171a);
   border: 1px solid var(--his-border-neutral, rgba(255, 255, 255, 0.12));
-  border-radius: 9px;
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.5);
+  border-radius: 12px;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.42);
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -640,4 +640,138 @@
   will-change: transform, opacity;
   transform: translateZ(0);
 }
+
+/* Slash Command Picker Menu (/) - Estilo HIS unificado */
+.editor-slash-picker {
+  position: fixed;
+  z-index: 50;
+  width: min(270px, calc(100vw - 28px));
+  max-height: 400px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 6px;
+  background: var(--his-popover-surface, #14171a);
+  border: 1px solid var(--his-border-neutral, rgba(255, 255, 255, 0.12));
+  border-radius: 12px;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.42);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  animation: his-popover-enter var(--his-duration-enter) var(--his-ease-spring);
+  will-change: transform, opacity;
+  transform: translateZ(0);
+}
+
+.editor-slash-picker__header {
+  padding: 4px 8px 6px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--his-accent, #9d7bff);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--his-border-neutral, rgba(255, 255, 255, 0.08));
+  margin-bottom: 4px;
+}
+
+.editor-slash-picker__group-title {
+  padding: 6px 8px 3px;
+  font-size: 9.5px;
+  font-weight: 600;
+  color: var(--his-text-muted, #7c838d);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.editor-slash-picker__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #e2e5eb;
+  font-size: 12.5px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--his-duration-fast) ease, color var(--his-duration-fast) ease;
+}
+
+.editor-slash-picker__item:hover,
+.editor-slash-picker__item.is-active {
+  background: color-mix(in srgb, var(--his-accent) 16%, rgba(255, 255, 255, 0.06));
+  color: #ffffff;
+}
+
+.editor-slash-picker__item-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  font-size: 10.5px;
+  font-weight: 700;
+  flex-shrink: 0;
+  color: #a7a9ac;
+}
+
+.editor-slash-picker__item.is-active .editor-slash-picker__item-icon {
+  background: color-mix(in srgb, var(--his-accent) 25%, transparent);
+  color: var(--his-accent, #9d7bff);
+}
+
+.editor-slash-picker__item--danger {
+  color: #ff6b6b;
+  margin-top: 4px;
+  border-top: 1px solid var(--his-border-neutral, rgba(255, 255, 255, 0.08));
+  padding-top: 7px;
+  border-radius: 0 0 6px 6px;
+}
+
+.editor-slash-picker__item--danger:hover {
+  background: rgba(255, 107, 107, 0.12) !important;
+  color: #ff8585 !important;
+}
+
+/* Line Action Menu (Opciones de linea / eliminar) */
+.editor-line-action-menu {
+  position: fixed;
+  z-index: 50;
+  min-width: 160px;
+  padding: 4px;
+  background: var(--his-popover-surface, #14171a);
+  border: 1px solid var(--his-border-neutral, rgba(255, 255, 255, 0.12));
+  border-radius: 10px;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.38);
+  animation: his-popover-enter var(--his-duration-enter) var(--his-ease-spring);
+  will-change: transform, opacity;
+  transform: translateZ(0);
+}
+
+.editor-line-action-menu__delete {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 10px;
+  border: none;
+  background: transparent;
+  color: #ff6b6b;
+  font-size: 12.5px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background var(--his-duration-fast) ease, color var(--his-duration-fast) ease;
+}
+
+.editor-line-action-menu__delete:hover {
+  background: rgba(255, 107, 107, 0.12);
+  color: #ff8585;
+}
+
 
