@@ -26,7 +26,7 @@ interface LocalizedChangelogEntry extends ChangelogEntryBase {
 
 export type ChangelogEntry = LegacyChangelogEntry | LocalizedChangelogEntry;
 
-export const CURRENT_VERSION = "0.6.1";
+export const CURRENT_VERSION = "0.6.4";
 
 // All new releases use the 0.5.0 layout with complete Spanish/English keys.
 // Keep legacy entries readable without rewriting their historical content.
@@ -37,6 +37,85 @@ interface ReleaseChangelogEntry extends LocalizedChangelogEntry {
 
 const CURRENT_RELEASE: ReleaseChangelogEntry = {
   version: CURRENT_VERSION,
+  date: "2026-11-04",
+  category: "Editor",
+  titleKey: "changelog.0_6_4.title",
+  summaryKey: "changelog.0_6_4.summary",
+  changeKeys: [],
+  sections: [
+    {
+      titleKey: "changelog.0_6_4.imagePreview",
+      changeKeys: [
+        "changelog.0_6_4.lightbox",
+        "changelog.0_6_4.zoom",
+        "changelog.0_6_4.bar",
+        "changelog.0_6_4.dismiss",
+      ],
+    },
+    {
+      titleKey: "changelog.0_6_4.menus",
+      changeKeys: [
+        "changelog.0_6_4.slash",
+        "changelog.0_6_4.lineActions",
+        "changelog.0_6_4.toolbar",
+        "changelog.0_6_4.palette",
+      ],
+    },
+    {
+      titleKey: "changelog.0_6_4.inline",
+      changeKeys: [
+        "changelog.0_6_4.code",
+        "changelog.0_6_4.mentionsFormat",
+      ],
+    },
+    {
+      titleKey: "changelog.0_6_4.fixes",
+      kind: "fix",
+      changeKeys: [
+        "changelog.0_6_4.purge",
+        "changelog.0_6_4.defaultColor",
+      ],
+    },
+  ],
+};
+
+const RELEASE_0_6_3: ReleaseChangelogEntry = {
+  version: "0.6.3",
+  date: "2026-09-16",
+  category: "Sistema",
+  titleKey: "changelog.0_6_3.title",
+  summaryKey: "changelog.0_6_3.summary",
+  changeKeys: [],
+  sections: [
+    {
+      titleKey: "changelog.0_6_3.connectors",
+      changeKeys: ["changelog.0_6_3.alignment", "changelog.0_6_3.multiple"],
+    },
+    {
+      titleKey: "changelog.0_6_3.navigation",
+      changeKeys: ["changelog.0_6_3.persistence"],
+    },
+  ],
+};
+
+const RELEASE_0_6_2: ReleaseChangelogEntry = {
+  version: "0.6.2",
+  date: "2026-09-16",
+  category: "Sistema",
+  titleKey: "changelog.0_6_2.title",
+  summaryKey: "changelog.0_6_2.summary",
+  changeKeys: [],
+  sections: [
+    {
+      titleKey: "changelog.0_6_2.fixes",
+      kind: "fix",
+      changeKeys: ["changelog.0_6_2.loreRecovery"],
+    },
+  ],
+};
+
+const RELEASE_0_6_1: ReleaseChangelogEntry = {
+  version: "0.6.1",
   date: "2026-09-16",
   category: "Sistema",
   titleKey: "changelog.0_6_1.title",
@@ -144,6 +223,9 @@ const TREE_RELEASE: ReleaseChangelogEntry = {
 
 export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
   CURRENT_RELEASE,
+  RELEASE_0_6_3,
+  RELEASE_0_6_2,
+  RELEASE_0_6_1,
   RELEASE_0_6_0,
   TREE_RELEASE,
   PREVIOUS_RELEASE,
