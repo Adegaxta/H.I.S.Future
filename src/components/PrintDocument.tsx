@@ -17,12 +17,26 @@ interface PrintDocumentProps {
 }
 
 const PAGE_SIZES = { a3: "A3", a4: "A4", letter: "Letter" } as const;
-const waitForImageSource = (source: string) => new Promise<void>((resolve, reject) => {
-  const image = new Image();
-  image.onload = () => resolve();
-  image.onerror = () => reject(new Error("No se pudo cargar un recurso de imagen para imprimir."));
-  image.src = source;
-});
+
+const waitForImageSource = (source: string, timeoutMs = 3000): Promise<void> =>
+  new Promise<void>((resolve) => {
+    const image = new Image();
+    const timer = window.setTimeout(() => {
+      console.warn("[PDF] Image source timed out loading:", source);
+      resolve();
+    }, timeoutMs);
+
+    image.onload = () => {
+      window.clearTimeout(timer);
+      resolve();
+    };
+    image.onerror = () => {
+      window.clearTimeout(timer);
+      console.warn("[PDF] Image source failed to load gracefully:", source);
+      resolve();
+    };
+    image.src = source;
+  });
 
 export default function PrintDocument({ node, host, settings, onReady, onError }: PrintDocumentProps) {
   const editorRef = useRef<HTMLDivElement | null>(null);
@@ -48,11 +62,17 @@ export default function PrintDocument({ node, host, settings, onReady, onError }
         ]);
         const referencedImages = host.data.nodes.filter((candidate) => referencedIds.has(candidate.id) && candidate.type === "imagen");
         void Promise.all([
-          hydrateEditorImageMentions(editor, host.data.nodes, { strict: true }),
-          ...referencedImages.map((imageNode) => acquireImageSource(imageNode).then(async (lease) => {
-            printLeasesRef.current.push(lease);
-            await waitForImageSource(lease.src);
-          })),
+          hydrateEditorImageMentions(editor, host.data.nodes, { strict: false }),
+          ...referencedImages.map((imageNode) =>
+            acquireImageSource(imageNode)
+              .then(async (lease) => {
+                printLeasesRef.current.push(lease);
+                await waitForImageSource(lease.src);
+              })
+              .catch((err) => {
+                console.warn("[PDF] Gracefully skipped referenced image acquisition failure:", imageNode.id, err);
+              })
+          ),
         ])
           .then(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))))
           .then(() => onReady(editor))
@@ -65,6 +85,24 @@ export default function PrintDocument({ node, host, settings, onReady, onError }
     };
   }, [host.data.nodes, node.id, onError, onReady]);
 
-  const pageSize = PAGE_SIZES[settings.pageSize];
-  return <><style>{`@page { size: ${pageSize} ${settings.orientation}; margin: 12mm; }`}</style><div className="his-print-document" aria-hidden="true"><RegisteredNodeView node={node} host={printHost} mode="print" /></div></>;
+  const pageSize = PAGE_SIZES[settings.pageSize] || "A4";
+  const themeClass = settings.theme === "light" ? "his-print-document--light" : "his-print-document--dark";
+  const modifierClasses = [
+    themeClass,
+    !settings.includeTitle && "his-print-document--hide-title",
+    !settings.includeIcon && "his-print-document--hide-icon",
+    !settings.includeCover && "his-print-document--hide-cover",
+    !settings.includeDescription && "his-print-document--hide-description",
+    !settings.includeTags && "his-print-document--hide-tags",
+    !settings.includeImages && "his-print-document--hide-images",
+  ].filter(Boolean).join(" ");
+
+  return (
+    <>
+      <style>{`@page { size: ${pageSize} ${settings.orientation}; margin: 12mm; }`}</style>
+      <div className={`his-print-document ${modifierClasses}`} aria-hidden="true">
+        <RegisteredNodeView node={node} host={printHost} mode="print" />
+      </div>
+    </>
+  );
 }

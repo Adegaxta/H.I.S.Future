@@ -1,0 +1,147 @@
+/* Bloque de referencia externa / globo (Callout) dentro del editor. */
+
+.editor-content [data-globe] {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 10px;
+  min-height: 56px;
+  margin: 12px 0;
+  padding: 12px;
+  background: #1a1d21;
+  border: 0;
+  border-radius: 12px;
+}
+
+/* Icono de una referencia externa / globo. */
+.editor-content [data-globe-icon] {
+  box-sizing: border-box;
+  display: grid;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  max-width: 28px;
+  min-height: 28px;
+  max-height: 28px;
+  flex: 0 0 28px;
+  place-items: center;
+  overflow: hidden;
+  color: #e8e9ea;
+  cursor: pointer;
+  font-size: 11px;
+  line-height: 1;
+  font-weight: 600;
+  white-space: nowrap;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* Imagen del icono de referencia externa. */
+.editor-content [data-globe-icon] img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  cursor: pointer;
+}
+
+.editor-content [data-globe-icon] .editor-globe-icon-visual {
+  display: block;
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  max-width: 24px;
+  min-height: 24px;
+  max-height: 24px;
+  flex: 0 0 24px;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.editor-content [data-globe-icon] .editor-globe-icon-visual:is(svg, img) {
+  object-fit: contain;
+}
+
+.editor-content [data-globe-icon] .editor-globe-icon-visual.node-visual--emoji {
+  font-size: 22px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.editor-content [data-globe-icon] .editor-globe-icon-visual.material-symbols-rounded {
+  box-sizing: border-box;
+  display: block;
+  overflow: hidden;
+  font-family: "Material Symbols Rounded" !important;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  white-space: nowrap;
+  word-wrap: normal;
+  font-feature-settings: "liga" !important;
+}
+
+/* Contenido textual flexible de la referencia externa. */
+.editor-content [data-globe-content] {
+  min-width: 0;
+}
+
+/* Indice de pagina (Page Index) */
+.editor-page-index,
+[data-page-index] {
+  display: grid;
+  gap: 8px;
+  margin: 14px 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  user-select: none;
+  cursor: default;
+}
+
+.editor-page-index__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0;
+  color: #e8e9ea;
+  cursor: pointer;
+  user-select: none;
+  border: none;
+  background: transparent;
+}
+
+.editor-page-index__item[data-page-index-level="1"] { margin-left: 20px; }
+.editor-page-index__item[data-page-index-level="2"] { margin-left: 40px; }
+.editor-page-index__item[data-page-index-level="3"] { margin-left: 60px; }
+.editor-page-index__item[data-page-index-level="4"] { margin-left: 80px; }
+.editor-page-index__item[data-page-index-level="5"] { margin-left: 100px; }
+
+.editor-page-index__item:hover,
+.editor-page-index__item:focus-visible {
+  color: var(--his-accent);
+  outline: none;
+  background: transparent;
+}
+
+.editor-page-index__marker {
+  color: var(--his-icon-neutral);
+}
+
+@keyframes editor-page-index-highlight {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--his-accent) 0%, transparent); background-color: transparent; }
+  16%, 72% { box-shadow: 0 0 0 2px color-mix(in srgb, var(--his-accent) 72%, transparent); background-color: color-mix(in srgb, var(--his-accent) 9%, transparent); }
+}
+
+.editor-content .editor-page-index-target {
+  animation: editor-page-index-highlight var(--page-index-highlight-duration, 900ms) ease-out;
+}
+
+.editor-page-index__label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.editor-page-index__empty {
+  color: #7a7f87;
+  font-size: 13px;
+}

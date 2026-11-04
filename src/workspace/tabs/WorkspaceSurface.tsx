@@ -3,6 +3,7 @@ import Plus from "lucide-react/dist/esm/icons/plus.mjs";
 import X from "lucide-react/dist/esm/icons/x.mjs";
 import type { ViewRegistry } from "./ViewRegistry";
 import { activateTab, addEmptyTab, closeTab, createTab, findPane, findTab, focusPane, moveTab, reorderTab, resizeSplit, updateTab, type DropZone, type WorkspaceLayout, type WorkspaceLayoutNode, type WorkspacePane, type WorkspaceTab } from "./model";
+import { revealActiveTab } from "./tabStrip";
 import "./styles.css";
 
 const TAB_MIME = "application/x-his-workspace-tab";
@@ -29,7 +30,7 @@ export function PaneTabBar({ pane, registry, onChange }: { pane: WorkspacePane; 
   useLayoutEffect(() => {
     const host = tabsRef.current;
     if (!host) return;
-    host.querySelector<HTMLElement>('[aria-selected="true"]')?.scrollIntoView({ block: "nearest", inline: "nearest" });
+    revealActiveTab(host);
     updateOverflow();
     const observer = new ResizeObserver(updateOverflow);
     observer.observe(host);
@@ -91,6 +92,7 @@ export function PaneTabBar({ pane, registry, onChange }: { pane: WorkspacePane; 
         role="tab"
         aria-selected={pane.activeTabId === tab.id}
         className={`workspace-tab${pane.activeTabId === tab.id ? " is-active" : ""}`}
+        data-resource-id={tab.resourceId}
         draggable
         onDragStart={(event) => { event.dataTransfer.setData(TAB_MIME, tab.id); event.dataTransfer.effectAllowed = "move"; }}
         onDragEnd={() => setReorderPreview(null)}

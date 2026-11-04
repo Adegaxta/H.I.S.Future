@@ -16,6 +16,8 @@ import type { PresenceContextState } from "./types";
 
 interface PresenceContextValue {
   setPresence: (context: PresenceContextState) => void;
+  discordEnabled: boolean;
+  setDiscordEnabled: (enabled: boolean) => void;
 }
 
 const PresenceContext = createContext<PresenceContextValue | null>(null);
@@ -25,6 +27,7 @@ export function PresenceProvider({ children }: { children: ReactNode }) {
     surface: "home",
     locale: DEFAULT_LOCALE,
   });
+  const [discordEnabled, setDiscordEnabled] = useState(true);
   const lastActivityRef = useRef<string | null>(null);
 
   const setPresence = useCallback((next: PresenceContextState) => {
@@ -40,6 +43,11 @@ export function PresenceProvider({ children }: { children: ReactNode }) {
   const activity = useMemo(() => projectPresence(context), [context]);
   useEffect(() => {
     if (!isDesktopRuntime()) return;
+    if (!discordEnabled) {
+      lastActivityRef.current = null;
+      void clearPresence();
+      return;
+    }
     const serialized = presenceActivityFingerprint(activity);
     if (lastActivityRef.current === serialized) return;
     const timer = window.setTimeout(() => {
@@ -47,15 +55,19 @@ export function PresenceProvider({ children }: { children: ReactNode }) {
       void updatePresence(activity);
     }, 250);
     return () => window.clearTimeout(timer);
-  }, [activity]);
+  }, [activity, discordEnabled]);
 
   useEffect(() => () => {
     if (isDesktopRuntime()) void clearPresence();
   }, []);
 
-  const value = useMemo<PresenceContextValue>(() => ({ setPresence }), [setPresence]);
+  const value = useMemo<PresenceContextValue>(
+    () => ({ setPresence, discordEnabled, setDiscordEnabled }),
+    [setPresence, discordEnabled],
+  );
   return <PresenceContext.Provider value={value}>{children}</PresenceContext.Provider>;
 }
+
 
 export function usePresence() {
   const value = useContext(PresenceContext);

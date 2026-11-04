@@ -87,14 +87,12 @@ export default function PageBlockContextMenu(props: Props) {
   useLayoutEffect(() => {
     const rect = rootRef.current?.getBoundingClientRect();
     if (!rect) return;
-    const menuWidth = rect.width;
-    const expandedWidth = menuWidth + (aesthetics.open ? 548 : colorKind ? 232 : 0);
-    const canFitExpanded = window.innerWidth >= expandedWidth + 16;
-    const maxLeft = aesthetics.open && canFitExpanded
-      ? window.innerWidth - expandedWidth - 8
-      : window.innerWidth - menuWidth - 8;
-    setPosition({ left: Math.max(8, Math.min(props.x, maxLeft)), top: Math.max(8, Math.min(props.y, window.innerHeight - rect.height - 8)) });
-  }, [props.x, props.y, aesthetics.open, colorKind]);
+    const maxLeft = window.innerWidth - rect.width - 8;
+    setPosition({
+      left: Math.max(8, Math.min(props.x, maxLeft)),
+      top: Math.max(8, Math.min(props.y, window.innerHeight - rect.height - 8)),
+    });
+  }, [props.x, props.y]);
   const select = (action: () => void, keepOpen = false) => { action(); if (!keepOpen) props.onClose(); };
   const format = PAGE_BLOCK_CAPABILITIES.filter((item) => item.group === "format");
   const properties = PAGE_BLOCK_CAPABILITIES.filter((item) => item.group === "property");

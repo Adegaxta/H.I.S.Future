@@ -11,6 +11,9 @@ import fileClockAsset from "../assets/third-party/Lucide.dev/icons/file-clock.sv
 import searchAsset from "../assets/third-party/google-material/icons/search.svg";
 import printAsset from "../assets/third-party/google-material/icons/print_256dp_E3E3E3_FILL0_wght400_GRAD0_opsz48.svg";
 import fileDownAsset from "../assets/third-party/Lucide.dev/icons/file-down.svg";
+import maximizeAsset from "../assets/third-party/Lucide.dev/icons/maximize.svg";
+import headerToggleTrack from "../assets/original/icons/container_button.svg";
+import headerToggleThumb from "../assets/original/icons/circle_button_generic.svg";
 import { useLayoutEffect, useRef, useState } from "react";
 import type { NodeItem } from "../types/nodes";
 import { getNodalMeta } from "../nodes/metadata";
@@ -31,6 +34,8 @@ export interface NodeOptionsMenuProps {
   onDelete: () => void;
   onSearch: () => void;
   onExport: () => void;
+  zenMode?: boolean;
+  onToggleZenMode?: () => void;
 }
 
 type MenuAction = { id: string; label: string; icon: string; disabled?: boolean; onClick?: () => void };
@@ -43,7 +48,41 @@ function ActionRow({ action }: { action: MenuAction }) {
   </button>;
 }
 
-export default function NodeOptionsMenu({ node, x, y, onClose, onTogglePrimary, onToggleMeta, onCreateLink, onAddToFolder, onSaveTemplate, onLoadTemplate, onDuplicate, onDelete, onSearch, onExport }: NodeOptionsMenuProps) {
+function HeaderToggle({ active, label, onToggle }: { active: boolean; label: string; onToggle: () => void }) {
+  return (
+    <button
+      type="button"
+      className={`his-table-header-toggle${active ? " is-active" : ""}`}
+      aria-label={label}
+      title={label}
+      aria-pressed={active}
+      onMouseDown={(event) => { event.preventDefault(); event.stopPropagation(); }}
+      onClick={(event) => { event.preventDefault(); event.stopPropagation(); onToggle(); }}
+    >
+      <img className="his-table-header-toggle__track" src={headerToggleTrack} alt="" aria-hidden="true" />
+      <img className="his-table-header-toggle__thumb" src={headerToggleThumb} alt="" aria-hidden="true" />
+    </button>
+  );
+}
+
+export default function NodeOptionsMenu({
+  node,
+  x,
+  y,
+  onClose,
+  onTogglePrimary,
+  onToggleMeta,
+  onCreateLink,
+  onAddToFolder,
+  onSaveTemplate,
+  onLoadTemplate,
+  onDuplicate,
+  onDelete,
+  onSearch,
+  onExport,
+  zenMode,
+  onToggleZenMode,
+}: NodeOptionsMenuProps) {
   const meta = getNodalMeta(node.content);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const [position, setPosition] = useState({ left: x, top: y });
@@ -78,12 +117,27 @@ export default function NodeOptionsMenu({ node, x, y, onClose, onTogglePrimary, 
       { id: "export", label: "Exportar", icon: fileDownAsset, onClick: closeAfter(onExport) },
     ] },
   ];
-  return <div ref={menuRef} className="node-options-layer" role="dialog" aria-label="Opciones de Nodo" style={position} onPointerDown={(event) => event.stopPropagation()}>
-    <div className="node-options__title">Opciones de Nodo</div>
-    <div className="node-options">
-      {groups.map((group) => <section className="node-options__group" key={group.id} data-menu-group={group.id}>
-        {group.actions.map((action) => <ActionRow action={action} key={action.id} />)}
-      </section>)}
+  return (
+    <div ref={menuRef} className="node-options-layer" role="dialog" aria-label="Opciones de Nodo" style={position} onPointerDown={(event) => event.stopPropagation()}>
+      <div className="node-options__title">Opciones de Nodo</div>
+      <div className="node-options">
+        {onToggleZenMode && (
+          <section className="node-options__group" data-menu-group="view">
+            <div className="node-options__toggle-row">
+              <div className="node-options__toggle-label">
+                <img className="node-options__icon" src={maximizeAsset} alt="" aria-hidden="true" />
+                <span>Modo Zen (F11)</span>
+              </div>
+              <HeaderToggle active={Boolean(zenMode)} label="Alternar Modo Zen" onToggle={onToggleZenMode} />
+            </div>
+          </section>
+        )}
+        {groups.map((group) => (
+          <section className="node-options__group" key={group.id} data-menu-group={group.id}>
+            {group.actions.map((action) => <ActionRow action={action} key={action.id} />)}
+          </section>
+        ))}
+      </div>
     </div>
-  </div>;
+  );
 }

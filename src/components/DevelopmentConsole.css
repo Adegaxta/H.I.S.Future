@@ -1,0 +1,470 @@
+.dev-console {
+  position: fixed;
+  z-index: 10000;
+  right: 16px;
+  bottom: 16px;
+  color: #e8e9ea;
+  font: 12px/1.45 "Segoe UI", sans-serif;
+  user-select: text;
+}
+
+.dev-console button,
+.dev-console select {
+  border: 1px solid #3a4146;
+  border-radius: 5px;
+  background: #20262b;
+  color: inherit;
+  font: inherit;
+}
+
+.dev-console button {
+  padding: 5px 8px;
+  cursor: pointer;
+}
+
+.dev-console button:hover,
+.dev-console button[aria-pressed="true"] {
+  border-color: #54dbc4;
+}
+
+.dev-console__launcher {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px !important;
+  box-shadow: 0 4px 18px #0008;
+}
+
+.dev-console__launcher b {
+  color: #ff8585;
+}
+
+.dev-console__running-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #54dbc4;
+  box-shadow: 0 0 8px #54dbc477;
+}
+
+.dev-console__panel {
+  display: flex;
+  flex-direction: column;
+  width: min(760px, calc(100vw - 32px));
+  height: min(470px, calc(100vh - 32px));
+  overflow: hidden;
+  border: 1px solid #3a4146;
+  border-radius: 9px;
+  background: #15191d;
+  box-shadow: 0 12px 40px #000a;
+}
+
+.dev-console__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 11px 13px;
+  border-bottom: 1px solid #30363a;
+}
+
+.dev-console__header > div {
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  column-gap: 12px;
+}
+
+.dev-console__header > div > strong {
+  font-size: 13px;
+}
+
+.dev-console__header > div > span {
+  color: #a9d8ce;
+}
+
+.dev-console__header > div > span .dev-console__running-dot {
+  margin-right: 5px;
+}
+
+.dev-console__header small {
+  grid-column: 1 / -1;
+  color: #939ba0;
+}
+
+.dev-console__toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  padding: 8px 10px;
+  border-bottom: 1px solid #30363a;
+}
+
+.dev-console__toolbar label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #aeb6bb;
+}
+
+.dev-console__toolbar select {
+  padding: 4px 6px;
+}
+
+.dev-console__modes {
+  display: flex;
+  gap: 4px;
+}
+
+.dev-console__event-count {
+  margin-left: auto;
+  color: #929ba0;
+}
+
+.dev-console__list {
+  min-height: 0;
+  flex: 1;
+  overflow: auto;
+}
+
+.dev-console__event {
+  border-bottom: 1px solid #292f33;
+}
+
+.dev-console__event--warn > details > summary strong,
+.dev-console__event--warn .dev-console__event-level {
+  color: #edc76f;
+}
+
+.dev-console__event--error > details > summary strong,
+.dev-console__event--error .dev-console__event-level,
+.dev-console__finding > summary > span:first-child {
+  color: #ff8585;
+}
+
+.dev-console__event-summary {
+  display: grid;
+  grid-template-columns: 74px 88px minmax(120px, 1fr) auto;
+  align-items: baseline;
+  gap: 8px;
+  padding: 8px 11px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.dev-console__event-summary::-webkit-details-marker,
+.dev-console__operation > summary::-webkit-details-marker {
+  display: none;
+}
+
+.dev-console__event-summary time,
+.dev-console__event-level {
+  color: #899399;
+  font-variant-numeric: tabular-nums;
+}
+
+.dev-console__event-summary strong {
+  color: #c4d0d2;
+  font-size: 10px;
+  letter-spacing: .06em;
+}
+
+.dev-console__event-message {
+  color: #e4e7e8;
+}
+
+.dev-console__event-summary small {
+  grid-column: 3 / -1;
+  color: #aeb6bb;
+}
+
+.dev-console__integrity-mark--pass {
+  color: #72d8bd;
+}
+
+.dev-console__integrity-mark--warning {
+  color: #edc76f;
+}
+
+.dev-console__integrity-mark--failed {
+  color: #ff8585;
+}
+
+.dev-console__event-details {
+  padding: 0 12px 10px 101px;
+  color: #b9c1c5;
+}
+
+.dev-console__event-details p {
+  margin: 3px 0;
+}
+
+.dev-console code {
+  color: #b6dcd5;
+  overflow-wrap: anywhere;
+}
+
+.dev-console__findings {
+  display: grid;
+  gap: 5px;
+  margin: 8px 0;
+}
+
+.dev-console__finding {
+  padding: 7px 9px;
+  border-left: 2px solid #d47777;
+  background: #ffffff08;
+}
+
+.dev-console__finding > summary {
+  display: flex;
+  gap: 9px;
+  align-items: baseline;
+  cursor: pointer;
+}
+
+.dev-console__finding p {
+  margin: 7px 0;
+  color: #e5e8e9;
+}
+
+.dev-console__finding dl {
+  display: grid;
+  grid-template-columns: 78px 1fr;
+  gap: 3px 8px;
+}
+
+.dev-console__finding dt {
+  color: #899399;
+}
+
+.dev-console__finding dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.dev-console pre {
+  max-height: 200px;
+  overflow: auto;
+  padding: 8px;
+  border-radius: 4px;
+  background: #0e1113;
+  color: #bec8cc;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.dev-console__technical {
+  margin-top: 7px;
+}
+
+.dev-console__entities {
+  display: grid;
+  gap: 5px;
+  margin: 8px 0;
+}
+
+.dev-console__entity {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 7px;
+  border-radius: 4px;
+  background: #ffffff08;
+}
+
+.dev-console__entity-role {
+  min-width: 58px;
+  color: #82c8b8;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .06em;
+}
+
+.dev-console__entity-role--related {
+  color: #aab7e3;
+}
+
+.dev-console__entity code {
+  flex: 1;
+  min-width: 120px;
+}
+
+.dev-console__entity-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.dev-console__entity-actions button,
+.dev-console__operation-toolbar button,
+.dev-console__active-filter button {
+  padding: 3px 6px;
+  font-size: 10px;
+}
+
+.dev-console__missing {
+  color: #ff8585;
+  font-size: 9px;
+}
+
+.dev-console__deleted {
+  color: #edc76f;
+  font-size: 9px;
+}
+
+.dev-console__technical > summary,
+.dev-console__operation > summary {
+  cursor: pointer;
+}
+
+.dev-console__operation {
+  border-bottom: 1px solid #30363a;
+}
+
+.dev-console__operation > summary {
+  display: flex;
+  gap: 9px;
+  align-items: baseline;
+  padding: 8px 11px;
+  color: #aeb6bb;
+}
+
+.dev-console__operation > summary > span {
+  color: #7eaaa1;
+  font-size: 10px;
+}
+
+.dev-console__operation > summary > small {
+  margin-left: auto;
+}
+
+.dev-console__operation-events {
+  padding-left: 12px;
+  border-left: 1px solid #3d625b;
+}
+
+.dev-console__operation-toolbar {
+  padding: 0 11px 7px;
+}
+
+.dev-console__active-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-bottom: 1px solid #30363a;
+  color: #aeb6bb;
+}
+
+.dev-console__active-filter button {
+  margin-left: auto;
+}
+
+.dev-console__unavailable,
+.dev-console__scope {
+  color: #929ba0;
+}
+
+.dev-console__overview {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+}
+
+.dev-console__overview-card {
+  padding: 10px;
+  border: 1px solid #30363a;
+  border-radius: 6px;
+  background: #ffffff04;
+}
+
+.dev-console__overview-card h2 {
+  margin: 0 0 7px;
+  color: #c4d0d2;
+  font-size: 12px;
+}
+
+.dev-console__overview-card > p {
+  margin: 4px 0;
+}
+
+.dev-console__overview-status {
+  display: inline-block;
+  margin: 3px 0;
+  font-size: 13px;
+}
+
+.dev-console__overview-status--pass {
+  color: #72d8bd;
+}
+
+.dev-console__overview-status--warning {
+  color: #edc76f;
+}
+
+.dev-console__overview-status--failed {
+  color: #ff8585;
+}
+
+.dev-console__metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0;
+}
+
+.dev-console__metrics span {
+  padding: 4px 7px;
+  border-radius: 4px;
+  background: #ffffff08;
+}
+
+.dev-console__metrics b {
+  color: #b6dcd5;
+}
+
+.dev-console__empty,
+.dev-console__copy-error {
+  margin: 0;
+  padding: 14px;
+  color: #929ba0;
+}
+
+.dev-console__copy-error {
+  color: #ff8585;
+}
+
+@media (max-width: 560px) {
+  .dev-console {
+    right: 8px;
+    bottom: 8px;
+  }
+
+  .dev-console__panel {
+    width: calc(100vw - 16px);
+    height: min(65vh, 520px);
+  }
+
+  .dev-console__event-summary {
+    grid-template-columns: 58px 74px minmax(90px, 1fr);
+  }
+
+  .dev-console__event-level {
+    display: none;
+  }
+
+  .dev-console__event-details {
+    padding-left: 12px;
+  }
+
+  .dev-console__entity {
+    align-items: flex-start;
+  }
+
+  .dev-console__entity-actions {
+    width: 100%;
+  }
+}

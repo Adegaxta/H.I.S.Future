@@ -3,6 +3,7 @@ import type { FormEventHandler, FocusEventHandler, RefObject } from "react";
 import type { NodeItem } from "../types/nodes";
 import { readEditorContent } from "./persistence";
 import { ensureTableRuntime, installTableInputGuard, installTableResizeHandlers } from "./table";
+import { sanitizeEditorHtml } from "./html";
 
 interface UseRichTextEditorOptions {
   node: NodeItem | undefined;
@@ -52,7 +53,10 @@ export function useRichTextEditor({
     if (!editorRef.current || !node) return;
     if (editorRef.current.getAttribute("data-active-id") === node.id) return;
     cancelScheduled();
-    const content = node.content.trim() ? node.content : "<p><br></p>";
+    const rawContent = node.content.trim() ? node.content : "<p><br></p>";
+    const content = /<[uo]l\b|<li\b/i.test(rawContent)
+      ? sanitizeEditorHtml(rawContent)
+      : rawContent;
     editorRef.current.innerHTML = content;
     ensureTableRuntime(editorRef.current);
     const hasRootTextLine = Array.from(editorRef.current.children).some((child) =>

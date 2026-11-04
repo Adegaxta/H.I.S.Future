@@ -3,7 +3,8 @@ import { parseImagePresentation, readSerializedImagePresentation, type ImagePres
 import { parseVaultImageSetting, type VaultImageSetting } from "./vaultImageSetting";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { NodeItem } from "../types/nodes";
-import { createProjectImageContent, getImageResourceDescriptor } from "../utils/imageResource";
+import { createProjectImageContent, createImageContent, getImageResourceDescriptor } from "../utils/imageResource";
+import type { UnsplashImageSelection } from "../integrations/unsplash/types";
 import { acquireImageSource, type ResolvedImageLease } from "../utils/imageRuntimeResolver";
 import { hashFileBytes } from "../project/fileHash";
 import { storeProjectResource } from "../project/resourceRepository";
@@ -155,5 +156,13 @@ export function useProjectCover({ projectKey, hydrated, nodes, createNode, updat
     setSelection((value) => value + 1);
   };
 
-  return { projectImage, projectVisual, projectPresentation, projectImageNodeId: coverId, flushImageSelection, selectVisual, clear, upload, updateImageContent, useAsCover };
+  const chooseUnsplash = useCallback(async (selection: UnsplashImageSelection) => {
+    const existing = nodes.find((item) => {
+      const resource = item.type === "imagen" ? getImageResourceDescriptor(item.content, item.name) : null;
+      return resource?.provenance?.provider === selection.provenance.provider && resource.provenance.resourceId === selection.provenance.resourceId;
+    });
+    return existing?.id ?? createNode(selection.fileName, "imagen", null, createImageContent(selection.src, selection.fileName, null, null, selection.description, selection.provenance));
+  }, [createNode, nodes]);
+
+  return { projectImage, projectVisual, projectPresentation, projectImageNodeId: coverId, flushImageSelection, selectVisual, clear, upload, updateImageContent, useAsCover, chooseUnsplash };
 }

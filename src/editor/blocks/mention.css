@@ -1,0 +1,865 @@
+/* Menciones y llamadas inline dentro del editor */
+
+.editor-content {
+  --mention-color: var(--his-accent);
+}
+
+.editor-content .editor-mention {
+  display: inline;
+  position: relative;
+  min-height: 0;
+  max-width: 100%;
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, currentColor 46%, transparent);
+  text-decoration-thickness: 1px;
+  vertical-align: baseline;
+  white-space: nowrap;
+  cursor: pointer;
+  margin: 0;
+  padding: 0;
+  border-radius: 4px;
+  transition: background-color 130ms ease, color 130ms ease;
+}
+
+.editor-content .editor-mention__label {
+  display: contents;
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+  background-image: none;
+  text-decoration: none;
+}
+
+.editor-content .editor-mention[data-mention-user-underline="true"] {
+  background-image: none;
+  text-decoration-line: underline;
+  text-decoration-color: currentColor;
+  text-decoration-thickness: auto;
+  text-decoration-skip-ink: none;
+}
+
+.editor-content .editor-mention[data-mention-strike="true"] {
+  text-decoration-line: line-through;
+}
+
+.editor-content .editor-mention[data-mention-user-underline="true"][data-mention-strike="true"] {
+  text-decoration-line: underline line-through;
+}
+
+.editor-content .editor-mention[data-mention-selected="true"] {
+  background: transparent;
+}
+
+.editor-content .editor-mention:not(:has(img, [data-mention-node-visual]))::after {
+  display: block;
+  position: absolute;
+  top: 50%;
+  left: 0.08em;
+  width: 0.82em;
+  height: 0.82em;
+  margin: 0;
+  background: currentColor;
+  content: "";
+  transform: translateY(-50%);
+  mask: url("../../assets/third-party/google-material/icons/article_shortcut.svg") center / contain no-repeat;
+  user-select: none;
+}
+
+.editor-content .editor-mention:hover {
+  color: var(--mention-color);
+  background-color: color-mix(in srgb, var(--his-accent) 18%, transparent);
+}
+
+.editor-content .editor-mention:focus-visible {
+  color: var(--his-accent);
+  outline: 1px solid var(--his-accent);
+  outline-offset: 2px;
+}
+
+.editor-content .editor-mention img {
+  display: inline-block;
+  width: 0.86em;
+  height: 0.86em;
+  flex: 0 0 0.86em;
+  border-radius: 2px;
+  object-fit: contain;
+  vertical-align: middle;
+  cursor: pointer;
+}
+
+.editor-content .editor-mention__icon {
+  display: block;
+  position: absolute;
+  top: 50%;
+  left: 0.08em;
+  width: 0.82em;
+  height: 0.82em;
+  border-radius: 2px;
+  object-fit: contain;
+  transform: translateY(-50%);
+  cursor: pointer;
+}
+
+.editor-mention__node-icon {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  margin-right: 0.25em;
+  vertical-align: -0.12em;
+}
+
+.editor-content .editor-mention > .editor-mention__node-icon {
+  display: block;
+  position: absolute;
+  top: 50%;
+  left: 0.08em;
+  box-sizing: border-box;
+  width: 1em;
+  height: 1em;
+  margin: 0;
+  overflow: hidden;
+  font-size: 0.82em !important;
+  font-style: normal !important;
+  font-weight: 400 !important;
+  line-height: 1 !important;
+  text-decoration: none !important;
+  transform: translateY(-50%);
+}
+
+.editor-content .editor-mention__visual {
+  margin-right: 0;
+  box-shadow: none;
+  color: inherit;
+  object-fit: contain;
+}
+
+.editor-content .editor-mention__visual svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* The inline space participates in decoration underneath the positioned icon. */
+.editor-content .editor-mention:not([data-mention-mode="full"])::before {
+  content: "";
+  display: inline-block;
+  width: 0.92em;
+  height: 0.85em;
+  vertical-align: -0.12em;
+  margin-right: 0.12em;
+  border-bottom: 1px solid color-mix(in srgb, currentColor 46%, transparent);
+  box-sizing: border-box;
+}
+
+.editor-content u .editor-mention:not([data-mention-mode="full"])::before,
+.editor-content [style*="text-decoration"][style*="underline"] .editor-mention:not([data-mention-mode="full"])::before,
+.editor-content .editor-mention[data-mention-user-underline="true"]:not([data-mention-mode="full"])::before {
+  border-bottom: 1.5px solid currentColor;
+}
+
+.editor-content s .editor-mention:not([data-mention-mode="full"])::before,
+.editor-content strike .editor-mention:not([data-mention-mode="full"])::before,
+.editor-content del .editor-mention:not([data-mention-mode="full"])::before,
+.editor-content [style*="text-decoration"][style*="line-through"] .editor-mention:not([data-mention-mode="full"])::before,
+.editor-content .editor-mention[data-mention-strike="true"]:not([data-mention-mode="full"])::before {
+  background: linear-gradient(to bottom, transparent calc(50% - 0.5px), currentColor calc(50% - 0.5px), currentColor calc(50% + 0.5px), transparent calc(50% + 0.5px));
+}
+
+.editor-content .editor-mention[data-mention-user-underline="true"] > .editor-mention__label {
+  background-image: none;
+}
+
+/* Inline Calls share the native text selection of the surrounding line. */
+.editor-content .editor-mention:not([data-mention-mode="full"]),
+.editor-content .editor-mention__label {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.editor-content .editor-mention[data-mention-selected="true"]:hover {
+  color: inherit;
+  background-color: transparent;
+}
+
+/* Real underlines replace the Call indicator, including inherited marks. */
+.editor-content u .editor-mention__label,
+.editor-content [style*="text-decoration"][style*="underline"] .editor-mention__label {
+  background-image: none;
+}
+
+.editor-content u,
+.editor-content [style*="text-decoration"][style*="underline"] {
+  text-decoration-skip-ink: none;
+}
+
+.editor-content u .editor-mention,
+.editor-content [style*="text-decoration"][style*="underline"] .editor-mention,
+.editor-content .editor-mention[data-mention-user-underline="true"] {
+  text-decoration-line: underline;
+  text-decoration-color: currentColor;
+  text-decoration-thickness: auto;
+  text-decoration-skip-ink: none;
+}
+
+.editor-content s .editor-mention,
+.editor-content strike .editor-mention,
+.editor-content del .editor-mention,
+.editor-content [style*="text-decoration"][style*="line-through"] .editor-mention,
+.editor-content .editor-mention[data-mention-strike="true"] {
+  text-decoration-line: line-through;
+  text-decoration-color: currentColor;
+  text-decoration-thickness: auto;
+  text-decoration-skip-ink: none;
+}
+
+.editor-content u s .editor-mention,
+.editor-content s u .editor-mention,
+.editor-content strike u .editor-mention,
+.editor-content u strike .editor-mention,
+.editor-content del u .editor-mention,
+.editor-content u del .editor-mention,
+.editor-content .editor-mention[data-mention-user-underline="true"][data-mention-strike="true"],
+.editor-content u .editor-mention[data-mention-strike="true"],
+.editor-content s .editor-mention[data-mention-user-underline="true"],
+.editor-content strike .editor-mention[data-mention-user-underline="true"],
+.editor-content del .editor-mention[data-mention-user-underline="true"] {
+  text-decoration-line: underline line-through;
+  text-decoration-color: currentColor;
+  text-decoration-thickness: auto;
+  text-decoration-skip-ink: none;
+}
+
+.editor-content strong .editor-mention,
+.editor-content b .editor-mention,
+.editor-content [style*="font-weight: bold"] .editor-mention,
+.editor-content [style*="font-weight: 700"] .editor-mention {
+  font-weight: bold;
+}
+
+.editor-content em .editor-mention,
+.editor-content i .editor-mention,
+.editor-content [style*="font-style: italic"] .editor-mention {
+  font-style: italic;
+}
+
+/* Extend the text highlight behind the positioned icon using the label's font box. */
+.editor-content .editor-mention[data-mention-selected="true"] > .editor-mention__node-icon {
+  isolation: isolate;
+  overflow: visible;
+}
+
+.editor-content .editor-mention[data-mention-selected="true"] > .editor-mention__node-icon::after {
+  content: "";
+  position: absolute;
+  left: var(--mention-selection-left, -0.12em);
+  right: auto;
+  width: var(--mention-selection-width, 1.4em);
+  top: var(--mention-selection-top, 0);
+  height: var(--mention-selection-height, 1em);
+  background: color-mix(in srgb, var(--his-accent) 35%, #121417);
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* Keep the mask on the glyph so it cannot clip the selection rectangle. */
+.editor-content .editor-mention__node-icon.sidebar-icon {
+  background: transparent;
+  mask: none;
+  -webkit-mask: none;
+}
+
+.editor-content .editor-mention__node-icon.sidebar-icon::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: currentColor;
+  mask: var(--icon-url) center / contain no-repeat;
+  -webkit-mask: var(--icon-url) center / contain no-repeat;
+}
+
+.editor-content .editor-mention__node-icon > img {
+  display: block;
+  position: static;
+  width: 100%;
+  height: 100%;
+  transform: none;
+}
+
+.editor-content .editor-mention[data-mention-mode="full"] {
+  display: block;
+  width: 100%;
+  min-height: 0;
+  margin: 10px 0;
+  padding: 0;
+}
+
+.editor-content .editor-mention[data-mention-mode="full"]::before,
+.editor-content .editor-mention[data-mention-mode="full"]::after {
+  display: none;
+}
+
+.editor-content .editor-mention[data-mention-mode="full"] img {
+  display: block;
+  position: static;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: none;
+  flex: 0 1 auto;
+  object-fit: contain;
+  cursor: pointer;
+  transform: none;
+  transition: opacity 120ms ease;
+}
+
+.editor-content .editor-mention[data-mention-mode="full"] img:hover {
+  opacity: 0.92;
+}
+
+.editor-content .editor-mention[data-mention-mode="full"][data-mention-align="center"] img {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.editor-content .editor-mention[data-mention-mode="full"][data-mention-align="right"] img {
+  margin-left: auto;
+  margin-right: 0;
+}
+
+/* Cursor de una mencion eliminada. */
+.editor-content [data-deleted-mention="true"] {
+  color: #d84d4d;
+  cursor: pointer;
+  opacity: 0.6;
+}
+
+/* Menu flotante de menciones */
+.mention-menu.his-context-menu {
+  width: 340px;
+  min-width: 340px;
+  max-width: 340px;
+  box-sizing: border-box;
+  overflow: visible;
+}
+
+.mention-menu button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  font: inherit;
+  font-size: 13px;
+}
+
+.mention-menu__action-text,
+.mention-menu button > span:last-child {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mention-menu button.is-active {
+  background: #252b2d;
+  color: var(--his-accent);
+}
+
+.mention-menu button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.mention-menu button > .sidebar-icon {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+}
+
+.mention-menu__results {
+  max-height: min(240px, 35vh);
+  overflow-y: auto;
+}
+
+.mention-menu__node {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.mention-menu__node > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mention-menu__node small,
+.mention-menu__hint {
+  color: var(--his-icon-neutral);
+  font-size: 11px;
+}
+
+.mention-menu__hint {
+  display: block;
+  padding: 6px 9px;
+}
+
+.mention-menu__action-icon {
+  width: 18px;
+  flex: 0 0 18px;
+  text-align: center;
+  font-size: 20px;
+}
+
+.mention-menu__help {
+  position: absolute;
+  left: calc(100% + 8px);
+  top: 0;
+  width: 210px;
+  border: 1px solid var(--his-border-neutral);
+  border-radius: 10px;
+  padding: 14px;
+  background: var(--his-popover-surface);
+  box-shadow: 0 14px 34px rgb(0 0 0 / 32%);
+  color: #c7c9cc;
+  font-size: 12px;
+  line-height: 1.55;
+  animation: his-popover-enter var(--his-duration-enter) var(--his-ease-spring);
+  will-change: transform, opacity;
+  transform: translateZ(0);
+}
+
+.mention-menu__help.is-left {
+  left: auto;
+  right: calc(100% + 8px);
+}
+
+.mention-menu__help.is-bottom {
+  top: auto;
+  bottom: 0;
+}
+
+.mention-menu__help-icon {
+  display: grid;
+  place-items: center;
+  height: 70px;
+  margin-bottom: 12px;
+  background: #252b2d;
+  border-radius: 6px;
+  color: var(--his-accent);
+  font-size: 34px;
+}
+
+.mention-menu__help p {
+  margin: 8px 0 0;
+}
+
+.mention-menu__image-preview-frame {
+  width: 100%;
+  height: 90px;
+  background: #111316;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.mention-menu__image-thumb {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.mention-menu__image-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.6;
+}
+
+.mention-menu__image-preview-title {
+  display: block;
+  font-size: 13px;
+  font-weight: 650;
+  color: #f2f3f5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mention-menu__image-preview-desc {
+  margin: 6px 0 0;
+  font-size: 11.5px;
+  color: #8c929e;
+  line-height: 1.45;
+}
+
+/* Menú de selección de modo de nodo imagen (Insertado / Completo) */
+.image-mention-mode-menu.his-context-menu {
+  width: 240px;
+  overflow: visible;
+  animation: his-popover-enter var(--his-duration-enter) var(--his-ease-spring);
+}
+
+.image-mention-mode-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #c7c9cc;
+  text-align: left;
+  cursor: pointer;
+  transition: color var(--his-duration-fast) ease, background var(--his-duration-fast) ease;
+}
+
+.image-mention-mode-item.is-active,
+.image-mention-mode-item:hover,
+.image-mention-mode-item:focus-visible {
+  color: var(--his-accent, #9d7bff);
+  background: #252b2d;
+  outline: 0;
+}
+
+.image-mention-mode-item__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+.image-mention-mode-item__content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.image-mention-mode-item__content strong {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #e8e9ea;
+}
+
+.image-mention-mode-item.is-active .image-mention-mode-item__content strong,
+.image-mention-mode-item:hover .image-mention-mode-item__content strong {
+  color: var(--his-accent, #9d7bff);
+}
+
+.image-mention-mode-item__content small {
+  font-size: 11px;
+  color: #8c929e;
+}
+
+.image-mention-mode-item--cancel {
+  font-size: 12px;
+  color: #7a7f87;
+  padding: 6px 10px;
+}
+
+.image-mention-mode-item--cancel:hover {
+  color: #d87878;
+  background: rgba(216, 120, 120, 0.12);
+}
+
+/* Tarjeta lateral de vista previa de modo de imagen */
+.image-mode-preview-card {
+  position: absolute;
+  left: calc(100% + 8px);
+  top: 0;
+  width: 210px;
+  padding: 12px 14px;
+  background: var(--his-popover-surface, #181b1f);
+  border: 1px solid var(--his-border-neutral, rgba(255, 255, 255, 0.1));
+  border-radius: 10px;
+  box-shadow: 0 14px 34px rgb(0 0 0 / 32%);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: #c7c9cc;
+  animation: his-popover-enter var(--his-duration-enter) var(--his-ease-spring);
+  will-change: transform, opacity;
+  transform: translateZ(0);
+}
+
+.image-mode-preview-card.is-left {
+  left: auto;
+  right: calc(100% + 8px);
+}
+
+.image-mode-preview-card.is-bottom {
+  top: auto;
+  bottom: 0;
+}
+
+.image-mode-preview-card__screen {
+  width: 100%;
+  height: 84px;
+  background: #111316;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.image-mode-preview-card__title {
+  font-size: 13px;
+  font-weight: 650;
+  color: #f2f3f5;
+}
+
+.image-mode-preview-card__desc {
+  font-size: 11.5px;
+  color: #8c929e;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.image-mode-preview__inline-sample {
+  display: flex;
+  align-items: center;
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.image-mode-preview__text-dim {
+  color: #5a5f66;
+}
+
+.image-mode-preview__inline-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(157, 123, 255, 0.15);
+  border: 1px solid rgba(157, 123, 255, 0.3);
+  border-radius: 4px;
+  padding: 1px 5px;
+  color: var(--his-accent, #9d7bff);
+  font-size: 11px;
+  font-weight: 500;
+  max-width: 110px;
+  overflow: hidden;
+}
+
+.image-mode-preview__pill-thumb {
+  width: 13px;
+  height: 13px;
+  object-fit: contain;
+  border-radius: 2px;
+  flex: 0 0 13px;
+}
+
+.image-mode-preview__pill-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.image-mode-preview__full-sample {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.image-mode-preview__full-thumb {
+  max-width: 100%;
+  max-height: 68px;
+  object-fit: contain;
+  border-radius: 4px;
+}
+
+.image-mode-preview__full-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.6;
+}
+
+.mention-menu--destination.his-context-menu {
+  width: 380px;
+}
+
+.mention-menu__destination-title {
+  padding: 10px 9px;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  color: #e8e9ea;
+}
+
+.mention-menu--destination input {
+  width: 100%;
+  border: 1px solid var(--his-border-neutral);
+  border-radius: 6px;
+  padding: 9px;
+  background: #121417;
+  color: #e8e9ea;
+  font: inherit;
+  font-size: 13px;
+  outline: none;
+}
+
+.mention-menu--destination input:focus {
+  border-color: var(--his-accent);
+}
+
+.mention-menu__tree {
+  height: min(330px, 45vh);
+  overflow: auto;
+}
+
+.mention-menu__tree-row {
+  display: flex;
+  align-items: center;
+}
+
+.mention-menu__tree-row button {
+  min-width: 0;
+}
+
+.mention-menu__tree-row button span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mention-menu__tree-row .mention-menu__expand {
+  width: 25px;
+  flex: 0 0 25px;
+  padding: 8px 5px;
+  justify-content: center;
+}
+
+@media (max-width: 650px) {
+  .mention-menu__help {
+    display: none;
+  }
+}
+
+/* Hover Preview Card para menciones de nodo */
+.his-mention-hover-card {
+  width: 280px;
+  max-width: calc(100vw - 24px);
+  padding: 12px 14px;
+  background: #16191d;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  box-shadow: 0 10px 24px -4px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  animation: his-popover-enter var(--his-duration-enter) var(--his-ease-spring);
+  will-change: transform, opacity;
+  transform: translateZ(0);
+  pointer-events: auto;
+}
+
+.his-mention-hover-card.is-closing {
+  animation: his-popover-exit var(--his-duration-fast) var(--his-ease-in) forwards;
+  pointer-events: none;
+}
+
+.his-mention-hover-card__header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.his-mention-hover-card__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+.his-mention-hover-card__title-group {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.his-mention-hover-card__title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #e8e9ea;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.his-mention-hover-card__type-badge {
+  display: inline-block;
+  align-self: flex-start;
+  font-size: 10px;
+  font-weight: 500;
+  padding: 1px 5px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  margin-top: 2px;
+}
+
+.his-mention-hover-card__description {
+  font-size: 12px;
+  line-height: 1.45;
+  color: #9ba4aa;
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.his-mention-hover-card__footer {
+  display: flex;
+  justify-content: flex-end;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding-top: 8px;
+}
+
+.his-mention-hover-card__open-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  font-size: 11px;
+  color: var(--his-accent, #60a5fa);
+  background: rgba(96, 165, 250, 0.08);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.his-mention-hover-card__open-btn:hover {
+  background: rgba(96, 165, 250, 0.18);
+}
+
+.his-mention-hover-card__open-btn img {
+  width: 12px;
+  height: 12px;
+  filter: var(--his-filter-accent);
+}

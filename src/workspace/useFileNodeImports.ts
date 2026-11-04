@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
+import { createDiagnosticEvent, emitDiagnosticEvent } from "../diagnostics/events";
 import { hasNodeCapability } from "../defs/nodeTypes";
 import type { Translate } from "../i18n/LocaleContext";
 import {
@@ -35,9 +36,29 @@ export function useFileNodeImports({ nodes, createNode, translate, reportError, 
   const importFile = useCallback(async (file: File, parentId: string | null = null) => {
     reportError(null);
     try {
-      return await importFileAsNode(file, parentId, { nodes, createNode });
+      const imported = await importFileAsNode(file, parentId, { nodes, createNode });
+      if (imported) {
+        emitDiagnosticEvent(createDiagnosticEvent({
+          level: "INFO",
+          category: "ASSETS",
+          action: "file.imported",
+          operation: "file.import",
+          nodeId: imported.id,
+          ...(parentId ? { relatedNodeIds: [parentId] } : {}),
+          message: "File imported as a node",
+          technicalDetail: JSON.stringify({ type: imported.type }),
+        }));
+      }
+      return imported;
     } catch (error) {
-      console.error(error);
+      emitDiagnosticEvent(createDiagnosticEvent({
+        level: "ERROR",
+        category: "ASSETS",
+        action: "file.import.failed",
+        operation: "file.import",
+        message: "File could not be imported as a node",
+        technicalDetail: error instanceof Error ? `${error.name}: ${error.message}` : String(error),
+      }));
       reportError(translate(
         error instanceof FileNodeImportError ? error.translationKey : "fileImport.failed",
       ));

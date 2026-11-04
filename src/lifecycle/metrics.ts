@@ -1,3 +1,5 @@
+import { createDiagnosticEvent, emitDiagnosticEvent } from "../diagnostics/events";
+
 const flowStarts = new Map<string, number>();
 
 interface CloseProjectTrace {
@@ -23,7 +25,15 @@ export function beginCloseProjectTrace(): string {
   const id = traceId();
   closeTraces.set(id, { id, started: performance.now(), phases: new Map() });
   activeCloseTraceId = id;
-  console.info(`[lifecycle][${id}] close-project requested`);
+  emitDiagnosticEvent(createDiagnosticEvent({
+    level: "INFO",
+    category: "PROJECT",
+    action: "close.started",
+    operation: "workspace.close",
+    operationId: id,
+    message: "Closing project",
+    technicalDetail: JSON.stringify({ traceId: id }),
+  }));
   return id;
 }
 
@@ -36,7 +46,15 @@ export function recordCloseProjectPhase(traceId: string | null, name: string, du
   const trace = closeTraces.get(traceId);
   if (!trace) return;
   trace.phases.set(name, (trace.phases.get(name) ?? 0) + durationMs);
-  console.info(`[lifecycle][${traceId}] ${name}: ${durationMs.toFixed(1)} ms`);
+  emitDiagnosticEvent(createDiagnosticEvent({
+    level: "DEBUG",
+    category: "PROJECT",
+    action: "close.phase.completed",
+    operation: "workspace.close",
+    operationId: traceId,
+    message: `${name} completed`,
+    technicalDetail: JSON.stringify({ phase: name, durationMs: Number(durationMs.toFixed(1)) }),
+  }));
 }
 
 export function measureActiveCloseProjectPhase<T>(name: string, task: () => T): T {
@@ -81,10 +99,18 @@ export function finishCloseProjectAtHomePaint(): void {
       ms: Number(duration.toFixed(1)),
     }));
     rows.push({ phase: "close-project total", ms: Number((finished - trace.started).toFixed(1)) });
-    console.info(`[lifecycle][${trace.id}] close-project trace ${JSON.stringify(rows)}`);
-    console.groupCollapsed(`[lifecycle][${trace.id}] close-project total ${(finished - trace.started).toFixed(1)} ms`);
-    console.table(rows);
-    console.groupEnd();
+    emitDiagnosticEvent(createDiagnosticEvent({
+      level: "INFO",
+      category: "PROJECT",
+      action: "close.completed",
+      operation: "workspace.close",
+      operationId: trace.id,
+      message: "Project closed",
+      technicalDetail: JSON.stringify({
+        phases: rows,
+        totalMs: Number((finished - trace.started).toFixed(1)),
+      }),
+    }));
     if (activeCloseTraceId === trace.id) activeCloseTraceId = null;
     globalThis.setTimeout(() => closeTraces.delete(trace.id), 10_000);
   }, 50);
@@ -94,7 +120,19 @@ export function failCloseProjectTrace(error: unknown): void {
   if (!activeCloseTraceId) return;
   const trace = closeTraces.get(activeCloseTraceId);
   if (trace) {
-    console.error(`[lifecycle][${trace.id}] close-project failed after ${(performance.now() - trace.started).toFixed(1)} ms`, error);
+    const detail = error instanceof Error ? { name: error.name, message: error.message } : { message: String(error) };
+    emitDiagnosticEvent(createDiagnosticEvent({
+      level: "ERROR",
+      category: "PROJECT",
+      action: "close.failed",
+      operation: "workspace.close",
+      operationId: trace.id,
+      message: "Project could not be closed safely",
+      technicalDetail: JSON.stringify({
+        ...detail,
+        elapsedMs: Number((performance.now() - trace.started).toFixed(1)),
+      }),
+    }));
     closeTraces.delete(trace.id);
   }
   activeCloseTraceId = null;
@@ -109,7 +147,13 @@ export function finishLifecycleFlow(name: string, finalPhase: string): number | 
   if (started === undefined) return null;
   flowStarts.delete(name);
   const duration = performance.now() - started;
-  console.info(`[lifecycle] ${name}.${finalPhase}: ${duration.toFixed(1)} ms`);
+  emitDiagnosticEvent(createDiagnosticEvent({
+    level: "DEBUG",
+    category: "SYSTEM",
+    action: "lifecycle.flow.completed",
+    message: `${name}.${finalPhase} completed`,
+    technicalDetail: JSON.stringify({ flow: name, finalPhase, durationMs: Number(duration.toFixed(1)) }),
+  }));
   return duration;
 }
 

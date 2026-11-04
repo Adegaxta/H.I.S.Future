@@ -10,7 +10,6 @@ declare module "lucide-react/dist/esm/icons/*.mjs" {
 interface ImportMetaEnv {
 	readonly VITE_UNSPLASH_ACCESS_KEY?: string;
 	readonly VITE_UNSPLASH_APP_NAME?: string;
-	readonly VITE_GEMITAV_V0?: string;
 	readonly VITE_CONTEXT_ENGINE_V1?: string;
 }
 

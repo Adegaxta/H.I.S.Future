@@ -54,27 +54,36 @@ import WorkspaceHistoryControls from "../workspace/navigation/WorkspaceHistoryCo
 import { getLoreAncestorIds, getLoreExpandableIds, getNodeSidebarLocation } from "../utils/loreTree";
 import { useResolvedNodeCustomVisual } from "../nodes/nodeIconSource";
 import { getNodalMeta, setNodalMeta } from "../nodes/metadata";
-import { nodeToMarkdown } from "../export/nodeMarkdown";
+import { useExportService } from "../export/useExportService";
 import NodeActionDialog, { type ExportFormat, type PdfExportSettings } from "./NodeActionDialog";
 import PrintDocument from "./PrintDocument";
-import { save } from "@tauri-apps/plugin-dialog";
-import { invoke } from "@tauri-apps/api/core";
 import { clearImageRuntimeCache } from "../utils/imageRuntimeResolver";
 import { analyzeLegacyImageMigration, migrateLegacyImages, type ImageMigrationPlan } from "../project/imageMigration";
-import BrainCircuit from "lucide-react/dist/esm/icons/brain-circuit.mjs";
 import FileText from "lucide-react/dist/esm/icons/file-text.mjs";
 import Network from "lucide-react/dist/esm/icons/network.mjs";
 import { ViewRegistry } from "../workspace/tabs/ViewRegistry";
 import { WorkspaceSurface } from "../workspace/tabs/WorkspaceSurface";
-import { createTab, createWorkspaceLayout, findPane, restoreWorkspaceLayout, setFocusedTabView, updateTab, type WorkspaceLayout, type WorkspaceViewType } from "../workspace/tabs/model";
+import {
+  activateTab,
+  closeTab,
+  createTab,
+  createWorkspaceLayout,
+  findPane,
+  listPanes,
+  restoreWorkspaceLayout,
+  setFocusedTabView,
+  type WorkspaceLayout,
+  type WorkspaceViewType,
+} from "../workspace/tabs/model";
 import { NodeIcon } from "../nodes/NodeIcon";
 import { IconCapabilityPicker } from "../nodes/capabilities/IconCapabilityPicker";
 import { NodeVisualRenderer } from "../nodes/visuals/NodeVisualRenderer";
-import { createImageContent, getImageResourceDescriptor } from "../utils/imageResource";
-import type { UnsplashImageSelection } from "../integrations/unsplash/types";
+
+
+import { getDiagnosticEvents, subscribeDiagnosticEvents } from "../diagnostics/events";
 
 const GraphView = lazy(() => import("../graph/view"));
-const AIWorkspace = lazy(() => import("../ai/AIWorkspace"));
+const DevelopmentConsole = lazy(() => import("./DevelopmentConsole"));
 const TrashNodeView = lazy(() => import("../workspace/panels/TrashNodeView").then((module) => ({ default: module.TrashNodeView })));
 const VIEW_RAIL_WIDTH = 52;
 
@@ -86,7 +95,7 @@ interface AppWorkspaceProps {
 
 interface WorkspaceLocation {
   selectedId: string | null;
-  view: "list" | "graph" | "ai";
+  view: "list" | "graph";
   projectTab: "workspace" | "settings";
   settingsPanel: "general" | "trash" | "changelog";
   sidebarPanel: "lore" | "recent" | "types";
@@ -96,7 +105,7 @@ interface WorkspaceLocation {
 function readWorkspaceLocation(key: string): WorkspaceLocation | null {
   try {
     const parsed = JSON.parse(localStorage.getItem(key) || "null") as Partial<WorkspaceLocation> | null;
-    if (!parsed || (parsed.view !== "list" && parsed.view !== "graph" && parsed.view !== "ai") ||
+    if (!parsed || (parsed.view !== "list" && parsed.view !== "graph") ||
       (parsed.projectTab !== "workspace" && parsed.projectTab !== "settings") ||
       !["general", "trash", "changelog"].includes(parsed.settingsPanel || "") ||
       !["lore", "recent", "types"].includes(parsed.sidebarPanel || "") ||
@@ -121,12 +130,23 @@ export default function AppWorkspace({
   }: AppWorkspaceProps) {
   const { locale, t } = useLocale();
   useEffect(() => () => clearImageRuntimeCache(), [projectKey]);
-  const { setPresence } = usePresence();
+  const { setPresence, setDiscordEnabled } = usePresence();
+  const [discordPresence, setDiscordPresence] = useState<boolean>(() => {
+    return localStorage.getItem(`hisfuture.settings.discord-presence.${projectKey}`) !== "disabled";
+  });
+  useEffect(() => {
+    setDiscordEnabled(discordPresence);
+    safeLocalStorageSet(`hisfuture.settings.discord-presence.${projectKey}`, discordPresence ? "enabled" : "disabled");
+    return () => {
+      setDiscordEnabled(true);
+    };
+  }, [discordPresence, projectKey, setDiscordEnabled]);
   const colorStorageKey = `hisfuture.project.color.${projectKey}`;
   const locationStorageKey = `hisfuture.project.location.${projectKey}`;
   const workspaceLayoutStorageKey = `hisfuture.workspace.layout.v1.${projectKey}`;
   const timeFormatStorageKey = "hisfuture.settings.time-format";
   const trashViewStorageKey = `hisfuture.settings.trash-view.${projectKey}`;
+
   const [defaultNodeType, setDefaultNodeType] = useState<BaseNodeType>(() => readDefaultNodeType(projectKey));
   const [timeFormat, setTimeFormat] = useState<TimeFormat>(() =>
     localStorage.getItem(timeFormatStorageKey) === "24h" ? "24h" : "12h",
@@ -175,14 +195,14 @@ export default function AppWorkspace({
   const sidebarImageInputRef = useRef<HTMLInputElement | null>(null);
   const [workspaceLayout, setWorkspaceLayout] = useState<WorkspaceLayout>(() => {
     const legacy = readWorkspaceLocation(locationStorageKey);
-    const legacyType: WorkspaceViewType = legacy?.view === "ai" ? "ai" : legacy?.view === "graph" ? "graph" : "node";
+    const legacyType: WorkspaceViewType = legacy?.view === "graph" ? "graph" : "node";
     const fallback = createWorkspaceLayout(createTab(legacyType, legacyType === "node" ? legacy?.selectedId ?? undefined : undefined));
     return restoreWorkspaceLayout(localStorage.getItem(workspaceLayoutStorageKey), fallback);
   });
   const focusedWorkspacePane = findPane(workspaceLayout.root, workspaceLayout.focusedPaneId);
   const focusedWorkspaceTab = focusedWorkspacePane?.tabs.find((tab) => tab.id === focusedWorkspacePane.activeTabId);
-  const view: "list" | "graph" | "ai" = focusedWorkspaceTab?.viewType === "ai" ? "ai" : focusedWorkspaceTab?.viewType === "graph" ? "graph" : "list";
-  const setView = useCallback((next: "list" | "graph" | "ai") => {
+  const view: "list" | "graph" = focusedWorkspaceTab?.viewType === "graph" ? "graph" : "list";
+  const setView = useCallback((next: "list" | "graph") => {
     const type: WorkspaceViewType = next === "list" ? "node" : next;
     setWorkspaceLayout((current) => setFocusedTabView(current, type, type === "node" ? workspace.selectedId ?? undefined : undefined));
   }, [workspace.selectedId]);
@@ -201,12 +221,30 @@ export default function AppWorkspace({
   );
   const [inspectedNodeId, setInspectedNodeId] = useState<string | null>(null);
   const [fileImportError, setFileImportError] = useState<string | null>(null);
+  const [zenMode, setZenMode] = useState(false);
   const [avatarColor] = useState(
     () =>
       localStorage.getItem(colorStorageKey) ||
       AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)],
   );
   const locationRestoredRef = useRef(false);
+  const [consoleOpen, setConsoleOpen] = useState(false);
+  const [consoleStatus, setConsoleStatus] = useState<"stable" | "warning" | "error">(() => {
+    const events = getDiagnosticEvents();
+    if (events.some((e) => e.level === "ERROR")) return "error";
+    if (events.some((e) => e.level === "WARN")) return "warning";
+    return "stable";
+  });
+
+  useEffect(() => {
+    const updateStatus = () => {
+      const events = getDiagnosticEvents();
+      if (events.some((e) => e.level === "ERROR")) setConsoleStatus("error");
+      else if (events.some((e) => e.level === "WARN")) setConsoleStatus("warning");
+      else setConsoleStatus("stable");
+    };
+    return subscribeDiagnosticEvents(updateStatus);
+  }, []);
 
   useEffect(() => {
     if (!workspace.hydrated || locationRestoredRef.current) return;
@@ -243,6 +281,24 @@ export default function AppWorkspace({
   }, [workspace.hydrated, workspaceLayout, workspaceLayoutStorageKey]);
 
   useEffect(() => {
+    if (!workspace.hydrated || !workspace.deletedNodes.length) return;
+    const deletedIds = new Set(workspace.deletedNodes.map((n) => n.id));
+    setWorkspaceLayout((current) => {
+      let layout = current;
+      let changed = false;
+      for (const pane of listPanes(layout.root)) {
+        for (const tab of pane.tabs) {
+          if (tab.viewType === "node" && tab.resourceId && deletedIds.has(tab.resourceId)) {
+            layout = closeTab(layout, pane.id, tab.id);
+            changed = true;
+          }
+        }
+      }
+      return changed ? layout : current;
+    });
+  }, [workspace.deletedNodes, workspace.hydrated]);
+
+  useEffect(() => {
     safeLocalStorageSet(colorStorageKey, avatarColor);
   }, [avatarColor, colorStorageKey]);
   useEffect(() => {
@@ -269,9 +325,7 @@ export default function AppWorkspace({
   const [nodeAction, setNodeAction] = useState<"link" | "folder" | "template" | "export" | "confirm" | null>(null);
   const [nodeActionNodeId, setNodeActionNodeId] = useState<string | null>(null);
   const [templateToApply, setTemplateToApply] = useState<{ name: string; type: string; content: string } | null>(null);
-  const [printNode, setPrintNode] = useState<NodeItem | null>(null);
-  const [printSettings, setPrintSettings] = useState<PdfExportSettings>({ pageSize: "a4", orientation: "portrait", scale: 1, includeTitle: true, includeIcon: true, includeCover: true, includeImages: true });
-  const printReadyRef = useRef<((editor?: HTMLDivElement, error?: Error) => void) | null>(null);
+  const exportService = useExportService();
   const editorRef = useRef<HTMLDivElement | null>(null);
   const tabEditorRefs = useRef(new Map<string, RefObject<HTMLDivElement | null>>());
   const getTabEditorRef = (tabId: string) => {
@@ -352,6 +406,17 @@ export default function AppWorkspace({
     return () => window.removeEventListener("keydown", handleRenameShortcut);
   }, [selectedLoreIds, workspace]);
 
+  useEffect(() => {
+    const handleZenModeShortcut = (event: KeyboardEvent) => {
+      if (event.key === "F11" && !event.defaultPrevented) {
+        event.preventDefault();
+        setZenMode((prev) => !prev);
+      }
+    };
+    window.addEventListener("keydown", handleZenModeShortcut);
+    return () => window.removeEventListener("keydown", handleZenModeShortcut);
+  }, []);
+
 
   const revealNodeInSidebar = (id: string, forceLore = false) => {
     const location = forceLore ? "lore" : getNodeSidebarLocation(workspace.nodes, id);
@@ -372,7 +437,16 @@ export default function AppWorkspace({
     setInspectedNodeId(null);
     setSelectedTrashNodeId(null);
     setProjectTab("workspace");
-    setWorkspaceLayout((current) => setFocusedTabView(current, "node", id));
+    setWorkspaceLayout((current) => {
+      const panes = listPanes(current.root);
+      for (const pane of panes) {
+        const matchingTab = pane.tabs.find((t) => t.viewType === "node" && t.resourceId === id);
+        if (matchingTab) {
+          return activateTab(current, pane.id, matchingTab.id);
+        }
+      }
+      return setFocusedTabView(current, "node", id);
+    });
     if (sidebarPanel === "lore" || focusedWorkspaceTab?.viewType === "graph") revealNodeInSidebar(id);
     workspace.setSelectedId(id);
   };
@@ -386,6 +460,7 @@ export default function AppWorkspace({
     workspace.setSelectedId(id);
     setInspectedNodeId(id);
   };
+
 
   const workspaceNavigation = useWorkspaceNavigation({
     getScrollElement: () => {
@@ -447,6 +522,7 @@ export default function AppWorkspace({
     projectVisual, selectVisual, clear: clearProjectImage,
     updateImageContent,
     useAsCover,
+    chooseUnsplash: chooseVaultUnsplash,
   } = useProjectCover({
     projectKey,
     hydrated: workspace.hydrated,
@@ -470,13 +546,6 @@ export default function AppWorkspace({
   const [vaultImagePickerOpen, setVaultImagePickerOpen] = useState(false);
   const [vaultImageTab, setVaultImageTab] = useState<"local" | "emoji" | "icon" | "unsplash">("local");
   const chooseVaultImage = (id: string, presentation?: ImagePresentation) => { useAsCover(id, presentation); setVaultImagePickerOpen(false); };
-  const chooseVaultUnsplash = async (selection: UnsplashImageSelection) => {
-    const existing = workspace.nodes.find((item) => {
-      const resource = item.type === "imagen" ? getImageResourceDescriptor(item.content, item.name) : null;
-      return resource?.provenance?.provider === selection.provenance.provider && resource.provenance.resourceId === selection.provenance.resourceId;
-    });
-    return existing?.id ?? workspace.createNode(selection.fileName, "imagen", null, createImageContent(selection.src, selection.fileName, null, null, selection.description, selection.provenance), false);
-  };
   const calendarOperationsHost = {
     nodes: workspace.nodes,
     createNode: workspace.createNode,
@@ -579,6 +648,8 @@ export default function AppWorkspace({
       node={optionNode}
       x={position.x}
       y={position.y}
+      zenMode={zenMode}
+      onToggleZenMode={() => setZenMode((prev) => !prev)}
       onClose={() => close()}
       onToggleMeta={updateNodeMeta}
       onTogglePrimary={() => workspace.mutateNodes((nodes) => getNodalMeta(optionNode.content).role === "vault-primary"
@@ -658,18 +729,6 @@ export default function AppWorkspace({
       },
     })
     .register({
-      type: "ai",
-      title: t("ai.title"),
-      icon: BrainCircuit,
-      keepAlive: true,
-      renderer: (tab) => <Suspense fallback={<div className="app-loading-screen" role="status">Cargando IA…</div>}><AIWorkspace
-        nodes={workspace.nodes}
-        projectId={projectKey}
-        initialConversationId={typeof tab.state?.conversationId === "string" ? tab.state.conversationId : undefined}
-        onConversationChange={(conversationId) => setWorkspaceLayout((current) => updateTab(current, tab.id, (currentTab) => ({ ...currentTab, state: { ...currentTab.state, conversationId } })))}
-      /></Suspense>,
-    })
-    .register({
       type: "graph",
       title: t("graph.title"),
       icon: Network,
@@ -693,7 +752,7 @@ export default function AppWorkspace({
   return (
     <div
       onContextMenu={(event) => event.preventDefault()}
-      className="app-workspace"
+      className={`app-workspace${zenMode ? " is-zen-mode" : ""}`}
     >
       <header
         className="workspace-header"
@@ -719,9 +778,9 @@ export default function AppWorkspace({
 
       <div className="workspace-body">
         <aside
-          className={`workspace-sidebar${sidebarVisible && view !== "ai" ? "" : " is-collapsed"}${view === "ai" ? " is-ai-view" : ""}`}
+          className={`workspace-sidebar${sidebarVisible ? "" : " is-collapsed"}`}
           data-sidebar="true"
-          style={{ width: `${sidebarVisible && view !== "ai" ? width : VIEW_RAIL_WIDTH}px` }}
+          style={{ width: `${sidebarVisible ? width : VIEW_RAIL_WIDTH}px` }}
         >
           <nav className="view-rail" aria-label={t("workspace.panels")}>
             <button className="view-rail__toggle" type="button" onClick={() => setSidebarVisible((current) => !current)} aria-label={sidebarVisible ? t("sidebar.hide") : t("sidebar.show")} data-label={sidebarVisible ? t("sidebar.hide") : t("sidebar.show")}><UiIcon name="sidebar" /></button>
@@ -737,8 +796,15 @@ export default function AppWorkspace({
               <button type="button" aria-label={t("graph.title")} data-label={t("graph.title")} className={`view-rail__item ${focusedWorkspaceTab?.viewType === "graph" && projectTab === "workspace" ? "is-active" : ""}`} onClick={() => { cancelLoreMultiSelection(); setProjectTab("workspace"); setSidebarQuery(""); setView("graph"); }}>
                 <UiIcon name="graph" active={focusedWorkspaceTab?.viewType === "graph" && projectTab === "workspace"} />
               </button>
-              <button type="button" aria-label={t("ai.title")} data-label={t("ai.title")} className={`view-rail__item view-rail__item--ai ${focusedWorkspaceTab?.viewType === "ai" && projectTab === "workspace" ? "is-active" : ""}`} onClick={() => { cancelLoreMultiSelection(); setSelectedTrashNodeId(null); setInspectedNodeId(null); setProjectTab("workspace"); setSidebarQuery(""); setView("ai"); }}>
-                <UiIcon name="ai" active={focusedWorkspaceTab?.viewType === "ai" && projectTab === "workspace"} />
+              <button
+                type="button"
+                className={`view-rail__item view-rail__console ${consoleOpen ? "is-active" : ""}`}
+                onClick={() => setConsoleOpen((current) => !current)}
+                aria-label="Super Console"
+                data-label="Super Console"
+              >
+                <UiIcon name="console" active={consoleOpen} />
+                <span className={`view-rail__console-dot view-rail__console-dot--${consoleStatus}`} />
               </button>
               <button type="button" className="view-rail__exit" onClick={() => void exitWorkspace()} aria-label={t("workspace.exit")} data-label={t("workspace.exit")}><UiIcon name="exit" /></button>
           </nav>
@@ -813,7 +879,7 @@ export default function AppWorkspace({
           </section>
         </aside>
 
-        {sidebarVisible && view !== "ai" && (
+        {sidebarVisible && (
           <div onMouseDown={startResize} className="workspace-resizer" />
         )}
 
@@ -854,18 +920,21 @@ export default function AppWorkspace({
               onDefaultNodeTypeChange={setDefaultNodeType}
               timeFormat={timeFormat}
               onTimeFormatChange={setTimeFormat}
+              discordPresence={discordPresence}
+              onDiscordPresenceChange={setDiscordPresence}
               appVersion={appVersion}
             />
+
           )}
         </main>
         )}
-        {view !== "ai" && <WorkspaceHistoryControls
+        <WorkspaceHistoryControls
           mainRef={workspaceMainRef}
           canBack={workspaceNavigation.canBack}
           canForward={workspaceNavigation.canForward}
           onBack={workspaceNavigation.back}
           onForward={workspaceNavigation.forward}
-        />}
+        />
       </div>
 
       {contextMenu && (
@@ -921,75 +990,8 @@ export default function AppWorkspace({
         const folders = workspace.nodes.filter((item) => item.id !== actionNode.id && workspace.nodes.some((child) => child.parentId === item.id));
         const templates = (JSON.parse(localStorage.getItem(`hisfuture.templates.${projectKey}`) || "[]") as Array<{ name: string; type: string; content: string }>).filter((template) => template.type === actionNode.type);
         const download = async (format: ExportFormat, settings: PdfExportSettings) => {
-          const started = performance.now();
-          const logPdf = (message: string) => console.info(`[PDF][+${Math.round(performance.now() - started)}ms] ${message}`);
-          logPdf("export requested");
-          const filename = actionNode.name.trim().replace(/[<>:"/\\|?*\x00-\x1F]/g, "-") || "nodo";
-          if (isDesktopRuntime()) {
-            if (format === "pdf") {
-              try {
-                const data = await new Promise<number[]>((resolve, reject) => {
-                  let phase = "PrintDocument";
-                  const timeout = window.setTimeout(() => {
-                    printReadyRef.current = null;
-                    reject(new Error(`[PDF] timeout during ${phase} readiness`));
-                  }, 30_000);
-                  printReadyRef.current = async (_printEditor, hydrationError) => {
-                    try {
-                      if (hydrationError) throw hydrationError;
-                      logPdf("PrintDocument mounted");
-                      phase = "fonts";
-                      await document.fonts.ready;
-                      logPdf("fonts ready");
-                      phase = "images";
-                      const images = Array.from(document.querySelectorAll<HTMLImageElement>(".his-print-document img"));
-                      await Promise.all(images.map((image, index) => {
-                        if (image.complete) {
-                          return image.naturalWidth > 0
-                            ? Promise.resolve()
-                            : Promise.reject(new Error(`[PDF] imagen ${index + 1} no disponible`));
-                        }
-                        return new Promise<void>((resolveImage, rejectImage) => {
-                          image.addEventListener("load", () => resolveImage(), { once: true });
-                          image.addEventListener("error", () => rejectImage(new Error(`[PDF] imagen ${index + 1} no disponible`)), { once: true });
-                        });
-                      }));
-                      logPdf("images ready");
-                      phase = "WebView2 PrintToPdfStream";
-                      logPdf("invoke started");
-                      const result = await invoke<number[]>("print_webview_to_pdf", { settings });
-                      window.clearTimeout(timeout);
-                      logPdf(`frontend received ${result.length} bytes`);
-                      resolve(result);
-                    } catch (error) {
-                      window.clearTimeout(timeout);
-                      console.error("[PDF] export failed", error);
-                      reject(error instanceof Error ? error : new Error(String(error)));
-                    }
-                  };
-                  setPrintSettings(settings);
-                  setPrintNode(actionNode);
-                });
-                logPdf("Save As opened");
-                const path = await save({ defaultPath: `${filename}.pdf`, title: `Exportar ${actionNode.name}`, filters: [{ name: "PDF", extensions: ["pdf"] }] });
-                if (path) {
-                  await invoke("save_image_file", { path, data });
-                  logPdf("file written");
-                }
-              } finally {
-                printReadyRef.current = null;
-                setPrintNode(null);
-              }
-            } else {
-              const blob = new Blob([nodeToMarkdown(actionNode)], { type: "text/markdown;charset=utf-8" });
-              const path = await save({ defaultPath: `${filename}.md`, title: `Exportar ${actionNode.name}`, filters: [{ name: "Markdown", extensions: ["md"] }] });
-              if (path) await invoke("save_image_file", { path, data: Array.from(new Uint8Array(await blob.arrayBuffer())) });
-            }
-          } else {
-            throw new Error("La exportación PDF HTML/CSS está implementada actualmente solo para Windows.");
-          }
+          await exportService.exportNode(actionNode, format, settings);
           setNodeAction(null);
-
         };
         return <NodeActionDialog
           mode={nodeAction}
@@ -1071,7 +1073,22 @@ export default function AppWorkspace({
             onIconSelect={(provider, name) => { selectVisual({ kind: "icon", provider, name }); setVaultImagePickerOpen(false); }}
             onClear={() => { clearProjectImage(); setVaultImagePickerOpen(false); }} clearLabel={t("workspace.removeVaultImage")} />
       </ImagePickerDialog>}
-      {printNode && <PrintDocument node={printNode} host={nodeViewHost} settings={printSettings} onReady={(printEditor) => printReadyRef.current?.(printEditor)} onError={(error) => printReadyRef.current?.(undefined, error)} />}
+      {exportService.printNode && <PrintDocument node={exportService.printNode} host={nodeViewHost} settings={exportService.printSettings} onReady={(printEditor) => exportService.printReadyRef.current?.(printEditor)} onError={(error) => exportService.printReadyRef.current?.(undefined, error)} />}
+      <Suspense fallback={null}>
+        <DevelopmentConsole
+          nodes={workspace.nodes}
+          deletedNodeIds={workspace.deletedNodes.map((n) => n.id)}
+          workspaceAvailable={true}
+          onInspectNode={openNodeInspection}
+          onNavigateNode={openNodeView}
+          onNavigateDeletedNode={openDeletedNode}
+          focusNodeId={inspectedNodeId}
+          openRequest={0}
+          onClearNodeFocus={() => setInspectedNodeId(null)}
+          isOpen={consoleOpen}
+          onOpenChange={setConsoleOpen}
+        />
+      </Suspense>
     </div>
   );
 }

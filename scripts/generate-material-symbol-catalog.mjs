@@ -10,6 +10,15 @@ if (!fs.existsSync(sourcePath)) {
   throw new Error("Material Symbols is not installed. Run npm install before generating the catalogue.");
 }
 
+if (fs.existsSync(outputPath)) {
+  const sourceStat = fs.statSync(sourcePath);
+  const outputStat = fs.statSync(outputPath);
+  if (outputStat.mtimeMs >= sourceStat.mtimeMs && outputStat.size > 1000) {
+    // Catalogue is up to date; skip re-parsing 1,800+ symbols.
+    process.exit(0);
+  }
+}
+
 const source = fs.readFileSync(sourcePath, "utf8");
 const names = [...source.matchAll(/^\s+"([^"]+)",?$/gm)].map((match) => match[1]);
 const requiredNames = ["home", "image", "search", "settings"];

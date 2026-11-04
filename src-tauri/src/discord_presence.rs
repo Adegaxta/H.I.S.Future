@@ -2,11 +2,11 @@ use discord_rich_presence::{
     activity::{Activity, Assets, Timestamps},
     DiscordIpc, DiscordIpcClient,
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::{
     sync::{
         mpsc::{self, Receiver, RecvTimeoutError, Sender},
-        Mutex,
+        Arc, Mutex,
     },
     thread::{self, JoinHandle},
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
@@ -14,6 +14,7 @@ use std::{
 
 pub const DISCORD_APPLICATION_ID: &str = "1548208254247764078";
 const CONNECTION_PROBE_INTERVAL: Duration = Duration::from_secs(15);
+pub const DISCORD_PRESENCE_DIAGNOSTIC_EVENT: &str = "discord-presence-diagnostic";
 
 // Discord's Public Key verifies incoming HTTP interactions. Local RPC over IPC
 // authenticates its handshake with the Application ID, so no Public Key is used.
@@ -42,6 +43,18 @@ impl PresenceActivity {
     }
 }
 
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PresenceDiagnosticEvent {
+    pub level: &'static str,
+    pub category: &'static str,
+    pub action: &'static str,
+    pub message: &'static str,
+    pub technical_detail: String,
+}
+
+type DiagnosticReporter = Arc<dyn Fn(PresenceDiagnosticEvent) + Send + Sync>;
+
 enum PresenceCommand {
     Set(PresenceActivity),
     Clear,
@@ -54,11 +67,13 @@ pub struct DiscordPresenceManager {
 }
 
 impl DiscordPresenceManager {
-    pub fn new() -> Self {
+    pub fn new(reporter: impl Fn(PresenceDiagnosticEvent) + Send + Sync + 'static) -> Self {
         let (sender, receiver) = mpsc::channel();
+        let reporter: DiagnosticReporter = Arc::new(reporter);
+        let worker_reporter = reporter.clone();
         let worker = thread::Builder::new()
             .name("discord-presence".to_owned())
-            .spawn(move || run_presence_worker(receiver))
+            .spawn(move || run_presence_worker(receiver, worker_reporter))
             .map_err(|error| {
                 #[cfg(debug_assertions)]
                 eprintln!("[discord-presence] worker unavailable: {error}");
@@ -100,7 +115,23 @@ impl Drop for DiscordPresenceManager {
     }
 }
 
-fn run_presence_worker(receiver: Receiver<PresenceCommand>) {
+fn report_diagnostic(
+    reporter: &DiagnosticReporter,
+    level: &'static str,
+    action: &'static str,
+    message: &'static str,
+    technical_detail: &'static str,
+) {
+    reporter(PresenceDiagnosticEvent {
+        level,
+        category: "DISCORD",
+        action,
+        message,
+        technical_detail: technical_detail.to_owned(),
+    });
+}
+
+fn run_presence_worker(receiver: Receiver<PresenceCommand>, reporter: DiagnosticReporter) {
     let session_started = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
@@ -130,6 +161,13 @@ fn run_presence_worker(receiver: Receiver<PresenceCommand>) {
                 desired = None;
                 dirty = false;
                 close_client(&mut client, true);
+                report_diagnostic(
+                    &reporter,
+                    "INFO",
+                    "activity.cleared",
+                    "Discord activity cleared",
+                    r#"{"source":"presence.clear"}"#,
+                );
                 continue;
             }
             Ok(PresenceCommand::Shutdown) | Err(RecvTimeoutError::Disconnected) => {
@@ -154,12 +192,28 @@ fn run_presence_worker(receiver: Receiver<PresenceCommand>) {
                         #[cfg(debug_assertions)]
                         eprintln!("[discord-presence] connected");
                     }
+                    if unavailable_reported {
+                        report_diagnostic(
+                            &reporter,
+                            "INFO",
+                            "connection.restored",
+                            "Discord Desktop connection restored",
+                            r#"{"state":"connected"}"#,
+                        );
+                    }
                     unavailable_reported = false;
                 }
                 Err(error) => {
                     if !unavailable_reported {
                         #[cfg(debug_assertions)]
                         eprintln!("[discord-presence] Discord Desktop unavailable: {error}");
+                        report_diagnostic(
+                            &reporter,
+                            "WARN",
+                            "connection.unavailable",
+                            "Discord Desktop is unavailable",
+                            r#"{"state":"unavailable","retrySeconds":15}"#,
+                        );
                         unavailable_reported = true;
                     }
                     continue;
@@ -200,6 +254,13 @@ fn run_presence_worker(receiver: Receiver<PresenceCommand>) {
                         activity.large_image,
                         activity.small_image.as_deref().unwrap_or("none")
                     );
+                    report_diagnostic(
+                        &reporter,
+                        "INFO",
+                        "activity.published",
+                        "Discord activity published",
+                        r#"{"state":"published"}"#,
+                    );
                     published_reported = true;
                 }
             }
@@ -207,6 +268,13 @@ fn run_presence_worker(receiver: Receiver<PresenceCommand>) {
                 if !unavailable_reported {
                     #[cfg(debug_assertions)]
                     eprintln!("[discord-presence] connection lost: {error}");
+                    report_diagnostic(
+                        &reporter,
+                        "WARN",
+                        "connection.lost",
+                        "Discord Desktop connection was lost",
+                        r#"{"state":"connection_lost","retrySeconds":15}"#,
+                    );
                     unavailable_reported = true;
                 }
                 close_client(&mut client, false);
@@ -228,7 +296,7 @@ fn close_client(client: &mut Option<DiscordIpcClient>, clear: bool) {
 
 #[cfg(test)]
 mod tests {
-    use super::{PresenceActivity, DISCORD_APPLICATION_ID};
+    use super::{PresenceActivity, PresenceDiagnosticEvent, DISCORD_APPLICATION_ID};
 
     #[test]
     fn application_id_is_centralized_and_activity_is_generic() {
@@ -244,5 +312,28 @@ mod tests {
                 small_text: None,
             }
         );
+    }
+
+    #[test]
+    fn diagnostic_payload_is_semantic_and_excludes_activity_text() {
+        let event = PresenceDiagnosticEvent {
+            level: "INFO",
+            category: "DISCORD",
+            action: "activity.published",
+            message: "Discord activity published",
+            technical_detail: r#"{"state":"published"}"#.to_owned(),
+        };
+        let serialized = serde_json::to_value(event).expect("serialize diagnostic event");
+        let detail: serde_json::Value = serde_json::from_str(
+            serialized["technicalDetail"]
+                .as_str()
+                .expect("technical detail string"),
+        )
+        .expect("parse technical detail");
+        assert_eq!(serialized["category"], "DISCORD");
+        assert_eq!(serialized["action"], "activity.published");
+        assert_eq!(detail["state"], "published");
+        assert!(serialized.get("details").is_none());
+        assert!(serialized.get("state").is_none());
     }
 }

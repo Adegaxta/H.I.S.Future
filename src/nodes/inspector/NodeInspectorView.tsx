@@ -10,10 +10,10 @@ import "./styles.css";
 import ImageMigrationPanel from "./ImageMigrationPanel";
 import type { ImageMigrationPlan, ImageMigrationResult } from "../../project/imageMigration";
 
-interface NodeInspectorViewProps { node: NodeItem; nodes: readonly NodeItem[]; onBack: () => void; onAnalyzeImageMigration?: () => Promise<ImageMigrationPlan>; onMigrateImages?: (plan: ImageMigrationPlan) => Promise<ImageMigrationResult> }
+interface NodeInspectorViewProps { node: NodeItem; nodes: readonly NodeItem[]; onBack: () => void; onViewDiagnostics?: () => void; onAnalyzeImageMigration?: () => Promise<ImageMigrationPlan>; onMigrateImages?: (plan: ImageMigrationPlan) => Promise<ImageMigrationResult> }
 function Metric({ label, value, hint }: { label: string; value: string | number; hint?: string }) { return <div className="node-inspector__metric"><strong>{value}</strong><span>{label}</span>{hint && <small>{hint}</small>}</div>; }
 
-export default function NodeInspectorView({ node, nodes, onBack, onAnalyzeImageMigration, onMigrateImages }: NodeInspectorViewProps) {
+export default function NodeInspectorView({ node, nodes, onBack, onViewDiagnostics, onAnalyzeImageMigration, onMigrateImages }: NodeInspectorViewProps) {
   const { locale, t } = useLocale();
   const [copied, setCopied] = useState(false);
   const [imageResourceAvailable, setImageResourceAvailable] = useState<boolean | null>(null);
@@ -42,7 +42,7 @@ export default function NodeInspectorView({ node, nodes, onBack, onAnalyzeImageM
   };
 
   return <section className="node-inspector" aria-labelledby="node-inspector-title">
-    <header className="node-inspector__header"><div><button type="button" className="node-inspector__back" onClick={onBack}>← {t("inspector.back")}</button><p>{t("inspector.eyebrow")}</p><h1 id="node-inspector-title">{node.name}</h1><span className="node-inspector__type">{typeLabel}</span></div><button type="button" className="node-inspector__copy" onClick={() => void copyReport()}>{copied ? t("inspector.copied") : t("inspector.copyReport")}</button></header>
+    <header className="node-inspector__header"><div><button type="button" className="node-inspector__back" onClick={onBack}>← {t("inspector.back")}</button><p>{t("inspector.eyebrow")}</p><h1 id="node-inspector-title">{node.name}</h1><span className="node-inspector__type">{typeLabel}</span></div><div className="node-inspector__header-actions">{onViewDiagnostics && <button type="button" className="node-inspector__copy" onClick={onViewDiagnostics}>{t("inspector.viewDiagnostics")}</button>}<button type="button" className="node-inspector__copy" onClick={() => void copyReport()}>{copied ? t("inspector.copied") : t("inspector.copyReport")}</button></div></header>
     <div className="node-inspector__summary">
       <Metric label={t("inspector.words")} value={number(inspection.words)} /><Metric label={t("inspector.textCharacters")} value={number(inspection.textCharacters)} />
       <Metric label={t("inspector.editorBlocks")} value={number(inspection.structure.editorBlocks)} /><Metric label={t("inspector.storageSize")} value={formatBytes(inspection.storage.total.bytes, locale)} />

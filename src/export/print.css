@@ -13,6 +13,21 @@
   -webkit-print-color-adjust: exact;
 }
 
+/* Fallback styling for broken/missing images */
+.his-print-image-fallback {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  border: 1px dashed #5c6269;
+  background: rgba(120, 130, 140, 0.1);
+  color: #8c96a0;
+  margin: 4px 0;
+  break-inside: avoid;
+}
+
 @media print {
   html,
   body,
@@ -48,13 +63,88 @@
     display: none !important;
   }
 
-  .his-print-document {
+  /* Default theme is dark (H.I.S. native) */
+  .his-print-document,
+  .his-print-document--dark {
     display: block !important;
     width: 100% !important;
     min-height: 0 !important;
     overflow: visible !important;
-    color: #e8e9ea;
-    background: #121417;
+    color: #e8e9ea !important;
+    background: #121417 !important;
+  }
+
+  /* Clean Paper Light theme (Eco / Ink saving) */
+  .his-print-document--light {
+    display: block !important;
+    width: 100% !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    color: #1a1d21 !important;
+    background: #ffffff !important;
+  }
+
+  .his-print-document--light .page-node-header__editable-title,
+  .his-print-document--light .page-node-header__title-input,
+  .his-print-document--light h1,
+  .his-print-document--light h2,
+  .his-print-document--light h3,
+  .his-print-document--light h4,
+  .his-print-document--light h5,
+  .his-print-document--light h6 {
+    color: #111418 !important;
+  }
+
+  .his-print-document--light .page-node-header__description,
+  .his-print-document--light [data-editor-description] {
+    color: #555d66 !important;
+  }
+
+  .his-print-document--light [data-globe] {
+    background: #f6f8fa !important;
+    border-color: #d0d7de !important;
+    color: #24292f !important;
+  }
+
+  .his-print-document--light [data-his-table] th,
+  .his-print-document--light [data-his-table] td {
+    border-color: #d0d7de !important;
+    color: #1f2328 !important;
+  }
+
+  .his-print-document--light [data-his-table] th {
+    background: #f6f8fa !important;
+  }
+
+  /* Hide elements based on export settings */
+  .his-print-document--hide-title .page-node-header__title-row,
+  .his-print-document--hide-title .page-node-header__editable-title,
+  .his-print-document--hide-title .page-node-header__title-input {
+    display: none !important;
+  }
+
+  .his-print-document--hide-icon .page-node-header__icon-target,
+  .his-print-document--hide-icon .page-node-header__icon {
+    display: none !important;
+  }
+
+  .his-print-document--hide-cover .page-node-header__cover {
+    display: none !important;
+  }
+
+  .his-print-document--hide-description .page-node-header__description {
+    display: none !important;
+  }
+
+  .his-print-document--hide-tags .node-tags-bar,
+  .his-print-document--hide-tags [data-node-tags] {
+    display: none !important;
+  }
+
+  .his-print-document--hide-images img,
+  .his-print-document--hide-images .page-node-header__cover,
+  .his-print-document--hide-images [data-mention-mode="inserted"] img {
+    display: none !important;
   }
 
   .his-print-document .editor-selection-surface,

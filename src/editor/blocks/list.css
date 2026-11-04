@@ -1,0 +1,134 @@
+/* Bloques de lista nativos de H.I.S. (bullets, collapsible, numbered, tree, todo) */
+
+.editor-content [data-his-list] {
+  position: relative;
+  padding-left: 26px;
+  min-height: 1.6em;
+}
+
+.editor-content [data-his-list]::before {
+  position: absolute;
+  left: 3px;
+  top: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 1.6em;
+  color: #c7c9cc;
+  line-height: 1;
+  user-select: none;
+  pointer-events: none;
+  box-sizing: border-box;
+}
+
+/* Lista con viñetas: centrada verticalmente en el centro óptico del texto */
+.editor-content [data-his-list="bullets"]::before {
+  content: "•";
+  font-size: 1.3em;
+  color: #e8e9ea;
+  transform: translateY(-0.18em);
+}
+
+/* Lista desplegable */
+.editor-content [data-his-list="collapsible"]::before {
+  content: "";
+  top: 4px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  background-color: #c7c9cc;
+  mask: url("../../assets/third-party/Lucide.dev/icons/chevron-down.svg") center / contain no-repeat;
+  -webkit-mask: url("../../assets/third-party/Lucide.dev/icons/chevron-down.svg") center / contain no-repeat;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: transform .12s ease;
+}
+
+.editor-content [data-his-list="collapsible"]:hover::before {
+  background-color: #ffffff;
+}
+
+.editor-content [data-his-list="collapsible"][data-his-collapsed]::before {
+  transform: rotate(-90deg);
+}
+
+/* Lista numerada */
+.editor-content {
+  counter-reset: his-numbered-list;
+}
+
+.editor-content > :not([data-his-list="numbered"]),
+.editor-content [data-his-column] > :not([data-his-list="numbered"]),
+.editor-content [data-globe-content] > :not([data-his-list="numbered"]),
+.editor-content td > :not([data-his-list="numbered"]),
+.editor-content th > :not([data-his-list="numbered"]) {
+  counter-reset: his-numbered-list;
+}
+
+.editor-content [data-his-list="numbered"] {
+  counter-increment: his-numbered-list;
+}
+
+.editor-content [data-his-list="numbered"]::before {
+  content: counter(his-numbered-list) ".";
+  left: 0;
+  width: 22px;
+  justify-content: flex-end;
+  padding-right: 4px;
+  font-size: 0.95em;
+  font-variant-numeric: tabular-nums;
+  color: #c7c9cc;
+}
+
+/* Lista tipo arbol */
+.editor-content [data-his-list="tree"]::before {
+  content: "├";
+  font-size: 1.1em;
+  color: #c7c9cc;
+}
+
+/* Lista de tareas (todo) */
+.editor-content [data-his-list="todo"]::before {
+  content: "";
+  top: 4px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  background-color: #c7c9cc;
+  mask: url("../../assets/third-party/google-material/icons/check_box_outline_blank_256dp_E3E3E3_FILL0_wght400_GRAD0_opsz48.svg") center / contain no-repeat;
+  -webkit-mask: url("../../assets/third-party/google-material/icons/check_box_outline_blank_256dp_E3E3E3_FILL0_wght400_GRAD0_opsz48.svg") center / contain no-repeat;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: transform .12s ease;
+}
+
+.editor-content [data-his-list="todo"]:hover::before {
+  background-color: #ffffff;
+}
+
+.editor-content [data-his-list="todo"][data-his-todo-checked]::before {
+  mask-image: url("../../assets/third-party/google-material/icons/check_box_256dp_E3E3E3_FILL0_wght400_GRAD0_opsz48.svg");
+  -webkit-mask-image: url("../../assets/third-party/google-material/icons/check_box_256dp_E3E3E3_FILL0_wght400_GRAD0_opsz48.svg");
+  background-color: var(--his-accent);
+}
+
+.editor-content [data-his-list="todo"][data-his-todo-checked] {
+  color: #737a80;
+  text-decoration: line-through;
+}
+
+.editor-content [data-his-collapsed-child="true"] {
+  display: none !important;
+}
+
+/* Listas HTML estándar heredadas */
+.editor-content ul {
+  margin: 0.45em 0;
+  padding-left: 1.65em;
+  list-style: disc;
+}
+
+.editor-content li {
+  margin: 0.2em 0;
+}

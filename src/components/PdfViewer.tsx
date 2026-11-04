@@ -5,6 +5,7 @@ import { useLocale } from "../i18n/LocaleContext";
 import { measureLifecyclePhase } from "../lifecycle/metrics";
 import { getActiveCloseProjectTraceId, recordCloseProjectPhase } from "../lifecycle/metrics";
 import { PdfDocumentSession } from "../pdf/PdfDocumentSession";
+import { createDiagnosticEvent, emitDiagnosticEvent } from "../diagnostics/events";
 
 interface PdfViewerProps {
   data: Uint8Array;
@@ -79,7 +80,17 @@ function PdfPage({ document, pageNumber, scale }: {
     };
 
     void render().catch((error) => {
-      if (!cancelled && error?.name !== "RenderingCancelledException") console.error(error);
+      if (!cancelled && error?.name !== "RenderingCancelledException") emitDiagnosticEvent(createDiagnosticEvent({
+        level: "ERROR",
+        category: "ASSETS",
+        action: "pdf.page.render.failed",
+        operation: "resource.read",
+        message: "PDF page could not be rendered",
+        technicalDetail: JSON.stringify({
+          pageNumber,
+          error: error instanceof Error ? { name: error.name, message: error.message } : String(error),
+        }),
+      }));
     });
     return () => {
       cancelled = true;
@@ -152,7 +163,26 @@ export default function PdfViewer({ data, resourceId }: PdfViewerProps) {
       if (active) setDocument(loaded);
     }).catch((reason) => {
       if (active) {
-        console.error(`[pdf][${instanceId}] document load failed`, pdfFailureDetails(reason, data, instanceId, resourceId));
+      const failure = pdfFailureDetails(reason, data, instanceId, resourceId);
+      const operationId = getActiveCloseProjectTraceId();
+      emitDiagnosticEvent(createDiagnosticEvent({
+        level: "ERROR",
+        category: "ASSETS",
+        action: "pdf.document.load.failed",
+        operation: "resource.read",
+        ...(operationId ? { operationId } : {}),
+        message: "PDF document could not be loaded",
+        technicalDetail: JSON.stringify({
+          resourceId: failure.resourceId,
+          name: failure.name,
+          message: failure.message,
+          cause: failure.cause === undefined ? undefined : String(failure.cause),
+          stack: failure.stack,
+          byteLength: failure.byteLength,
+          bufferByteLength: failure.bufferByteLength,
+          instanceId: failure.instanceId,
+        }),
+      }));
         setError(t("pdf.loadError"));
       }
     });

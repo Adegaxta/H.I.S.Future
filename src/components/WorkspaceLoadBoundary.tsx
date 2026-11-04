@@ -1,11 +1,22 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { useLocale } from "../i18n/LocaleContext";
+import { createDiagnosticEvent, emitDiagnosticEvent } from "../diagnostics/events";
 
 class LoadBoundary extends Component<{ children: ReactNode; fallback: ReactNode }, { failed: boolean }> {
   state = { failed: false };
   static getDerivedStateFromError() { return { failed: true }; }
   componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error("Workspace could not render", error, info.componentStack);
+    emitDiagnosticEvent(createDiagnosticEvent({
+      level: "ERROR",
+      category: "SYSTEM",
+      action: "workspace.render.failed",
+      operation: "workspace.load",
+      message: "Workspace could not render",
+      technicalDetail: JSON.stringify({
+        error: { name: error.name, message: error.message },
+        componentStack: info.componentStack,
+      }),
+    }));
   }
   render() { return this.state.failed ? this.props.fallback : this.props.children; }
 }

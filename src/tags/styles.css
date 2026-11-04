@@ -9,7 +9,23 @@
 .tag-chip { display: block; max-width: 180px; overflow: hidden; border: 1px solid color-mix(in srgb, var(--tag-color) 54%, transparent); padding: 3px 7px; color: var(--tag-color); background: color-mix(in srgb, var(--tag-color) 11%, transparent); font: 10px/1.2 ui-monospace, "SF Mono", "Cascadia Code", monospace; text-overflow: ellipsis; white-space: nowrap; }
 .tag-chip.is-selected { background: color-mix(in srgb, var(--tag-color) 22%, transparent); }
 
-.tag-picker { position: absolute; top: calc(100% + 7px); left: 0; z-index: 48; width: min(340px, calc(100vw - 40px)); max-height: min(520px, calc(100vh - 90px)); overflow: auto; border: 1px solid #262b2f; background: var(--his-surface-sidebar, #15181b); box-shadow: 0 16px 46px rgb(0 0 0 / 46%); text-align: left; }
+.tag-picker {
+  position: absolute;
+  top: calc(100% + 7px);
+  left: 0;
+  z-index: 48;
+  width: min(340px, calc(100vw - 40px));
+  max-height: min(520px, calc(100vh - 90px));
+  overflow: auto;
+  border: 1px solid #262b2f;
+  border-radius: 9px;
+  background: var(--his-surface-sidebar, #15181b);
+  box-shadow: 0 16px 46px rgb(0 0 0 / 46%);
+  text-align: left;
+  animation: his-popover-enter var(--his-duration-enter) var(--his-ease-spring);
+  will-change: transform, opacity;
+  transform: translateZ(0);
+}
 .tag-picker__view,
 .tag-editor { padding: 12px; }
 .tag-picker__title { margin-bottom: 10px; color: var(--his-accent); font: 11px ui-monospace, "SF Mono", "Cascadia Code", monospace; letter-spacing: 0.1em; text-transform: uppercase; }
@@ -20,7 +36,15 @@
 .tag-picker__divider,
 .tag-editor__divider { height: 1px; margin: 10px 0; background: var(--his-divider, #24282b); }
 .tag-picker__list { max-height: 300px; overflow-y: auto; }
-.tag-picker__row { display: grid; min-width: 0; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; gap: 4px; min-height: 34px; }
+.tag-picker__row {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px;
+  min-height: 34px;
+  transition: background var(--his-duration-fast) ease;
+}
 .tag-picker__row:hover { background: #1b1f23; }
 .tag-picker__drag { position: relative; display: grid; width: 28px; height: 28px; place-items: center; border: 0; padding: 5px; background: transparent; cursor: grab; }
 .tag-picker__drag:active { cursor: grabbing; }

@@ -15,7 +15,29 @@ export function applyEditorBlockColor(block: HTMLElement, kind: ColorTarget, col
   } else {
     const property = kind === "text" ? "color" : "background-color";
     if (color) block.style.setProperty(property, kind === "background" ? mutedEditorBackground(color) : color);
-    else block.style.removeProperty(property);
+    else {
+      block.style.removeProperty(property);
+      if (!block.getAttribute("style")) block.removeAttribute("style");
+      if (kind === "text") {
+        block.querySelectorAll<HTMLElement>("font[color], span[style*='color']").forEach((el) => {
+          if (el.closest(".editor-mention")) return;
+          if (el.tagName === "FONT") {
+            const parent = el.parentNode;
+            if (parent) {
+              while (el.firstChild) parent.insertBefore(el.firstChild, el);
+              parent.removeChild(el);
+            }
+          } else {
+            el.style.removeProperty("color");
+            if (!el.getAttribute("style")) el.removeAttribute("style");
+          }
+        });
+        block.querySelectorAll<HTMLElement>(".editor-mention").forEach((mention) => {
+          mention.style.removeProperty("color");
+          mention.querySelector<HTMLElement>(":scope > .editor-mention__label")?.style.removeProperty("color");
+        });
+      }
+    }
   }
 }
 

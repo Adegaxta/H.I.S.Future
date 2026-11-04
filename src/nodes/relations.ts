@@ -1,21 +1,38 @@
 import type { NodeItem } from "../types/nodes";
-import { getNodeRelationPolicy } from "./registry";
+import { findNodeRelationPolicy, getNodeRelationPolicy } from "./registry";
 import { getNodalMeta, setNodalMeta, type NodalMeta } from "./metadata";
 import type { RelationRole } from "./relationTypes";
 
 export const relationId = (node: NodeItem, role: RelationRole) => getNodalMeta(node.content).relations.find((relation) => relation.role === role)?.targetId;
 export const relatedNode = (nodes: NodeItem[], node: NodeItem, role: RelationRole) => nodes.find((candidate) => candidate.id === relationId(node, role));
 
+export type NodeRelationViolation = "role-not-allowed" | "target-missing" | "self-target" | "target-type";
+interface NodeRelationEndpoint {
+  id: string;
+  type: string;
+}
+
+export function validateNodeRelation(
+  source: NodeRelationEndpoint,
+  role: RelationRole,
+  target: NodeRelationEndpoint | null,
+): NodeRelationViolation | null {
+  const rule = findNodeRelationPolicy(source.type)?.[role];
+  if (!rule) return "role-not-allowed";
+  if (!target) return "target-missing";
+  if (source.id === target.id) return "self-target";
+  if (rule.targetTypes && !rule.targetTypes.includes(target.type)) return "target-type";
+  return null;
+}
+
 export function canRelate(source: NodeItem, role: RelationRole, target: NodeItem): boolean {
-  if (source.id === target.id) return false;
-  const rule = getNodeRelationPolicy(source.type)[role];
-  return Boolean(rule && (!rule.targetTypes || rule.targetTypes.includes(target.type)));
+  return validateNodeRelation(source, role, target) === null;
 }
 
 export function withRelation(nodes: NodeItem[], sourceId: string, role: RelationRole, targetId: string | null): NodeItem[] {
   const source = nodes.find((node) => node.id === sourceId);
   const target = nodes.find((node) => node.id === targetId);
-  if (!source || (targetId !== null && (!target || !canRelate(source, role, target)))) return nodes;
+  if (!source || (targetId !== null && validateNodeRelation(source, role, target ?? null) !== null)) return nodes;
   const rule = getNodeRelationPolicy(source.type)[role];
   if (!rule) return nodes;
   return nodes.map((node) => {

@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { createDiagnosticEvent, emitDiagnosticEvent } from "../diagnostics/events";
 import type { BaseNodeType } from "../types/nodes";
 import type { NodeItem } from "../types/nodes";
 import { asErrorMessage, isDesktopRuntime } from "./runtime";
@@ -39,6 +40,27 @@ interface PersistedWorkspaceSnapshot {
 export interface LoadedWorkspaceSnapshot {
   nodes: NodeItem[];
   deletedNodes: NodeItem[] | null;
+}
+
+function emitPersistenceEvent(
+  level: "INFO" | "ERROR",
+  action: string,
+  message: string,
+  detail: Record<string, unknown>,
+  operation: string,
+  relatedNodeIds?: string[],
+) {
+  const operationId = getActiveCloseProjectTraceId();
+  emitDiagnosticEvent(createDiagnosticEvent({
+    level,
+    category: "DATABASE",
+    action,
+    operation,
+    ...(operationId ? { operationId } : {}),
+    ...(relatedNodeIds?.length ? { relatedNodeIds } : {}),
+    message,
+    technicalDetail: JSON.stringify(detail),
+  }));
 }
 
 function toNodeItem(record: PersistedNode): NodeItem {
@@ -83,24 +105,38 @@ export async function listNodes(defaultNodeType: BaseNodeType = "pagina"): Promi
 }
 
 export async function loadWorkspaceSnapshot(defaultNodeType: BaseNodeType = "pagina"): Promise<LoadedWorkspaceSnapshot> {
-  if (!isDesktopRuntime()) {
-    const [nodes, deletedNodes] = await Promise.all([listNodes(defaultNodeType), loadDeletedNodes()]);
-    return { nodes, deletedNodes };
-  }
+  const started = performance.now();
   try {
-    const snapshot = await measureLifecyclePhase("project.load-workspace", () =>
-      invoke<PersistedWorkspaceSnapshot>("load_workspace_snapshot", { defaultNodeType }),
-    );
-    const hidden = new Set<string>(JSON.parse(snapshot.loreHiddenIds || "[]"));
-    const nodes = snapshot.nodes.map((row) => ({ ...toNodeItem(row), loreHidden: hidden.has(row.id) }));
-    const parsedDeleted: unknown = snapshot.deletedNodes === null ? null : JSON.parse(snapshot.deletedNodes);
-    const deletedNodes = parsedDeleted === null
-      ? null
-      : Array.isArray(parsedDeleted) && parsedDeleted.every((node) => node && typeof node.id === "string" && typeof node.content === "string")
-        ? parsedDeleted as NodeItem[]
-        : (() => { throw new Error("La papelera guardada no tiene un formato válido."); })();
-    return { nodes, deletedNodes };
+    let result: LoadedWorkspaceSnapshot;
+    if (!isDesktopRuntime()) {
+      const [nodes, deletedNodes] = await Promise.all([listNodes(defaultNodeType), loadDeletedNodes()]);
+      result = { nodes, deletedNodes };
+    } else {
+      const snapshot = await measureLifecyclePhase("project.load-workspace", () =>
+        invoke<PersistedWorkspaceSnapshot>("load_workspace_snapshot", { defaultNodeType }),
+      );
+      const hidden = new Set<string>(JSON.parse(snapshot.loreHiddenIds || "[]"));
+      const nodes = snapshot.nodes.map((row) => ({ ...toNodeItem(row), loreHidden: hidden.has(row.id) }));
+      const parsedDeleted: unknown = snapshot.deletedNodes === null ? null : JSON.parse(snapshot.deletedNodes);
+      const deletedNodes = parsedDeleted === null
+        ? null
+        : Array.isArray(parsedDeleted) && parsedDeleted.every((node) => node && typeof node.id === "string" && typeof node.content === "string")
+          ? parsedDeleted as NodeItem[]
+          : (() => { throw new Error("La papelera guardada no tiene un formato válido."); })();
+      result = { nodes, deletedNodes };
+    }
+    emitPersistenceEvent("INFO", "workspace.loaded", "Workspace loaded", {
+      nodeCount: result.nodes.length,
+      deletedNodeCount: result.deletedNodes?.length ?? null,
+      durationMs: Number((performance.now() - started).toFixed(2)),
+      runtime: isDesktopRuntime() ? "tauri" : "browser",
+    }, "workspace.load");
+    return result;
   } catch (error) {
+    emitPersistenceEvent("ERROR", "workspace.load.failed", "Workspace could not be loaded", {
+      error: asErrorMessage(error),
+      durationMs: Number((performance.now() - started).toFixed(2)),
+    }, "workspace.load");
     throw new Error(asErrorMessage(error));
   }
 }
@@ -115,11 +151,17 @@ export async function saveNodes(nodes: NodeItem[], deletedNodes: NodeItem[], nod
       nodeTags,
       traceId: getActiveCloseProjectTraceId(),
     };
-    console.info(`[lifecycle] persistence.serialize: ${(performance.now() - serializeStarted).toFixed(1)} ms`);
+    const serializeMs = Number((performance.now() - serializeStarted).toFixed(2));
     if (isBrowserDevProjectActive()) {
       await measureLifecyclePhase("persistence.backend-roundtrip", async () => {
         saveBrowserDevWorkspace(payload.nodes, payload.hiddenIds, payload.deletedNodes, nodeTags);
       });
+      emitPersistenceEvent("INFO", "workspace.checkpoint.saved", "Workspace saved", {
+        nodeCount: nodes.length,
+        deletedNodeCount: deletedNodes.length,
+        serializeMs,
+        runtime: "browser",
+      }, "workspace.save");
       return;
     }
     const traceId = getActiveCloseProjectTraceId();
@@ -130,7 +172,21 @@ export async function saveNodes(nodes: NodeItem[], deletedNodes: NodeItem[], nod
     );
     recordCloseProjectPhase(traceId, "SQLite save", timings.sqliteMs);
     recordCloseProjectPhase(traceId, "resource cleanup", timings.resourceCleanupMs);
+    emitPersistenceEvent("INFO", "workspace.checkpoint.saved", "Workspace saved", {
+      nodeCount: nodes.length,
+      deletedNodeCount: deletedNodes.length,
+      changedRows: timings.changedRows,
+      serializeMs,
+      resourceScanMs: timings.resourceScanMs,
+      sqliteMs: timings.sqliteMs,
+      resourceCleanupMs: timings.resourceCleanupMs,
+      totalMs: timings.totalMs,
+      runtime: "tauri",
+    }, "workspace.save");
   } catch (error) {
+    emitPersistenceEvent("ERROR", "workspace.checkpoint.failed", "Workspace save failed", {
+      error: asErrorMessage(error),
+    }, "workspace.save");
     throw new Error(asErrorMessage(error));
   }
 }
@@ -140,19 +196,36 @@ export async function saveNodeContents(changes: NodeContentChange[]): Promise<vo
   try {
     const serializeStarted = performance.now();
     const payload = { changes, traceId: getActiveCloseProjectTraceId() };
-    console.info(`[lifecycle] persistence.incremental.serialize: ${(performance.now() - serializeStarted).toFixed(1)} ms`);
+    const serializeMs = Number((performance.now() - serializeStarted).toFixed(2));
     if (isBrowserDevProjectActive()) {
       await measureLifecyclePhase("persistence.incremental.backend-roundtrip", async () => {
         saveBrowserDevNodeContents(changes);
       });
+      emitPersistenceEvent("INFO", "workspace.incremental.saved", "Node content saved", {
+        changedNodeCount: changes.length,
+        serializeMs,
+        runtime: "browser",
+      }, "workspace.save", changes.map(({ id }) => id));
       return;
     }
-    await measureActiveCloseProjectPhase("backend incremental persistence", () =>
+    const timings = await measureActiveCloseProjectPhase("backend incremental persistence", () =>
       measureLifecyclePhase("persistence.incremental.backend-roundtrip", () =>
         invoke<SaveWorkspaceTimings>("save_node_contents", payload),
       ),
     );
+    emitPersistenceEvent("INFO", "workspace.incremental.saved", "Node content saved", {
+      changedNodeCount: changes.length,
+      changedRows: timings.changedRows,
+      serializeMs,
+      sqliteMs: timings.sqliteMs,
+      totalMs: timings.totalMs,
+      runtime: "tauri",
+    }, "workspace.save", changes.map(({ id }) => id));
   } catch (error) {
+    emitPersistenceEvent("ERROR", "workspace.incremental.failed", "Node content save failed", {
+      error: asErrorMessage(error),
+      changedNodeCount: changes.length,
+    }, "workspace.save", changes.map(({ id }) => id));
     throw new Error(asErrorMessage(error));
   }
 }

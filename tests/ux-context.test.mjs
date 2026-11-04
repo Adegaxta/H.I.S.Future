@@ -167,13 +167,24 @@ try {
     "exclusive storage categories exactly partition NodeItem.content",
   );
 
+    const readStylesheet = async (url) => {
+    const raw = await readFile(url, "utf8");
+    const parts = await Promise.all(
+      raw.split(/\r?\n/).map(async (line) => {
+        const match = line.match(/^@import\s+["'](.+?)["'];/);
+        return match ? readStylesheet(new URL(match[1], url)) : line;
+      })
+    );
+    return parts.join("\n");
+  };
+
   const [pageChrome, pageStyles, editorController, editorMentions, pageHeader, editorStyles, workspaceImports, workspaceView, sidebarTree] = await Promise.all([
     readFile(new URL("../src/nodes/page/chrome.tsx", import.meta.url), "utf8"),
     readFile(new URL("../src/nodes/page/styles.css", import.meta.url), "utf8"),
     readFile(new URL("../src/editor/useEditorController.ts", import.meta.url), "utf8"),
     readFile(new URL("../src/editor/useEditorMentions.ts", import.meta.url), "utf8"),
     readFile(new URL("../src/nodes/page/header.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../src/editor/styles.css", import.meta.url), "utf8"),
+    readStylesheet(new URL("../src/editor/styles.css", import.meta.url)),
     readFile(new URL("../src/workspace/useFileNodeImports.ts", import.meta.url), "utf8"),
     readFile(new URL("../src/components/AppWorkspace.tsx", import.meta.url), "utf8"),
     readFile(new URL("../src/workspace/navigation/SidebarTree.tsx", import.meta.url), "utf8"),

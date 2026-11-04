@@ -7,8 +7,8 @@ export function getEditorPickerTrigger(textBeforeCaret: string): EditorPickerTri
   if (slash) return { type: "slash", query: slash[1] };
 
   // A mention query may contain spaces because node names are not restricted to
-  // one word. New lines and a second @ still delimit the active trigger.
-  const mention = textBeforeCaret.match(/(?:^|\s)@([^@\n\r]*)$/);
+  // one word. New lines, a second @ and a reasonable maximum length (60) delimit the active trigger.
+  const mention = textBeforeCaret.match(/(?:^|\s)@([^@\n\r]{0,60})$/);
   return mention ? { type: "mention", query: mention[1] } : null;
 }
 

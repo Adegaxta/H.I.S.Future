@@ -139,14 +139,17 @@ interface UseEditorMentionsOptions {
   imageResizeRef: React.MutableRefObject<{
     image: HTMLImageElement;
     startX: number;
+    startY: number;
     startWidth: number;
     blockId: string;
     blockIdCreated: boolean;
+    isDragging: boolean;
   } | null>;
   controls: {
     clearBlockControls: () => void;
   };
   captureStructuralUndo: () => void;
+  openImagePreview?: (data: { node?: NodeItem | null; src: string; alt?: string }) => void;
 }
 
 export function useEditorMentions({
@@ -164,6 +167,7 @@ export function useEditorMentions({
   imageResizeRef,
   controls,
   captureStructuralUndo,
+  openImagePreview,
 }: UseEditorMentionsOptions) {
   const customVisuals = useNodeCustomVisuals(nodes);
   const createMention = useCallback((target: NodeItem, imageMode: "inserted" | "full" = "inserted") => {
@@ -172,7 +176,6 @@ export function useEditorMentions({
     mention.className = "editor-mention";
     mention.dataset.mentionId = target.id;
     mention.dataset.noResize = "true";
-    mention.title = target.name;
     mention.setAttribute("aria-label", target.name);
     if (target.type === "imagen") mention.dataset.mentionMode = imageMode;
     if (deletedNodes.some((item) => item.id === target.id)) {
@@ -210,12 +213,14 @@ export function useEditorMentions({
     if (!editor) return;
     const targets = new Map(nodes.map((target) => [target.id, target]));
     const hydrate = () => {
-      editor.querySelectorAll<HTMLElement>("[data-mention-id]").forEach((mention) => {
+      editor.querySelectorAll<HTMLElement>("[data-mention-id], .editor-mention").forEach((mention) => {
+        mention.removeAttribute("title");
         const target = targets.get(mention.dataset.mentionId ?? "");
         if (!target || target.type === "imagen") return;
         ensureMentionLabel(mention);
         syncMentionVisual(mention, target, nodes, customVisuals.get(target.id));
       });
+      editor.querySelectorAll<HTMLImageElement>("img[title]").forEach((img) => img.removeAttribute("title"));
     };
     // Content loads before this layout effect, so icons exist before painting.
     hydrate();
@@ -318,7 +323,17 @@ export function useEditorMentions({
       onOpenDeletedNode(deletedMention.id);
       return;
     }
-    if (mentioned?.type === "imagen") return;
+    if (mentioned?.type === "imagen") {
+      if (target?.dataset.mentionMode === "full") {
+        const img = target.querySelector<HTMLImageElement>("img");
+        openImagePreview?.({
+          node: mentioned,
+          src: img?.src || "",
+          alt: img?.alt || mentioned.name,
+        });
+      }
+      return;
+    }
     const expanded: Record<string, boolean> = {};
     let current: NodeItem | undefined = mentioned;
     while (current?.parentId) {
@@ -330,30 +345,35 @@ export function useEditorMentions({
     if (mentioned) setSelectedId(id);
   }, [deletedNodes, nodes, onOpenDeletedNode, setExpanded, setFocusedNodeId, setSelectedId]);
 
+  const onMentionClick = useCallback((event: MouseEvent<HTMLDivElement> | PointerEvent<HTMLDivElement> | React.MouseEvent<HTMLDivElement>) => {
+    onMentionPointerDown(event as PointerEvent<HTMLDivElement>);
+  }, [onMentionPointerDown]);
+
   const onEditorPointerDown = useCallback((event: PointerEvent<HTMLDivElement>) => {
     const target = event.target as HTMLElement;
     const image = target.closest<HTMLImageElement>("img");
     if (event.button !== 2 && image && isResizableEditorImage(image) && editorRef.current?.contains(image)) {
-      event.preventDefault();
-      event.stopPropagation();
       const identity = ensureEditorImageBlockId(image, editorRef.current);
       imageResizeRef.current = {
         image,
         startX: event.clientX,
+        startY: event.clientY,
         startWidth: image.getBoundingClientRect().width,
         blockId: identity.blockId,
         blockIdCreated: identity.created,
+        isDragging: false,
       };
-      document.body.style.cursor = "ew-resize";
+      event.stopPropagation();
       return;
     }
+
     if (target.closest("[data-mention-id]") || target.closest(".editor-mention") || target.closest("[data-no-resize='true']")) {
       if (target.closest("[data-mention-id]")) onMentionPointerDown(event);
-      // Atomic Calls navigate on press; ordinary text keeps native gestures.
       event.preventDefault();
       event.stopPropagation();
       return;
     }
+
     if (target.closest("[data-globe-icon]")) {
       event.preventDefault();
       event.stopPropagation();
@@ -375,8 +395,6 @@ export function useEditorMentions({
       }
       return;
     }
-
-    onMentionPointerDown(event);
   }, [editorRef, imageResizeRef, onMentionPointerDown]);
 
   const alignImage = useCallback((alignment: "left" | "center" | "right") => {
@@ -420,6 +438,15 @@ export function useEditorMentions({
       document.body.style.cursor = "default";
       return;
     }
+    const dist = Math.hypot(event.clientX - resize.startX, event.clientY - resize.startY);
+    if (!resize.isDragging) {
+      if (dist >= 4) {
+        resize.isDragging = true;
+        document.body.style.cursor = "ew-resize";
+      } else {
+        return;
+      }
+    }
     event.preventDefault();
     const editor = editorRef.current;
     if (!editor) return;
@@ -433,16 +460,32 @@ export function useEditorMentions({
   }, [editorRef, imageResizeRef]);
 
   const onEditorPointerUp = useCallback(() => {
-    if (!imageResizeRef.current) return;
-    if (!isResizableEditorImage(imageResizeRef.current.image)) {
+    const resize = imageResizeRef.current;
+    if (!resize) return;
+    if (!isResizableEditorImage(resize.image)) {
       imageResizeRef.current = null;
       document.body.style.cursor = "default";
       return;
     }
+    const wasDragging = resize.isDragging;
+    const resizedImage = resize.image;
     imageResizeRef.current = null;
     document.body.style.cursor = "default";
+    if (!wasDragging) {
+      const mention = resizedImage.closest<HTMLElement>("[data-mention-id]");
+      if (mention && mention.dataset.mentionMode === "full") {
+        const id = mention.dataset.mentionId;
+        const targetNode = nodes.find((item) => item.id === id);
+        openImagePreview?.({
+          node: targetNode ?? null,
+          src: resizedImage.src,
+          alt: resizedImage.alt || targetNode?.name || "",
+        });
+      }
+      return;
+    }
     syncContent();
-  }, [imageResizeRef, syncContent]);
+  }, [imageResizeRef, nodes, openImagePreview, syncContent]);
 
   return {
     createMention,
@@ -450,6 +493,7 @@ export function useEditorMentions({
     insertNodeMention,
     insertNodeReference,
     onMentionPointerDown,
+    onMentionClick,
     onEditorPointerDown,
     onEditorPointerMove,
     onEditorPointerUp,

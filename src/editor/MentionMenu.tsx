@@ -7,26 +7,59 @@ import { useNodeCustomVisuals } from "../nodes/nodeIconSource";
 import { getEffectiveNodeType } from "../utils/nodeTree";
 import { normalizeSearchText } from "../utils/searchText";
 import { getNodalMeta } from "../nodes/metadata";
+import { useResolvedImageSource } from "../utils/imageRuntimeResolver";
 
-type Position = { top: number; left: number };
+type Position = { top: number; left: number; caretTop?: number; caretBottom?: number };
 function useMenuPosition(position: Position, width: number) {
   const ref = useRef<HTMLDivElement>(null);
   const [placed, setPlaced] = useState(position);
   useLayoutEffect(() => {
-    const place = () => setPlaced(current => { const next = {
-      left: Math.max(8, Math.min(position.left, window.innerWidth - width - 8)),
-      top: Math.max(8, Math.min(position.top, window.innerHeight - (ref.current?.offsetHeight ?? 200) - 8)),
-    }; return current.left === next.left && current.top === next.top ? current : next; });
+    const place = () => setPlaced(current => {
+      const menuHeight = ref.current?.offsetHeight ?? 340;
+      const caretTop = position.caretTop ?? (position.top - 24);
+      const caretBottom = position.caretBottom ?? position.top;
+
+      let top: number;
+      if (caretBottom + menuHeight + 8 <= window.innerHeight) {
+        top = caretBottom + 8;
+      } else if (caretTop - menuHeight - 8 >= 8) {
+        top = caretTop - menuHeight - 8;
+      } else {
+        const spaceBelow = window.innerHeight - (caretBottom + 8);
+        const spaceAbove = caretTop - 8;
+        if (spaceBelow >= spaceAbove) {
+          top = caretBottom + 8;
+        } else {
+          top = Math.max(8, caretTop - menuHeight - 8);
+        }
+      }
+      const left = Math.max(8, Math.min(position.left, window.innerWidth - width - 8));
+      const next = { top, left };
+      return current.left === next.left && current.top === next.top ? current : next;
+    });
     place(); window.addEventListener("resize", place);
     const observer = new ResizeObserver(place);
     if (ref.current) observer.observe(ref.current);
     return () => { observer.disconnect(); window.removeEventListener("resize", place); };
-  }, [position.top, position.left, width]);
+  }, [position.top, position.left, position.caretTop, position.caretBottom, width]);
   return { ref, placed };
 }
 
-export default function MentionMenu({ position, query, nodes, candidates, activeIndex, canCreate, onSelect, onCreate, onClose }: {
+function MentionCandidateImagePreview({ node }: { node: NodeItem }) {
+  const { src } = useResolvedImageSource(node);
+  if (!src) {
+    return (
+      <div className="mention-menu__image-placeholder">
+        <span className="sidebar-icon node-type-icon node-type-icon--imagen" style={{ width: 32, height: 32, display: "inline-block" }} />
+      </div>
+    );
+  }
+  return <img src={src} alt={node.name} className="mention-menu__image-thumb" />;
+}
+
+export default function MentionMenu({ position, query, nodes, candidates, activeIndex, onActiveIndexChange, canCreate, onSelect, onCreate, onClose }: {
   position: Position; query: string; nodes: NodeItem[]; candidates: NodeItem[]; activeIndex: number;
+  onActiveIndexChange?: (index: number) => void;
   canCreate: boolean; onSelect: (id: string) => void; onCreate: (kind: "here" | "in") => void; onClose: () => void;
 }) {
   const { t } = useLocale();
@@ -35,14 +68,22 @@ export default function MentionMenu({ position, query, nodes, candidates, active
   const [help, setHelp] = useState<"here" | "in" | null>(null);
   useDismissibleLayer(ref, onClose);
   const name = query.replace(/\u00a0/g, " ").trim();
+  const activeCandidate = activeIndex >= 0 && activeIndex < candidates.length ? candidates[activeIndex] : null;
+  const isImageCandidate = activeCandidate ? getEffectiveNodeType(nodes, activeCandidate) === "imagen" : false;
   const helpKind = help ?? (name && activeIndex >= candidates.length ? activeIndex === candidates.length ? "here" : "in" : null);
+  const isLeft = placed.left + 570 > window.innerWidth;
+  const isBottom = placed.top + 340 > window.innerHeight;
+  const helpPositionClass = `${isLeft ? " is-left" : ""}${isBottom ? " is-bottom" : ""}`;
+
   return <div ref={ref} className="his-context-menu mention-menu" data-picker="true" data-mention-menu="true" role="menu" style={placed}>
     {(candidates.length > 0 || !name) && <div className="his-context-menu__group">
       <div className="his-context-menu__label">{t("editor.mention.linkNode")}{!name && <span> · {t("editor.mention.recent")}</span>}</div>
       {!candidates.length && <small className="mention-menu__hint">{t("editor.mention.noRecent")}</small>}
       <div className="mention-menu__results">
         {candidates.map((item, index) => <button type="button" role="menuitem" key={item.id} data-picker-menu-item={item.id} className={index === activeIndex ? "is-active" : ""}
-          onKeyDown={event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onSelect(item.id); } }} onMouseEnter={() => setHelp(null)} onMouseDown={event => { event.preventDefault(); onSelect(item.id); }}>
+          onKeyDown={event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onSelect(item.id); } }}
+          onMouseEnter={() => { setHelp(null); onActiveIndexChange?.(index); }}
+          onMouseDown={event => { event.preventDefault(); onSelect(item.id); }}>
           <NodeIcon type={getEffectiveNodeType(nodes, item)} visual={visuals.get(item.id)} />
           <span className="mention-menu__node"><span>{item.name}</span><small>{nodes.find(n => n.id === item.parentId)?.name}</small></span>
         </button>)}
@@ -52,17 +93,35 @@ export default function MentionMenu({ position, query, nodes, candidates, active
       <div className="his-context-menu__label">{t("editor.mention.createSection")}</div>
       {(["here", "in"] as const).map((kind, offset) => <button role="menuitem" key={kind} data-mention-create={kind} disabled={!name}
         className={activeIndex === candidates.length + offset ? "is-active" : ""}
-        onKeyDown={event => { if ((event.key === "Enter" || event.key === " ") && name) { event.preventDefault(); onCreate(kind); } }} onMouseEnter={() => setHelp(kind)} onFocus={() => setHelp(kind)} onMouseDown={event => { event.preventDefault(); if (name) onCreate(kind); }}>
+        onKeyDown={event => { if ((event.key === "Enter" || event.key === " ") && name) { event.preventDefault(); onCreate(kind); } }}
+        onMouseEnter={() => { onActiveIndexChange?.(candidates.length + offset); setHelp(kind); }}
+        onFocus={() => { onActiveIndexChange?.(candidates.length + offset); setHelp(kind); }}
+        onMouseDown={event => { event.preventDefault(); if (name) onCreate(kind); }}>
         <span className="mention-menu__action-icon" aria-hidden="true">{kind === "here" ? "+" : "↗"}</span>
-        <span>{t(kind === "here" ? "editor.mention.createHere" : "editor.mention.createIn")}{name ? ` «${name}»${kind === "in" ? "…" : ""}` : "…"}</span>
+        <span className="mention-menu__action-text">
+          {t(kind === "here" ? "editor.mention.createHere" : "editor.mention.createIn")}
+          {name ? ` «${name.length > 24 ? `${name.slice(0, 24)}…` : name}»${kind === "in" ? "…" : ""}` : "…"}
+        </span>
       </button>)}
       {!name && <small className="mention-menu__hint">{t("editor.mention.typeName")}</small>}
     </div>}
-    {helpKind && <aside className={`mention-menu__help${placed.left + 570 > window.innerWidth ? " is-left" : ""}`} role="tooltip">
-      <span className="mention-menu__help-icon" aria-hidden="true">{helpKind === "here" ? "+" : "↗"}</span>
-      <strong>{t(helpKind === "here" ? "editor.mention.createHere" : "editor.mention.createIn")}</strong>
-      <p>{t(helpKind === "here" ? "editor.mention.helpHere" : "editor.mention.helpIn")}</p>
-    </aside>}
+    {helpKind ? (
+      <aside className={`mention-menu__help${helpPositionClass}`} role="tooltip">
+        <span className="mention-menu__help-icon" aria-hidden="true">{helpKind === "here" ? "+" : "↗"}</span>
+        <strong>{t(helpKind === "here" ? "editor.mention.createHere" : "editor.mention.createIn")}</strong>
+        <p>{t(helpKind === "here" ? "editor.mention.helpHere" : "editor.mention.helpIn")}</p>
+      </aside>
+    ) : isImageCandidate && activeCandidate ? (
+      <aside className={`mention-menu__help mention-menu__help--image${helpPositionClass}`} role="tooltip">
+        <div className="mention-menu__image-preview-frame">
+          <MentionCandidateImagePreview node={activeCandidate} />
+        </div>
+        <strong className="mention-menu__image-preview-title">{activeCandidate.name}</strong>
+        <p className="mention-menu__image-preview-desc">
+          {t("editor.image.previewHelp")}
+        </p>
+      </aside>
+    ) : null}
   </div>;
 }
 

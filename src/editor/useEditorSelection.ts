@@ -137,6 +137,15 @@ export function useEditorSelection({
     if (range && editor && rangeBelongsToEditor(range, editor)) {
       savedTextRangeRef.current = range.cloneRange();
     }
+    // If a popover or input is currently open, don't dismiss the toolbar
+    if (
+      document.querySelector(".editor-selection-link-popover") ||
+      document.querySelector(".block-more-menu-container") ||
+      document.querySelector(".editor-selection-color-menu") ||
+      document.querySelector(".block-format-container")
+    ) {
+      return;
+    }
     if (
       !selection ||
       !editor ||
@@ -153,7 +162,7 @@ export function useEditorSelection({
     }
     syncMentionSelection(editor, range);
     const rect = range.getBoundingClientRect();
-    const toolbarWidth = 190;
+    const toolbarWidth = 320;
     setSelectionToolbar({
       left: Math.min(
         Math.max(8, rect.left + (rect.width - toolbarWidth) / 2),
@@ -170,7 +179,17 @@ export function useEditorSelection({
   useEffect(() => {
     const handleSelectionChange = () => {
       const active = document.activeElement;
-      if (active instanceof Element && active.closest("[data-selection-toolbar]")) return;
+      if (
+        active instanceof Element &&
+        (active.closest("[data-selection-toolbar]") ||
+          active.closest("[data-selection-popover]") ||
+          active.closest(".editor-selection-link-popover") ||
+          active.closest(".block-more-menu-container") ||
+          active.closest(".block-format-container") ||
+          active.closest(".editor-selection-color-menu"))
+      ) {
+        return;
+      }
       updateSelectionToolbar();
     };
     document.addEventListener("selectionchange", handleSelectionChange);
@@ -179,6 +198,7 @@ export function useEditorSelection({
       clearMentionSelection(editorRef.current);
     };
   }, [clearMentionSelection, editorRef, updateSelectionToolbar]);
+
 
   const updatePlaceholder = useCallback(() => {
     const selection = window.getSelection();

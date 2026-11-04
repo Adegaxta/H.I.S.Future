@@ -43,6 +43,7 @@ export const PAGE_BLOCK_CAPABILITIES: readonly PageBlockCapabilityDefinition[] =
     exclusiveGroup: "heading" as const,
   })),
   { id: "dropdown", labelKey: "editor.context.dropdown", group: "property", icon: dropdown, attribute: "data-his-dropdown" },
+  { id: "toggle-heading", labelKey: "editor.context.toggleHeading" as TranslationKey, group: "property", icon: collapsibleList, attribute: "data-his-toggle-heading" },
   { id: "globe", labelKey: "editor.context.globe", group: "property", icon: globe, attribute: "data-globe" },
   { id: "highlighted", labelKey: "editor.context.highlighted", group: "property", icon: highlighted, attribute: "data-his-highlighted" },
   { id: "code", labelKey: "editor.context.code", group: "property", icon: code, attribute: "data-his-code" },
@@ -84,7 +85,7 @@ export function isCapabilityActive(block: HTMLElement, capability: PageBlockCapa
   return block.getAttribute(capability.attribute) === (capability.value ?? "true");
 }
 
-function replaceBlockTag(block: HTMLElement, tagName: string): HTMLElement {
+export function replaceBlockTag(block: HTMLElement, tagName: string): HTMLElement {
   if (block.tagName === tagName) return block;
   const replacement = document.createElement(tagName);
   Array.from(block.attributes).forEach(({ name, value }) => replacement.setAttribute(name, value));
@@ -113,24 +114,35 @@ export function togglePageBlockCapability(
     replacement.removeAttribute(capability.attribute);
     unwrapDirectCode(replacement);
     return replacement;
-  } else if (capability.id === "dropdown") {
+  } else if (capability.id === "dropdown" || capability.id === "toggle-heading") {
     if (active) {
       block.removeAttribute(capability.attribute);
       block.removeAttribute("data-his-collapsed");
-      const content = block.querySelector<HTMLElement>(":scope > [data-his-dropdown-content]");
-      if (content) content.replaceWith(...Array.from(content.childNodes));
     } else {
       block.setAttribute(capability.attribute, "true");
-      const content = document.createElement("span");
-      content.dataset.hisDropdownContent = "true";
-      while (block.firstChild) content.appendChild(block.firstChild);
-      block.appendChild(content);
     }
   } else if (capability.id === "synced") {
     if (active) block.removeAttribute(capability.attribute);
     else block.setAttribute(capability.attribute, crypto.randomUUID());
-  } else if (active) block.removeAttribute(capability.attribute);
-  else block.setAttribute(capability.attribute, capability.value ?? "true");
+  } else if (active) {
+    block.removeAttribute(capability.attribute);
+    if (capability.group === "list") {
+      delete block.dataset.hisTodoChecked;
+      delete block.dataset.hisCollapsed;
+      delete block.dataset.hisCollapsedChild;
+      if (block.tagName === "LI") block = replaceBlockTag(block, "P");
+    }
+  } else {
+    if (capability.group === "list" && block.tagName === "LI") {
+      block = replaceBlockTag(block, "P");
+    }
+    block.setAttribute(capability.attribute, capability.value ?? "true");
+    if (capability.group === "list") {
+      delete block.dataset.hisTodoChecked;
+      delete block.dataset.hisCollapsed;
+      delete block.dataset.hisCollapsedChild;
+    }
+  }
   return block;
 }
 
@@ -183,7 +195,7 @@ export function setPageBlockColumnCount(block: HTMLElement, count: number): void
 }
 
 export function resetPageBlockAesthetics(block: HTMLElement): HTMLElement {
-  let target = /^(?:H[1-6]|PRE)$/.test(block.tagName) ? replaceBlockTag(block, "P") : block;
+  let target = /^(?:H[1-6]|PRE|LI)$/.test(block.tagName) ? replaceBlockTag(block, "P") : block;
   unwrapDirectCode(target);
   const dropdown = PAGE_BLOCK_CAPABILITIES.find((capability) => capability.id === "dropdown");
   if (dropdown && isCapabilityActive(target, dropdown)) target = togglePageBlockCapability(target, dropdown);
@@ -192,9 +204,11 @@ export function resetPageBlockAesthetics(block: HTMLElement): HTMLElement {
   });
   delete target.dataset.hisCollapsed;
   delete target.dataset.hisTodoChecked;
+  delete target.dataset.hisCollapsedChild;
   target.style.removeProperty("color");
   target.style.removeProperty("background-color");
   target.style.removeProperty("border");
+  target.style.removeProperty("margin-left");
   if (!target.getAttribute("style")) target.removeAttribute("style");
   return target;
 }

@@ -124,12 +124,7 @@ export function useEditorBlockSelection({
   const selection = window.getSelection();
   selection?.removeAllRanges();
 
-  if (
-    document.activeElement instanceof HTMLElement &&
-    editor.contains(document.activeElement)
-  ) {
-    document.activeElement.blur();
-  }
+  editor.focus({ preventScroll: true });
 
   // El cuadro es fijo al viewport: el origen debe permanecer estable mientras
   // el contenedor del editor se desplaza durante el arrastre.
@@ -214,9 +209,7 @@ export function useEditorBlockSelection({
         setSelectedLineBlocks(selected);
         const selection = window.getSelection();
         selection?.removeAllRanges();
-        if (document.activeElement instanceof HTMLElement && editor.contains(document.activeElement)) {
-          document.activeElement.blur();
-        }
+        editor.focus({ preventScroll: true });
       } else {
         const selection = window.getSelection();
         selection?.removeAllRanges();

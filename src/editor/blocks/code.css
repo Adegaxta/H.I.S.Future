@@ -1,0 +1,39 @@
+/* Bloques de codigo, ecuaciones y texto monoespaciado */
+
+.editor-content [data-his-code="true"] {
+  font-family: ui-monospace, "Cascadia Code", monospace;
+  background: #101315;
+}
+
+.editor-content [data-his-equation="true"] {
+  font-family: Cambria, "Times New Roman", serif;
+  font-style: italic;
+  letter-spacing: .03em;
+}
+
+/* Codigo en linea dentro del editor. */
+.editor-content code {
+  padding: 2px 4px;
+  color: #d8b34d;
+  background: #1a1d21;
+  border-radius: 3px;
+  font-family: ui-monospace, "SF Mono", "Cascadia Code", monospace;
+  font-size: 0.9em;
+}
+
+.editor-content code code {
+  font-size: 1em;
+  padding: 0;
+  background: transparent;
+}
+
+/* Bloque de codigo con desplazamiento horizontal. */
+.editor-content pre {
+  padding: 10px 12px;
+  overflow-x: auto;
+  color: #d8dadd;
+  background: #1a1d21;
+  border: 1px solid #2a2e33;
+  border-radius: 4px;
+  white-space: pre-wrap;
+}

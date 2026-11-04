@@ -29,7 +29,8 @@ try {
   assert.deepEqual(getEditorPickerTrigger("@"), { type: "mention", query: "" });
   assert.equal(getEditorPickerTrigger(""), null, "deleting @ fully ends the mention session");
   assert.deepEqual(getEditorPickerTrigger("@Página"), { type: "mention", query: "Página" }, "a new @ starts cleanly");
-  assert.equal(getEditorPickerTrigger("texto @uno otro"), null);
+  assert.deepEqual(getEditorPickerTrigger("texto @uno otro"), { type: "mention", query: "uno otro" });
+  assert.equal(getEditorPickerTrigger("texto @uno\notro"), null, "newline delimits mention trigger");
   const firstMentionText = {};
   const oldImageSession = { container: firstMentionText, triggerOffset: 0 };
   assert.equal(isSameMentionTriggerRange(oldImageSession, firstMentionText, 0), true);

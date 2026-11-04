@@ -1,4 +1,4 @@
-export type WorkspaceViewType = "node" | "ai" | "graph";
+export type WorkspaceViewType = "node" | "graph";
 export type SplitDirection = "horizontal" | "vertical";
 export type DropZone = "center" | "left" | "right" | "top" | "bottom";
 
@@ -137,8 +137,11 @@ export function closeTab(layout: WorkspaceLayout, paneId: string, tabId: string)
     : pane.activeTabId;
   console.info("[WORKSPACE] tab_closed", { tabId, paneId });
   const updated = { ...layout, root: mapNode(layout.root, paneId, (current) => ({ ...current, tabs, activeTabId })), focusedPaneId: paneId };
-  const primaryPaneId = listPanes(layout.root)[0]?.id;
-  return tabs.length === 0 && paneId !== primaryPaneId ? closePane(updated, paneId) : updated;
+  const allPanes = listPanes(updated.root);
+  if (tabs.length === 0 && allPanes.length > 1) {
+    return closePane(updated, paneId);
+  }
+  return updated;
 }
 
 export function closePane(layout: WorkspaceLayout, paneId: string): WorkspaceLayout {
@@ -226,7 +229,7 @@ export function resizeSplit(layout: WorkspaceLayout, splitId: string, ratio: num
 function validTab(value: unknown): value is WorkspaceTab {
   if (!value || typeof value !== "object") return false;
   const tab = value as Partial<WorkspaceTab>;
-  return typeof tab.id === "string" && (tab.viewType === null || ["node", "ai", "graph"].includes(tab.viewType ?? ""));
+  return typeof tab.id === "string" && (tab.viewType === null || ["node", "graph"].includes(tab.viewType ?? ""));
 }
 
 function restoreNode(value: unknown): WorkspaceLayoutNode | null {

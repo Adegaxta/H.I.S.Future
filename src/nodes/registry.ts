@@ -45,6 +45,7 @@ export const NODE_REGISTRY = {
 export const getNodeDefinition = (type: RenderNodeType) => NODE_REGISTRY.get(type);
 export const getNodeRenderer = (type: RenderNodeType) => renderRegistry.get(type).renderer;
 export const getNodeRelationPolicy = (type: BaseNodeType) => renderRegistry.get(type).relations;
+export const findNodeRelationPolicy = (type: string) => renderRegistry.find(type)?.relations ?? null;
 export const hasNodeCapability = (type: RenderNodeType, capability: NodeCapability) => getNodeDefinition(type).capabilities[capability] === true;
 export const getComposableNodeCapability = (type: RenderNodeType, capability: import("./definition").ComposableNodeCapabilityId) => getNodeDefinition(type).composition?.capabilities.find((item) => item.id === capability) ?? null;
 export const hasComposableNodeCapability = (type: RenderNodeType, capability: import("./definition").ComposableNodeCapabilityId) => getComposableNodeCapability(type, capability) !== null;

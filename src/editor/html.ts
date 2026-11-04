@@ -5,7 +5,7 @@ import {
 } from "../defs/palette";
 import { createTableMarkup } from "./table";
 
-const SAFE_URL = /^(https?:|data:image\/|blob:)/i;
+const SAFE_URL = /^(https?:|mailto:|tel:|#|data:image\/|blob:)/i;
 
 export function escapeHtml(value: string): string {
   return value.replace(
@@ -118,20 +118,13 @@ export function formatPastedText(text: string): string {
     .replace(/(?<!^)\s*(?=(?:Ubicación|Año):\s)/gu, "\n");
   const lines = separated.split("\n");
   const blocks: string[] = [];
-  let listItems: string[] = [];
-  let listTag: "ul" | "ol" = "ul";
   let codeLanguage = "";
   let codeLines: string[] | null = null;
-  const flushList = () => {
-    if (listItems.length) blocks.push(`<${listTag}>${listItems.join("")}</${listTag}>`);
-    listItems = [];
-  };
   for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
     const rawLine = lines[lineIndex];
     const line = rawLine.trim();
     const fence = line.match(/^```([a-z0-9_+-]*)$/i);
     if (fence) {
-      flushList();
       if (codeLines) {
         const language = codeLanguage ? ` data-language="${escapeHtml(codeLanguage)}"` : "";
         blocks.push(`<pre${language}><code>${escapeHtml(codeLines.join("\n"))}</code></pre>`);
@@ -148,25 +141,21 @@ export function formatPastedText(text: string): string {
       continue;
     }
     if (!line) {
-      flushList();
       continue;
     }
     const escaped = formatMarkdownInline(line);
     const markdownHeading = line.match(/^(#{1,6})\s+(.+)$/);
     if (markdownHeading) {
-      flushList();
       const level = Math.min(4, markdownHeading[1].length);
       blocks.push(`<h${level}>${formatMarkdownInline(markdownHeading[2])}</h${level}>`);
       continue;
     }
     if (/^(?:---+|___+|\*\*\*+)$/.test(line)) {
-      flushList();
       blocks.push('<div data-divider="true" contenteditable="false"><hr /></div>');
       continue;
     }
     const quote = line.match(/^>\s?(.*)$/);
     if (quote) {
-      flushList();
       blocks.push(`<blockquote>${formatMarkdownInline(quote[1]) || "<br>"}</blockquote>`);
       continue;
     }
@@ -174,7 +163,6 @@ export function formatPastedText(text: string): string {
       line.startsWith(emoji),
     );
     if (callout) {
-      flushList();
       const [emoji, color] = callout;
       const body = escaped.slice(emoji.length).trim();
       const separator = body.search(/\s(?:—|-|:)\s/);
@@ -191,19 +179,15 @@ export function formatPastedText(text: string): string {
       lines[lineIndex + 1]?.trim().match(/^\d+\.\s+/),
     );
     if (markdownOrderedItem && adjacentOrderedItem) {
-      if (listItems.length && listTag !== "ol") flushList();
-      listTag = "ol";
-      listItems.push(`<li>${formatMarkdownInline(markdownOrderedItem[2])}</li>`);
+      blocks.push(`<p data-his-list="numbered">${formatMarkdownInline(markdownOrderedItem[2])}</p>`);
       continue;
     }
     const heading = line.match(/^(\d+(?:\.\d+)*)\.\s+(.+)$/);
     if (heading) {
-      flushList();
       blocks.push(`<h2>${heading[2]}</h2>`);
       continue;
     }
     if (/^(Resumen|Índice|Tabla de Contenido|Tabla de contenidos|Table of Contents|Leyenda de Utilidad en el Lore):?$/i.test(line)) {
-      flushList();
       if (/^(Índice|Tabla de Contenido|Tabla de contenidos|Table of Contents)$/i.test(line)) {
         blocks.push('<div data-page-index="true" class="editor-page-index"></div>');
       } else {
@@ -211,26 +195,26 @@ export function formatPastedText(text: string): string {
       }
       continue;
     }
+    const todoMatch = line.match(/^(?:[-*•])\s+\[([ xX])\]\s+(.+)$/);
+    if (todoMatch) {
+      const checked = todoMatch[1].toLowerCase() === "x";
+      blocks.push(`<p data-his-list="todo"${checked ? ' data-his-todo-checked="true"' : ""}>${formatMarkdownInline(todoMatch[2])}</p>`);
+      continue;
+    }
     if (/^(?:[-*•])\s+/.test(line)) {
-      if (listItems.length && listTag !== "ul") flushList();
-      listTag = "ul";
-      listItems.push(`<li>${formatMarkdownInline(line.replace(/^(?:[-*•])\s+/, ""))}</li>`);
+      blocks.push(`<p data-his-list="bullets">${formatMarkdownInline(line.replace(/^(?:[-*•])\s+/, ""))}</p>`);
       continue;
     }
     if (/^\d+[)]\s+/.test(line)) {
-      if (listItems.length && listTag !== "ol") flushList();
-      listTag = "ol";
-      listItems.push(`<li>${formatMarkdownInline(line.replace(/^\d+[)]\s+/, ""))}</li>`);
+      blocks.push(`<p data-his-list="numbered">${formatMarkdownInline(line.replace(/^\d+[)]\s+/, ""))}</p>`);
       continue;
     }
-    flushList();
     blocks.push(`<p>${escaped}</p>`);
   }
   if (codeLines) {
     const language = codeLanguage ? ` data-language="${escapeHtml(codeLanguage)}"` : "";
     blocks.push(`<pre${language}><code>${escapeHtml(codeLines.join("\n"))}</code></pre>`);
   }
-  flushList();
   return blocks.join("");
 }
 
@@ -734,9 +718,9 @@ function anytypeBlockToHtml(
     case ANYTYPE_BLOCK_STYLE.Code:
       return `<pre${blockStyle}><code>${inner}</code></pre>`;
     case ANYTYPE_BLOCK_STYLE.Marked:
-      return `<ul><li${blockStyle}>${inner}</li></ul>`;
+      return `<p data-his-list="bullets"${blockStyle}>${inner}</p>`;
     case ANYTYPE_BLOCK_STYLE.Numbered:
-      return `<ol><li${blockStyle}>${inner}</li></ol>`;
+      return `<p data-his-list="numbered"${blockStyle}>${inner}</p>`;
     case ANYTYPE_BLOCK_STYLE.Callout: {
       const icon = content.iconEmoji
         ? `<span data-globe-icon="true" contenteditable="false">${escapeHtml(content.iconEmoji)}</span>`
@@ -945,9 +929,101 @@ function anytypeGlobeToHtml(element: HTMLElement): string | null {
   return `<div data-globe="true"${styleAttribute}><span data-globe-icon="true" contenteditable="false">${iconHtml}</span><div data-globe-content="true">${body}</div></div>`;
 }
 
+function normalizeDomLists(root: ParentNode): void {
+  const rootLists = Array.from(root.querySelectorAll<HTMLElement>("ul, ol")).filter((list) => {
+    return !list.parentElement?.closest("ul, ol");
+  });
+
+  const flattenListItem = (
+    item: HTMLElement,
+    listType: "bullets" | "numbered",
+    depth: number,
+    baseIndentPx: number,
+  ): HTMLElement[] => {
+    const directChildren = Array.from(item.childNodes);
+    const nestedLists: HTMLElement[] = [];
+    const inlineNodes: Node[] = [];
+
+    directChildren.forEach((child) => {
+      if (child.nodeType === Node.ELEMENT_NODE && ["UL", "OL"].includes((child as HTMLElement).tagName)) {
+        nestedLists.push(child as HTMLElement);
+      } else {
+        inlineNodes.push(child);
+      }
+    });
+
+    const itemMargin = Number.parseFloat(item.style.marginLeft || "0");
+    const totalMargin = (baseIndentPx + itemMargin) + (depth * 24);
+
+    const checkbox = item.querySelector<HTMLInputElement>('input[type="checkbox"]');
+    const isTodo = Boolean(checkbox || item.classList.contains("task-list-item") || item.hasAttribute("data-task"));
+    const isChecked = checkbox ? checkbox.checked : item.getAttribute("data-checked") === "true";
+    if (checkbox) checkbox.remove();
+
+    const paragraph = item.ownerDocument.createElement("p");
+    paragraph.setAttribute("data-his-list", listType);
+    if (isTodo) {
+      paragraph.setAttribute("data-his-list", "todo");
+      if (isChecked) {
+        paragraph.setAttribute("data-his-todo-checked", "true");
+      }
+    }
+    if (totalMargin > 0) {
+      paragraph.style.marginLeft = `${totalMargin}px`;
+    }
+
+    const safeStyleParts: string[] = [];
+    if (totalMargin > 0) safeStyleParts.push(`margin-left: ${totalMargin}px`);
+    if (item.style.color) safeStyleParts.push(`color: ${item.style.color}`);
+    if (item.style.backgroundColor) safeStyleParts.push(`background-color: ${item.style.backgroundColor}`);
+    if (safeStyleParts.length) {
+      paragraph.setAttribute("style", safeStyleParts.join("; "));
+    }
+
+    inlineNodes.forEach((node) => paragraph.appendChild(node));
+
+    const resultBlocks: HTMLElement[] = [];
+    if (paragraph.childNodes.length === 0 || !paragraph.textContent?.trim() && !paragraph.querySelector("img, [data-mention-id], br")) {
+      paragraph.appendChild(item.ownerDocument.createElement("br"));
+    }
+    resultBlocks.push(paragraph);
+
+    nestedLists.forEach((subList) => {
+      const subType: "bullets" | "numbered" = subList.tagName === "OL" ? "numbered" : "bullets";
+      const subItems = Array.from(subList.children).filter(
+        (child): child is HTMLElement => child.tagName === "LI",
+      );
+      subItems.forEach((subItem) => {
+        resultBlocks.push(...flattenListItem(subItem, subType, depth + 1, baseIndentPx));
+      });
+    });
+
+    return resultBlocks;
+  };
+
+  rootLists.forEach((list) => {
+    const listMargin = Number.parseFloat(list.style.marginLeft || "0");
+    const listType: "bullets" | "numbered" = list.tagName === "OL" ? "numbered" : "bullets";
+    const items = Array.from(list.children).filter(
+      (child): child is HTMLElement => child.tagName === "LI",
+    );
+    const convertedBlocks = items.flatMap((item) =>
+      flattenListItem(item, listType, 0, listMargin),
+    );
+
+    const parent = list.parentNode;
+    if (!parent) return;
+    convertedBlocks.forEach((block) => {
+      parent.insertBefore(block, list);
+    });
+    list.remove();
+  });
+}
+
 export function sanitizeEditorHtml(html: string): string {
   const source = new DOMParser().parseFromString(html, "text/html");
   applyCopiedStyles(source);
+  normalizeDomLists(source.body);
   const tags = new Set([
     "A",
     "B",
@@ -968,9 +1044,7 @@ export function sanitizeEditorHtml(html: string): string {
     "HR",
     "IMG",
     "I",
-    "LI",
     "MARK",
-    "OL",
     "P",
     "PRE",
     "SMALL",
@@ -987,7 +1061,6 @@ export function sanitizeEditorHtml(html: string): string {
     "THEAD",
     "TR",
     "U",
-    "UL",
   ]);
   const attributes = new Set([
     "alt",
@@ -995,6 +1068,8 @@ export function sanitizeEditorHtml(html: string): string {
     "data-mention-mode",
     "data-mention-id",
     "data-mention-align",
+    "data-mention-user-underline",
+    "data-mention-strike",
     "data-no-resize",
     "data-block-id",
     "data-his-image-placeholder",
@@ -1008,6 +1083,7 @@ export function sanitizeEditorHtml(html: string): string {
     "data-his-column-layout",
     "data-his-column",
     "data-his-collapsed",
+    "data-his-collapsed-child",
     "data-his-dropdown-content",
     "data-his-todo-checked",
     "data-page-index-item",
@@ -1019,6 +1095,8 @@ export function sanitizeEditorHtml(html: string): string {
     "data-his-table-cell",
     "data-his-table-header",
     "href",
+    "target",
+    "rel",
     "role",
     "rowspan",
     "src",
@@ -1107,10 +1185,21 @@ export function sanitizeEditorHtml(html: string): string {
         const alignment = ["left", "center", "right"].includes(element.getAttribute("data-mention-align") || "")
           ? element.getAttribute("data-mention-align")
           : null;
-        const title = element.getAttribute("title");
-        const titleAttribute = title ? ` title="${escapeHtml(title)}"` : "";
         const alignmentAttribute = alignment ? ` data-mention-align="${alignment}"` : "";
-        return `<span class="editor-mention" contenteditable="false" data-no-resize="true" data-mention-id="${escapeHtml(mentionId)}" data-mention-mode="${mode}"${alignmentAttribute}${titleAttribute}>${children}</span>`;
+        const userUnderline = element.getAttribute("data-mention-user-underline") === "true" ? ' data-mention-user-underline="true"' : "";
+        const strike = element.getAttribute("data-mention-strike") === "true" ? ' data-mention-strike="true"' : "";
+        const safeStyles: string[] = [];
+        const rawStyle = element.getAttribute("style") || "";
+        const safeColorBg = safeInlineStyle(rawStyle, element);
+        if (safeColorBg) safeStyles.push(safeColorBg);
+        if (/font-weight\s*:\s*(?:bold|[6-9]00)/i.test(rawStyle) || (element as HTMLElement).style.fontWeight === "bold") {
+          safeStyles.push("font-weight: bold");
+        }
+        if (/font-style\s*:\s*italic/i.test(rawStyle) || (element as HTMLElement).style.fontStyle === "italic") {
+          safeStyles.push("font-style: italic");
+        }
+        const styleAttribute = safeStyles.length ? ` style="${escapeHtml(safeStyles.join("; "))}"` : "";
+        return `<span class="editor-mention" contenteditable="false" data-no-resize="true" data-mention-id="${escapeHtml(mentionId)}" data-mention-mode="${mode}"${alignmentAttribute}${userUnderline}${strike}${styleAttribute}>${children}</span>`;
       }
       const style = element.getAttribute("style") || "";
       const safeStyle = safeInlineStyle(style, element);
@@ -1133,6 +1222,13 @@ export function sanitizeEditorHtml(html: string): string {
       return safeStyle
         ? `<span style="${escapeHtml(safeStyle)}">${children}</span>`
         : children;
+    }
+    if (element.tagName === "A") {
+      const href = element.getAttribute("href") || "";
+      if (isSafeUrl(href)) {
+        return `<a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer" class="editor-link">${children}</a>`;
+      }
+      return children;
     }
     const safeAttributes = Array.from(element.attributes)
       .filter((attribute) => attributes.has(attribute.name))

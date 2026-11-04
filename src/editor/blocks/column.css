@@ -1,0 +1,21 @@
+/* Layout de columnas dentro del editor */
+
+.editor-content [data-his-column-layout] {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  width: 100%;
+}
+
+.editor-content [data-his-column] {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.editor-content [data-his-column] img {
+  max-width: 100% !important;
+}
+
+.editor-content [data-his-column] > :first-child {
+  margin-top: 0;
+}

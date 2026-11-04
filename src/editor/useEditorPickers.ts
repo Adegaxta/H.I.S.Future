@@ -10,11 +10,14 @@ export function useEditorPickers(nodes: NodeItem[], recentNodes: NodeItem[] = []
   const [callPicker, setCallPicker] = useState<PickerState | null>(null);
   const [callPickerIndex, setCallPickerIndex] = useState(0);
   const [imageMentionChoice, setImageMentionChoice] = useState<string | null>(null);
+  const [imageMentionMode, setImageMentionMode] = useState<"inserted" | "full">("inserted");
   const [slashPicker, setSlashPicker] = useState<PickerState | null>(null);
   const [slashPickerIndex, setSlashPickerIndex] = useState(0);
   const [pickerPosition, setPickerPosition] = useState<{
     top: number;
     left: number;
+    caretTop?: number;
+    caretBottom?: number;
   } | null>(null);
 
   const callCandidates = callPicker
@@ -43,6 +46,8 @@ export function useEditorPickers(nodes: NodeItem[], recentNodes: NodeItem[] = []
     setCallPickerIndex,
     imageMentionChoice,
     setImageMentionChoice,
+    imageMentionMode,
+    setImageMentionMode,
     slashPicker,
     setSlashPicker,
     slashPickerIndex,

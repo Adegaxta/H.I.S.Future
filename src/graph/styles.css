@@ -136,6 +136,8 @@
   border-radius: 5px;
   background: #171a1e;
   box-shadow: 0 14px 34px rgb(0 0 0 / 45%);
+  animation: his-popover-enter var(--his-duration-enter) var(--his-ease-spring);
+  will-change: transform, opacity;
 }
 
 .graph-view__hover-preview-frame {
@@ -193,6 +195,8 @@
   border-radius: 5px;
   background: #171a1e;
   box-shadow: 0 14px 34px rgb(0 0 0 / 45%);
+  animation: his-popover-enter var(--his-duration-enter) var(--his-ease-spring);
+  will-change: transform, opacity;
 }
 
 .graph-view__edge-hover-path {

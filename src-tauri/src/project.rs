@@ -1,8 +1,7 @@
 use crate::archive_sync::{ArchiveSyncJob, ArchiveSyncManager};
 use crate::persistence::{
     is_persisted_node_type, nodes_table_sql, project_resource_definition, project_resource_format, resource_id_from_content,
-    schema_matches_registry, CURRENT_NODAL_SCHEMA_VERSION, LINKS_SCHEMA,
-    AI_CONVERSATION_SCHEMA, NODAL_SCHEMA_VERSION_KEY, PROJECT_META_SCHEMA, TAGS_SCHEMA,
+    schema_matches_registry, CURRENT_NODAL_SCHEMA_VERSION, LINKS_SCHEMA, NODAL_SCHEMA_VERSION_KEY, PROJECT_META_SCHEMA, TAGS_SCHEMA,
 };
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
@@ -519,8 +518,6 @@ fn init_database(path: &Path) -> Result<(Connection, bool), String> {
         .map_err(|err| format!("No se pudo inicializar el layout granular del editor: {err}"))?;
     db.execute_batch(TAGS_SCHEMA)
         .map_err(|err| format!("No se pudo inicializar el sistema de Tags: {err}"))?;
-    db.execute_batch(AI_CONVERSATION_SCHEMA)
-        .map_err(|err| format!("No se pudo inicializar GEMITAV V0.1: {err}"))?;
     let broken: bool = db
         .query_row(
             "SELECT EXISTS(SELECT 1 FROM pragma_foreign_key_check)",

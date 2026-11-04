@@ -11,6 +11,7 @@ import {
 import type { ProjectInfo } from "../project/types";
 import { asErrorMessage } from "../project/runtime";
 import type { Translate } from "../i18n/core";
+import { createDiagnosticEvent, emitDiagnosticEvent } from "../diagnostics/events";
 import {
   markCloseProjectReactTransition,
   measureLifecyclePhase,
@@ -38,12 +39,24 @@ export function useProjectSession() {
     onFailure?: () => void,
     remember = true,
   ) => {
+    const started = performance.now();
     setBusy(true);
     setError(null);
     startLifecycleFlow("project.time-to-useful-ui");
     try {
       const next = await measureLifecyclePhase(`project.${operation}.backend`, task);
       if (next) {
+        emitDiagnosticEvent(createDiagnosticEvent({
+          level: "INFO",
+          category: "PROJECT",
+          action: operation.startsWith("create") ? "project.created" : "project.opened",
+          operation: `project.${operation}`,
+          message: operation.startsWith("create") ? "Project created" : "Project opened",
+          technicalDetail: JSON.stringify({
+            operation,
+            durationMs: Number((performance.now() - started).toFixed(2)),
+          }),
+        }));
         setProject(next);
         if (remember) {
           localStorage.setItem(lastProjectStorageKey, next.folderPath);
@@ -56,6 +69,14 @@ export function useProjectSession() {
       }
     } catch (caught) {
       setError(asErrorMessage(caught));
+      emitDiagnosticEvent(createDiagnosticEvent({
+        level: "ERROR",
+        category: "PROJECT",
+        action: `project.${operation}.failed`,
+        operation: `project.${operation}`,
+        message: operation.startsWith("create") ? "Project could not be created" : "Project could not be opened",
+        technicalDetail: caught instanceof Error ? `${caught.name}: ${caught.message}` : String(caught),
+      }));
       onFailure?.();
     } finally {
       setBusy(false);

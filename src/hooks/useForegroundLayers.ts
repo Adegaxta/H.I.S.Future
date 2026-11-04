@@ -1,7 +1,7 @@
 import { useLayoutEffect, type RefObject } from "react";
 
 // Top-layer painting preserves React ownership while escaping pane clipping.
-const SELECTOR = ".node-options-layer,.his-context-menu,.page-context-menu-layer,.his-table-menu-layer,.spelling-context-menu,.page-image-picker,.tag-picker,.page-node-settings,.page-node-visibility-menu,.editor-selection-toolbar,.editor-selection-color-menu,.editor-block-color-menu";
+const SELECTOR = ".node-options-layer,.his-context-menu,.page-context-menu-layer,.his-table-menu-layer,.spelling-context-menu,.page-image-picker,.tag-picker,.page-node-settings,.page-node-visibility-menu,.editor-selection-color-menu,.editor-block-color-menu";
 export function useForegroundLayers(rootRef: RefObject<HTMLElement | null>) {
   useLayoutEffect(() => {
     const root = rootRef.current;

@@ -6,7 +6,7 @@ try {
   const { NODE_REGISTRY } = await server.ssrLoadModule("/src/defs/nodeTypes.ts");
   const definitions = NODE_REGISTRY.all();
   assert.equal(new Set(definitions.map((d) => d.type)).size, definitions.length);
-  assert.deepEqual(definitions.filter((d) => d.creation.selectAfterCreation).map((d) => d.type), ["pagina", "curso", "tarea", "video"]);
+  assert.deepEqual(definitions.filter((d) => d.creation.selectAfterCreation).map((d) => d.type), ["pagina", "proyecto", "imagen", "calendario", "pdf", "curso", "tarea", "video"]);
   const { readFile } = await import("node:fs/promises");
   const persistence = await readFile(new URL("../src-tauri/src/persistence.rs", import.meta.url), "utf8");
   const persistedTypeBlock = persistence.match(/PERSISTED_NODE_TYPES:\s*&\[&str\]\s*=\s*&\[([\s\S]*?)\];/);
@@ -180,7 +180,7 @@ try {
   assert.equal(page.getPageBlockWidthPercent({ blockWidth: 250 }), 100, "legacy out-of-range width remains safe");
   assert.equal(blockModel.EDITOR_STRUCTURAL_BLOCK_SELECTOR.includes("[data-globe]"), true);
   assert.equal(blockModel.EDITOR_SELECTABLE_BLOCK_SELECTOR.includes("[data-globe]"), false, "a Globe group must not compete with its selectable children");
-  assert.deepEqual(blockModel.EDITOR_TRANSIENT_BLOCK_ATTRIBUTES.slice(0, 3), ["data-line-selected", "data-line-dragging", "data-line-drop-target"]);
+  assert.deepEqual(blockModel.EDITOR_TRANSIENT_BLOCK_ATTRIBUTES.slice(0, 4), ["data-editor-block-identity", "data-line-selected", "data-line-dragging", "data-line-drop-target"]);
   assert.equal(blockModel.EDITOR_TRANSIENT_BLOCK_ATTRIBUTES.includes("data-his-table-active"), true, "runtime table focus is excluded from persistence");
   assert.equal(blockModel.EDITOR_TRANSIENT_BLOCK_ATTRIBUTES.includes("data-his-table-dragging"), true, "runtime table drag state is excluded from persistence");
   const fakeEditor = { innerHTML: '<p contenteditable="true">body</p>' };

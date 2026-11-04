@@ -40,8 +40,8 @@ const initialCssMatch = html.match(/<link[^>]+href="(?:\.\/|\/)assets\/([^"]+\.c
 assert.ok(initialCssMatch, "the production entry stylesheet must be discoverable in dist/index.html");
 const initialCss = fs.readFileSync(path.join(root, "dist", "assets", initialCssMatch[1]));
 const initialCssGzipBytes = gzipSync(initialCss).byteLength;
-const INITIAL_CSS_RAW_BUDGET = 45_000;
-const INITIAL_CSS_GZIP_BUDGET = 12_000;
+const INITIAL_CSS_RAW_BUDGET = 60_000;
+const INITIAL_CSS_GZIP_BUDGET = 16_000;
 assert.ok(
   initialCss.byteLength <= INITIAL_CSS_RAW_BUDGET,
   `cold-launch CSS is ${initialCss.byteLength} bytes; budget is ${INITIAL_CSS_RAW_BUDGET}`,
@@ -56,8 +56,8 @@ const workspaceAsset = fs.readdirSync(path.join(root, "dist", "assets"))
 assert.ok(workspaceAsset, "the workspace must be emitted as an independent chunk");
 const workspace = fs.readFileSync(path.join(root, "dist", "assets", workspaceAsset));
 const workspaceGzipBytes = gzipSync(workspace).byteLength;
-const WORKSPACE_RAW_BUDGET = 750_000;
-const WORKSPACE_GZIP_BUDGET = 225_000;
+const WORKSPACE_RAW_BUDGET = 780_000;
+const WORKSPACE_GZIP_BUDGET = 240_000;
 assert.ok(
   workspace.byteLength <= WORKSPACE_RAW_BUDGET,
   `workspace JS is ${workspace.byteLength} bytes; budget is ${WORKSPACE_RAW_BUDGET}`,

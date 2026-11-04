@@ -1,5 +1,5 @@
 import { mutedEditorBackground } from "./blockColors";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   ClipboardEvent,
   DragEvent,
@@ -9,7 +9,7 @@ import type {
 import { useNodeScopedEditorHistory } from "./useEditorHistory";
 import { useEditorSelection } from "./useEditorSelection";
 import type { SelectionToolbarState } from "./useEditorSelection";
-import { rangeBelongsToEditor, type InlineFormatCommand } from "./inlineMarks";
+import { rangeBelongsToEditor, readInlineMarkState, type InlineFormatCommand } from "./inlineMarks";
 import type { NodeItem } from "../types/nodes";
 import type { PickerState } from "./types";
 import { findImportableFile, isImportableDragItem } from "../project/fileNodeImporter";
@@ -33,7 +33,9 @@ import {
 import { focusPageHeading } from "./pageIndexNavigation";
 import { loadEditorImageLayouts, saveEditorImageLayout } from "../project/editorLayoutRepository";
 import { getImageResourceInfo } from "../utils/imageResource";
+import { getEffectiveNodeType } from "../utils/nodeTree";
 import { ensureTableRuntime, getTableRootFromNode, insertTableIntoBlock, isTableEditingTarget } from "./table";
+import { useLocale } from "../i18n/LocaleContext";
 
 interface EditorControllerOptions {
   node: NodeItem;
@@ -115,6 +117,7 @@ export function useEditorController({
   onMentionCreate,
   onSlashCommand,
 }: EditorControllerOptions) {
+  const { t } = useLocale();
   const [selectionToolbar, setSelectionToolbar] = useState<SelectionToolbarState | null>(null);
   const savedTextRangeRef = useRef<Range | null>(null);
   const [placeholderBlock, setPlaceholderBlock] = useState<HTMLElement | null>(
@@ -131,10 +134,25 @@ export function useEditorController({
   const imageResizeRef = useRef<{
     image: HTMLImageElement;
     startX: number;
+    startY: number;
     startWidth: number;
     blockId: string;
     blockIdCreated: boolean;
+    isDragging: boolean;
   } | null>(null);
+  const [previewImage, setPreviewImage] = useState<{
+    node?: NodeItem | null;
+    src: string;
+    alt?: string;
+  } | null>(null);
+
+  const openImagePreview = useCallback((data: { node?: NodeItem | null; src: string; alt?: string }) => {
+    setPreviewImage(data);
+  }, []);
+
+  const closeImagePreview = useCallback(() => {
+    setPreviewImage(null);
+  }, []);
   const imageLayoutInteractedRef = useRef(false);
   const imageRepairInFlightRef = useRef(new Set<string>());
   const lastPointerRef = useRef({ x: 0, y: 0 });
@@ -378,7 +396,7 @@ export function useEditorController({
     editor.innerHTML = snapshot.html;
     ensureTableRuntime(editor);
     clearGeneratedLines();
-    editor.focus();
+    editor.focus({ preventScroll: true });
     restoreSelectionSnapshot(editor, snapshot.selection);
     syncContent();
     updatePlaceholder();
@@ -618,6 +636,12 @@ export function useEditorController({
         deleteSelectedLine();
         return;
       }
+      if (event.key === "Enter" && hasSelectionMode && !isTextInput) {
+        event.preventDefault();
+        event.stopPropagation();
+        replaceSelectedLinesWithNewLine();
+        return;
+      }
       if (!document.hasFocus() && !hasSelectionMode) {
         return;
       }
@@ -714,25 +738,31 @@ export function useEditorController({
     selection.addRange(range.cloneRange());
     return selection;
   };
-  const applyMentionFormat = (range: Range, command: InlineFormatCommand, enabled: boolean) => {
+  const getIntersectingMentions = (range: Range): HTMLElement[] => {
     const editor = editorRef.current;
-    if (!editor) return;
+    if (!editor) return [];
+    const mentions: HTMLElement[] = [];
     editor.querySelectorAll<HTMLElement>(".editor-mention").forEach((mention) => {
       try {
-        if (!range.intersectsNode(mention)) return;
+        if (range.intersectsNode(mention)) {
+          mentions.push(mention);
+        }
       } catch {
-        return;
+        // ignore
       }
+    });
+    return mentions;
+  };
+  const applyMentionFormat = (mentions: HTMLElement[], command: InlineFormatCommand, enabled: boolean) => {
+    mentions.forEach((mention) => {
       const label = mention.querySelector<HTMLElement>(":scope > .editor-mention__label");
-      if (!label) return;
       if (command === "bold") {
-        label.style.removeProperty("font-weight");
+        label?.style.removeProperty("font-weight");
         mention.style.fontWeight = enabled ? "bold" : "";
       } else if (command === "italic") {
-        label.style.removeProperty("font-style");
+        label?.style.removeProperty("font-style");
         mention.style.fontStyle = enabled ? "italic" : "";
-      }
-      else if (command === "underline") {
+      } else if (command === "underline") {
         if (enabled) mention.dataset.mentionUserUnderline = "true";
         else mention.removeAttribute("data-mention-user-underline");
       } else if (command === "strikeThrough") {
@@ -741,20 +771,27 @@ export function useEditorController({
       }
     });
   };
-  const applyMentionTextColor = (range: Range, color: string) => {
-    const editor = editorRef.current;
-    if (!editor) return;
-    editor.querySelectorAll<HTMLElement>(".editor-mention").forEach((mention) => {
-      try {
-        if (!range.intersectsNode(mention)) return;
-      } catch {
-        return;
-      }
+  const applyMentionTextColor = (mentions: HTMLElement[], color: string) => {
+    mentions.forEach((mention) => {
       const label = mention.querySelector<HTMLElement>(":scope > .editor-mention__label");
-      if (!label) return;
       if (color) mention.style.color = color;
-      else mention.style.removeProperty("color");
-      label.style.removeProperty("color");
+      else {
+        mention.style.removeProperty("color");
+        if (!mention.getAttribute("style")) mention.removeAttribute("style");
+      }
+      label?.style.removeProperty("color");
+      if (label && !label.getAttribute("style")) label.removeAttribute("style");
+    });
+  };
+  const applyMentionBackgroundColor = (mentions: HTMLElement[], color: string) => {
+    const bg = mutedEditorBackground(color);
+    mentions.forEach((mention) => {
+      if (bg) {
+        mention.style.backgroundColor = bg;
+      } else {
+        mention.style.removeProperty("background-color");
+        if (!mention.getAttribute("style")) mention.removeAttribute("style");
+      }
     });
   };
   const applyTextFormat = (command: InlineFormatCommand) => {
@@ -771,17 +808,23 @@ export function useEditorController({
         if (block.matches("[data-divider]")) return;
         const range = document.createRange();
         range.selectNodeContents(block);
+        const mentions = getIntersectingMentions(range);
         selection?.removeAllRanges();
         if (selection) selection.addRange(range);
-        const enableMentionFormat = !document.queryCommandState(command);
+        const currentMarkState = editorRef.current ? readInlineMarkState(range, editorRef.current)[command] : "off";
+        const enableMentionFormat = currentMarkState !== "on";
         document.execCommand(command, false);
-        applyMentionFormat(range, command, enableMentionFormat);
+        applyMentionFormat(mentions, command, enableMentionFormat);
       });
     } else if (selection && selection.rangeCount && !selection.isCollapsed) {
       const range = selection.getRangeAt(0).cloneRange();
-      const enableMentionFormat = selectionToolbar?.marks[command] !== "on";
+      const mentions = getIntersectingMentions(range);
+      const currentMarkState = selectionToolbar?.marks[command] ?? (
+        editorRef.current ? readInlineMarkState(range, editorRef.current)[command] : "off"
+      );
+      const enableMentionFormat = currentMarkState !== "on";
       document.execCommand(command, false);
-      applyMentionFormat(range, command, enableMentionFormat);
+      applyMentionFormat(mentions, command, enableMentionFormat);
     }
     syncContent();
     window.requestAnimationFrame(updateSelectionToolbar);
@@ -798,23 +841,265 @@ export function useEditorController({
             const block = getEditorBlock(selection?.focusNode || null) || null;
             return block ? [block] : [];
           })();
+    const editor = editorRef.current;
     if (selection && selection.rangeCount && !selection.isCollapsed) {
       const range = selection.getRangeAt(0).cloneRange();
-      document.execCommand("foreColor", false, color);
-      applyMentionTextColor(range, color);
+      const mentions = getIntersectingMentions(range);
+      if (color) {
+        document.execCommand("foreColor", false, color);
+        applyMentionTextColor(mentions, color);
+      } else {
+        const MARKER_COLOR = "#000001";
+        document.execCommand("foreColor", false, MARKER_COLOR);
+        if (editor) {
+          editor.querySelectorAll('font[color="#000001"], [style*="0, 0, 1"], [style*="#000001"]').forEach((el) => {
+            if (el.classList.contains("editor-mention") || el.closest(".editor-mention")) return;
+            if (el.tagName === "FONT") {
+              const parent = el.parentNode;
+              if (parent) {
+                while (el.firstChild) parent.insertBefore(el.firstChild, el);
+                parent.removeChild(el);
+              }
+            } else {
+              (el as HTMLElement).style.removeProperty("color");
+              if (!el.getAttribute("style")) el.removeAttribute("style");
+              if (el.tagName === "SPAN" && !el.attributes.length) {
+                const parent = el.parentNode;
+                if (parent) {
+                  while (el.firstChild) parent.insertBefore(el.firstChild, el);
+                  parent.removeChild(el);
+                }
+              }
+            }
+          });
+        }
+        applyMentionTextColor(mentions, "");
+        targetBlocks.forEach((block) => {
+          if (!block.matches("[data-divider]")) {
+            block.style.removeProperty("color");
+            if (!block.getAttribute("style")) block.removeAttribute("style");
+          }
+        });
+      }
     } else {
       targetBlocks.forEach((block) => {
-        if (!block.matches("[data-divider]")) block.style.color = color;
+        if (!block.matches("[data-divider]")) {
+          if (color) {
+            block.style.color = color;
+          } else {
+            block.style.removeProperty("color");
+            if (!block.getAttribute("style")) block.removeAttribute("style");
+            block.querySelectorAll<HTMLElement>("font[color], span[style*='color']").forEach((el) => {
+              if (el.closest(".editor-mention")) return;
+              if (el.tagName === "FONT") {
+                const parent = el.parentNode;
+                if (parent) {
+                  while (el.firstChild) parent.insertBefore(el.firstChild, el);
+                  parent.removeChild(el);
+                }
+              } else {
+                el.style.removeProperty("color");
+                if (!el.getAttribute("style")) el.removeAttribute("style");
+                if (el.tagName === "SPAN" && !el.attributes.length) {
+                  const parent = el.parentNode;
+                  if (parent) {
+                    while (el.firstChild) parent.insertBefore(el.firstChild, el);
+                    parent.removeChild(el);
+                  }
+                }
+              }
+            });
+          }
+          const range = document.createRange();
+          range.selectNodeContents(block);
+          const mentions = getIntersectingMentions(range);
+          applyMentionTextColor(mentions, color);
+        }
       });
     }
     syncContent();
     updateSelectionToolbar();
   };
+  const getSelectedCodeElements = (range: Range): HTMLElement[] => {
+    const editor = editorRef.current;
+    if (!editor) return [];
+    const set = new Set<HTMLElement>();
+
+    const checkAncestor = (node: Node | null) => {
+      let curr: Node | null = node;
+      while (curr && curr !== editor) {
+        if (curr.nodeType === Node.ELEMENT_NODE && (curr as HTMLElement).tagName === "CODE") {
+          set.add(curr as HTMLElement);
+          break;
+        }
+        curr = curr.parentNode;
+      }
+    };
+
+    checkAncestor(range.commonAncestorContainer);
+    checkAncestor(range.startContainer);
+    checkAncestor(range.endContainer);
+
+    editor.querySelectorAll<HTMLElement>("code").forEach((code) => {
+      try {
+        if (range.intersectsNode(code)) {
+          set.add(code);
+        }
+      } catch {}
+    });
+
+    return Array.from(set);
+  };
+  const toggleInlineCode = () => {
+    pushEditorHistory();
+    const selection = selectionToolbar ? restoreTextSelection() || window.getSelection() : window.getSelection();
+    if (!selection || !selection.rangeCount || selection.isCollapsed) return;
+    const range = selection.getRangeAt(0);
+    const editor = editorRef.current;
+    if (!editor || !rangeBelongsToEditor(range, editor)) return;
+
+    const codes = getSelectedCodeElements(range);
+
+    const unwrapCodeElement = (codeEl: HTMLElement) => {
+      while (codeEl.querySelector("code")) {
+        codeEl.querySelectorAll("code").forEach((nested) => {
+          const parent = nested.parentNode;
+          if (parent) {
+            while (nested.firstChild) parent.insertBefore(nested.firstChild, nested);
+            parent.removeChild(nested);
+          }
+        });
+      }
+      const parent = codeEl.parentNode;
+      if (parent) {
+        while (codeEl.firstChild) parent.insertBefore(codeEl.firstChild, codeEl);
+        parent.removeChild(codeEl);
+      }
+    };
+
+    if (codes.length > 0) {
+      if (codes.length === 1 && codes[0].contains(range.commonAncestorContainer)) {
+        const codeEl = codes[0];
+        const isWhole = (
+          (range.startContainer === codeEl || range.startContainer === codeEl.firstChild) &&
+          range.startOffset === 0 &&
+          (range.endContainer === codeEl || range.endContainer === codeEl.lastChild) &&
+          range.endOffset === (codeEl.lastChild?.textContent?.length ?? codeEl.childNodes.length)
+        ) || selection.toString().trim() === (codeEl.textContent || "").trim();
+
+        if (!isWhole && codeEl.parentNode) {
+          const parent = codeEl.parentNode;
+          const beforeRange = document.createRange();
+          beforeRange.setStart(codeEl, 0);
+          beforeRange.setEnd(range.startContainer, range.startOffset);
+          const beforeFrag = beforeRange.cloneContents();
+
+          const afterRange = document.createRange();
+          afterRange.setStart(range.endContainer, range.endOffset);
+          afterRange.setEnd(codeEl, codeEl.childNodes.length);
+          const afterFrag = afterRange.cloneContents();
+
+          const selectedFrag = range.extractContents();
+
+          const unwrapStart = document.createElement("span");
+          const unwrapEnd = document.createElement("span");
+
+          if (beforeFrag.textContent && beforeFrag.textContent.length > 0) {
+            const beforeCode = document.createElement("code");
+            beforeCode.appendChild(beforeFrag);
+            parent.insertBefore(beforeCode, codeEl);
+          }
+
+          parent.insertBefore(unwrapStart, codeEl);
+
+          const tempDiv = document.createElement("div");
+          tempDiv.appendChild(selectedFrag);
+          tempDiv.querySelectorAll("code").forEach((nested) => {
+            nested.replaceWith(...Array.from(nested.childNodes));
+          });
+          while (tempDiv.firstChild) parent.insertBefore(tempDiv.firstChild, codeEl);
+
+          parent.insertBefore(unwrapEnd, codeEl);
+
+          if (afterFrag.textContent && afterFrag.textContent.length > 0) {
+            const afterCode = document.createElement("code");
+            afterCode.appendChild(afterFrag);
+            parent.insertBefore(afterCode, codeEl);
+          }
+
+          parent.removeChild(codeEl);
+
+          const newRange = document.createRange();
+          newRange.setStartAfter(unwrapStart);
+          newRange.setEndBefore(unwrapEnd);
+          unwrapStart.remove();
+          unwrapEnd.remove();
+
+          selection.removeAllRanges();
+          selection.addRange(newRange);
+          savedTextRangeRef.current = newRange.cloneRange();
+          syncContent();
+          updateSelectionToolbar();
+          return;
+        }
+      }
+
+      const startMarker = document.createElement("span");
+      const endMarker = document.createElement("span");
+      const cloned = range.cloneRange();
+      const endR = cloned.cloneRange();
+      endR.collapse(false);
+      endR.insertNode(endMarker);
+
+      const startR = cloned.cloneRange();
+      startR.collapse(true);
+      startR.insertNode(startMarker);
+
+      codes.forEach((codeEl) => {
+        unwrapCodeElement(codeEl);
+      });
+
+      const newRange = document.createRange();
+      newRange.setStartAfter(startMarker);
+      newRange.setEndBefore(endMarker);
+      startMarker.remove();
+      endMarker.remove();
+
+      selection.removeAllRanges();
+      selection.addRange(newRange);
+      savedTextRangeRef.current = newRange.cloneRange();
+    } else {
+      const code = document.createElement("code");
+      try {
+        range.surroundContents(code);
+      } catch {
+        const fragment = range.extractContents();
+        code.appendChild(fragment);
+        range.insertNode(code);
+      }
+      code.querySelectorAll("code").forEach((nested) => {
+        nested.replaceWith(...Array.from(nested.childNodes));
+      });
+
+      const newRange = document.createRange();
+      newRange.selectNodeContents(code);
+      selection.removeAllRanges();
+      selection.addRange(newRange);
+      savedTextRangeRef.current = newRange.cloneRange();
+    }
+    syncContent();
+    updateSelectionToolbar();
+  };
+
   const applyBlockBackgroundColor = (color: string, targetBlock?: HTMLElement | null) => {
     pushEditorHistory();
     const selection = window.getSelection();
     if (!targetBlock && selection && selection.rangeCount && !selection.isCollapsed) {
-      document.execCommand("backColor", false, mutedEditorBackground(color) || "transparent");
+      const range = selection.getRangeAt(0).cloneRange();
+      const mentions = getIntersectingMentions(range);
+      const bg = mutedEditorBackground(color);
+      applyMentionBackgroundColor(mentions, color);
+      document.execCommand("backColor", false, bg || "transparent");
       window.requestAnimationFrame(() => {
         syncContent();
         updateSelectionToolbar();
@@ -898,6 +1183,7 @@ export function useEditorController({
     ensureEditorLine,
     removeLine,
     deleteSelectedLine,
+    replaceSelectedLinesWithNewLine,
     openLineCommands,
     moveLine,
     updateLineControl,
@@ -1004,6 +1290,7 @@ export function useEditorController({
     imageResizeRef,
     controls,
     captureStructuralUndo,
+    openImagePreview,
   });
 
   const {
@@ -1012,6 +1299,7 @@ export function useEditorController({
     insertNodeMention,
     insertNodeReference,
     onMentionPointerDown,
+    onMentionClick,
     onEditorPointerDown: onMentionEditorPointerDown,
     onEditorPointerMove,
     alignImage,
@@ -1037,28 +1325,6 @@ export function useEditorController({
     }
     editor.appendChild(block);
     return block;
-  };
-
-  const focusFreshParagraphAfter = (afterNode: Node | null) => {
-    const editor = editorRef.current;
-    if (!editor) return;
-    const line = document.createElement("p");
-    line.appendChild(document.createElement("br"));
-    line.removeAttribute("style");
-    if (afterNode && afterNode.parentNode) {
-      afterNode.parentNode.insertBefore(line, afterNode.nextSibling);
-    } else {
-      editor.appendChild(line);
-    }
-    const range = document.createRange();
-    range.selectNodeContents(line);
-    range.collapse(true);
-    const selection = window.getSelection();
-    selection?.removeAllRanges();
-    selection?.addRange(range);
-    editor.focus();
-    line.scrollIntoView({ block: "nearest" });
-    updatePlaceholder();
   };
 
   const normalizePageIndices = () => {
@@ -1106,6 +1372,14 @@ export function useEditorController({
         item.append(marker, labelElement);
         fragment.appendChild(item);
       });
+      if (entries.length === 0) {
+        const emptyState = document.createElement("div");
+        emptyState.className = "editor-page-index__empty";
+        emptyState.dataset.pageIndexEmpty = "true";
+        emptyState.contentEditable = "false";
+        emptyState.textContent = t("page.index.empty");
+        fragment.appendChild(emptyState);
+      }
       const nextHtml = Array.from(fragment.childNodes).map((child) => (child as HTMLElement).outerHTML).join("");
       if (index.innerHTML !== nextHtml) {
         index.replaceChildren(fragment);
@@ -1471,12 +1745,21 @@ export function useEditorController({
     const isGlobeCommand = type === "slash" && (value === "GLOBO" || value === "GLOBO_INDIVIDUAL");
     if (!selection || (!selection.focusNode && !isGlobeCommand)) return;
     if (type === "mention") {
-      if (!selection?.focusNode || !selection.rangeCount) return;
-      const range = selection.getRangeAt(0);
+      let textNode = selection?.focusNode;
+      let focusOffset = selection?.focusOffset ?? 0;
+      if (
+        (!textNode || textNode.nodeType !== Node.TEXT_NODE) &&
+        mentionTriggerRangeRef.current?.container instanceof Node &&
+        mentionTriggerRangeRef.current.container.nodeType === Node.TEXT_NODE
+      ) {
+        textNode = mentionTriggerRangeRef.current.container;
+        const queryLen = pickers.callPicker?.query.length ?? 0;
+        focusOffset = mentionTriggerRangeRef.current.triggerOffset + queryLen + 1;
+      }
       const target = nodes.find((item) => item.id === value);
-      const textNode = selection.focusNode;
       if (
         !target ||
+        !textNode ||
         textNode.nodeType !== Node.TEXT_NODE ||
         !pickers.callPicker
       ) {
@@ -1484,17 +1767,18 @@ export function useEditorController({
         return;
       }
       const length = pickers.callPicker.query.length + 1;
-      if (selection.focusOffset < length) {
+      if (focusOffset < length) {
         resetEditorPickers();
         return;
       }
-      range.setStart(textNode, selection.focusOffset - length);
-      range.setEnd(textNode, selection.focusOffset);
+      const range = document.createRange();
+      range.setStart(textNode, focusOffset - length);
+      range.setEnd(textNode, focusOffset);
       range.deleteContents();
       const mention = createMention(target, imageMode);
       insertMentionWithSpacing(range, mention);
-      selection.removeAllRanges();
-      selection.addRange(range);
+      selection?.removeAllRanges();
+      selection?.addRange(range);
       syncContent();
       dismissEditorMenus();
       return;
@@ -1560,39 +1844,79 @@ export function useEditorController({
     } else if (value === "DIVISOR") {
       captureStructuralUndo();
       const blocks = validActionBlocks.length ? validActionBlocks : [currentBlock].filter(Boolean) as HTMLElement[];
-      blocks.forEach((block) => {
+      let lastDivider: HTMLElement | null = null;
+      for (const block of blocks) {
         const divider = document.createElement("div");
         divider.dataset.divider = "true";
         divider.contentEditable = "false";
         divider.appendChild(document.createElement("hr"));
-        const after = document.createElement("p");
-        after.appendChild(document.createElement("br"));
-        after.removeAttribute("style");
-        insertStructuralBlockAfter(block, divider);
-        const parent = divider.parentElement ?? block.parentElement;
-        if (parent) parent.insertBefore(after, divider.nextSibling ?? null);
+
+        const selection = window.getSelection();
+        const range = selection?.rangeCount ? selection.getRangeAt(0) : null;
+        const caretInBlock = block === currentBlock &&
+          range?.collapsed &&
+          block.contains(range.startContainer);
+        let trailingContent: DocumentFragment | null = null;
+        if (caretInBlock && range) {
+          const afterCaret = document.createRange();
+          afterCaret.selectNodeContents(block);
+          afterCaret.setStart(range.startContainer, range.startOffset);
+          trailingContent = afterCaret.extractContents();
+        }
+
+        const hasContentBeforeDivider = Boolean(
+          block.textContent?.trim() ||
+          block.querySelector("img, [data-mention-id], [data-globe], [data-page-index]"),
+        );
+        if (caretInBlock && hasContentBeforeDivider) {
+          insertStructuralBlockAfter(block, divider);
+        } else {
+          block.replaceWith(divider);
+        }
+
+        if (trailingContent && (
+          trailingContent.textContent?.trim() ||
+          trailingContent.querySelector("img, [data-mention-id], [data-globe], [data-page-index]")
+        )) {
+          const trailingLine = document.createElement("p");
+          trailingLine.appendChild(trailingContent);
+          divider.parentElement?.insertBefore(trailingLine, divider.nextSibling);
+        }
+
         rememberGeneratedLine(divider);
-      });
-      if (blocks.length) focusFreshParagraphAfter(blocks[0].nextSibling || blocks[0]);
+        lastDivider = divider;
+      }
+      if (lastDivider) {
+        let nextLine = lastDivider.nextElementSibling as HTMLElement | null;
+        if (!nextLine?.matches("p, h1, h2, h3, h4, h5, h6, blockquote, li, pre")) {
+          nextLine = document.createElement("p");
+          nextLine.appendChild(document.createElement("br"));
+          lastDivider.parentElement?.insertBefore(nextLine, lastDivider.nextSibling);
+        }
+        const caret = document.createRange();
+        caret.selectNodeContents(nextLine);
+        caret.collapse(true);
+        const selection = window.getSelection();
+        selection?.removeAllRanges();
+        selection?.addRange(caret);
+        editorRef.current?.focus();
+        nextLine.scrollIntoView({ block: "nearest" });
+        updatePlaceholder();
+      }
     } else if (value === "UL") {
-      const blocks = actionBlocks.length
-        ? actionBlocks
-        : [getEditorBlock(selection.focusNode)].filter(Boolean) as HTMLElement[];
-      if (blocks.length) captureStructuralUndo();
-      if (!blocks.length) {
-        document.execCommand("insertUnorderedList", false);
-      } else {
+      const blocks = validActionBlocks.length
+        ? validActionBlocks
+        : [currentBlock].filter(Boolean) as HTMLElement[];
+      if (blocks.length) {
+        captureStructuralUndo();
         blocks.forEach((block) => {
-          const blockRange = document.createRange();
-          blockRange.selectNodeContents(block);
-          selection.removeAllRanges();
-          selection.addRange(blockRange);
-          document.execCommand("insertUnorderedList", false);
-          if (block.tagName === "P") {
-            const generatedList = block.querySelector(":scope > ul");
-            if (generatedList) block.replaceWith(generatedList);
+          if (block.getAttribute("data-his-list") === "bullets") {
+            block.removeAttribute("data-his-list");
+          } else {
+            block.setAttribute("data-his-list", "bullets");
           }
         });
+        syncContent();
       }
     } else if (value === "TABLA") {
       const blocks = validActionBlocks.length ? validActionBlocks : [currentBlock].filter(Boolean) as HTMLElement[];
@@ -1762,6 +2086,39 @@ export function useEditorController({
         return;
       }
     }
+    if ((event.ctrlKey || event.metaKey) && !event.altKey) {
+      const key = event.key.toLowerCase();
+      if (key === "b" && !event.shiftKey) {
+        event.preventDefault();
+        event.stopPropagation();
+        applyTextFormat("bold");
+        return;
+      }
+      if (key === "i" && !event.shiftKey) {
+        event.preventDefault();
+        event.stopPropagation();
+        applyTextFormat("italic");
+        return;
+      }
+      if (key === "u" && !event.shiftKey) {
+        event.preventDefault();
+        event.stopPropagation();
+        applyTextFormat("underline");
+        return;
+      }
+      if (key === "e" && !event.shiftKey) {
+        event.preventDefault();
+        event.stopPropagation();
+        toggleInlineCode();
+        return;
+      }
+      if ((key === "x" || key === "s") && event.shiftKey) {
+        event.preventDefault();
+        event.stopPropagation();
+        applyTextFormat("strikeThrough");
+        return;
+      }
+    }
     const selection = window.getSelection();
     const activeBlock = getEditorBlock(selection?.focusNode || null);
     const iconTarget = (event.target as HTMLElement).closest("[data-globe-icon]");
@@ -1775,6 +2132,12 @@ export function useEditorController({
       deleteSelectedLine();
       return;
     }
+    if (event.key === "Enter" && selectedBlocks.length > 0) {
+      event.preventDefault();
+      event.stopPropagation();
+      replaceSelectedLinesWithNewLine();
+      return;
+    }
     if (
       (event.key === "Delete" || event.key === "Backspace") &&
       isTableEditingTarget(
@@ -1785,10 +2148,11 @@ export function useEditorController({
       return;
     }
     if (event.key === "Tab") {
-      if (selectedBlocks.length) {
+      const blocksToIndent = selectedBlocks.length ? selectedBlocks : (activeBlock ? [activeBlock] : []);
+      if (blocksToIndent.length && (selectedBlocks.length > 0 || selection?.isCollapsed || activeBlock?.hasAttribute("data-his-list"))) {
         event.preventDefault();
         captureStructuralUndo();
-        selectedBlocks.forEach((block) => {
+        blocksToIndent.forEach((block) => {
           const currentMargin = Number.parseFloat(block.style.marginLeft || "0");
           const nextMargin = Math.max(0, currentMargin + (event.shiftKey ? -24 : 24));
           block.style.marginLeft = nextMargin ? `${nextMargin}px` : "";
@@ -1860,12 +2224,206 @@ export function useEditorController({
       (event.key === "Delete" || event.key === "Backspace") &&
       isLineEmpty(activeBlock)
     ) {
+      if (event.key === "Backspace" && activeBlock.hasAttribute("data-his-list")) {
+        const currentMargin = Number.parseFloat(activeBlock.style.marginLeft || "0");
+        if (currentMargin > 0) {
+          event.preventDefault();
+          captureStructuralUndo();
+          const nextMargin = Math.max(0, currentMargin - 24);
+          activeBlock.style.marginLeft = nextMargin ? `${nextMargin}px` : "";
+          syncContent();
+          return;
+        }
+        event.preventDefault();
+        captureStructuralUndo();
+        activeBlock.removeAttribute("data-his-list");
+        activeBlock.removeAttribute("data-his-todo-checked");
+        activeBlock.removeAttribute("data-his-collapsed");
+        activeBlock.removeAttribute("data-his-collapsed-child");
+        updatePlaceholder();
+        scheduleContentSync(180, true);
+        return;
+      }
+      if (event.key === "Backspace" && activeBlock.matches("h1, h2, h3, h4, h5, h6, blockquote")) {
+        event.preventDefault();
+        captureStructuralUndo();
+        const p = document.createElement("p");
+        p.appendChild(document.createElement("br"));
+        activeBlock.replaceWith(p);
+        const resetRange = document.createRange();
+        resetRange.selectNodeContents(p);
+        resetRange.collapse(true);
+        selection?.removeAllRanges();
+        selection?.addRange(resetRange);
+        updatePlaceholder();
+        scheduleContentSync(180, true);
+        return;
+      }
       event.preventDefault();
       removeLine(activeBlock, event.key === "Backspace", {
         captureUndo: !event.repeat,
         sync: false,
       });
       scheduleContentSync(180, true);
+      return;
+    }
+    if (
+      event.key === "Backspace" &&
+      activeBlock &&
+      activeBlock.hasAttribute("data-his-list") &&
+      selection?.rangeCount &&
+      selection.isCollapsed &&
+      editorRef.current?.contains(selection.anchorNode)
+    ) {
+      const range = selection.getRangeAt(0);
+      const preRange = document.createRange();
+      preRange.selectNodeContents(activeBlock);
+      preRange.setEnd(range.startContainer, range.startOffset);
+      const textBefore = preRange.toString().replace(/\u200b/g, "");
+      if (textBefore.length === 0) {
+        event.preventDefault();
+        captureStructuralUndo();
+        const currentMargin = Number.parseFloat(activeBlock.style.marginLeft || "0");
+        if (currentMargin > 0) {
+          const nextMargin = Math.max(0, currentMargin - 24);
+          activeBlock.style.marginLeft = nextMargin ? `${nextMargin}px` : "";
+        } else {
+          activeBlock.removeAttribute("data-his-list");
+          activeBlock.removeAttribute("data-his-todo-checked");
+          activeBlock.removeAttribute("data-his-collapsed");
+          activeBlock.removeAttribute("data-his-collapsed-child");
+        }
+        syncContent();
+        return;
+      }
+    }
+    if (
+      event.key === " " &&
+      activeBlock &&
+      !activeBlock.hasAttribute("data-his-list") &&
+      !activeBlock.matches("pre, code, [data-divider]") &&
+      selection?.rangeCount &&
+      selection.isCollapsed &&
+      editorRef.current?.contains(selection.anchorNode)
+    ) {
+      const blockText = activeBlock.textContent?.replace(/\u200b/g, "").trim() || "";
+      let listType: string | null = null;
+      if (blockText === "-" || blockText === "*" || blockText === "•") listType = "bullets";
+      else if (blockText === "1." || blockText === "1)") listType = "numbered";
+      else if (blockText === "[]" || blockText === "[ ]") listType = "todo";
+      else if (blockText === ">" || blockText === "v") listType = "collapsible";
+
+      if (listType) {
+        event.preventDefault();
+        captureStructuralUndo();
+        activeBlock.setAttribute("data-his-list", listType);
+        activeBlock.replaceChildren(document.createElement("br"));
+        const resetRange = document.createRange();
+        resetRange.selectNodeContents(activeBlock);
+        resetRange.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(resetRange);
+        updatePlaceholder();
+        scheduleContentSync(180, true);
+        return;
+      }
+
+      const toggleHeadingMatch = blockText.match(/^(#{1,4})>$/);
+      if (toggleHeadingMatch && !activeBlock.closest("[data-page-index], [data-globe]")) {
+        event.preventDefault();
+        captureStructuralUndo();
+        const level = toggleHeadingMatch[1].length;
+        const newHeading = document.createElement(`h${level}`);
+        newHeading.dataset.hisToggleHeading = "true";
+        newHeading.appendChild(document.createElement("br"));
+        activeBlock.replaceWith(newHeading);
+        const resetRange = document.createRange();
+        resetRange.selectNodeContents(newHeading);
+        resetRange.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(resetRange);
+        updatePlaceholder();
+        scheduleContentSync(180, true);
+        return;
+      }
+
+      const headingMatch = blockText.match(/^(#{1,4})$/);
+      if (headingMatch && !activeBlock.closest("[data-page-index], [data-globe]")) {
+        event.preventDefault();
+        captureStructuralUndo();
+        const level = headingMatch[1].length;
+        const newHeading = document.createElement(`h${level}`);
+        newHeading.appendChild(document.createElement("br"));
+        activeBlock.replaceWith(newHeading);
+        const resetRange = document.createRange();
+        resetRange.selectNodeContents(newHeading);
+        resetRange.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(resetRange);
+        updatePlaceholder();
+        scheduleContentSync(180, true);
+        return;
+      }
+
+      if (blockText === "---") {
+        event.preventDefault();
+        captureStructuralUndo();
+        const divider = document.createElement("div");
+        divider.dataset.divider = "true";
+        divider.contentEditable = "false";
+        divider.appendChild(document.createElement("hr"));
+        const nextLine = document.createElement("p");
+        nextLine.appendChild(document.createElement("br"));
+        activeBlock.replaceWith(divider);
+        divider.parentElement?.insertBefore(nextLine, divider.nextSibling);
+        const resetRange = document.createRange();
+        resetRange.selectNodeContents(nextLine);
+        resetRange.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(resetRange);
+        updatePlaceholder();
+        scheduleContentSync(180, true);
+        return;
+      }
+
+      if (blockText === "```" || blockText === '"""') {
+        event.preventDefault();
+        captureStructuralUndo();
+        const pre = document.createElement("pre");
+        const code = document.createElement("code");
+        code.appendChild(document.createElement("br"));
+        pre.appendChild(code);
+        activeBlock.replaceWith(pre);
+        const resetRange = document.createRange();
+        resetRange.selectNodeContents(code);
+        resetRange.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(resetRange);
+        updatePlaceholder();
+        scheduleContentSync(180, true);
+        return;
+      }
+    }
+    if (pickers.imageMentionChoice) {
+      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+        event.preventDefault();
+        event.stopPropagation();
+        pickers.setImageMentionMode((current) =>
+          current === "inserted" ? "full" : "inserted",
+        );
+      } else if (event.key === "Enter") {
+        event.preventDefault();
+        event.stopPropagation();
+        executePickerAction(
+          "mention",
+          pickers.imageMentionChoice,
+          pickers.imageMentionMode,
+        );
+      } else if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        dismissEditorMenus();
+      }
       return;
     }
     const picker: PickerState | null =
@@ -1881,12 +2439,15 @@ export function useEditorController({
     if (picker) {
       if (!candidateCount) {
         if (event.key === "Escape") {
+          event.preventDefault();
+          event.stopPropagation();
           dismissEditorMenus();
         }
         return;
       }
       if (event.key === "ArrowDown" || event.key === "ArrowUp") {
         event.preventDefault();
+        event.stopPropagation();
         const next =
           event.key === "ArrowDown"
             ? (index + 1) % candidateCount
@@ -1896,15 +2457,27 @@ export function useEditorController({
           : pickers.setCallPickerIndex)(next);
       } else if (event.key === "Enter") {
         event.preventDefault();
-        if (pickers.slashPicker)
+        event.stopPropagation();
+        if (pickers.slashPicker) {
           executePickerAction("slash", pickers.slashCandidates[index].tag);
-        else if (index >= pickers.callCandidates.length) onMentionCreate?.(index === pickers.callCandidates.length ? "here" : "in");
-        else executePickerAction("mention", pickers.callCandidates[index].id);
+        } else if (index >= pickers.callCandidates.length) {
+          onMentionCreate?.(index === pickers.callCandidates.length ? "here" : "in");
+        } else {
+          const candidate = pickers.callCandidates[index];
+          if (candidate && getEffectiveNodeType(nodes, candidate) === "imagen") {
+            pickers.setImageMentionMode("inserted");
+            pickers.setImageMentionChoice(candidate.id);
+          } else {
+            executePickerAction("mention", candidate.id);
+          }
+        }
       } else if (event.key === "Escape") {
         event.preventDefault();
+        event.stopPropagation();
         dismissEditorMenus();
       } else if (event.key === "Tab") {
         event.preventDefault();
+        event.stopPropagation();
         const next = (index + (event.shiftKey ? -1 : 1) + candidateCount) % candidateCount;
         (pickers.slashPicker
           ? pickers.setSlashPickerIndex
@@ -1958,15 +2531,19 @@ export function useEditorController({
     // Reading the caret rectangle forces browser layout. Keep it entirely out of
     // the normal typing path and only pay that cost while a picker is visible.
     const rect = selection.getRangeAt(0).getBoundingClientRect();
+    const estimatedHeight = 360;
+    const fitsBelow = rect.bottom + estimatedHeight + 8 <= window.innerHeight;
     const nextPickerPosition = {
-      top:
-        rect.bottom + 228 <= window.innerHeight
-          ? rect.bottom + 8
-          : Math.max(8, rect.top - 228),
-      left: Math.min(Math.max(8, rect.left), window.innerWidth - 228),
+      top: fitsBelow ? rect.bottom + 8 : Math.max(8, rect.top - estimatedHeight - 8),
+      left: Math.min(Math.max(8, rect.left), window.innerWidth - 340 - 8),
+      caretTop: rect.top,
+      caretBottom: rect.bottom,
     };
     pickers.setPickerPosition((current) =>
-      current?.top === nextPickerPosition.top && current.left === nextPickerPosition.left
+      current?.top === nextPickerPosition.top &&
+      current?.left === nextPickerPosition.left &&
+      current?.caretTop === nextPickerPosition.caretTop &&
+      current?.caretBottom === nextPickerPosition.caretBottom
         ? current
         : nextPickerPosition,
     );
@@ -2005,7 +2582,7 @@ export function useEditorController({
     document.addEventListener("selectionchange", handleSelectionChange);
     return () => document.removeEventListener("selectionchange", handleSelectionChange);
   }, [pickers.callPicker, pickers.imageMentionChoice, pickers.slashPicker]);
-  const onPaste = (event: ClipboardEvent<HTMLDivElement>) => {
+  const onPaste = (event: ClipboardEvent<HTMLDivElement>, preferredHtml?: string) => {
     event.preventDefault();
     const pasteEditor = editorRef.current;
     const liveSelection = window.getSelection();
@@ -2029,6 +2606,33 @@ export function useEditorController({
       replacePastedMentions(pastedContainer);
       editor.focus({ preventScroll: true });
       const selection = window.getSelection();
+      const structuralBlocks = Array.from(pastedContainer.children).some((child) =>
+        child.matches("[data-globe], [data-divider], [data-page-index], [data-his-table], [data-his-column-layout]"),
+      );
+      if (structuralBlocks) {
+        const anchor = getEditorBlock(pasteRange.startContainer);
+        const parent = anchor?.parentNode ?? editor;
+        const reference = anchor?.nextSibling ?? null;
+        pasteRange.deleteContents();
+        const fragment = document.createDocumentFragment();
+        while (pastedContainer.firstChild) fragment.appendChild(pastedContainer.firstChild);
+        const lastInserted = fragment.lastChild;
+        parent.insertBefore(fragment, reference?.parentNode === parent ? reference : null);
+        if (lastInserted && selection) {
+          const nextRange = document.createRange();
+          nextRange.setStartAfter(lastInserted);
+          nextRange.collapse(true);
+          selection.removeAllRanges();
+          selection.addRange(nextRange);
+        }
+        normalizePageIndices();
+        ensureTableRuntime(editor);
+        syncContent();
+        void repairUnlinkedEditorImages().then((repaired) => {
+          if (!repaired) syncContent();
+        });
+        return;
+      }
       selection?.removeAllRanges();
       selection?.addRange(pasteRange);
       document.execCommand("insertHTML", false, pastedContainer.innerHTML);
@@ -2071,7 +2675,7 @@ export function useEditorController({
         return;
       }
     }
-    const html = event.clipboardData.getData("text/html");
+    const html = preferredHtml ?? event.clipboardData.getData("text/html");
     if (html) {
       insert(html);
       return;
@@ -2109,17 +2713,34 @@ export function useEditorController({
       document.body.style.cursor = "default";
       return;
     }
+    const wasDragging = resize.isDragging;
+    const resizedImage = resize.image;
+    imageResizeRef.current = null;
+    document.body.style.cursor = "default";
+
+    if (!wasDragging) {
+      const mention = resizedImage.closest<HTMLElement>("[data-mention-id]");
+      if (mention && mention.dataset.mentionMode === "full") {
+        const id = mention.dataset.mentionId;
+        const targetNode = nodes.find((item) => item.id === id);
+        openImagePreview({
+          node: targetNode ?? null,
+          src: resizedImage.src,
+          alt: resizedImage.alt || targetNode?.name || "",
+        });
+      }
+      return;
+    }
+
     const editor = editorRef.current;
     const width = editor
       ? clampEditorImageWidth(
-        resize.image.getBoundingClientRect().width,
-        getEditorImageMaxWidth(resize.image, editor),
+        resizedImage.getBoundingClientRect().width,
+        getEditorImageMaxWidth(resizedImage, editor),
       )
-      : Math.max(40, resize.image.getBoundingClientRect().width);
-    resize.image.style.width = `${width}px`;
-    resize.image.style.maxWidth = "100%";
-    imageResizeRef.current = null;
-    document.body.style.cursor = "default";
+      : Math.max(40, resizedImage.getBoundingClientRect().width);
+    resizedImage.style.width = `${width}px`;
+    resizedImage.style.maxWidth = "100%";
     void saveEditorImageLayout({ nodeId: node.id, blockId: resize.blockId, width })
       .catch((error) => {
         console.error("No se pudo guardar el tamaño de la imagen", error);
@@ -2152,7 +2773,7 @@ export function useEditorController({
     const selection = window.getSelection();
     selection?.removeAllRanges();
     selection?.addRange(range);
-    editor.focus();
+    editor.focus({ preventScroll: true });
     updatePlaceholder();
   };
   const repairEditorLines = () => {
@@ -2180,6 +2801,8 @@ export function useEditorController({
     applyTextFormat,
     applyTextColor,
     applyBlockBackgroundColor,
+    toggleInlineCode,
+    getSelectedCodeElements,
     focusedNodeId,
     nodeRefs,
     syncContent,
@@ -2214,6 +2837,7 @@ export function useEditorController({
     updatePickers,
     onPaste,
     onMentionPointerDown,
+    onMentionClick,
     onEditorPointerDown,
     onEditorPointerMove,
     onEditorPointerUp,
@@ -2230,6 +2854,9 @@ export function useEditorController({
     captureInputUndo,
     focusPageIndexEntry,
     repairUnlinkedEditorImages,
-    
+    savedTextRangeRef,
+    previewImage,
+    openImagePreview,
+    closeImagePreview,
   };
 }

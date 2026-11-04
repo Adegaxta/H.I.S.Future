@@ -1,0 +1,30 @@
+/* Bloque desplegable (dropdown) dentro del editor. */
+
+.editor-content [data-his-dropdown="true"] {
+  position: relative;
+  padding-left: 28px;
+  min-height: 1.6em;
+}
+
+.editor-content [data-his-dropdown="true"]::before {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  background-color: var(--his-icon-neutral, #c7c9cc);
+  mask: url("../../assets/third-party/Lucide.dev/icons/chevron-down.svg") no-repeat center / contain;
+  -webkit-mask: url("../../assets/third-party/Lucide.dev/icons/chevron-down.svg") no-repeat center / contain;
+  cursor: pointer;
+  transition: transform .14s cubic-bezier(0.2, 0, 0, 1), background-color .12s ease;
+}
+
+.editor-content [data-his-dropdown="true"]:hover::before {
+  background-color: #ffffff;
+}
+
+.editor-content [data-his-dropdown="true"][data-his-collapsed]::before {
+  transform: translateY(-50%) rotate(-90deg);
+}

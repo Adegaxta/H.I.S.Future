@@ -3,6 +3,7 @@ import type { Dispatch, MouseEvent, PointerEvent, SetStateAction } from "react";
 import type { LineControlState, PickerState } from "./types";
 import type { SelectionToolbarState } from "./useEditorSelection";
 import { getTableRootFromNode } from "./table";
+import { stripTransientEditorState } from "./serialization";
 
 interface UseEditorBlocksOptions {
   editorRef: React.RefObject<HTMLDivElement | null>;
@@ -50,7 +51,9 @@ interface UseEditorBlocksOptions {
 
 function getEditorVisibleBounds(editor: HTMLElement) {
   const editorRect = editor.getBoundingClientRect();
-  const scrollViewport = editor.closest<HTMLElement>(".workspace-main");
+  const scrollViewport = editor.closest<HTMLElement>(".node-tab-content")
+    ?? editor.closest<HTMLElement>(".workspace-pane__view--node")
+    ?? editor.closest<HTMLElement>(".workspace-main");
   const viewportRect = scrollViewport?.getBoundingClientRect();
   const workspaceHeader = document.querySelector<HTMLElement>(".workspace-header");
   const headerRect = workspaceHeader?.getBoundingClientRect();
@@ -77,22 +80,17 @@ const NON_CONTINUING_BLOCK_ATTRIBUTES = new Set([
   "data-his-synced",
   "data-his-todo-checked",
   "data-his-collapsed",
+  "data-his-collapsed-child",
   "data-his-column",
   "data-his-column-layout",
+  "data-his-dropdown",
+  "data-his-toggle-heading",
 ]);
 
 function copyContinuingBlockAttributes(source: HTMLElement, target: HTMLElement) {
   Array.from(source.attributes)
     .filter(({ name }) => name === "style" || (name.startsWith("data-his-") && !NON_CONTINUING_BLOCK_ATTRIBUTES.has(name)))
     .forEach(({ name, value }) => target.setAttribute(name, value));
-}
-
-function ensureDropdownContent(block: HTMLElement) {
-  if (!block.hasAttribute("data-his-dropdown") || block.querySelector(":scope > [data-his-dropdown-content]")) return;
-  const content = document.createElement("span");
-  content.dataset.hisDropdownContent = "true";
-  while (block.firstChild) content.appendChild(block.firstChild);
-  block.appendChild(content);
 }
 
 export function useEditorBlocks({
@@ -122,6 +120,13 @@ export function useEditorBlocks({
   const dragPreviewRef = useRef<HTMLDivElement | null>(null);
   const generatedLinesRef = useRef<HTMLElement[]>([]);
   const duplicateDragRef = useRef(false);
+  const activeDragPointerIdRef = useRef<number | null>(null);
+  const crossEditorDropRef = useRef<{
+    editor: HTMLElement;
+    block: HTMLElement | null;
+    clientX: number;
+    clientY: number;
+  } | null>(null);
   const pendingLineDragRef = useRef<{
     block: HTMLElement;
     button: HTMLButtonElement;
@@ -129,7 +134,6 @@ export function useEditorBlocks({
     clientX: number;
     clientY: number;
     altKey: boolean;
-    timer: number;
   } | null>(null);
   const lineControlRef = useRef<LineControlState | null>(controls.lineControl);
   lineControlRef.current = controls.lineControl;
@@ -152,7 +156,6 @@ export function useEditorBlocks({
     const line = document.createElement("p");
     copyContinuingBlockAttributes(block, line);
     line.appendChild(document.createElement("br"));
-    ensureDropdownContent(line);
     block.parentNode?.insertBefore(line, before ? block : block.nextSibling);
     const range = document.createRange();
     range.selectNodeContents(line);
@@ -160,7 +163,7 @@ export function useEditorBlocks({
     const selection = window.getSelection();
     selection?.removeAllRanges();
     selection?.addRange(range);
-    editor.focus();
+    editor.focus({ preventScroll: true });
     rememberGeneratedLine(line);
     updatePlaceholder();
     line.scrollIntoView({ block: "nearest" });
@@ -193,12 +196,33 @@ export function useEditorBlocks({
       trailingContent.textContent?.replace(/\u200b/g, "").trim() ||
       trailingContent.querySelector("img, [data-mention-id], [data-globe-icon]"),
     );
+
+    if (block.hasAttribute("data-his-list") && isLineEmpty(block) && !hasTrailingContent) {
+      const currentMargin = Number.parseFloat(block.style.marginLeft || "0");
+      if (currentMargin > 0) {
+        const nextMargin = Math.max(0, currentMargin - 24);
+        block.style.marginLeft = nextMargin ? `${nextMargin}px` : "";
+      } else {
+        block.removeAttribute("data-his-list");
+        block.removeAttribute("data-his-todo-checked");
+        block.removeAttribute("data-his-collapsed");
+        block.removeAttribute("data-his-collapsed-child");
+      }
+      updatePlaceholder();
+      syncContent();
+      controls.setLineControl(null);
+      return true;
+    }
+
     const isHeading = /^H[1-6]$/.test(block.tagName);
     const nextLine = document.createElement(isHeading && !hasTrailingContent ? "p" : block.tagName.toLowerCase());
 
     copyContinuingBlockAttributes(block, nextLine);
     nextLine.appendChild(trailingContent);
-    ensureDropdownContent(nextLine);
+    if (block.hasAttribute("data-his-dropdown")) {
+      const currentMargin = Number.parseFloat(block.style.marginLeft || "0");
+      nextLine.style.marginLeft = `${currentMargin + 24}px`;
+    }
     if (isLineEmpty(block)) block.replaceChildren(document.createElement("br"));
     if (isLineEmpty(nextLine)) nextLine.replaceChildren(document.createElement("br"));
     block.parentNode?.insertBefore(nextLine, block.nextSibling);
@@ -208,7 +232,7 @@ export function useEditorBlocks({
     nextRange.collapse(true);
     selection.removeAllRanges();
     selection.addRange(nextRange);
-    editor.focus();
+    editor.focus({ preventScroll: true });
     rememberGeneratedLine(nextLine);
     updatePlaceholder();
     nextLine.scrollIntoView({ block: "nearest" });
@@ -232,7 +256,7 @@ export function useEditorBlocks({
     const selection = window.getSelection();
     selection?.removeAllRanges();
     selection?.addRange(range);
-    editor.focus();
+    editor.focus({ preventScroll: true });
     return true;
   }, [blockSelector, editorRef, isRootEditorBlock]);
 
@@ -337,7 +361,7 @@ export function useEditorBlocks({
       selection?.removeAllRanges();
       selection?.addRange(range);
     }
-    editor.focus();
+    editor.focus({ preventScroll: true });
     generatedLinesRef.current = generatedLinesRef.current.filter(
       (line) => line !== block,
     );
@@ -349,6 +373,14 @@ export function useEditorBlocks({
   }, [blockSelector, captureStructuralUndo, clearLineSelection, controls, editorRef, isRootEditorBlock, rememberGeneratedLine, setPlaceholderBlock, syncContent, textLineSelector, updatePlaceholder]);
 
   const deleteSelectedLine = useCallback(() => {
+    const editor = editorRef.current;
+    const scrollHost = editor?.closest<HTMLElement>(".node-tab-content")
+      ?? editor?.closest<HTMLElement>(".workspace-pane__view--node")
+      ?? editor?.closest<HTMLElement>(".workspace-main")
+      ?? null;
+    const scrollTop = scrollHost?.scrollTop ?? 0;
+    const scrollLeft = scrollHost?.scrollLeft ?? 0;
+
     const blocks = selectedLineBlocks.filter((line) => line.isConnected);
     const targets = blocks.length
       ? blocks
@@ -362,7 +394,85 @@ export function useEditorBlocks({
     pickers.setPickerPosition(null);
     pickers.setSlashPicker(null);
     setLineActionBlock(null);
-  }, [captureStructuralUndo, lineActionBlock, pickers, removeLine, selectedLineBlocks, setLineActionBlock, syncContent]);
+
+    if (scrollHost) {
+      scrollHost.scrollTop = scrollTop;
+      scrollHost.scrollLeft = scrollLeft;
+      window.requestAnimationFrame(() => {
+        scrollHost.scrollTop = scrollTop;
+        scrollHost.scrollLeft = scrollLeft;
+      });
+    }
+  }, [captureStructuralUndo, lineActionBlock, pickers, removeLine, selectedLineBlocks, setLineActionBlock, syncContent, editorRef]);
+
+  const replaceSelectedLinesWithNewLine = useCallback(() => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    const scrollHost = editor.closest<HTMLElement>(".node-tab-content")
+      ?? editor.closest<HTMLElement>(".workspace-pane__view--node")
+      ?? editor.closest<HTMLElement>(".workspace-main")
+      ?? null;
+    const scrollTop = scrollHost?.scrollTop ?? 0;
+    const scrollLeft = scrollHost?.scrollLeft ?? 0;
+
+    const blocks = selectedLineBlocks.filter((line) => line.isConnected);
+    const targets = blocks.length
+      ? blocks
+      : lineActionBlock && lineActionBlock.isConnected
+        ? [lineActionBlock]
+        : [];
+    if (!targets.length) return;
+
+    captureStructuralUndo();
+    const firstTarget = targets[0];
+    const parent = firstTarget.parentNode;
+    if (!parent) return;
+
+    const line = document.createElement("p");
+    line.appendChild(document.createElement("br"));
+    line.contentEditable = "true";
+    parent.insertBefore(line, firstTarget);
+
+    targets.forEach((block) => block.remove());
+
+    clearLineSelection();
+    setSelectedLineBlocks([]);
+    controls.clearBlockControls();
+
+    const range = document.createRange();
+    range.selectNodeContents(line);
+    range.collapse(true);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    editor.focus({ preventScroll: true });
+
+    rememberGeneratedLine(line);
+    setPlaceholderBlock(null);
+    updatePlaceholder();
+    syncContent();
+
+    if (scrollHost) {
+      scrollHost.scrollTop = scrollTop;
+      scrollHost.scrollLeft = scrollLeft;
+      window.requestAnimationFrame(() => {
+        scrollHost.scrollTop = scrollTop;
+        scrollHost.scrollLeft = scrollLeft;
+      });
+    }
+  }, [
+    captureStructuralUndo,
+    clearLineSelection,
+    controls,
+    editorRef,
+    lineActionBlock,
+    rememberGeneratedLine,
+    selectedLineBlocks,
+    setPlaceholderBlock,
+    setSelectedLineBlocks,
+    syncContent,
+    updatePlaceholder,
+  ]);
 
   const openLineCommands = useCallback((block: HTMLElement, anchor?: HTMLElement) => {
     lineCommandsOpenRef.current = true;
@@ -527,6 +637,7 @@ export function useEditorBlocks({
 
   const activateLineDrag = useCallback((pending: NonNullable<typeof pendingLineDragRef.current>) => {
     const { block, button, pointerId, clientX, clientY, altKey } = pending;
+    activeDragPointerIdRef.current = pointerId;
     setSelectionToolbar(null);
     duplicateDragRef.current = altKey;
     const selected = selectedLineBlocks.filter((line) => line.isConnected);
@@ -766,8 +877,37 @@ export function useEditorBlocks({
   const completeLineDrag = useCallback((_block: HTMLElement, commit: boolean) => {
     const dragged = controls.draggedLineRef.current;
     if (!dragged) return;
+    const crossDrop = crossEditorDropRef.current;
+    if (
+      commit &&
+      controls.didDragLineRef.current &&
+      crossDrop &&
+      editorRef.current?.dataset.nodeType === "pagina"
+    ) {
+      const html = (controls.draggedLinesRef.current.length
+        ? controls.draggedLinesRef.current
+        : [dragged]
+      ).map((line) => stripTransientEditorState(line.outerHTML));
+      const dropEvent = new CustomEvent("his-editor-block-drop", {
+        detail: {
+          html,
+          clientX: crossDrop.clientX,
+          clientY: crossDrop.clientY,
+          inserted: false,
+        },
+      });
+      crossDrop.editor.dispatchEvent(dropEvent);
+      if (dropEvent.detail.inserted && !duplicateDragRef.current) {
+        captureStructuralUndo();
+        const lines = controls.draggedLinesRef.current.length
+          ? controls.draggedLinesRef.current
+          : [dragged];
+        lines.forEach((line) => removeLine(line, false, { captureUndo: false, sync: false }));
+        syncContent();
+      }
+    }
     const drop = controls.lineDropRef.current;
-    if (commit && controls.didDragLineRef.current && drop) {
+    if (!crossDrop && commit && controls.didDragLineRef.current && drop) {
       if (duplicateDragRef.current) {
         duplicateLine(drop.block, drop.before, drop.inside);
       } else {
@@ -782,43 +922,104 @@ export function useEditorBlocks({
     editorRef.current?.querySelector("[data-line-drop-target]")?.removeAttribute("data-line-drop-target");
     controls.draggedLineRef.current = null;
     controls.lineDropRef.current = null;
+    activeDragPointerIdRef.current = null;
+    crossDrop?.block?.removeAttribute("data-line-drop-target");
+    crossEditorDropRef.current = null;
     clearDragPreview();
     document.body.style.cursor = "default";
     controls.setIsDraggingLine(false);
     controls.setLineControl(null);
     duplicateDragRef.current = false;
     controls.didDragLineRef.current = false;
-  }, [clearDragPreview, controls, duplicateLine, editorRef, moveLine]);
+  }, [captureStructuralUndo, clearDragPreview, controls, duplicateLine, editorRef, moveLine, removeLine, syncContent]);
 
   const startLineDrag = useCallback((block: HTMLElement, event: PointerEvent<HTMLButtonElement>) => {
     event.preventDefault();
     event.stopPropagation();
-    const previous = pendingLineDragRef.current;
-    if (previous) window.clearTimeout(previous.timer);
-    const pending = {
+    pendingLineDragRef.current = {
       block,
       button: event.currentTarget,
       pointerId: event.pointerId,
       clientX: event.clientX,
       clientY: event.clientY,
       altKey: event.altKey,
-      timer: 0,
     };
     event.currentTarget.setPointerCapture(event.pointerId);
-    pendingLineDragRef.current = pending;
-    pending.timer = window.setTimeout(() => {
-      if (pendingLineDragRef.current !== pending) return;
-      pendingLineDragRef.current = null;
-      activateLineDrag(pending);
-    }, 180);
-  }, [activateLineDrag]);
+  }, []);
 
   const moveLineDrag = useCallback((event: PointerEvent<HTMLButtonElement>) => {
-    const dragged = controls.draggedLineRef.current;
+    let dragged = controls.draggedLineRef.current;
+    const pending = pendingLineDragRef.current;
+    if (!dragged && pending?.pointerId === event.pointerId) {
+      if (Math.hypot(event.clientX - pending.clientX, event.clientY - pending.clientY) < 5) return;
+      pendingLineDragRef.current = null;
+      activateLineDrag(pending);
+      dragged = pending.block;
+    }
     const editor = editorRef.current;
     if (!dragged || !editor) return;
     event.preventDefault();
     updateDragPreview(dragged, event.clientX, event.clientY);
+    const hit = document.elementFromPoint(event.clientX, event.clientY);
+    const visibleCrossEditor = hit?.closest<HTMLElement>(
+      '.editor-content[data-node-type="pagina"][contenteditable="true"]',
+    );
+    const targetTab = hit?.closest<HTMLElement>(".workspace-tab[data-resource-id]");
+    const tabResourceId = targetTab?.dataset.resourceId;
+    const tabEditor = tabResourceId
+      ? Array.from(document.querySelectorAll<HTMLElement>(
+        '.editor-content[data-node-type="pagina"][contenteditable="true"]',
+      )).find((candidate) => candidate.dataset.activeId === tabResourceId) ?? null
+      : null;
+    const droppingOnTab = Boolean(tabEditor && !visibleCrossEditor);
+    const crossEditor = visibleCrossEditor ?? (droppingOnTab ? tabEditor : null);
+    if (
+      crossEditor &&
+      crossEditor !== editor &&
+      (droppingOnTab || !crossEditor.closest(".workspace-pane__view.is-hidden")) &&
+      editor.dataset.nodeType === "pagina"
+    ) {
+      const crossElement = hit?.nodeType === Node.ELEMENT_NODE
+        ? hit as HTMLElement
+        : hit?.parentElement ?? null;
+      const nestedLine = droppingOnTab ? null : crossElement?.closest<HTMLElement>(textLineSelector);
+      const candidate = droppingOnTab
+        ? null
+        : nestedLine && crossEditor.contains(nestedLine)
+          ? nestedLine
+          : crossElement?.closest<HTMLElement>(blockSelector) ?? null;
+      const target = candidate && crossEditor.contains(candidate) ? candidate : null;
+      crossEditorDropRef.current?.block?.removeAttribute("data-line-drop-target");
+      if (target) target.setAttribute("data-line-drop-target", "true");
+      const rect = target?.getBoundingClientRect();
+      const inside = Boolean(
+        target?.matches("[data-globe]") &&
+        rect &&
+        event.clientX > rect.left + 48 &&
+        event.clientY >= rect.top &&
+        event.clientY <= rect.bottom,
+      );
+      crossEditorDropRef.current = {
+        editor: crossEditor,
+        block: target,
+        clientX: event.clientX,
+        clientY: event.clientY,
+      };
+      controls.lineDropRef.current = null;
+      controls.didDragLineRef.current = true;
+      controls.setLineControl(target && rect ? {
+        block: target,
+        top: rect.top + Math.max(0, (rect.height - 24) / 2),
+        left: Math.max(8, rect.left - 68),
+        before: event.clientY < rect.top + rect.height / 2,
+        nearLeft: false,
+        hasContent: true,
+        inside,
+      } : null);
+      return;
+    }
+    crossEditorDropRef.current?.block?.removeAttribute("data-line-drop-target");
+    crossEditorDropRef.current = null;
     const drop = getEditorBlock(document.elementFromPoint(event.clientX, event.clientY));
     const target = drop;
     if (!target || target === dragged) return;
@@ -838,12 +1039,14 @@ export function useEditorBlocks({
       hasContent: true,
       inside,
     });
-  }, [controls, editorRef, getEditorBlock, updateDragPreview]);
+  }, [activateLineDrag, blockSelector, controls, editorRef, getEditorBlock, textLineSelector, updateDragPreview]);
 
   const finishLineDrag = useCallback((block: HTMLElement, event: PointerEvent<HTMLButtonElement>) => {
     const pending = pendingLineDragRef.current;
     if (pending) {
-      window.clearTimeout(pending.timer);
+      if (pending.button.hasPointerCapture(pending.pointerId)) {
+        try { pending.button.releasePointerCapture(pending.pointerId); } catch {}
+      }
       pendingLineDragRef.current = null;
       return;
     }
@@ -855,35 +1058,75 @@ export function useEditorBlocks({
   useEffect(() => {
     if (!controls.isDraggingLine) return;
     const handlePointerMove = (event: globalThis.PointerEvent) => {
+      if (event.pointerId !== activeDragPointerIdRef.current) return;
       moveLineDrag(event as unknown as PointerEvent<HTMLButtonElement>);
     };
     const handlePointerUp = (event: globalThis.PointerEvent) => {
+      if (event.pointerId !== activeDragPointerIdRef.current) return;
       const dragged = controls.draggedLineRef.current;
       if (!dragged) return;
       event.preventDefault();
       completeLineDrag(dragged, true);
     };
-    const handlePointerCancel = () => {
+    const handlePointerCancel = (event: globalThis.PointerEvent) => {
+      if (event.pointerId !== activeDragPointerIdRef.current) return;
       const dragged = controls.draggedLineRef.current;
       if (dragged) completeLineDrag(dragged, false);
+    };
+    const cancelForWindowState = () => {
+      const dragged = controls.draggedLineRef.current;
+      if (dragged) completeLineDrag(dragged, false);
+    };
+    const cancelWhenHidden = () => {
+      if (document.hidden) cancelForWindowState();
     };
     document.addEventListener("pointermove", handlePointerMove, true);
     document.addEventListener("pointerup", handlePointerUp, true);
     document.addEventListener("pointercancel", handlePointerCancel, true);
+    window.addEventListener("blur", cancelForWindowState);
+    document.addEventListener("visibilitychange", cancelWhenHidden);
     return () => {
       document.removeEventListener("pointermove", handlePointerMove, true);
       document.removeEventListener("pointerup", handlePointerUp, true);
       document.removeEventListener("pointercancel", handlePointerCancel, true);
+      window.removeEventListener("blur", cancelForWindowState);
+      document.removeEventListener("visibilitychange", cancelWhenHidden);
     };
   }, [completeLineDrag, controls.draggedLineRef, controls.isDraggingLine, moveLineDrag]);
 
+  useEffect(() => () => {
+    const lines = controls.draggedLinesRef.current.length
+      ? controls.draggedLinesRef.current
+      : controls.draggedLineRef.current ? [controls.draggedLineRef.current] : [];
+    lines.forEach((line) => {
+      line.removeAttribute("data-line-dragging");
+      line.removeAttribute("data-line-selected");
+      line.removeAttribute("data-line-drop-target");
+    });
+    crossEditorDropRef.current?.block?.removeAttribute("data-line-drop-target");
+    controls.draggedLineRef.current = null;
+    controls.draggedLinesRef.current = [];
+    controls.lineDropRef.current = null;
+    activeDragPointerIdRef.current = null;
+    crossEditorDropRef.current = null;
+    clearDragPreview();
+    document.body.style.cursor = "default";
+  }, [clearDragPreview, controls.draggedLineRef, controls.draggedLinesRef, controls.lineDropRef]);
+
   const cancelLineDrag = useCallback(() => {
     const pending = pendingLineDragRef.current;
-    if (pending) {
-      window.clearTimeout(pending.timer);
-      pendingLineDragRef.current = null;
+    if (pending && pending.button.hasPointerCapture(pending.pointerId)) {
+      try { pending.button.releasePointerCapture(pending.pointerId); } catch {}
     }
-  }, []);
+    pendingLineDragRef.current = null;
+    controls.clearBlockControls();
+    document.querySelectorAll<HTMLElement>("[data-line-dragging], [data-line-drop-target]").forEach((element) => {
+      element.removeAttribute("data-line-dragging");
+      element.removeAttribute("data-line-drop-target");
+    });
+    clearDragPreview();
+    document.body.style.cursor = "default";
+  }, [clearDragPreview, controls]);
 
   return {
     dragPreviewRef,
@@ -895,6 +1138,7 @@ export function useEditorBlocks({
     ensureEditorLine,
     removeLine,
     deleteSelectedLine,
+    replaceSelectedLinesWithNewLine,
     openLineCommands,
     duplicateLine,
     updateDragPreview,

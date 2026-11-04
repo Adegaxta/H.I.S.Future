@@ -18,6 +18,8 @@ interface ProjectSettingsPanelProps {
   onDefaultNodeTypeChange: (type: BaseNodeType) => void;
   timeFormat: TimeFormat;
   onTimeFormatChange: (format: TimeFormat) => void;
+  discordPresence: boolean;
+  onDiscordPresenceChange: (enabled: boolean) => void;
   appVersion: string | null;
 }
 
@@ -32,6 +34,8 @@ export function ProjectSettingsPanel({
   onDefaultNodeTypeChange,
   timeFormat,
   onTimeFormatChange,
+  discordPresence,
+  onDiscordPresenceChange,
   appVersion,
 }: ProjectSettingsPanelProps) {
   const { locale, setLocale, t } = useLocale();
@@ -62,6 +66,17 @@ export function ProjectSettingsPanel({
         <option value="24h">{t("settings.timeFormat.24h")}</option>
       </select>
     </label>
+    <label className="project-settings__field">
+      {t("settings.discordPresence")}
+      <select
+        value={discordPresence ? "enabled" : "disabled"}
+        onChange={(event) => onDiscordPresenceChange(event.target.value === "enabled")}
+      >
+        <option value="enabled">{t("settings.discordPresence.enabled")}</option>
+        <option value="disabled">{t("settings.discordPresence.disabled")}</option>
+      </select>
+    </label>
     <div className="project-settings__version" aria-label={t("settings.appVersion")}>{appVersion ? `v${appVersion}` : "v—"}</div>
   </section>;
 }
+

@@ -13,6 +13,7 @@ import {
 } from "react";
 import { isDesktopRuntime } from "../project/runtime";
 import { measureLifecyclePhase } from "./metrics";
+import { createDiagnosticEvent, emitDiagnosticEvent } from "../diagnostics/events";
 
 type FlushWorkspace = () => Promise<void>;
 
@@ -36,6 +37,7 @@ const AppLifecycleContext = createContext<AppLifecycleValue | null>(null);
 export function AppLifecycleProvider({ children }: { children: ReactNode }) {
   const flushRef = useRef<FlushWorkspace | null>(null);
   const exitingRef = useRef(false);
+  const emittedArchiveStatusesRef = useRef(new Map<string, string>());
   const [exitError, setExitError] = useState<string | null>(null);
   const [archiveSync, setArchiveSync] = useState<ArchiveSyncStatus[]>([]);
 
@@ -65,11 +67,25 @@ export function AppLifecycleProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       const message = `No se pudo salir con seguridad: ${String(error)}`;
       setExitError(message);
-      console.error(message);
+      emitDiagnosticEvent(createDiagnosticEvent({
+        level: "ERROR",
+        category: "SYSTEM",
+        action: "application.exit.failed",
+        operation: "application.exit",
+        message: "Could not exit safely",
+        technicalDetail: error instanceof Error ? `${error.name}: ${error.message}` : String(error),
+      }));
       try {
         await showApplication();
       } catch (showError) {
-        console.error("No se pudo restaurar la ventana después del error", showError);
+        emitDiagnosticEvent(createDiagnosticEvent({
+          level: "ERROR",
+          category: "SYSTEM",
+          action: "application.window-restore.failed",
+          operation: "application.exit",
+          message: "Could not restore the application window after exit failed",
+          technicalDetail: showError instanceof Error ? `${showError.name}: ${showError.message}` : String(showError),
+        }));
       }
     } finally {
       exitingRef.current = false;
@@ -109,14 +125,38 @@ export function AppLifecycleProvider({ children }: { children: ReactNode }) {
     let disposed = false;
     let stopStatus: (() => void) | undefined;
     const update = (status: ArchiveSyncStatus) => {
+      const signature = JSON.stringify({ phase: status.phase, error: status.error ?? null });
+      const emitted = emittedArchiveStatusesRef.current;
+      if (emitted.get(status.archivePath) !== signature) {
+        emitted.set(status.archivePath, signature);
+        const level = status.phase === "failed" ? "ERROR" : "INFO";
+        emitDiagnosticEvent(createDiagnosticEvent({
+          level,
+          category: "PROJECT",
+          action: `archive.sync.${status.phase}`,
+          operation: "archive.sync",
+          message: status.phase === "failed" ? "Project archive sync failed" : `Project archive ${status.phase}`,
+          technicalDetail: JSON.stringify({
+            phase: status.phase,
+            ...(status.error ? { error: status.error } : {}),
+          }),
+        }));
+      }
       setArchiveSync((current) => [
         status,
         ...current.filter((item) => item.archivePath !== status.archivePath),
       ]);
     };
     void invoke<ArchiveSyncStatus[]>("archive_sync_status").then((statuses) => {
-      if (!disposed) setArchiveSync(statuses);
-    }).catch((error) => console.error("No se pudo leer el estado de sincronización", error));
+      if (!disposed) statuses.forEach(update);
+    }).catch((error) => emitDiagnosticEvent(createDiagnosticEvent({
+      level: "ERROR",
+      category: "PROJECT",
+      action: "archive.sync.status-read.failed",
+      operation: "archive.sync",
+      message: "Could not read project archive sync status",
+      technicalDetail: error instanceof Error ? `${error.name}: ${error.message}` : String(error),
+    })));
     void listen<ArchiveSyncStatus>("archive-sync-status", (event) => update(event.payload)).then((stop) => {
       if (disposed) stop();
       else stopStatus = stop;

@@ -1,0 +1,52 @@
+/* Encabezados escritos dentro del contenido del editor. */
+.editor-content h1,
+.editor-content h2,
+.editor-content h3,
+.editor-content h4 {
+  margin-top: 1.35em;
+  margin-bottom: 0.35em;
+  color: #f2f3f4;
+  font-weight: 650;
+  line-height: 1.25;
+  letter-spacing: -0.018em;
+}
+
+/* Tamano del encabezado de nivel 1. */
+.editor-content h1 { font-size: 1.9em; }
+/* Tamano del encabezado de nivel 2. */
+.editor-content h2 { font-size: 1.5em; }
+/* Tamano del encabezado de nivel 3. */
+.editor-content h3 { font-size: 1.22em; }
+/* Tamano y color del encabezado de nivel 4. */
+.editor-content h4 { color: #c7c9cc; font-size: 1em; }
+.editor-content h5 { color: #bfc3c6; font-size: .9em; }
+.editor-content h6 { color: #b8bdc0; font-size: .8em; }
+
+/* Títulos Desplegables (Toggle Headings) */
+.editor-content :is(h1, h2, h3, h4)[data-his-toggle-heading="true"] {
+  position: relative;
+  padding-left: 28px;
+}
+
+.editor-content :is(h1, h2, h3, h4)[data-his-toggle-heading="true"]::before {
+  content: "";
+  position: absolute;
+  left: 3px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  background-color: var(--his-icon-neutral, #c7c9cc);
+  mask: url("../../assets/third-party/Lucide.dev/icons/chevron-down.svg") center / contain no-repeat;
+  -webkit-mask: url("../../assets/third-party/Lucide.dev/icons/chevron-down.svg") center / contain no-repeat;
+  cursor: pointer;
+  transition: transform .12s ease, background-color .12s ease;
+}
+
+.editor-content :is(h1, h2, h3, h4)[data-his-toggle-heading="true"]:hover::before {
+  background-color: #ffffff;
+}
+
+.editor-content :is(h1, h2, h3, h4)[data-his-toggle-heading="true"][data-his-collapsed]::before {
+  transform: translateY(-50%) rotate(-90deg);
+}

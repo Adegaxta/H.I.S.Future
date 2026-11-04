@@ -2,15 +2,65 @@
 .workspace-main--tabs > .workspace-surface > .workspace-pane > .workspace-pane-tabbar { padding-right: 146px; }
 .workspace-pane-tabbar__tabs { position: relative; display: flex; width: max-content; min-width: 0; max-width: calc(100% - 32px); flex: 0 1 auto; align-items: stretch; overflow-x: auto; scrollbar-width: none; }
 .workspace-pane-tabbar__tabs::-webkit-scrollbar { display: none; }
-.workspace-tab { position: relative; display: flex; width: clamp(124px, 14vw, 168px); min-width: clamp(124px, 14vw, 168px); max-width: clamp(124px, 14vw, 168px); height: 100%; flex: 0 0 clamp(124px, 14vw, 168px); align-items: center; gap: 7px; padding: 0 3px 0 9px; border: 0; border-right: 1px solid #24282c; color: var(--his-icon-neutral); background: transparent; cursor: pointer; font-size: 11px; user-select: none; -webkit-user-drag: element; }
+.workspace-tab {
+  position: relative;
+  display: flex;
+  width: clamp(124px, 14vw, 168px);
+  min-width: clamp(124px, 14vw, 168px);
+  max-width: clamp(124px, 14vw, 168px);
+  height: 100%;
+  flex: 0 0 clamp(124px, 14vw, 168px);
+  align-items: center;
+  gap: 7px;
+  padding: 0 3px 0 9px;
+  border: 0;
+  border-right: 1px solid #24282c;
+  color: var(--his-icon-neutral);
+  background: transparent;
+  cursor: pointer;
+  font-size: 11px;
+  user-select: none;
+  -webkit-user-drag: element;
+  transition: color var(--his-duration-fast) ease, background var(--his-duration-fast) ease;
+}
 .workspace-tab:hover { color: #c3c9cb; background: #1a1e21; }
 .workspace-tab.is-active { color: #e2e7e7; background: transparent; }
-.workspace-tab.is-active::after { position: absolute; right: 0; bottom: -1px; left: 0; height: 2px; background: var(--his-accent); content: ""; }
+.workspace-tab::after {
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 2px;
+  background: var(--his-accent);
+  content: "";
+  opacity: 0;
+  transform: scaleX(0.8);
+  transition: opacity 160ms var(--his-ease-out), transform 160ms var(--his-ease-spring);
+}
+.workspace-tab.is-active::after {
+  opacity: 1;
+  transform: scaleX(1);
+}
 .workspace-tab__icon { display: grid; width: 15px; height: 15px; flex: 0 0 15px; place-items: center; }
 .workspace-tab__icon > :is(svg, .sidebar-icon) { width: 13px; height: 13px; flex-basis: 13px; }
 .workspace-tab__empty-icon { width: 11px; height: 11px; border: 1px dashed #61686c; border-radius: 2px; }
 .workspace-tab__title { min-width: 0; flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.workspace-tab__close { display: grid; width: 24px; height: 24px; flex: 0 0 24px; place-items: center; margin-left: auto; padding: 0; border: 0; border-radius: 3px; color: inherit; background: transparent; opacity: 0; cursor: pointer; }
+.workspace-tab__close {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+  place-items: center;
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  color: inherit;
+  background: transparent;
+  opacity: 0;
+  cursor: pointer;
+  transition: opacity 120ms ease, background 120ms ease, color 120ms ease;
+}
 .workspace-tab:hover .workspace-tab__close, .workspace-tab.is-active .workspace-tab__close { opacity: .7; }
 .workspace-tab__close:hover { color: #ffd5d8; background: rgb(190 52 65 / 34%); opacity: 1; }
 .workspace-tab-reorder-indicator { position: absolute; top: 4px; bottom: 4px; z-index: 9; width: 2px; margin-left: -1px; border-radius: 1px; background: var(--his-accent); box-shadow: 0 0 0 1px #101315; pointer-events: none; }

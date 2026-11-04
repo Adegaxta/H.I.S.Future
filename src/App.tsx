@@ -10,9 +10,12 @@ import { APP_WINDOW_TITLE } from "./utils/appEnvironment";
 import { isDesktopRuntime } from "./project/runtime";
 import { AppLifecycleProvider, useAppLifecycle } from "./lifecycle/AppLifecycle";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
+import { createDiagnosticEvent, emitDiagnosticEvent } from "./diagnostics/events";
 import progressActivityAsset from "./assets/third-party/google-material/icons/progress_activity.svg";
 import type { ProjectInfo } from "./project/types";
 import WorkspaceLoadBoundary from "./components/WorkspaceLoadBoundary";
+import { createDiscordDiagnosticEvent } from "./presence/discordDiagnostics";
 
 const WORKSPACE_LOAD_RETRY = "hisfuture.workspace-load-retry";
 let workspaceBundle: Promise<typeof import("./components/AppWorkspace")> | undefined;
@@ -35,6 +38,10 @@ const loadAppWorkspace = () => workspaceBundle ??= import("./components/AppWorks
   throw error;
 });
 const AppWorkspace = lazy(loadAppWorkspace);
+const DevelopmentConsole = import.meta.env.DEV
+  ? lazy(() => import("./components/DevelopmentConsole"))
+  : null;
+const ignoreDiagnosticNodeAction = (id: string) => { void id; };
 
 function AppLoadingScreen() {
   return (
@@ -91,6 +98,32 @@ function AppContent() {
     if (isDesktopRuntime()) void getCurrentWindow().setTitle(APP_WINDOW_TITLE);
   }, []);
 
+  useEffect(() => {
+    if (!isDesktopRuntime()) return;
+    let disposed = false;
+    let stopListening: (() => void) | undefined;
+    void listen<unknown>("discord-presence-diagnostic", ({ payload }) => {
+      const event = createDiscordDiagnosticEvent(payload);
+      if (event) emitDiagnosticEvent(event);
+    }).then((stop) => {
+      if (disposed) stop();
+      else stopListening = stop;
+    }).catch((error: unknown) => {
+      if (!disposed) emitDiagnosticEvent(createDiagnosticEvent({
+        level: "ERROR",
+        category: "DISCORD",
+        action: "diagnostics.listen.failed",
+        operation: "discord.presence",
+        message: "Could not receive Discord presence diagnostics",
+        technicalDetail: error instanceof Error ? `${error.name}: ${error.message}` : String(error),
+      }));
+    });
+    return () => {
+      disposed = true;
+      stopListening?.();
+    };
+  }, []);
+
   // Fetch the editor bundle while the native backend is opening a project.
   // A cold launch that only shows Home never pays for the workspace, graph,
   // editor and node-renderer modules.
@@ -106,7 +139,14 @@ function AppContent() {
         if (!disposed && path) void session.openDirect(path);
       })
       .catch((error) => {
-        if (!disposed) console.error("No se pudo abrir el proyecto recibido al iniciar", error);
+        if (!disposed) emitDiagnosticEvent(createDiagnosticEvent({
+          level: "ERROR",
+          category: "PROJECT",
+          action: "project.launch-open.failed",
+          operation: "workspace.load",
+          message: "Could not open the project passed at launch",
+          technicalDetail: error instanceof Error ? `${error.name}: ${error.message}` : String(error),
+        }));
       });
     return () => {
       disposed = true;
@@ -127,6 +167,21 @@ function AppContent() {
       <div className="workspace-file-import-error app-lifecycle-error" role="alert">
         <span>El estado de trabajo está seguro, pero no se pudo actualizar el archivo .his: {archiveFailure.error}</span>
       </div>
+    )}
+    {DevelopmentConsole && !session.project && (
+      <Suspense fallback={null}>
+        <DevelopmentConsole
+          nodes={[]}
+          deletedNodeIds={[]}
+          workspaceAvailable={false}
+          onInspectNode={ignoreDiagnosticNodeAction}
+          onNavigateNode={ignoreDiagnosticNodeAction}
+          onNavigateDeletedNode={ignoreDiagnosticNodeAction}
+          focusNodeId={null}
+          openRequest={0}
+          onClearNodeFocus={() => undefined}
+        />
+      </Suspense>
     )}
     <LocaleProvider key={session.project?.folderPath ?? "home"} projectKey={session.project?.folderPath}>
       {!session.project ? (

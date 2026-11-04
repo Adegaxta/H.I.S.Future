@@ -39,8 +39,17 @@
 .node-creation footer .node-creation__cancel:not(:disabled):hover { color: #d87878; border-color: #d84d4d; background: #d84d4d15; }
 .node-creation__cancel:hover img { filter: brightness(0) saturate(100%) invert(51%) sepia(90%) saturate(1638%) hue-rotate(323deg) brightness(105%) contrast(101%); }
 .existing-node-picker { position: fixed; inset: 0; margin: auto; width: min(600px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); height: min(700px, calc(100dvh - 32px)); padding: 28px; border: 1px solid var(--his-border-neutral, #353a3e); border-radius: 14px; background: #15191b; color: var(--his-text-primary); display: none; }
-.existing-node-picker[open] { display: flex; flex-direction: column; gap: 20px; }
-.existing-node-picker::backdrop { background: #0008; }
+.existing-node-picker[open] {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  animation: his-popover-enter var(--his-duration-modal) var(--his-ease-spring);
+  will-change: transform, opacity;
+}
+.existing-node-picker::backdrop {
+  background: #0008;
+  animation: his-fade-in var(--his-duration-normal) var(--his-ease-out);
+}
 .existing-node-picker header { display: flex; align-items: center; justify-content: space-between; }
 .existing-node-picker h2 { font-size: 22px; }
 .existing-node-picker input[type=search] { flex-shrink: 0; border: 1px solid var(--his-border-neutral, #353a3e); border-radius: 5px; padding: 14px; background: #ffffff03; color: inherit; }

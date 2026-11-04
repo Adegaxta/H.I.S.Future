@@ -29,7 +29,10 @@ import {
   wouldCreateCycle,
 } from "../utils/nodeTree";
 import { PersistenceQueue } from "../lifecycle/PersistenceQueue";
-import { measureActiveCloseProjectPhase } from "../lifecycle/metrics";
+import {
+  getActiveCloseProjectTraceId,
+  measureActiveCloseProjectPhase,
+} from "../lifecycle/metrics";
 import { safeLocalStorageSet } from "../workspace/safeStorage";
 import {
   loreExpansionStorageKey,
@@ -40,6 +43,49 @@ import {
   mergeNodePersistenceRequests,
   type NodePersistenceRequest,
 } from "../lifecycle/nodePersistence";
+import { createDiagnosticEvent, emitDiagnosticEvent } from "../diagnostics/events";
+import { checkWorkspaceIntegrity, type WorkspaceIntegritySnapshot } from "../integrity";
+
+function reportWorkspaceIntegrity(
+  snapshot: WorkspaceIntegritySnapshot,
+  operation: string,
+) {
+  const result = checkWorkspaceIntegrity(snapshot, { operation });
+  const level = result.status === "FAILED" ? "ERROR" : result.status === "WARNING" ? "WARN" : "INFO";
+  const message = `Workspace integrity ${result.status.toLowerCase()}: ${result.findings.length} finding(s).`;
+  const operationId = getActiveCloseProjectTraceId();
+  emitDiagnosticEvent(createDiagnosticEvent({
+    level,
+    category: "integrity",
+    action: "check.completed",
+    operation,
+    ...(operationId ? { operationId } : {}),
+    message,
+    technicalDetail: JSON.stringify(result),
+  }));
+  return result;
+}
+
+function reportNodeOperation(
+  action: string,
+  operation: string,
+  message: string,
+  nodeId: string,
+  relatedNodeIds: readonly (string | null)[],
+  detail: Record<string, unknown>,
+) {
+  const uniqueRelatedIds = [...new Set(relatedNodeIds.filter((id): id is string => Boolean(id) && id !== nodeId))];
+  emitDiagnosticEvent(createDiagnosticEvent({
+    level: "INFO",
+    category: "EDITOR",
+    action,
+    operation,
+    nodeId,
+    ...(uniqueRelatedIds.length ? { relatedNodeIds: uniqueRelatedIds } : {}),
+    message,
+    technicalDetail: JSON.stringify(detail),
+  }));
+}
 
 export function useNodeStore(projectKey?: string, projectName = "", defaultNodeType: BaseNodeType = "pagina") {
   const { t } = useLocale();
@@ -87,17 +133,13 @@ export function useNodeStore(projectKey?: string, projectName = "", defaultNodeT
     persistenceQueueRef.current = new PersistenceQueue(async (request) => {
       if (request.kind === "content") {
         await saveNodeContents(request.changes);
-        console.log(
-          `%c[guardado incremental] ${new Date().toLocaleTimeString()} — ${request.changes.length} nodos actualizados`,
-          "color: #4dd8c0; font-weight: bold;",
-        );
       } else {
+        reportWorkspaceIntegrity(
+          { nodes: request.nodes, deletedNodes: request.deletedNodes },
+          "workspace.save",
+        );
         const toSave = sortNodesForPersistence(sanitizeParentIds(request.nodes));
         await saveNodes(toSave, request.deletedNodes);
-        console.log(
-          `%c[checkpoint] ${new Date().toLocaleTimeString()} — ${toSave.length} nodos verificados`,
-          "color: #4dd8c0; font-weight: bold;",
-        );
       }
       setPersistenceError(null);
       persistedVersionRef.current = Math.max(persistedVersionRef.current, request.version);
@@ -152,6 +194,10 @@ export function useNodeStore(projectKey?: string, projectName = "", defaultNodeT
         loadRequestRef.current = request;
         const { nodes: stored, deletedNodes: trash } = await request;
         if (cancelled) return;
+        reportWorkspaceIntegrity(
+          { nodes: stored, deletedNodes: trash ?? [] },
+          "workspace.load",
+        );
         persistedVersionRef.current = changeVersionRef.current;
         const previousTrash = trash ?? deletedNodesRef.current.filter((node) => !stored.some((active) => active.id === node.id));
         const repaired = reconcileCourseCalendars(stored, previousTrash, t("nodes.calendar.label"));
@@ -334,6 +380,7 @@ export function useNodeStore(projectKey?: string, projectName = "", defaultNodeT
     });
     if (parentId) setExpanded((current) => ({ ...current, [parentId]: true }));
     if (selectCreated && getNodeDefinition(type).creation.selectAfterCreation) setSelectedId(id);
+    reportNodeOperation("node.created", "node.create", "Node created", id, [parentId], { type, parentId });
     return id;
   };
   const createConfiguredNode = async (draft: NodeCreationDraft) => {
@@ -342,9 +389,14 @@ export function useNodeStore(projectKey?: string, projectName = "", defaultNodeT
     const id = crypto.randomUUID();
     const repaired = reconcileCourseCalendars(buildNodeCreation(nodesRef.current, id, draft), deletedNodesRef.current, t("nodes.calendar.label"));
     const next = reconcileVaultPrimary(repaired.nodes, projectName);
+    reportWorkspaceIntegrity(
+      { nodes: next, deletedNodes: repaired.deletedNodes },
+      "node.create",
+    );
     await saveNodes(sortNodesForPersistence(next), repaired.deletedNodes, [id, draft.tagIds]);
     acceptPersistedSnapshot(next, repaired.deletedNodes);
     markRecent(id, "create");
+    reportNodeOperation("node.created", "node.create", "Configured node created", id, [draft.parentId], { type: draft.type });
     if (draft.parentId) setExpanded(current => ({ ...current, [draft.parentId!]: true }));
     if (getNodeDefinition(draft.type).creation.selectAfterCreation) setSelectedId(id);
     return id;
@@ -355,8 +407,14 @@ export function useNodeStore(projectKey?: string, projectName = "", defaultNodeT
     if (!node || node.name === nextName) return;
     mutateNodes(current => current.map(item => item.id === id ? applyNodeRename(item, nextName) : item));
     markRecent(id, "rename");
+    reportNodeOperation("node.renamed", "node.rename", "Node renamed", id, [], { type: node.type });
   };
   const deleteNodes = (selectedIds: string[]) => {
+    const currentNodes = nodesRef.current;
+    const actualIds = courseAwareDeletionIds(currentNodes, selectedIds);
+    for (const node of currentNodes) if (actualIds.has(node.id) && isVaultPrimaryNode(node)) actualIds.delete(node.id);
+    const removed = currentNodes.filter((node) => actualIds.has(node.id));
+    if (!removed.length) return;
     setNodes((current) => {
       const ids = courseAwareDeletionIds(current, selectedIds);
       for (const node of current) if (ids.has(node.id) && isVaultPrimaryNode(node)) ids.delete(node.id);
@@ -373,6 +431,14 @@ export function useNodeStore(projectKey?: string, projectName = "", defaultNodeT
       );
       return current.filter((node) => !ids.has(node.id)).map((node) => node.parentId && ids.has(node.parentId) ? { ...node, parentId: null } : node);
     });
+    reportNodeOperation(
+      "node.deleted",
+      "node.delete",
+      removed.length === 1 ? "Node moved to Trash" : "Nodes moved to Trash",
+      removed[0].id,
+      removed.slice(1).map(({ id }) => id),
+      { count: removed.length },
+    );
   };
   const deleteNode = (id: string) => deleteNodes([id]);
   const changeLoreMembership = (ids: string[], visible: boolean) => {
@@ -387,6 +453,7 @@ export function useNodeStore(projectKey?: string, projectName = "", defaultNodeT
     if (!ids.size) return;
     const restoring = deletedNodes.filter((node) => ids.has(node.id));
     if (!restoring.length) return;
+    const restored = restoring.filter((node) => !nodesRef.current.some((item) => item.id === node.id));
     markDirty();
     setNodes((current) => reconcile([
       ...current,
@@ -395,15 +462,36 @@ export function useNodeStore(projectKey?: string, projectName = "", defaultNodeT
     setDeletedNodes((current) => current.filter((node) => !ids.has(node.id)));
     setSelectedDeletedIds([]);
     setDeletedSelectionAnchorId(null);
+    if (restored.length) {
+      reportNodeOperation(
+        "node.restored",
+        "node.restore",
+        restored.length === 1 ? "Node restored from Trash" : "Nodes restored from Trash",
+        restored[0].id,
+        restored.slice(1).map(({ id }) => id),
+        { count: restored.length },
+      );
+    }
   };
   const permanentlyDeleteNodes = () => {
     const ids = synchronizedNodeIds(deletedNodes, selectedDeletedIds);
     for (const node of deletedNodes) if (ids.has(node.id) && isVaultPrimaryNode(node)) ids.delete(node.id);
     if (!ids.size) return;
+    const removedIds = deletedNodes.filter((node) => ids.has(node.id)).map(({ id }) => id);
     markDirty();
     setDeletedNodes((current) => current.filter((node) => !ids.has(node.id)));
     setSelectedDeletedIds([]);
     setDeletedSelectionAnchorId(null);
+    if (removedIds.length) {
+      reportNodeOperation(
+        "node.permanently-deleted",
+        "node.permanently-delete",
+        removedIds.length === 1 ? "Node permanently deleted" : "Nodes permanently deleted",
+        removedIds[0],
+        removedIds.slice(1),
+        { count: removedIds.length },
+      );
+    }
   };
   const selectDeletedNode = (
     id: string,
@@ -436,6 +524,14 @@ export function useNodeStore(projectKey?: string, projectName = "", defaultNodeT
     targetId: string | null,
     position: "before" | "inside" | "after",
   ) => {
+    const before = nodesRef.current;
+    const movedResult = targetId && wouldCreateCycle(before, draggedId, targetId)
+      ? before
+      : reorderNodes(before, draggedId, targetId, position);
+    const movedNode = movedResult.find((node) => node.id === draggedId);
+    const previousNode = before.find((node) => node.id === draggedId);
+    const changed = Boolean(movedNode && previousNode &&
+      (movedNode.parentId !== previousNode.parentId || movedNode.order !== previousNode.order));
     setNodes((current) => {
       if (targetId && wouldCreateCycle(current, draggedId, targetId)) {
         return current;
@@ -450,6 +546,13 @@ export function useNodeStore(projectKey?: string, projectName = "", defaultNodeT
       if (changed) markDirty();
       return next;
     });
+    if (changed && movedNode) {
+      reportNodeOperation("node.moved", "node.move", "Node moved", draggedId, [targetId, movedNode.parentId], {
+        fromParentId: previousNode?.parentId ?? null,
+        toParentId: movedNode.parentId,
+        position,
+      });
+    }
     if (targetId && position === "inside")
       setExpanded((current) => ({ ...current, [targetId]: true }));
   };
@@ -458,6 +561,13 @@ export function useNodeStore(projectKey?: string, projectName = "", defaultNodeT
     targetId: string | null,
     position: "before" | "inside" | "after",
   ) => {
+    const before = nodesRef.current;
+    const expected = reorderMultipleNodes(before, draggedIds, targetId, position);
+    const movedIds = draggedIds.filter((id) => {
+      const oldNode = before.find((node) => node.id === id);
+      const nextNode = expected.find((node) => node.id === id);
+      return Boolean(oldNode && nextNode && (oldNode.parentId !== nextNode.parentId || oldNode.order !== nextNode.order));
+    });
     setNodes((current) => {
       const next = reorderMultipleNodes(current, draggedIds, targetId, position);
       const movedIds = draggedIds.filter((id) => {
@@ -471,6 +581,12 @@ export function useNodeStore(projectKey?: string, projectName = "", defaultNodeT
       }
       return next;
     });
+    if (movedIds.length) {
+      reportNodeOperation("node.moved", "node.move", "Nodes moved", movedIds[0], [...movedIds.slice(1), targetId], {
+        count: movedIds.length,
+        position,
+      });
+    }
     if (targetId && position === "inside")
       setExpanded((current) => ({ ...current, [targetId]: true }));
   };

@@ -31,6 +31,8 @@ export function useWorkspaceNavigation({ selectedId, selectedTrashId, navigateWi
   const navigateWithinViewRef = useRef(navigateWithinView);
   const onNavigateRef = useRef(onNavigate);
   const getScrollElementRef = useRef(getScrollElement);
+  const ignoredNavigationRef = useRef<NavigationEntry | null>(null);
+  const pendingRestoreRef = useRef(false);
   getScrollElementRef.current = getScrollElement;
   historyRef.current = history;
   navigateWithinViewRef.current = navigateWithinView;
@@ -40,14 +42,27 @@ export function useWorkspaceNavigation({ selectedId, selectedTrashId, navigateWi
       ? { kind: "trash", id: selectedTrashId }
       : selectedId ? { kind: "node", id: selectedId } : null;
     if (!entry) return;
+    if (ignoredNavigationRef.current?.kind === entry.kind && ignoredNavigationRef.current.id === entry.id) return;
     const next = recordWorkspaceVisit(historyRef.current, entry);
     historyRef.current = next;
     setHistory(next);
   }, [selectedId, selectedTrashId]);
   useEffect(() => {
+    const isIgnoredNavigation = ignoredNavigationRef.current?.kind === (selectedTrashId ? "trash" : "node") &&
+      ignoredNavigationRef.current.id === (selectedTrashId ?? selectedId);
+    if (isIgnoredNavigation) {
+      ignoredNavigationRef.current = null;
+      return;
+    }
     const entry = historyRef.current.entries[historyRef.current.index];
     const element = getScrollElementRef.current?.();
     if (!entry || !element) return;
+    if (!pendingRestoreRef.current && entry.scrollTop === undefined) {
+      // Not an explicit history navigation, and no previous scroll saved:
+      // do not overwrite the container's natural scroll position with 0.
+      return;
+    }
+    pendingRestoreRef.current = false;
     const top = entry.scrollTop ?? 0;
     const left = entry.scrollLeft ?? 0;
     let restoring = true;
@@ -93,6 +108,10 @@ export function useWorkspaceNavigation({ selectedId, selectedTrashId, navigateWi
     };
   }, [selectedId, selectedTrashId]);
 
+  const ignoreNextNavigation = useCallback((entry: NavigationEntry) => {
+    ignoredNavigationRef.current = { ...entry };
+  }, []);
+
   const navigate = useCallback((direction: -1 | 1) => {
     if (navigateWithinViewRef.current(direction)) return true;
     const current = historyRef.current.entries[historyRef.current.index];
@@ -104,6 +123,7 @@ export function useWorkspaceNavigation({ selectedId, selectedTrashId, navigateWi
     const nextHistory = { ...historyRef.current, entries: [...historyRef.current.entries] };
     const entry = stepWorkspaceNavigation(nextHistory, direction);
     if (!entry) return false;
+    pendingRestoreRef.current = true;
     historyRef.current = nextHistory;
     setHistory(nextHistory);
     onNavigateRef.current(entry);
@@ -127,5 +147,6 @@ export function useWorkspaceNavigation({ selectedId, selectedTrashId, navigateWi
     forward,
     canBack: history.index > 0,
     canForward: history.index >= 0 && history.index < history.entries.length - 1,
+    ignoreNextNavigation,
   };
 }

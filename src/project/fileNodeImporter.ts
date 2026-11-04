@@ -53,7 +53,6 @@ export async function importFileAsNode(
     return importedNode(context, id, name, type, parentId, content);
   } catch (error) {
     await prepared.rollback?.().catch(() => undefined);
-    console.error(error);
     throw new FileNodeImportError("fileImport.failed");
   }
 }

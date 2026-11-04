@@ -1,0 +1,31 @@
+/* Marcas inline y estilos decorativos dentro del editor */
+
+.editor-content [data-his-highlighted="true"] {
+  padding: 4px 8px;
+  background: rgb(255 255 255 / 4%);
+  border-left: 3px solid var(--his-border-neutral);
+}
+
+.editor-content [data-his-synced] {
+  outline: 1px dashed #596168;
+  outline-offset: 3px;
+}
+
+/* Estilo del texto en negrita. */
+.editor-content b,
+.editor-content strong {
+  font-weight: bold;
+}
+
+/* Estilo del texto en cursiva. */
+.editor-content i,
+.editor-content em {
+  color: #c7c9cc;
+  font-style: italic;
+}
+
+/* Estilo del texto resaltado. */
+.editor-content mark {
+  color: inherit;
+  background: rgb(216 179 77 / 22%);
+}

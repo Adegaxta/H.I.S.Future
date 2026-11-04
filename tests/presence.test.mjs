@@ -16,6 +16,9 @@ try {
   const { presenceActivityFingerprint, projectPresence } = await server.ssrLoadModule(
     "/src/presence/projectPresence.ts",
   );
+  const { createDiscordDiagnosticEvent } = await server.ssrLoadModule(
+    "/src/presence/discordDiagnostics.ts",
+  );
   const inEnglish = (context) => projectPresence({ ...context, locale: "en" });
   const inSpanish = (context) => projectPresence({ ...context, locale: "es" });
 
@@ -100,6 +103,24 @@ try {
   for (const privateValue of ["Private Project", "Private Page", "Private editor content", "vault.his"]) {
     assert.equal(serialized.includes(privateValue), false);
   }
+  const discordEvent = createDiscordDiagnosticEvent({
+    level: "WARN",
+    category: "DISCORD",
+    action: "connection.unavailable",
+    message: "Discord Desktop is unavailable",
+    technicalDetail: '{"state":"unavailable","retrySeconds":15}',
+  });
+  assert.equal(discordEvent.category, "DISCORD");
+  assert.equal(discordEvent.action, "connection.unavailable");
+  assert.equal(discordEvent.level, "WARN");
+  assert.equal(discordEvent.operation, "discord.presence");
+  assert.equal(createDiscordDiagnosticEvent({
+    level: "INFO",
+    category: "DISCORD",
+    action: "unknown",
+    message: "unvalidated",
+    technicalDetail: "{}",
+  }), null, "unknown native events are not accepted");
   console.log("PASS: Presence projection maps semantic state and excludes private names, content and paths.");
 } finally {
   await server.close();

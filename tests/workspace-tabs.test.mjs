@@ -5,7 +5,17 @@ import { createServer } from "vite";
 const server = await createServer({ configFile: false, optimizeDeps: { noDiscovery: true, include: [] }, server: { middlewareMode: true, hmr: false, watch: null }, appType: "custom" });
 try {
   const model = await server.ssrLoadModule("/src/workspace/tabs/model.ts");
+  const { revealActiveTab } = await server.ssrLoadModule("/src/workspace/tabs/tabStrip.ts");
   const { activateTab, addEmptyTab, closePane, closeTab, createPane, createTab, createWorkspaceLayout, findPane, findTab, listPanes, moveTab, reorderTab, restoreWorkspaceLayout, setFocusedTabView } = model;
+  const tabStrip = {
+    scrollLeft: 80,
+    scrollTop: 460,
+    querySelector: () => ({ getBoundingClientRect: () => ({ left: 280, right: 360 }) }),
+    getBoundingClientRect: () => ({ left: 100, right: 300 }),
+  };
+  revealActiveTab(tabStrip);
+  assert.equal(tabStrip.scrollLeft, 140, "revealing an active tab scrolls its strip horizontally");
+  assert.equal(tabStrip.scrollTop, 460, "revealing a tab never changes the page's vertical scroll position");
 
   const nodeTab = createTab("node", "node-a");
   let layout = createWorkspaceLayout(nodeTab);
@@ -17,8 +27,8 @@ try {
   assert.equal(emptyTab.viewType, null, "new tabs are empty");
   assert.equal(emptyTab.resourceId, undefined, "new tabs do not preselect a resource");
 
-  layout = setFocusedTabView(layout, "ai");
-  assert.equal(findTab(layout, emptyTab.id).tab.viewType, "ai", "AI opens in the current tab");
+  layout = setFocusedTabView(layout, "graph");
+  assert.equal(findTab(layout, emptyTab.id).tab.viewType, "graph", "AI opens in the current tab");
   layout = activateTab(layout, pane.id, nodeTab.id);
   assert.equal(findTab(layout, nodeTab.id).tab.resourceId, "node-a", "a node can remain open in a separate tab");
 
@@ -34,7 +44,7 @@ try {
   assert.equal(findTab(layout, centerTab.id).pane.id, aiPane.id, "center drop moves a tab into another pane group");
 
   let leftLayout = createWorkspaceLayout(createTab("node", "left-base"));
-  const leftTab = createTab("ai");
+  const leftTab = createTab("graph");
   leftLayout = addEmptyTab(leftLayout, leftLayout.focusedPaneId, leftTab);
   leftLayout = moveTab(leftLayout, leftTab.id, leftLayout.focusedPaneId, "left");
   assert.equal(leftLayout.root.direction, "horizontal", "left drop creates a horizontal split");
@@ -56,8 +66,8 @@ try {
   const lastPane = findTab(layout, nodeTab.id).pane;
   assert.equal(lastPane.id, listPanes(layout.root)[0].id, "the top split becomes the structural primary pane");
   layout = closeTab(layout, lastPane.id, nodeTab.id);
-  assert.equal(findPane(layout.root, lastPane.id).tabs.length, 0, "closing the last primary tab preserves its empty pane");
-  assert.equal(listPanes(layout.root).length, 4, "the structural primary pane remains reusable");
+  assert.equal(findPane(layout.root, lastPane.id), null, "closing the last tab removes the split pane even if it was structurally first");
+  assert.equal(listPanes(layout.root).length, beforeTopSplit, "closing the split pane collapses its parent split");
 
   const assertBinaryTree = (node) => {
     if (node.kind === "pane") return;
@@ -69,11 +79,11 @@ try {
   const closedNestedPaneId = findTab(layout, secondNode.id).pane.id;
   layout = closeTab(layout, closedNestedPaneId, secondNode.id);
   assert.equal(findPane(layout.root, closedNestedPaneId), null, "closing the last tab removes its secondary pane");
-  assert.equal(listPanes(layout.root).length, 3, "an empty nested pane collapses its parent split");
+  assert.equal(listPanes(layout.root).length, 2, "an empty nested pane collapses its parent split");
   const explicitlyClosedPaneId = findTab(layout, centerTab.id).pane.id;
   layout = closePane(layout, explicitlyClosedPaneId);
   assert.equal(findPane(layout.root, explicitlyClosedPaneId), null, "explicit pane closing still removes a populated pane");
-  assert.equal(listPanes(layout.root).length, 2, "explicit pane closing retains a valid binary tree");
+  assert.equal(listPanes(layout.root).length, 1, "explicit pane closing retains a valid binary tree");
   assertBinaryTree(layout.root);
 
   let primaryTabLayout = createWorkspaceLayout(createTab("node", "primary-only"));
@@ -91,7 +101,7 @@ try {
 
   let manyPanes = createWorkspaceLayout(createTab("node", "pane-1"));
   for (let index = 2; index <= 8; index += 1) {
-    const tab = createTab(index % 2 === 0 ? "graph" : "ai");
+    const tab = createTab(index % 2 === 0 ? "graph" : "graph");
     const sourcePaneId = manyPanes.focusedPaneId;
     manyPanes = addEmptyTab(manyPanes, sourcePaneId, tab);
     manyPanes = moveTab(manyPanes, tab.id, sourcePaneId, index % 3 === 0 ? "bottom" : "right");
@@ -109,12 +119,12 @@ try {
   const missing = createWorkspaceLayout(createTab("node", "deleted-resource"));
   assert.equal(restoreWorkspaceLayout(JSON.stringify(missing), createWorkspaceLayout()).root.tabs[0].resourceId, "deleted-resource", "deleted resources remain a safe restorable reference");
 
-  const vaultA = JSON.stringify(createWorkspaceLayout(createTab("ai")));
+  const vaultA = JSON.stringify(createWorkspaceLayout(createTab("graph")));
   const vaultB = JSON.stringify(createWorkspaceLayout(createTab("graph")));
-  assert.equal(restoreWorkspaceLayout(vaultA, createWorkspaceLayout()).root.tabs[0].viewType, "ai");
+  assert.equal(restoreWorkspaceLayout(vaultA, createWorkspaceLayout()).root.tabs[0].viewType, "graph");
   assert.equal(restoreWorkspaceLayout(vaultB, createWorkspaceLayout()).root.tabs[0].viewType, "graph", "vault layouts restore independently");
 
-  const reorderTabs = [createTab("node", "a"), { ...createTab("graph"), state: { camera: { x: 12, y: -7, zoom: 1.25 } } }, createTab(), createTab("ai")];
+  const reorderTabs = [createTab("node", "a"), { ...createTab("graph"), state: { camera: { x: 12, y: -7, zoom: 1.25 } } }, createTab(), createTab("graph")];
   let reorderLayout = createWorkspaceLayout(reorderTabs[0]);
   for (const tab of reorderTabs.slice(1)) reorderLayout = addEmptyTab(reorderLayout, reorderLayout.focusedPaneId, tab);
   const reorderPaneId = reorderLayout.focusedPaneId;
@@ -132,8 +142,7 @@ try {
   const appCss = await readFile(new URL("../src/App.css", import.meta.url), "utf8");
   const tabsCss = await readFile(new URL("../src/workspace/tabs/styles.css", import.meta.url), "utf8");
   const navigationCss = await readFile(new URL("../src/workspace/navigation/styles.css", import.meta.url), "utf8");
-  const aiCss = await readFile(new URL("../src/ai/styles.css", import.meta.url), "utf8");
-  const graphViewSource = await readFile(new URL("../src/graph/view.tsx", import.meta.url), "utf8");
+    const graphViewSource = await readFile(new URL("../src/graph/view.tsx", import.meta.url), "utf8");
   const graphCss = await readFile(new URL("../src/graph/styles.css", import.meta.url), "utf8");
   const graphRendererSource = await readFile(new URL("../src/graph/PixiGraphRenderer.ts", import.meta.url), "utf8");
   assert.match(appSource, /focusedWorkspaceTab\?\.viewType === "node"/, "primary navigation derives active state from one focused tab");
@@ -183,7 +192,7 @@ try {
   assert.match(tabsCss, /\.workspace-pane__content\s*\{[^}]*position:\s*relative;[^}]*min-height:\s*0;[^}]*flex:\s*1 1 0;[^}]*overflow:\s*hidden;/s, "pane content consumes all height remaining below PaneTabBar");
   assert.match(tabsCss, /\.workspace-pane__view--node\s*\{\s*overflow-y:\s*auto;/, "Node retains the scroll ownership previously supplied by workspace-main");
   assert.match(tabsCss, /\.workspace-pane__view--node\s*>\s*\.editor-page\s*\{[^}]*height:\s*100%;[^}]*min-height:\s*0;/s, "Node pages use the pane height instead of the full viewport height");
-  assert.match(tabsCss, /\.workspace-tab\.is-active::after\s*\{[^}]*right:\s*0;[^}]*bottom:\s*-1px;[^}]*left:\s*0;/s, "the active tab line meets the content edge instead of floating inside the tab");
+  assert.match(tabsCss, /\.workspace-tab(?:\.is-active)?::after\s*\{[^}]*right:\s*0;[^}]*bottom:\s*-1px;[^}]*left:\s*0;/s, "the active tab line meets the content edge instead of floating inside the tab");
   assert.match(tabsCss, /\.workspace-tab\s*\{[^}]*flex:\s*0 0 clamp\(124px, 14vw, 168px\);/s, "tabs retain a stable close-target width as siblings are removed");
   assert.match(tabsCss, /\.workspace-tab__title\s*\{[^}]*flex:\s*1 1 auto;/s, "tab titles yield space while the close button stays at the right edge");
   assert.match(tabsCss, /\.workspace-tab__close:hover\s*\{[^}]*color:\s*#ffd5d8;[^}]*background:\s*rgb\(190 52 65 \/ 34%\);/s, "tab close hover gives explicit red destructive feedback");
@@ -203,7 +212,6 @@ try {
   assert.doesNotMatch(pageChromeSource, /useAutoHide|visibilityClass|controls\.release/, "page chrome controls no longer auto-hide");
   assert.doesNotMatch(pageCss, /\.page-chrome__zone--(?:node-options|index|graph)[^{]*\.page-chrome__button\s*\{[^}]*opacity:/s, "right-side page controls stay visibly stable");
   assert.match(pageCss, /\.editor-page--pagina,[\s\S]*\.editor-page--proyecto\s*\{\s*padding-top:\s*12px;/, "page and project nodes remove the redundant top gap");
-  assert.doesNotMatch(aiCss, /\.ai-workspace\s*\{[^}]*padding-top:/s, "AI no longer reserves a second titlebar row");
   assert.match(appSource, /type: "graph",[\s\S]*contextHeader: true/, "Graph opts into the compact contextual view header");
   assert.match(tabsCss, /\.workspace-view-header\s*\{[^}]*height:\s*34px;[^}]*justify-content:\s*center;/s, "context headers are compact and centered");
   assert.match(graphRendererSource, /new ResizeObserver\(\(\) => this\.resize\(\)\)/, "Graph observes pane size changes after tabs and splits");

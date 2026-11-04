@@ -55,10 +55,17 @@ try {
   assert.match(markdown, /<em>cursiva<\/em>/);
   assert.match(markdown, /<s>tachado<\/s>/);
   assert.match(markdown, /<code>código<\/code>/);
-  assert.match(markdown, /<ul><li>uno<\/li><li>dos<\/li><\/ul>/);
-  assert.match(markdown, /<ol><li>primero<\/li><li>segundo<\/li><\/ol>/);
+  assert.match(markdown, /<p data-his-list="bullets">uno<\/p><p data-his-list="bullets">dos<\/p>/);
+  assert.match(markdown, /<p data-his-list="numbered">primero<\/p><p data-his-list="numbered">segundo<\/p>/);
   assert.match(markdown, /<blockquote>una cita<\/blockquote>/);
   assert.match(markdown, /<pre data-language="ts"><code>const answer = 42;<\/code><\/pre>/);
+
+  const todoMarkdown = formatPastedText([
+    "- [ ] pendiente",
+    "- [x] hecha",
+  ].join("\n"));
+  assert.match(todoMarkdown, /<p data-his-list="todo">pendiente<\/p>/);
+  assert.match(todoMarkdown, /<p data-his-list="todo" data-his-todo-checked="true">hecha<\/p>/);
 
   const paragraph = (id, text) => ({
     id,
@@ -190,11 +197,22 @@ try {
   assert.ok(mixed.includes("Antes") && mixed.includes("Después") && mixed.includes("data-page-index"),
     "known blocks survive alongside an unknown structurally valid block");
 
-  const [selectionSource, controllerSource, persistenceSource, editorStyles, tableSource, richTextSource, tableCss, blockModelSource, richTextHookSource, tableActionsSource, tableSelectionSource, tableClipboardSource, tableMenuSource] = await Promise.all([
+  const readStylesheet = async (url) => {
+    const raw = await readFile(url, "utf8");
+    const parts = await Promise.all(
+      raw.split("\n").map(async (line) => {
+        const match = line.match(/^@import\s+["'](.+?)["'];/);
+        return match ? readStylesheet(new URL(match[1], url)) : line;
+      })
+    );
+    return parts.join("\n");
+  };
+
+  const [selectionSource, controllerSource, persistenceSource, editorStyles, tableSource, richTextSource, tableCss, blockModelSource, richTextHookSource, tableActionsSource, tableSelectionSource, tableClipboardSource, tableMenuSource, htmlSource] = await Promise.all([
     readFile(new URL("../src/editor/useEditorBlockSelection.ts", import.meta.url), "utf8"),
     readFile(new URL("../src/editor/useEditorController.ts", import.meta.url), "utf8"),
     readFile(new URL("../src/editor/persistence.ts", import.meta.url), "utf8"),
-    readFile(new URL("../src/editor/styles.css", import.meta.url), "utf8"),
+    readStylesheet(new URL("../src/editor/styles.css", import.meta.url)),
     readFile(new URL("../src/editor/table.ts", import.meta.url), "utf8"),
     readFile(new URL("../src/editor/RichTextEditor.tsx", import.meta.url), "utf8"),
     readFile(new URL("../src/editor/table.css", import.meta.url), "utf8"),
@@ -204,12 +222,25 @@ try {
     readFile(new URL("../src/editor/tableSelection.ts", import.meta.url), "utf8"),
     readFile(new URL("../src/editor/tableClipboard.ts", import.meta.url), "utf8"),
     readFile(new URL("../src/editor/TableOptionsMenu.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/editor/html.ts", import.meta.url), "utf8"),
   ]);
   const globeEditorSource = await readFile(new URL("../src/editor/RichTextEditor.tsx", import.meta.url), "utf8");
   const globeIconSource = await readFile(new URL("../src/editor/globeIcon.ts", import.meta.url), "utf8");
   const iconPickerSource = await readFile(new URL("../src/nodes/capabilities/IconCapabilityPicker.tsx", import.meta.url), "utf8");
   const pageChromeSource = await readFile(new URL("../src/nodes/page/chrome.tsx", import.meta.url), "utf8");
   const serializationSource = await readFile(new URL("../src/editor/serialization.ts", import.meta.url), "utf8");
+
+  assert.match(htmlSource, /normalizeDomLists\(source\.body\)/,
+    "HTML sanitization normalizes DOM lists to native HIS format");
+  assert.match(htmlSource, /paragraph\.setAttribute\("data-his-list", listType\)/,
+    "list items are transformed into native paragraph blocks with data-his-list");
+  assert.match(htmlSource, /depth \* 24/,
+    "nested lists are converted to sibling blocks with 24px step margin indentation");
+  assert.doesNotMatch(htmlSource, /const tags = new Set\(\[[\s\S]*?"(?:UL|OL|LI)"[\s\S]*?\]\);/,
+    "UL, OL, and LI are excluded from the allowed tags set");
+  assert.match(richTextHookSource, /<\[uo\]l\\b|<li\\b[\s\S]*sanitizeEditorHtml/,
+    "useRichTextEditor normalizes existing or legacy lists on load");
+
   assert.match(selectionSource, /if \(textBlock && !selectionModifier\) return false;/,
     "A first click on imported text must remain a native caret interaction");
   assert.match(selectionSource, /querySelectorAll<HTMLElement>\(`\$\{textLineSelector\}, \[data-globe\], \[data-his-table\]`\)/,
@@ -478,6 +509,15 @@ try {
     "Shift stops when the left neighbor reaches the minimum");
   assert.deepEqual(translateColumnWidthsForShift([120, 160, 48], 1, 40), [120, 160, 48],
     "Shift stops when the right neighbor reaches the minimum");
+
+  const { nodeToHtml } = await server.ssrLoadModule("/src/export/nodeHtml.ts");
+  const exportedHtml = nodeToHtml({
+    name: "Prueba Export",
+    content: '<!--hisfuture-page-meta:{"description":"Meta test"}--><p data-his-list="bullets">Punto</p><p data-his-list="numbered">Paso 1</p>',
+  });
+  assert.ok(!exportedHtml.includes("<!--hisfuture-page-meta:"), "exported HTML strips internal metadata comments");
+  assert.match(exportedHtml, /his-numbered-list/, "exported HTML includes numbered list CSS counter");
+  assert.match(exportedHtml, /<p data-his-list="bullets">Punto<\/p>/, "exported HTML preserves body content");
 
   console.log("Editor compatibility tests passed");
 } finally {

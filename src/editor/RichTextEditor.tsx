@@ -1,13 +1,22 @@
 import MentionMenu, { MentionDestinationMenu } from "./MentionMenu";
+import { ImageMentionModeMenu } from "./ImageMentionModeMenu";
+import { MentionHoverCard } from "./MentionHoverCard";
+import { LinkHoverCard } from "./LinkHoverCard";
+import { BlockFormatMenu, type BlockFormatType } from "./BlockFormatMenu";
+import { BlockMoreMenu } from "./BlockMoreMenu";
+import { ImagePreviewModal } from "./ImagePreviewModal";
+import { WritingMetricsBar } from "./WritingMetricsBar";
 import SpellingContextMenu from "./SpellingContextMenu";
 import { useEditorSpelling } from "./useEditorSpelling";
 import { applyEditorBlockColor, resetEditorBlockColors } from "./blockColors";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, ReactNode, RefObject, WheelEvent } from "react";
 import { createPortal } from "react-dom";
 import type { NodeItem } from "../types/nodes";
+import { getEffectiveNodeType } from "../utils/nodeTree";
 import { getImageResourceInfo } from "../utils/imageResource";
 import { hydrateEditorImageMentions, releaseEditorImageMentions } from "../utils/imageRuntimeResolver";
+import { createDiagnosticEvent, emitDiagnosticEvent } from "../diagnostics/events";
 import { stripTransientEditorState } from "./serialization";
 import { useLocale } from "../i18n/LocaleContext";
 import { useEditorController } from "./useEditorController";
@@ -25,7 +34,7 @@ import draftAsset from "../assets/third-party/google-material/icons/draft.svg";
 import moreHorizAsset from "../assets/third-party/google-material/icons/more_horiz.svg";
 import moreVertAsset from "../assets/third-party/google-material/icons/more_vert.svg";
 import dragIndicatorAsset from "../assets/third-party/google-material/icons/drag_indicator.svg";
-import { useDismissibleLayer } from "../hooks/useDismissibleLayer";
+import chevronDownAsset from "../assets/third-party/Lucide.dev/icons/chevron-down.svg";
 import { isResizableEditorImage } from "./imageResize";
 import type { HisContextMenuItem } from "../components/HisContextMenu";
 import { getPageMeta } from "../utils/pageMeta";
@@ -44,13 +53,17 @@ import { applyTableColor, markTableDropTarget, moveTableColumnTo, moveTableRowTo
 import { clipboardToMatrix, pasteMatrixAtCell, selectedCellsToMatrix, writeCellMatrixToClipboard } from "./tableClipboard";
 import { clearTableCellSelection, focusTableCell, focusTableCellAtPoint, getActiveTableCell, getSelectedTableCells, moveTableCellFocus, selectTableUnit, setActiveTableCell, syncActiveTableCellFromSelection, toggleTableCellSelection } from "./tableSelection";
 import {
+  replaceBlockTag,
   resetPageBlockAesthetics,
   setPageBlockColumnCount,
   togglePageBlockCapability,
   type PageBlockCapabilityDefinition,
 } from "./blockCapabilities";
+import { rangeBelongsToEditor } from "./inlineMarks";
+
 
 let pageBlockClipboardHtml = "";
+let pageBlockClipboardText = "";
 
 const mentionResourceIdentities = new WeakMap<NodeItem, number>();
 let nextMentionResourceIdentity = 1;
@@ -128,7 +141,7 @@ interface RichTextEditorProps {
   onFileImport?: (file: File, parentId?: string | null) => Promise<NodeItem | null> | NodeItem | null;
   onCreateImageFromUnsplash?: (selection: UnsplashImageSelection) => Promise<string | null>;
   recentNodes?: NodeItem[];
-  onCreateMentionNode?: (name: string, parentId: string | null) => NodeItem | null;
+  onCreateMentionNode?: (name: string, parentId: string | null, type?: any) => NodeItem | null;
   onCreatePastedNode?: (name: string) => NodeItem | null;
   onSlashCommand?: (tag: string) => boolean;
   readOnly?: boolean;
@@ -194,6 +207,148 @@ export default function RichTextEditor({
     startY: number;
     moved: boolean;
   } | null>(null);
+  const [hoveredMention, setHoveredMention] = useState<{ nodeId: string; rect: DOMRect; element: HTMLElement } | null>(null);
+  const [hoverClosing, setHoverClosing] = useState(false);
+  const mentionHoverTimerRef = useRef<number | null>(null);
+  const mentionCloseTimerRef = useRef<number | null>(null);
+  const isOverCardRef = useRef(false);
+
+  const cancelMentionOpenTimer = useCallback(() => {
+    if (mentionHoverTimerRef.current !== null) {
+      window.clearTimeout(mentionHoverTimerRef.current);
+      mentionHoverTimerRef.current = null;
+    }
+  }, []);
+
+  const cancelMentionCloseTimer = useCallback(() => {
+    if (mentionCloseTimerRef.current !== null) {
+      window.clearTimeout(mentionCloseTimerRef.current);
+      mentionCloseTimerRef.current = null;
+    }
+  }, []);
+
+  const startMentionCloseTimer = useCallback((delay = 140) => {
+    if (mentionCloseTimerRef.current !== null) return;
+    mentionCloseTimerRef.current = window.setTimeout(() => {
+      mentionCloseTimerRef.current = null;
+      if (!isOverCardRef.current) {
+        setHoverClosing(true);
+        window.setTimeout(() => {
+          setHoveredMention(null);
+          setHoverClosing(false);
+        }, 120);
+      }
+    }, delay);
+  }, []);
+
+  const dismissMentionImmediately = useCallback(() => {
+    cancelMentionOpenTimer();
+    cancelMentionCloseTimer();
+    isOverCardRef.current = false;
+    setHoverClosing(false);
+    setHoveredMention(null);
+  }, [cancelMentionCloseTimer, cancelMentionOpenTimer]);
+
+  const [hoveredLink, setHoveredLink] = useState<{ href: string; text: string; rect: DOMRect; element: HTMLAnchorElement } | null>(null);
+  const [linkHoverClosing, setLinkHoverClosing] = useState(false);
+  const linkHoverTimerRef = useRef<number | null>(null);
+  const linkCloseTimerRef = useRef<number | null>(null);
+  const isOverLinkCardRef = useRef(false);
+
+  const cancelLinkOpenTimer = useCallback(() => {
+    if (linkHoverTimerRef.current !== null) {
+      window.clearTimeout(linkHoverTimerRef.current);
+      linkHoverTimerRef.current = null;
+    }
+  }, []);
+
+  const cancelLinkCloseTimer = useCallback(() => {
+    if (linkCloseTimerRef.current !== null) {
+      window.clearTimeout(linkCloseTimerRef.current);
+      linkCloseTimerRef.current = null;
+    }
+  }, []);
+
+  const startLinkCloseTimer = useCallback((delay = 140) => {
+    if (linkCloseTimerRef.current !== null) return;
+    linkCloseTimerRef.current = window.setTimeout(() => {
+      linkCloseTimerRef.current = null;
+      if (!isOverLinkCardRef.current) {
+        setLinkHoverClosing(true);
+        window.setTimeout(() => {
+          setHoveredLink(null);
+          setLinkHoverClosing(false);
+        }, 120);
+      }
+    }, delay);
+  }, []);
+
+  const dismissLinkImmediately = useCallback(() => {
+    cancelLinkOpenTimer();
+    cancelLinkCloseTimer();
+    isOverLinkCardRef.current = false;
+    setLinkHoverClosing(false);
+    setHoveredLink(null);
+  }, [cancelLinkCloseTimer, cancelLinkOpenTimer]);
+
+  const [metrics, setMetrics] = useState({ words: 0, chars: 0, readingMin: 1, selectedWords: 0, selectedChars: 0 });
+
+  useEffect(() => {
+    const updateMetricsAndActiveLine = () => {
+      const editor = editorRef.current;
+      if (!editor) return;
+      const fullText = editor.innerText || editor.textContent || "";
+      const words = fullText.trim().split(/\s+/).filter(Boolean).length;
+      const chars = fullText.replace(/[\r\n\t]/g, "").length;
+      const readingMin = Math.max(1, Math.ceil(words / 200));
+
+      const selection = window.getSelection();
+      let selectedWords = 0;
+      let selectedChars = 0;
+      let activeBlock: HTMLElement | null = null;
+      if (selection && selection.rangeCount > 0 && editor.contains(selection.anchorNode)) {
+        if (!selection.isCollapsed) {
+          const selText = selection.toString();
+          selectedWords = selText.trim().split(/\s+/).filter(Boolean).length;
+          selectedChars = selText.replace(/[\r\n\t]/g, "").length;
+        }
+        let curr: Node | null = selection.anchorNode;
+        while (curr && curr.parentElement && curr.parentElement !== editor) {
+          curr = curr.parentElement;
+        }
+        if (curr instanceof HTMLElement && curr.parentElement === editor) {
+          activeBlock = curr;
+        }
+      }
+
+      const prevActive = editor.querySelector(':scope > [data-active-line="true"]');
+      if (prevActive && prevActive !== activeBlock) {
+        prevActive.removeAttribute("data-active-line");
+      }
+      if (activeBlock && activeBlock !== prevActive) {
+        activeBlock.setAttribute("data-active-line", "true");
+      }
+
+      setMetrics({ words, chars, readingMin, selectedWords, selectedChars });
+    };
+
+    updateMetricsAndActiveLine();
+    const handleSelectionChange = () => {
+      updateMetricsAndActiveLine();
+    };
+    const handleScroll = () => {
+      dismissMentionImmediately();
+      dismissLinkImmediately();
+    };
+
+    document.addEventListener("selectionchange", handleSelectionChange);
+    window.addEventListener("scroll", handleScroll, { capture: true, passive: true });
+    return () => {
+      document.removeEventListener("selectionchange", handleSelectionChange);
+      window.removeEventListener("scroll", handleScroll, { capture: true });
+    };
+  }, [dismissLinkImmediately, dismissMentionImmediately, node.content]);
+
   const [globeIconPicker, setGlobeIconPicker] = useState<{ globe: HTMLElement; tab: "local" | "emoji" | "icon" | "unsplash" } | null>(null);
   const [globeIconVisual, setGlobeIconVisual] = useState<{ target: HTMLElement; visual: ResolvedNodeVisual } | null>(null);
   const [blockColorMenu, setBlockColorMenu] = useState<{
@@ -249,6 +404,70 @@ export default function RichTextEditor({
     onMentionCreate: onCreateMentionNode ? beginMentionCreation : undefined,
     onSlashCommand,
   });
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor || readOnly || node.type !== "pagina") return;
+    const handleBlockDrop = (event: Event) => {
+      const dropEvent = event as CustomEvent<{
+        html: string[];
+        clientX: number;
+        clientY: number;
+        inserted: boolean;
+      }>;
+      const targetEditor = editorRef.current;
+      if (!targetEditor || targetEditor.dataset.nodeType !== "pagina") return;
+      const template = document.createElement("template");
+      const blocks = dropEvent.detail.html.flatMap((html) => {
+        template.innerHTML = stripTransientEditorState(html);
+        const block = template.content.firstElementChild;
+        if (!(block instanceof HTMLElement)) return [];
+        const clone = block.cloneNode(true) as HTMLElement;
+        [clone, ...Array.from(clone.querySelectorAll<HTMLElement>("*"))].forEach((element) => {
+          element.removeAttribute("id");
+          element.removeAttribute("data-page-index-id");
+          element.removeAttribute("data-editor-block-identity");
+          element.removeAttribute("data-line-selected");
+          element.removeAttribute("data-line-dragging");
+          element.removeAttribute("data-line-drop-target");
+        });
+        return [clone];
+      });
+      if (!blocks.length) return;
+
+      const hit = document.elementFromPoint(dropEvent.detail.clientX, dropEvent.detail.clientY);
+      const target = hit ? controller.getEditorBlock(hit) : null;
+      if (target && !targetEditor.contains(target)) return;
+      const rect = target?.getBoundingClientRect();
+      const inside = Boolean(
+        target?.matches("[data-globe]") &&
+        rect &&
+        dropEvent.detail.clientX > rect.left + 48 &&
+        dropEvent.detail.clientY >= rect.top &&
+        dropEvent.detail.clientY <= rect.bottom,
+      );
+      const content = inside && target
+        ? target.querySelector<HTMLElement>(":scope > [data-globe-content]")
+        : null;
+      if (inside && !content) return;
+      controller.captureStructuralUndo();
+      if (content) {
+        blocks.forEach((block) => content.appendChild(block));
+      } else if (target?.parentNode && rect) {
+        const before = dropEvent.detail.clientY < rect.top + rect.height / 2;
+        const reference = before ? target : target.nextSibling;
+        blocks.forEach((block) => target.parentNode?.insertBefore(block, reference));
+      } else {
+        blocks.forEach((block) => targetEditor.appendChild(block));
+      }
+      if (targetEditor) {
+        ensureTableRuntime(targetEditor);
+        controller.syncContent();
+        dropEvent.detail.inserted = true;
+      }
+    };
+    editor.addEventListener("his-editor-block-drop", handleBlockDrop);
+    return () => editor.removeEventListener("his-editor-block-drop", handleBlockDrop);
+  }, [controller, editorRef, node.id, node.type, readOnly]);
   function beginMentionCreation(kind: "here" | "in") {
     const query = controller.callPicker?.query;
     const selection = window.getSelection();
@@ -562,11 +781,16 @@ export default function RichTextEditor({
     setGlobeIconPicker(null);
   };
   const closeEditorContextMenu = () => {
-    setEditorContextMenu(null);
-    controller.setLineActionBlock(null);
+    preserveEditorViewport(() => {
+      setEditorContextMenu(null);
+      controller.setLineActionBlock(null);
+    });
   };
   const preserveEditorViewport = (action: () => void) => {
-    const scrollHost = editorRef.current?.closest<HTMLElement>(".workspace-main") ?? null;
+    const scrollHost = editorRef.current?.closest<HTMLElement>(".node-tab-content")
+      ?? editorRef.current?.closest<HTMLElement>(".workspace-pane__view--node")
+      ?? editorRef.current?.closest<HTMLElement>(".workspace-main")
+      ?? null;
     const scrollTop = scrollHost?.scrollTop ?? 0;
     const scrollLeft = scrollHost?.scrollLeft ?? 0;
     action();
@@ -640,7 +864,10 @@ export default function RichTextEditor({
     clone.removeAttribute("data-line-dragging");
     clone.removeAttribute("data-line-drop-target");
     pageBlockClipboardHtml = stripTransientEditorState(clone.outerHTML);
-    void navigator.clipboard?.writeText(block.textContent || "").catch(() => {});
+    pageBlockClipboardText = block.textContent || "";
+    void navigator.clipboard?.writeText(pageBlockClipboardText).catch((error) => {
+      console.warn("No se pudo copiar el texto del bloque al portapapeles", error);
+    });
   };
   const duplicateContextBlock = (block: HTMLElement) => {
     if (!block.isConnected) return;
@@ -650,6 +877,15 @@ export default function RichTextEditor({
     clone.querySelectorAll("[id]").forEach((element) => element.removeAttribute("id"));
     block.parentNode?.insertBefore(clone, block.nextSibling);
     controller.syncContent();
+    emitDiagnosticEvent(createDiagnosticEvent({
+      level: "INFO",
+      category: "EDITOR",
+      action: "block.duplicated",
+      operation: "editor.block.duplicate",
+      nodeId: node.id,
+      message: "Editor block duplicated",
+      technicalDetail: JSON.stringify({ tagName: block.tagName.toLowerCase() }),
+    }));
   };
   const pasteContextBlock = (block: HTMLElement) => {
     if (!block.isConnected || !pageBlockClipboardHtml) return;
@@ -660,6 +896,15 @@ export default function RichTextEditor({
     controller.captureStructuralUndo();
     block.parentNode?.insertBefore(pasted, block.nextSibling);
     controller.syncContent();
+    emitDiagnosticEvent(createDiagnosticEvent({
+      level: "INFO",
+      category: "EDITOR",
+      action: "block.pasted",
+      operation: "editor.block.paste",
+      nodeId: node.id,
+      message: "Editor block pasted",
+      technicalDetail: JSON.stringify({ tagName: pasted.tagName.toLowerCase() }),
+    }));
   };
   const ensureCellContentBlock = getEditableBlockFromTableCell;
   const mutateContextBlock = (
@@ -754,33 +999,36 @@ export default function RichTextEditor({
     });
   };
   const openEditorBlockContextMenu = (block: HTMLElement, left: number, top: number, preferredMention?: HTMLElement | null) => {
-    const nestedFullMention = hasAlignableImage(block)
-      ? block.querySelector<HTMLElement>('[data-mention-id][data-mention-mode="full"]')
-      : null;
-    const mention = preferredMention ?? (block.matches("[data-mention-id]") ? block : nestedFullMention);
-    const id = mention?.dataset.mentionId;
-    const target = id ? nodes.find((item) => item.id === id) : null;
-    const actionBlock = mention || (block.matches("[data-his-table-cell]") ? block : getTableOwnerBlock(block));
-    controller.resetEditorPickers();
-    setBlockColorMenu(null);
-    setBlockTextDevTree(BLOCK_TEXT_DEV_REGISTRY.closeTree());
-    const selected = controller.selectedLineBlocks.filter((line) => line.isConnected);
-    if (!selected.includes(actionBlock)) {
-      controller.clearLineSelection();
-      window.getSelection()?.removeAllRanges();
-      actionBlock.dataset.editorBlockIdentity ||= crypto.randomUUID();
-      actionBlock.dataset.lineSelected = "true";
-      actionBlock.contentEditable = "false";
-      controller.setSelectedLineBlocks([actionBlock]);
-    }
-    controller.setLineActionBlock(actionBlock);
-    setEditorContextMenu({
-      imageNodeId: target?.type === "imagen" ? target.id : null,
-      mention,
-      block: actionBlock,
-      mode: target?.type === "imagen" ? mention?.dataset.mentionMode === "full" ? "full" : "inserted" : null,
-      top,
-      left,
+    controller.cancelLineDrag();
+    preserveEditorViewport(() => {
+      const nestedFullMention = hasAlignableImage(block)
+        ? block.querySelector<HTMLElement>('[data-mention-id][data-mention-mode="full"]')
+        : null;
+      const mention = preferredMention ?? (block.matches("[data-mention-id]") ? block : nestedFullMention);
+      const id = mention?.dataset.mentionId;
+      const target = id ? nodes.find((item) => item.id === id) : null;
+      const actionBlock = mention || (block.matches("[data-his-table-cell]") ? block : getTableOwnerBlock(block));
+      controller.resetEditorPickers();
+      setBlockColorMenu(null);
+      setBlockTextDevTree(BLOCK_TEXT_DEV_REGISTRY.closeTree());
+      const selected = controller.selectedLineBlocks.filter((line) => line.isConnected);
+      if (!selected.includes(actionBlock)) {
+        controller.clearLineSelection();
+        window.getSelection()?.removeAllRanges();
+        actionBlock.dataset.editorBlockIdentity ||= crypto.randomUUID();
+        actionBlock.dataset.lineSelected = "true";
+        actionBlock.contentEditable = "false";
+        controller.setSelectedLineBlocks([actionBlock]);
+      }
+      controller.setLineActionBlock(actionBlock);
+      setEditorContextMenu({
+        imageNodeId: target?.type === "imagen" ? target.id : null,
+        mention,
+        block: actionBlock,
+        mode: target?.type === "imagen" ? mention?.dataset.mentionMode === "full" ? "full" : "inserted" : null,
+        top,
+        left,
+      });
     });
   };
   const spelling = useEditorSpelling({ editorRef, nodeId: node.id, locale, enabled: !readOnly && mode === "interactive", replace: (range, suggestion) => {
@@ -1032,6 +1280,8 @@ export default function RichTextEditor({
               onPointerCancel={controller.cancelLineDrag}
               onClick={(event) => {
                 event.stopPropagation();
+                if (controller.isDraggingLine) return;
+                controller.cancelLineDrag();
                 const anchor = event.currentTarget.getBoundingClientRect();
                 openEditorBlockContextMenu(lineControl.block, anchor.right + 8, anchor.top);
               }}
@@ -1090,11 +1340,16 @@ export default function RichTextEditor({
         document.body,
       )}
       {!readOnly && !spelling.menu && controller.selectionToolbar && (
-        <SelectionToolbar controller={controller} />
+        <SelectionToolbar
+          controller={controller}
+          editorRef={editorRef}
+          onCreateMentionNode={onCreateMentionNode}
+        />
       )}
       <div
         ref={editorRef}
         className={`editor-content${className ? ` ${className}` : ""}`}
+        data-node-type={node.type}
         data-block-selecting={controller.blockSelection ? "true" : undefined}
         contentEditable={!readOnly}
         lang={locale === "es" ? "es-ES" : "en-US"}
@@ -1102,18 +1357,6 @@ export default function RichTextEditor({
         autoCorrect="on"
         suppressContentEditableWarning
         style={style}
-        onDoubleClick={(event) => {
-          const target = event.target as HTMLElement;
-          if (target.closest("[data-mention-id], [data-editor-ui], [data-page-index], button, img")) return;
-          const block = target.closest("p, li, h1, h2, h3, h4, h5, h6, blockquote, pre, [data-his-table-cell]");
-          if (!block || !event.currentTarget.contains(block)) return;
-          event.preventDefault();
-          const range = document.createRange();
-          range.selectNodeContents(block);
-          const selection = window.getSelection();
-          selection?.removeAllRanges();
-          selection?.addRange(range);
-        }}
         onFocus={readOnly ? undefined : controller.updatePlaceholder}
         onInput={(event) => {
           const table = getTableRootFromNode(event.target as HTMLElement);
@@ -1148,7 +1391,13 @@ export default function RichTextEditor({
               return;
             }
           }
-          controller.onPaste(event);
+          const plainText = event.clipboardData.getData("text/plain");
+          const preferredHtml = pageBlockClipboardHtml &&
+            !event.clipboardData.getData("text/html") &&
+            plainText === pageBlockClipboardText
+            ? pageBlockClipboardHtml
+            : undefined;
+          controller.onPaste(event, preferredHtml);
         }}
         onContextMenu={(event) => {
           if (readOnly) return;
@@ -1196,13 +1445,15 @@ export default function RichTextEditor({
           controller.updatePlaceholder();
         }}
         onClick={(event) => {
+          const target = event.target as HTMLElement;
+          const mention = target.closest<HTMLElement>("[data-mention-id]");
+          if (mention) {
+            controller.onMentionClick(event);
+            return;
+          }
           const selection = window.getSelection();
           if (selection && !selection.isCollapsed && selection.rangeCount && event.currentTarget.contains(selection.anchorNode) && event.currentTarget.contains(selection.focusNode)) {
             event.stopPropagation();
-            return;
-          }
-          const target = event.target as HTMLElement;
-          if (target.closest("[data-mention-id]")) {
             return;
           }
           const clickedCell = target.closest<HTMLElement>("[data-his-table-cell]");
@@ -1234,6 +1485,7 @@ export default function RichTextEditor({
             }
           }
           const dropdown = target.closest<HTMLElement>("[data-his-dropdown]");
+          const collapsibleList = target.closest<HTMLElement>('[data-his-list="collapsible"]');
           const todo = target.closest<HTMLElement>('[data-his-list="todo"]');
           if (!readOnly && todo && event.clientX <= todo.getBoundingClientRect().left + 28) {
             event.preventDefault();
@@ -1242,10 +1494,69 @@ export default function RichTextEditor({
             controller.syncContent();
             return;
           }
-          if (!readOnly && dropdown && event.clientX <= dropdown.getBoundingClientRect().left + 28) {
+          const toggleHeading = target.closest<HTMLElement>(':is(h1, h2, h3, h4)[data-his-toggle-heading="true"]');
+          if (!readOnly && toggleHeading && event.clientX <= toggleHeading.getBoundingClientRect().left + 32) {
             event.preventDefault();
             controller.captureStructuralUndo();
-            dropdown.toggleAttribute("data-his-collapsed");
+            const isCollapsed = toggleHeading.toggleAttribute("data-his-collapsed");
+            const headingLevel = Number(toggleHeading.tagName.replace("H", "")) || 1;
+            let next = toggleHeading.nextElementSibling as HTMLElement | null;
+            while (next) {
+              if (/^H[1-6]$/.test(next.tagName)) {
+                const nextLevel = Number(next.tagName.replace("H", ""));
+                if (nextLevel <= headingLevel) break;
+              }
+              if (isCollapsed) {
+                next.setAttribute("data-his-collapsed-child", "true");
+              } else {
+                next.removeAttribute("data-his-collapsed-child");
+              }
+              next = next.nextElementSibling as HTMLElement | null;
+            }
+            controller.syncContent();
+            return;
+          }
+          if (!readOnly && collapsibleList && event.clientX <= collapsibleList.getBoundingClientRect().left + 28) {
+            event.preventDefault();
+            controller.captureStructuralUndo();
+            const isCollapsed = collapsibleList.toggleAttribute("data-his-collapsed");
+            const parentMargin = Number.parseFloat(collapsibleList.style.marginLeft || "0");
+            let next = collapsibleList.nextElementSibling as HTMLElement | null;
+            while (next && next.matches("p, h1, h2, h3, h4, h5, h6, blockquote, li, pre, [data-his-list]")) {
+              const nextMargin = Number.parseFloat(next.style.marginLeft || "0");
+              if (nextMargin > parentMargin) {
+                if (isCollapsed) {
+                  next.setAttribute("data-his-collapsed-child", "true");
+                } else {
+                  next.removeAttribute("data-his-collapsed-child");
+                }
+                next = next.nextElementSibling as HTMLElement | null;
+              } else {
+                break;
+              }
+            }
+            controller.syncContent();
+            return;
+          }
+          if (!readOnly && dropdown && event.clientX <= dropdown.getBoundingClientRect().left + 32) {
+            event.preventDefault();
+            controller.captureStructuralUndo();
+            const isCollapsed = dropdown.toggleAttribute("data-his-collapsed");
+            const parentMargin = Number.parseFloat(dropdown.style.marginLeft || "0");
+            let next = dropdown.nextElementSibling as HTMLElement | null;
+            while (next && next.matches("p, h1, h2, h3, h4, h5, h6, blockquote, li, pre, [data-his-list]")) {
+              const nextMargin = Number.parseFloat(next.style.marginLeft || "0");
+              if (nextMargin > parentMargin) {
+                if (isCollapsed) {
+                  next.setAttribute("data-his-collapsed-child", "true");
+                } else {
+                  next.removeAttribute("data-his-collapsed-child");
+                }
+                next = next.nextElementSibling as HTMLElement | null;
+              } else {
+                break;
+              }
+            }
             controller.syncContent();
             return;
           }
@@ -1391,22 +1702,103 @@ export default function RichTextEditor({
             controller.syncContent();
             return;
           }
+          if (event.detail >= 2) {
+            const target = event.target as HTMLElement;
+            if (!target.closest("[data-editor-ui], [data-line-control], [data-picker], [data-his-table-handle], img")) {
+              const block = controller.getEditorBlock(target) || target.closest<HTMLElement>("p, h1, h2, h3, h4, h5, h6, li, blockquote, pre, [data-his-table-cell]");
+              if (block && editorRef.current?.contains(block)) {
+                event.preventDefault();
+                const range = document.createRange();
+                range.selectNodeContents(block);
+                const selection = window.getSelection();
+                if (selection) {
+                  selection.removeAllRanges();
+                  selection.addRange(range);
+                }
+                controller.updateSelectionToolbar();
+                return;
+              }
+            }
+          }
           controller.onEditorPointerDown(event);
         }}
-        onPointerMove={
-          readOnly
-            ? undefined
-             : (event) => {
-                if (updateTableDrag(event)) return;
-                controller.onEditorPointerMove(event);
-                controller.onEditorSelectionMove(event);
-              }
-        }
+        onDoubleClick={readOnly ? undefined : (event) => {
+          const target = event.target as HTMLElement;
+          if (target.closest("[data-editor-ui], [data-line-control], [data-picker], [data-his-table-handle], img")) return;
+          const block = controller.getEditorBlock(target) || target.closest<HTMLElement>("p, h1, h2, h3, h4, h5, h6, li, blockquote, pre, [data-his-table-cell]");
+          if (block && editorRef.current?.contains(block)) {
+            event.preventDefault();
+            const range = document.createRange();
+            range.selectNodeContents(block);
+            const selection = window.getSelection();
+            if (selection) {
+              selection.removeAllRanges();
+              selection.addRange(range);
+            }
+            controller.updateSelectionToolbar();
+          }
+        }}
+        onPointerMove={(event) => {
+          if (!readOnly) {
+            if (updateTableDrag(event)) return;
+            controller.onEditorPointerMove(event);
+            controller.onEditorSelectionMove(event);
+          }
+          const mention = (event.target as HTMLElement).closest<HTMLElement>(".editor-mention, [data-mention-id]");
+          if (mention) {
+            cancelMentionCloseTimer();
+            setHoverClosing(false);
+            const nodeId = mention.dataset.mentionId || mention.dataset.nodeId;
+            if (nodeId && hoveredMention?.element !== mention) {
+              cancelMentionOpenTimer();
+              mentionHoverTimerRef.current = window.setTimeout(() => {
+                setHoveredMention({
+                  nodeId,
+                  rect: mention.getBoundingClientRect(),
+                  element: mention,
+                });
+              }, 140);
+            }
+          } else if (!isOverCardRef.current && (hoveredMention || mentionHoverTimerRef.current)) {
+            cancelMentionOpenTimer();
+            startMentionCloseTimer(140);
+          }
+
+          const linkElem = (event.target as HTMLElement).closest<HTMLAnchorElement>("a, .editor-link");
+          if (linkElem && linkElem.getAttribute("href")) {
+            cancelLinkCloseTimer();
+            setLinkHoverClosing(false);
+            if (hoveredLink?.element !== linkElem) {
+              cancelLinkOpenTimer();
+              linkHoverTimerRef.current = window.setTimeout(() => {
+                setHoveredLink({
+                  href: linkElem.getAttribute("href") || "",
+                  text: linkElem.textContent || "",
+                  rect: linkElem.getBoundingClientRect(),
+                  element: linkElem,
+                });
+              }, 140);
+            }
+          } else if (!isOverLinkCardRef.current && (hoveredLink || linkHoverTimerRef.current)) {
+            cancelLinkOpenTimer();
+            startLinkCloseTimer(140);
+          }
+        }}
         onPointerUp={readOnly ? undefined : (event) => {
           if (finishTableDrag(event)) return;
           controller.onEditorPointerUp();
         }}
         onPointerCancel={readOnly ? undefined : (event) => { finishTableDrag(event, true); }}
+        onPointerLeave={() => {
+          cancelMentionOpenTimer();
+          if (!isOverCardRef.current && hoveredMention) {
+            startMentionCloseTimer(140);
+          }
+          cancelLinkOpenTimer();
+          if (!isOverLinkCardRef.current && hoveredLink) {
+            startLinkCloseTimer(140);
+          }
+        }}
       />
       {((blockTextDevTree.root && controller.slashPicker && controller.slashCandidates.length > 0) || (controller.pickerPosition && controller.slashPicker && controller.slashCandidates.length > 0)) && (
             <PickerMenu
@@ -1465,12 +1857,17 @@ export default function RichTextEditor({
         <MentionMenu
           position={controller.pickerPosition} query={controller.callPicker.query} nodes={nodes}
           candidates={controller.callCandidates} activeIndex={controller.callPickerIndex}
+          onActiveIndexChange={controller.setCallPickerIndex}
           canCreate={Boolean(onCreateMentionNode)} onCreate={beginMentionCreation}
           onClose={controller.dismissEditorMenus}
           onSelect={(id) => {
             const target = nodes.find(item => item.id === id);
-            if (target?.type === "imagen") controller.setImageMentionChoice(id);
-            else controller.executePickerAction("mention", id);
+            if (target && getEffectiveNodeType(nodes, target) === "imagen") {
+              controller.setImageMentionMode("inserted");
+              controller.setImageMentionChoice(id);
+            } else {
+              controller.executePickerAction("mention", id);
+            }
           }}
         />
       )}
@@ -1489,6 +1886,10 @@ export default function RichTextEditor({
       {controller.imageMentionChoice && controller.pickerPosition && (
         <ImageMentionModeMenu
           position={controller.pickerPosition}
+          node={nodes.find((item) => item.id === controller.imageMentionChoice) || null}
+          nodes={nodes}
+          activeMode={controller.imageMentionMode}
+          onModeChange={controller.setImageMentionMode}
           onSelect={(mode) => {
             controller.executePickerAction("mention", controller.imageMentionChoice!, mode);
           }}
@@ -1636,6 +2037,88 @@ export default function RichTextEditor({
       {globeIconVisual && globeIconVisual.target.isConnected && createPortal(
         <NodeVisualRenderer visual={globeIconVisual.visual} className="editor-globe-icon-visual" />,
         globeIconVisual.target,
+      )}
+      {hoveredMention && (
+        <MentionHoverCard
+          nodeId={hoveredMention.nodeId}
+          rect={hoveredMention.rect}
+          nodes={nodes}
+          closing={hoverClosing}
+          onMouseEnter={() => {
+            isOverCardRef.current = true;
+            cancelMentionCloseTimer();
+            setHoverClosing(false);
+          }}
+          onMouseLeave={() => {
+            isOverCardRef.current = false;
+            startMentionCloseTimer(140);
+          }}
+          onOpen={setSelectedId}
+          onClose={dismissMentionImmediately}
+        />
+      )}
+      {hoveredLink && (
+        <LinkHoverCard
+          href={hoveredLink.href}
+          text={hoveredLink.text}
+          rect={hoveredLink.rect}
+          closing={linkHoverClosing}
+          onMouseEnter={() => {
+            isOverLinkCardRef.current = true;
+            cancelLinkCloseTimer();
+            setLinkHoverClosing(false);
+          }}
+          onMouseLeave={() => {
+            isOverLinkCardRef.current = false;
+            startLinkCloseTimer(140);
+          }}
+          onEdit={() => {
+            const el = hoveredLink.element;
+            if (el.isConnected) {
+              const range = document.createRange();
+              range.selectNodeContents(el);
+              const sel = window.getSelection();
+              sel?.removeAllRanges();
+              sel?.addRange(range);
+              controller.updateSelectionToolbar();
+            }
+            dismissLinkImmediately();
+          }}
+          onUnlink={() => {
+            const el = hoveredLink.element;
+            if (el && el.isConnected) {
+              controller.captureStructuralUndo();
+              const parent = el.parentNode;
+              if (parent) {
+                while (el.firstChild) {
+                  parent.insertBefore(el.firstChild, el);
+                }
+                parent.removeChild(el);
+                controller.syncContent();
+                controller.updateSelectionToolbar();
+              }
+            }
+            dismissLinkImmediately();
+          }}
+          onClose={dismissLinkImmediately}
+        />
+      )}
+      <WritingMetricsBar
+        words={metrics.words}
+        chars={metrics.chars}
+        readingMin={metrics.readingMin}
+        selectedWords={metrics.selectedWords}
+        selectedChars={metrics.selectedChars}
+      />
+      {controller.previewImage && createPortal(
+        <ImagePreviewModal
+          src={controller.previewImage.src}
+          alt={controller.previewImage.alt}
+          node={controller.previewImage.node}
+          onClose={controller.closeImagePreview}
+          onNavigateToNode={setSelectedId}
+        />,
+        document.body,
       )}
       </>
     </div>
@@ -1931,66 +2414,285 @@ function ColorPickerMenu({
   );
 }
 
+function getActiveEditorBlock(editor: HTMLElement | null): HTMLElement | null {
+  if (!editor) return null;
+  const sel = window.getSelection();
+  if (!sel || !sel.rangeCount) return null;
+  const node = sel.anchorNode;
+  const element = node?.nodeType === Node.ELEMENT_NODE ? (node as HTMLElement) : node?.parentElement;
+  if (!element || !editor.contains(element)) return null;
+  const globe = element.closest<HTMLElement>("[data-globe]");
+  if (globe && editor.contains(globe)) return globe;
+  return (
+    element.closest<HTMLElement>(
+      "p, h1, h2, h3, h4, h5, h6, blockquote, li, pre, [data-his-list], [data-his-dropdown], [data-his-toggle-heading], [data-his-highlighted]"
+    ) ?? null
+  );
+}
+
+function getBlockFormat(block: HTMLElement | null): BlockFormatType {
+  if (!block) return "p";
+  if (block.matches("[data-globe]") || block.closest("[data-globe]")) return "globe";
+  const toggleHeading = block.getAttribute("data-his-toggle-heading");
+  if (toggleHeading === "1" || (block.hasAttribute("data-his-dropdown") && block.tagName === "H1")) return "toggle-h1";
+  if (toggleHeading === "2" || (block.hasAttribute("data-his-dropdown") && block.tagName === "H2")) return "toggle-h2";
+  if (toggleHeading === "3" || (block.hasAttribute("data-his-dropdown") && block.tagName === "H3")) return "toggle-h3";
+  if (block.hasAttribute("data-his-dropdown")) return "dropdown";
+  const listType = block.getAttribute("data-his-list");
+  if (listType === "todo") return "todo";
+  if (listType === "bullets" || listType === "bullet") return "bullets";
+  if (listType === "numbered") return "numbered";
+  if (block.hasAttribute("data-his-highlighted")) return "highlighted";
+  if (block.tagName === "H1") return "h1";
+  if (block.tagName === "H2") return "h2";
+  if (block.tagName === "H3") return "h3";
+  return "p";
+}
+
+function getFormatButtonBadge(format: BlockFormatType): string {
+  switch (format) {
+    case "h1": return "H1";
+    case "h2": return "H2";
+    case "h3": return "H3";
+    case "highlighted": return "Aa";
+    case "globe": return "Aa";
+    case "todo": return "☑";
+    case "bullets": return "•";
+    case "numbered": return "1.";
+    case "dropdown": return ">";
+    case "toggle-h1": return "> H1";
+    case "toggle-h2": return "> H2";
+    case "toggle-h3": return "> H3";
+    default: return "•";
+  }
+}
+
+function transformBlockToFormat(
+  rawBlock: HTMLElement,
+  targetFormat: BlockFormatType,
+  controller: ReturnType<typeof useEditorController>,
+) {
+  controller.captureStructuralUndo();
+  let block = rawBlock;
+
+  const globe = block.matches("[data-globe]") ? block : block.closest<HTMLElement>("[data-globe]");
+  if (globe && targetFormat !== "globe") {
+    const content = globe.querySelector<HTMLElement>("[data-globe-content]");
+    const parent = globe.parentNode;
+    if (content && parent) {
+      const firstChild = content.firstElementChild as HTMLElement | null;
+      while (content.firstChild) {
+        parent.insertBefore(content.firstChild, globe);
+      }
+      globe.remove();
+      block = firstChild || (parent.firstElementChild as HTMLElement) || block;
+    }
+  }
+
+  delete block.dataset.hisList;
+  delete block.dataset.hisDropdown;
+  delete block.dataset.hisToggleHeading;
+  delete block.dataset.hisHighlighted;
+  delete block.dataset.hisTodoChecked;
+  delete block.dataset.hisCollapsed;
+  delete block.dataset.hisCollapsedChild;
+
+  switch (targetFormat) {
+    case "p":
+      block = replaceBlockTag(block, "P");
+      break;
+    case "h1":
+      block = replaceBlockTag(block, "H1");
+      break;
+    case "h2":
+      block = replaceBlockTag(block, "H2");
+      break;
+    case "h3":
+      block = replaceBlockTag(block, "H3");
+      break;
+    case "highlighted":
+      block = replaceBlockTag(block, "P");
+      block.setAttribute("data-his-highlighted", "true");
+      break;
+    case "globe": {
+      if (!block.matches("[data-globe]") && !block.closest("[data-globe]")) {
+        const globeElem = document.createElement("div");
+        globeElem.setAttribute("data-globe", "true");
+        const iconSpan = document.createElement("span");
+        iconSpan.setAttribute("data-globe-icon", "true");
+        iconSpan.contentEditable = "false";
+        iconSpan.textContent = "📄";
+        const contentDiv = document.createElement("div");
+        contentDiv.setAttribute("data-globe-content", "true");
+        block.parentNode?.insertBefore(globeElem, block);
+        contentDiv.appendChild(block);
+        globeElem.appendChild(iconSpan);
+        globeElem.appendChild(contentDiv);
+      }
+      break;
+    }
+    case "todo":
+      block = replaceBlockTag(block, "P");
+      block.setAttribute("data-his-list", "todo");
+      break;
+    case "bullets":
+      block = replaceBlockTag(block, "P");
+      block.setAttribute("data-his-list", "bullets");
+      break;
+    case "numbered":
+      block = replaceBlockTag(block, "P");
+      block.setAttribute("data-his-list", "numbered");
+      break;
+    case "dropdown":
+      block = replaceBlockTag(block, "P");
+      block.setAttribute("data-his-dropdown", "true");
+      break;
+    case "toggle-h1":
+      block = replaceBlockTag(block, "H1");
+      block.setAttribute("data-his-toggle-heading", "1");
+      break;
+    case "toggle-h2":
+      block = replaceBlockTag(block, "H2");
+      block.setAttribute("data-his-toggle-heading", "2");
+      break;
+    case "toggle-h3":
+      block = replaceBlockTag(block, "H3");
+      block.setAttribute("data-his-toggle-heading", "3");
+      break;
+  }
+
+  controller.syncContent();
+  controller.updateSelectionToolbar();
+}
+
 function SelectionToolbar({
   controller,
+  editorRef,
+  onCreateMentionNode,
 }: {
   controller: ReturnType<typeof useEditorController>;
+  editorRef: RefObject<HTMLDivElement | null>;
+  onCreateMentionNode?: (name: string, parentId: string | null, type?: any) => NodeItem | null;
 }) {
   const { t } = useLocale();
+  const [formatMenuOpen, setFormatMenuOpen] = useState(false);
+  const [linkInputOpen, setLinkInputOpen] = useState(false);
+  const [linkInputValue, setLinkInputValue] = useState("");
+  const savedRangeRef = useRef<Range | null>(null);
   const [colorMenuOpen, setColorMenuOpen] = useState(false);
-  const [customTextColor, setCustomTextColor] = useState("#FFFFFF");
-  const [customBackgroundColor, setCustomBackgroundColor] = useState("#FFFFFF");
-  const [recentColors, setRecentColors] = useState<string[]>(() => {
-    try {
-      const raw = window.localStorage.getItem("hisfuture-recent-text-colors");
-      return raw ? JSON.parse(raw) : [];
-    } catch {
-      return [];
-    }
-  });
+  const [colorTab, setColorTab] = useState<"text" | "background">("text");
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+
+  const activeBlock = getActiveEditorBlock(editorRef.current);
+  const currentFormat = getBlockFormat(activeBlock);
+  const formatBadge = getFormatButtonBadge(currentFormat);
 
   useEffect(() => {
-    try {
-      window.localStorage.setItem("hisfuture-recent-text-colors", JSON.stringify(recentColors.slice(0, 6)));
-    } catch {
-      // ignore localStorage quota issues from temporary UI state
-    }
-  }, [recentColors]);
-
-  useEffect(() => {
-    if (!colorMenuOpen) return;
+    if (!colorMenuOpen && !formatMenuOpen && !linkInputOpen && !moreMenuOpen) return;
     const close = (event: MouseEvent) => {
       const target = event.target as Node;
-      if (!(target instanceof Element) || !target.closest("[data-color-picker]")) {
+      if (!(target instanceof Element)) return;
+      if (
+        !target.closest("[data-color-picker]") &&
+        !target.closest(".editor-selection-toolbar__color-btn") &&
+        !target.closest(".block-format-container") &&
+        !target.closest(".editor-selection-toolbar__block-format") &&
+        !target.closest(".editor-selection-link-popover") &&
+        !target.closest(".editor-selection-toolbar__link-btn") &&
+        !target.closest(".block-more-menu-container") &&
+        !target.closest(".editor-selection-toolbar__more-btn")
+      ) {
         setColorMenuOpen(false);
+        setFormatMenuOpen(false);
+        setLinkInputOpen(false);
+        setMoreMenuOpen(false);
       }
     };
     document.addEventListener("pointerdown", close);
     return () => document.removeEventListener("pointerdown", close);
-  }, [colorMenuOpen]);
-
-  const rememberRecentColor = (color: string) => {
-    const cleaned = normalizeHexColor(color);
-    if (!cleaned) return;
-    setRecentColors((current) => [cleaned, ...current.filter((item) => item !== cleaned)].slice(0, 6));
-  };
+  }, [colorMenuOpen, formatMenuOpen, linkInputOpen, moreMenuOpen]);
 
   const onApplyTextColor = (color: string) => {
-    if (color === "") {
-      controller.applyTextColor("");
-      setColorMenuOpen(false);
-      return;
-    }
-    const normalized = normalizeHexColor(color);
-    if (!normalized) return;
-    controller.applyTextColor(normalized);
-    rememberRecentColor(normalized);
+    controller.applyTextColor(color ? (normalizeHexColor(color) || "") : "");
     setColorMenuOpen(false);
   };
 
   const onApplyBackgroundColor = (color: string) => {
-    controller.applyBlockBackgroundColor(color || "");
+    controller.applyBlockBackgroundColor(color ? (normalizeHexColor(color) || "") : "");
     setColorMenuOpen(false);
+  };
+
+  const handleConvertToNode = (type: "pagina" | "categoria" | "proyecto") => {
+    const sel = window.getSelection();
+    let text = sel?.toString().trim();
+    const range = (sel && sel.rangeCount > 0 && !sel.isCollapsed)
+      ? sel.getRangeAt(0).cloneRange()
+      : savedRangeRef.current ? savedRangeRef.current.cloneRange() : null;
+
+    if (!text && activeBlock) {
+      text = activeBlock.textContent?.trim();
+    }
+    if (!text) {
+      text = type === "pagina" ? "Nueva Página" : type === "categoria" ? "Nueva Carpeta" : "Nuevo Proyecto";
+    }
+
+    const createdNode = onCreateMentionNode ? onCreateMentionNode(text, null, type) : null;
+    if (!createdNode) {
+      setMoreMenuOpen(false);
+      return;
+    }
+
+    controller.captureStructuralUndo();
+
+    const mention = document.createElement("span");
+    mention.className = "editor-mention";
+    mention.contentEditable = "false";
+    mention.dataset.mentionId = createdNode.id;
+    mention.setAttribute("aria-label", createdNode.name);
+    mention.textContent = createdNode.name;
+
+    if (range && editorRef.current?.contains(range.startContainer)) {
+      range.deleteContents();
+      range.insertNode(mention);
+      const space = document.createTextNode("\u00a0");
+      if (mention.nextSibling) {
+        mention.parentNode?.insertBefore(space, mention.nextSibling);
+      } else {
+        mention.parentNode?.appendChild(space);
+      }
+    } else if (activeBlock) {
+      activeBlock.replaceChildren(mention);
+    }
+
+    controller.syncContent();
+    controller.updateSelectionToolbar();
+    setMoreMenuOpen(false);
+  };
+
+  const handleMoveLine = (before: boolean) => {
+    if (!activeBlock) return;
+    controller.captureStructuralUndo();
+    controller.moveLine(activeBlock, before);
+    controller.syncContent();
+    controller.updateSelectionToolbar();
+    setMoreMenuOpen(false);
+  };
+
+  const handleAlign = (alignment: "left" | "center" | "right" | "justify") => {
+    if (!activeBlock) return;
+    controller.captureStructuralUndo();
+    activeBlock.style.textAlign = alignment;
+    controller.syncContent();
+    controller.updateSelectionToolbar();
+    setMoreMenuOpen(false);
+  };
+
+  const handleDeleteBlock = () => {
+    if (!activeBlock) return;
+    controller.captureStructuralUndo();
+    controller.removeLine(activeBlock, false);
+    controller.syncContent();
+    setMoreMenuOpen(false);
   };
 
   const formats = [
@@ -2000,92 +2702,421 @@ function SelectionToolbar({
     { command: "strikeThrough" as const, label: "S", title: t("editor.format.strike") },
   ];
 
+  const isCodeActive = () => {
+    const sel = window.getSelection();
+    let range: Range | null = null;
+    if (sel && sel.rangeCount > 0 && !sel.isCollapsed && editorRef.current && rangeBelongsToEditor(sel.getRangeAt(0), editorRef.current)) {
+      range = sel.getRangeAt(0);
+    } else if (controller.savedTextRangeRef?.current && editorRef.current && rangeBelongsToEditor(controller.savedTextRangeRef.current, editorRef.current)) {
+      range = controller.savedTextRangeRef.current;
+    }
+    if (!range) return false;
+    return controller.getSelectedCodeElements(range).length > 0;
+  };
+
+  const handleToggleCode = () => {
+    controller.toggleInlineCode();
+  };
+
+  const handleOpenLinkInput = () => {
+    const sel = window.getSelection();
+    let range: Range | null = null;
+    if (sel && sel.rangeCount && !sel.isCollapsed && editorRef.current && rangeBelongsToEditor(sel.getRangeAt(0), editorRef.current)) {
+      range = sel.getRangeAt(0).cloneRange();
+    } else if (savedRangeRef.current) {
+      range = savedRangeRef.current.cloneRange();
+    } else if (controller.savedTextRangeRef?.current) {
+      range = controller.savedTextRangeRef.current.cloneRange();
+    }
+
+    if (range) {
+      savedRangeRef.current = range;
+      const existingA = range.startContainer.parentElement?.closest<HTMLAnchorElement>("a")
+        || (range.commonAncestorContainer as HTMLElement | null)?.closest?.("a");
+      setLinkInputValue(existingA ? existingA.getAttribute("href") || "" : "");
+      setLinkInputOpen((v) => !v);
+      setColorMenuOpen(false);
+      setFormatMenuOpen(false);
+      setMoreMenuOpen(false);
+    }
+  };
+
+  const handleApplyLink = () => {
+    const raw = linkInputValue.trim();
+    if (!raw) {
+      setLinkInputOpen(false);
+      return;
+    }
+    let url = raw;
+    if (!/^https?:\/\/|^mailto:|^tel:|^#/i.test(url)) {
+      url = `https://${url}`;
+    }
+    controller.captureStructuralUndo();
+
+    const range = savedRangeRef.current || controller.savedTextRangeRef?.current;
+    editorRef.current?.focus();
+
+    if (range) {
+      const sel = window.getSelection();
+      sel?.removeAllRanges();
+      sel?.addRange(range);
+    }
+
+    const existingA = range?.startContainer.parentElement?.closest<HTMLAnchorElement>("a")
+      || (range?.commonAncestorContainer as HTMLElement | null)?.closest?.("a");
+
+    if (existingA && editorRef.current?.contains(existingA)) {
+      existingA.href = url;
+      existingA.target = "_blank";
+      existingA.rel = "noopener noreferrer";
+      existingA.classList.add("editor-link");
+    } else {
+      let created = false;
+      try {
+        created = document.execCommand("createLink", false, url);
+      } catch {}
+
+      if (!created && range && !range.collapsed) {
+        const a = document.createElement("a");
+        a.href = url;
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+        a.className = "editor-link";
+        try {
+          range.surroundContents(a);
+        } catch {
+          const contents = range.extractContents();
+          a.appendChild(contents);
+          range.insertNode(a);
+        }
+      }
+
+      editorRef.current?.querySelectorAll<HTMLAnchorElement>(`a[href="${url}"]`).forEach((a) => {
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+        a.classList.add("editor-link");
+      });
+    }
+
+    controller.syncContent();
+    setLinkInputOpen(false);
+    controller.updateSelectionToolbar();
+  };
+
+
   return (
-    <div
-      data-selection-toolbar="true"
-      onMouseDown={(event) => event.preventDefault()}
-      style={{
-        position: "fixed",
-        top: controller.selectionToolbar!.top,
-        left: controller.selectionToolbar!.left,
-        display: "flex",
-        gap: "2px",
-        padding: "4px",
-        background: "var(--his-popover-surface)",
-        border: "1px solid var(--his-border-neutral)",
-        borderRadius: "9px",
-        boxShadow: "0 12px 28px rgb(0 0 0 / 28%)",
-        zIndex: 30,
-      }}
-    >
-      {formats.map((format) => {
-        const markState = controller.selectionToolbar!.marks[format.command];
-        return <button
-          key={format.command}
+    <>
+      <div
+        data-selection-toolbar="true"
+        className="editor-selection-toolbar"
+        onMouseDown={(event) => event.preventDefault()}
+        style={{
+          position: "fixed",
+          top: controller.selectionToolbar!.top,
+          left: controller.selectionToolbar!.left,
+          right: "auto",
+          width: "max-content",
+          flexWrap: "nowrap",
+          boxSizing: "border-box",
+          display: "flex",
+          alignItems: "center",
+          gap: "2px",
+          padding: "4px",
+          background: "var(--his-popover-surface)",
+          border: "1px solid var(--his-border-neutral)",
+          borderRadius: "9px",
+          boxShadow: "0 12px 28px rgb(0 0 0 / 28%)",
+          zIndex: 30,
+        }}
+      >
+        {/* Block Format Selector Button [ • v ] */}
+        <button
           type="button"
-          title={format.title}
-          aria-pressed={markState === "mixed" ? "mixed" : markState === "on"}
-          data-mark-state={markState}
+          title="Cambiar formato de bloque"
+          className="editor-selection-toolbar__block-format"
+          onMouseDown={(event) => {
+            event.preventDefault();
+            setFormatMenuOpen((v) => !v);
+            setColorMenuOpen(false);
+            setLinkInputOpen(false);
+            setMoreMenuOpen(false);
+          }}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "3px",
+            padding: "0 6px",
+            height: "30px",
+            border: "1px solid transparent",
+            borderRadius: "5px",
+            background: formatMenuOpen ? "color-mix(in srgb, var(--his-accent) 15%, transparent)" : "transparent",
+            color: formatMenuOpen ? "var(--his-accent)" : "var(--his-icon-neutral)",
+            fontSize: "12px",
+            fontWeight: 600,
+            cursor: "pointer",
+          }}
+        >
+          <span>{formatBadge}</span>
+          <img src={chevronDownAsset} alt="" aria-hidden="true" style={{ width: "11px", height: "11px", opacity: 0.7 }} />
+        </button>
+
+        <span style={{ width: "1px", height: "18px", background: "var(--his-border-neutral, rgba(255,255,255,0.12))", margin: "0 2px" }} />
+
+        {/* Text Formats: B, I, U, S */}
+        {formats.map((format) => {
+          const markState = controller.selectionToolbar!.marks[format.command];
+          return (
+            <button
+              key={format.command}
+              type="button"
+              title={format.title}
+              aria-pressed={markState === "mixed" ? "mixed" : markState === "on"}
+              data-mark-state={markState}
+              className="editor-selection-toolbar__format"
+              onMouseDown={(event) => {
+                event.preventDefault();
+                controller.applyTextFormat(format.command);
+              }}
+              style={{
+                width: "30px",
+                height: "30px",
+                border: "1px solid transparent",
+                borderRadius: "5px",
+                background: markState === "on" ? "color-mix(in srgb, var(--his-accent) 15%, transparent)" : "transparent",
+                color: markState === "off" ? "var(--his-icon-neutral)" : "var(--his-accent)",
+                fontFamily: "Georgia, serif",
+                fontSize: "15px",
+                fontWeight: format.command === "bold" ? 700 : 400,
+                fontStyle: format.command === "italic" ? "italic" : "normal",
+                textDecoration:
+                  format.command === "underline"
+                    ? "underline"
+                    : format.command === "strikeThrough"
+                      ? "line-through"
+                      : "none",
+              }}
+            >
+              {format.label}
+            </button>
+          );
+        })}
+
+        {/* Inline Code button </> */}
+        <button
+          type="button"
+          title="Código en línea"
+          aria-pressed={isCodeActive()}
           className="editor-selection-toolbar__format"
           onMouseDown={(event) => {
             event.preventDefault();
-            controller.applyTextFormat(format.command);
+            handleToggleCode();
           }}
           style={{
             width: "30px",
             height: "30px",
             border: "1px solid transparent",
             borderRadius: "5px",
-            background: markState === "on" ? "color-mix(in srgb, var(--his-accent) 15%, transparent)" : "transparent",
-            color: markState === "off" ? "var(--his-icon-neutral)" : "var(--his-accent)",
-            fontFamily: "Georgia, serif",
-            fontSize: "15px",
-            fontWeight: format.command === "bold" ? 700 : 400,
-            fontStyle: format.command === "italic" ? "italic" : "normal",
-            textDecoration:
-              format.command === "underline"
-                ? "underline"
-                : format.command === "strikeThrough"
-                  ? "line-through"
-                  : "none",
+            background: isCodeActive() ? "color-mix(in srgb, var(--his-accent) 15%, transparent)" : "transparent",
+            color: isCodeActive() ? "var(--his-accent)" : "var(--his-icon-neutral)",
+            fontFamily: "monospace",
+            fontSize: "13px",
+            fontWeight: 600,
+            cursor: "pointer",
           }}
         >
-          {format.label}
-        </button>;
-      })}
-      <button
-        type="button"
-        title={t("editor.commands.color")}
-        onMouseDown={(event) => {
-          event.preventDefault();
-          setColorMenuOpen((value) => !value);
-        }}
-        style={{
-          width: "30px",
-          height: "30px",
-          border: "none",
-          borderRadius: 0,
-          background: "transparent",
-          color: "var(--his-icon-neutral)",
-          fontSize: "15px",
-          fontWeight: 700,
-          cursor: "pointer",
-          position: "relative",
-        }}
-      >
-        A
-        <span
-          style={{
-            position: "absolute",
-            left: "8px",
-            right: "8px",
-            bottom: "4px",
-            height: "3px",
-            borderRadius: "2px",
-            background: `linear-gradient(90deg, ${EDITOR_TEXT_COLORS.grey} 0%, ${EDITOR_TEXT_COLORS.blue} 100%)`,
+          {"</>"}
+        </button>
+
+        {/* Link Button (Tinted inline SVG with currentColor) */}
+        <button
+          type="button"
+          title="Enlace"
+          className="editor-selection-toolbar__link-btn"
+          onMouseDown={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            handleOpenLinkInput();
           }}
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+          }}
+          style={{
+            width: "30px",
+            height: "30px",
+            border: "1px solid transparent",
+            borderRadius: "5px",
+            background: linkInputOpen ? "color-mix(in srgb, var(--his-accent) 15%, transparent)" : "transparent",
+            color: linkInputOpen ? "var(--his-accent)" : "var(--his-icon-neutral)",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+            style={{
+              display: "block",
+              opacity: linkInputOpen ? 1 : 0.88,
+            }}
+          >
+            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+          </svg>
+        </button>
+
+        {/* Color Button */}
+        <button
+          type="button"
+          title={t("editor.commands.color")}
+          className="editor-selection-toolbar__color-btn"
+          onMouseDown={(event) => {
+            event.preventDefault();
+            setColorMenuOpen((value) => !value);
+            setFormatMenuOpen(false);
+            setLinkInputOpen(false);
+            setMoreMenuOpen(false);
+          }}
+          style={{
+            width: "30px",
+            height: "30px",
+            border: "none",
+            borderRadius: 0,
+            background: "transparent",
+            color: "var(--his-icon-neutral)",
+            fontSize: "15px",
+            fontWeight: 700,
+            cursor: "pointer",
+            position: "relative",
+          }}
+        >
+          A
+          <span
+            style={{
+              position: "absolute",
+              left: "8px",
+              right: "8px",
+              bottom: "4px",
+              height: "3px",
+              borderRadius: "2px",
+              background: `linear-gradient(90deg, ${EDITOR_TEXT_COLORS.grey} 0%, ${EDITOR_TEXT_COLORS.blue} 100%)`,
+            }}
+          />
+        </button>
+
+        {/* More Options Button (...) */}
+        <button
+          type="button"
+          title="Más opciones de bloque"
+          className="editor-selection-toolbar__more-btn"
+          onMouseDown={(event) => {
+            event.preventDefault();
+            setMoreMenuOpen((v) => !v);
+            setColorMenuOpen(false);
+            setFormatMenuOpen(false);
+            setLinkInputOpen(false);
+          }}
+          style={{
+            width: "30px",
+            height: "30px",
+            border: "none",
+            borderRadius: "5px",
+            background: moreMenuOpen ? "color-mix(in srgb, var(--his-accent) 15%, transparent)" : "transparent",
+            color: moreMenuOpen ? "var(--his-accent)" : "var(--his-icon-neutral)",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <img
+            src={moreHorizAsset}
+            alt="Más opciones"
+            style={{
+              width: "18px",
+              height: "18px",
+              filter: "brightness(0.9)",
+              opacity: moreMenuOpen ? 1 : 0.85,
+            }}
+          />
+        </button>
+      </div>
+
+      {/* Block Format Dropdown Menu */}
+      {formatMenuOpen && (
+        <BlockFormatMenu
+          currentFormat={currentFormat}
+          position={{
+            top: controller.selectionToolbar!.top + 38,
+            left: controller.selectionToolbar!.left,
+          }}
+          onSelect={(format) => {
+            if (activeBlock) {
+              transformBlockToFormat(activeBlock, format, controller);
+            }
+            setFormatMenuOpen(false);
+          }}
+          onClose={() => setFormatMenuOpen(false)}
         />
-      </button>
+      )}
+
+      {/* Inline Link Input Popover */}
+      {linkInputOpen && (
+        <form
+          data-selection-toolbar="true"
+          className="editor-selection-link-popover"
+          style={{
+            position: "fixed",
+            top: Math.min(controller.selectionToolbar!.top + 38, window.innerHeight - 56),
+            left: Math.max(8, Math.min(controller.selectionToolbar!.left, window.innerWidth - 320)),
+            zIndex: 45,
+          }}
+          onSubmit={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            handleApplyLink();
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <input
+            type="text"
+            autoFocus
+            placeholder="Pegar o escribir enlace..."
+            value={linkInputValue}
+            onChange={(e) => setLinkInputValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                e.stopPropagation();
+                setLinkInputOpen(false);
+              }
+            }}
+          />
+          <button type="submit">Aplicar</button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setLinkInputOpen(false);
+            }}
+          >
+            ✕
+          </button>
+        </form>
+      )}
+
+
+      {/* Color Picker with Tabs for Text and Background */}
       {colorMenuOpen && (
         <div
           data-color-picker="true"
@@ -2094,238 +3125,68 @@ function SelectionToolbar({
           style={{
             position: "fixed",
             top: Math.min(controller.selectionToolbar!.top + 42, window.innerHeight - 440),
-            left: Math.min(controller.selectionToolbar!.left + 150, window.innerWidth - 240),
+            left: Math.min(controller.selectionToolbar!.left + 150, window.innerWidth - 260),
             zIndex: 35,
+            minWidth: "200px",
           }}
         >
-          <header><span>Color de texto</span></header>
-          <ColorOptions kind="text" onApply={onApplyTextColor} />
+          <div style={{ display: "flex", borderBottom: "1px solid var(--his-border-neutral, rgba(255,255,255,0.08))", marginBottom: "6px" }}>
+            <button
+              type="button"
+              onClick={() => setColorTab("text")}
+              style={{
+                flex: 1,
+                padding: "6px 8px",
+                background: "transparent",
+                border: "none",
+                borderBottom: colorTab === "text" ? "2px solid var(--his-accent)" : "2px solid transparent",
+                color: colorTab === "text" ? "#ffffff" : "#8a9099",
+                fontSize: "11px",
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              Color de texto
+            </button>
+            <button
+              type="button"
+              onClick={() => setColorTab("background")}
+              style={{
+                flex: 1,
+                padding: "6px 8px",
+                background: "transparent",
+                border: "none",
+                borderBottom: colorTab === "background" ? "2px solid var(--his-accent)" : "2px solid transparent",
+                color: colorTab === "background" ? "#ffffff" : "#8a9099",
+                fontSize: "11px",
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              Fondo de bloque
+            </button>
+          </div>
+          <ColorOptions kind={colorTab} onApply={colorTab === "text" ? onApplyTextColor : onApplyBackgroundColor} />
         </div>
       )}
-      {false && colorMenuOpen && (
-        <div
-          data-color-picker="true"
-          onMouseDown={(event) => event.preventDefault()}
-          style={{
-            position: "fixed",
-            top: Math.min(controller.selectionToolbar!.top + 42, window.innerHeight - 340),
-            left: Math.min(controller.selectionToolbar!.left + 150, window.innerWidth - 270),
-            width: "240px",
-            padding: "8px",
-            background: "var(--his-popover-surface)",
-            border: "1px solid var(--his-border-neutral)",
-            borderRadius: "9px",
-            boxShadow: "0 12px 28px rgb(0 0 0 / 28%)",
-            zIndex: 35,
+
+      {/* More Options Popover (...) */}
+      {moreMenuOpen && (
+        <BlockMoreMenu
+          position={{
+            top: controller.selectionToolbar!.top + 38,
+            left: Math.min(controller.selectionToolbar!.left + 160, window.innerWidth - 380),
           }}
-        >
-          <div style={{ padding: "4px 8px 6px", fontSize: "10px", color: "#5A5F66", letterSpacing: "0.12em" }}>{t("editor.colors.swatches")}</div>
-          {recentColors.length > 0 && (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", padding: "0 4px 8px" }}>
-              {recentColors.map((color) => (
-                <button
-                  key={color}
-                  type="button"
-                  title={color}
-                  onMouseDown={(event) => {
-                    event.preventDefault();
-                    onApplyTextColor(color);
-                  }}
-                  style={{ width: "20px", height: "20px", border: "1px solid rgba(255,255,255,0.18)", borderRadius: "4px", background: color, cursor: "pointer" }}
-                />
-              ))}
-            </div>
-          )}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(6, minmax(0, 1fr))", gap: "6px", padding: "0 4px" }}>
-            {TEXT_COLOR_SWATCHES.map((swatch) => (
-              <button
-                key={swatch.value}
-                type="button"
-                title={t(swatch.nameKey)}
-                onMouseDown={(event) => {
-                  event.preventDefault();
-                  onApplyTextColor(swatch.value);
-                }}
-                style={{
-                  width: "18px",
-                  height: "18px",
-                  border: "1px solid rgba(255,255,255,0.18)",
-                  borderRadius: "50%",
-                  background: swatch.value,
-                  cursor: "pointer",
-                  justifySelf: "center",
-                }}
-              />
-            ))}
-          </div>
-          <div style={{ margin: "8px 0 6px", paddingTop: "8px" }}>
-            <div style={{ padding: "0 8px 4px", fontSize: "10px", color: "#5A5F66", letterSpacing: "0.12em" }}>{t("editor.colors.custom")}</div>
-            <div style={{ display: "flex", alignItems: "center", gap: "6px", padding: "0 4px" }}>
-              <input
-                type="text"
-                value={customTextColor}
-                onChange={(event) => setCustomTextColor(event.target.value)}
-                placeholder="#AABBCC"
-                style={{
-                  flex: 1,
-                  minWidth: 0,
-                  padding: "7px 8px",
-                  border: "none",
-                  borderRadius: 0,
-                  background: "#121417",
-                  color: "#E8E9EA",
-                  fontSize: "11px",
-                }}
-              />
-              <button
-                type="button"
-                onMouseDown={(event) => {
-                  event.preventDefault();
-                  onApplyTextColor(customTextColor);
-                }}
-                style={{
-                  padding: "7px 8px",
-                  border: "none",
-                  borderRadius: 0,
-                  background: "#20262B",
-                  color: "#E8E9EA",
-                  cursor: "pointer",
-                  fontSize: "11px",
-                }}
-              >
-                OK
-              </button>
-            </div>
-          </div>
-          <div style={{ margin: "8px 0 6px", paddingTop: "8px" }}>
-            <div style={{ padding: "0 8px 4px", fontSize: "10px", color: "#5A5F66", letterSpacing: "0.12em" }}>{t("editor.colors.background")}</div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: "6px", padding: "0 4px" }}>
-              {BLOCK_BACKGROUND_SWATCHES.map((swatch) => (
-                <button
-                  key={swatch.nameKey}
-                  type="button"
-                  onMouseDown={(event) => {
-                    event.preventDefault();
-                    onApplyBackgroundColor(swatch.value);
-                  }}
-                  style={{
-                    width: "18px",
-                    height: "18px",
-                    borderRadius: "50%",
-                    border: swatch.value ? "1px solid rgba(0,0,0,0.2)" : "1px dashed rgba(255,255,255,0.25)",
-                    background: swatch.value || "transparent",
-                    cursor: "pointer",
-                    justifySelf: "center",
-                  }}
-                  title={t(swatch.nameKey)}
-                />
-              ))}
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "6px", padding: "8px 4px 0" }}>
-              <input
-                type="text"
-                value={customBackgroundColor}
-                onChange={(event) => setCustomBackgroundColor(event.target.value)}
-                placeholder="#D9E8FF"
-                style={{
-                  flex: 1,
-                  minWidth: 0,
-                  padding: "7px 8px",
-                  border: "none",
-                  borderRadius: 0,
-                  background: "#121417",
-                  color: "#E8E9EA",
-                  fontSize: "11px",
-                }}
-              />
-              <button
-                type="button"
-                onMouseDown={(event) => {
-                  event.preventDefault();
-                  const normalized = normalizeHexColor(customBackgroundColor);
-                  if (normalized) onApplyBackgroundColor(normalized);
-                }}
-                style={{
-                  padding: "7px 8px",
-                  border: "none",
-                  borderRadius: 0,
-                  background: "#20262B",
-                  color: "#E8E9EA",
-                  cursor: "pointer",
-                  fontSize: "11px",
-                }}
-              >
-                OK
-              </button>
-            </div>
-          </div>
-        </div>
+          onConvertToNode={handleConvertToNode}
+          onMoveLine={handleMoveLine}
+          onAlign={handleAlign}
+          onDeleteBlock={handleDeleteBlock}
+          onClose={() => setMoreMenuOpen(false)}
+        />
       )}
-    </div>
+    </>
   );
 }
-
-function ImageMentionModeMenu({
-  position,
-  onSelect,
-  onCancel,
-}: {
-  position: { top: number; left: number };
-  onSelect: (mode: "inserted" | "full") => void;
-  onCancel: () => void;
-}) {
-  const { t } = useLocale();
-  const menuRef = useRef<HTMLDivElement | null>(null);
-  useDismissibleLayer(menuRef, onCancel);
-  return (
-    <div
-      ref={menuRef}
-      data-picker="true"
-      style={{
-        position: "fixed",
-        top: position.top,
-        left: position.left,
-        minWidth: "240px",
-        padding: "8px",
-        background: "#1A1D21",
-        border: "none",
-        borderRadius: 0,
-        boxShadow: "none",
-        zIndex: 21,
-      }}
-    >
-      <div style={{ padding: "4px 8px 8px", fontSize: "10px", color: "#5A5F66", letterSpacing: "0.1em" }}>
-        {t("editor.image.type")}
-      </div>
-      <button type="button" onMouseDown={(event) => { event.preventDefault(); onSelect("inserted"); }} style={mentionModeButtonStyle}>
-        <strong>{t("editor.image.inserted")}</strong>
-        <small>{t("editor.image.insertedHint")}</small>
-      </button>
-      <button type="button" onMouseDown={(event) => { event.preventDefault(); onSelect("full"); }} style={mentionModeButtonStyle}>
-        <strong>{t("editor.image.full")}</strong>
-        <small>{t("editor.image.fullHint")}</small>
-      </button>
-      <button type="button" onMouseDown={(event) => { event.preventDefault(); onCancel(); }} style={{ ...mentionModeButtonStyle, color: "#7A7F87" }}>
-        {t("common.actions.cancel")}
-      </button>
-    </div>
-  );
-}
-
-const mentionModeButtonStyle: React.CSSProperties = {
-  display: "flex",
-  flexDirection: "column",
-  alignItems: "flex-start",
-  gap: "3px",
-  width: "100%",
-  padding: "8px",
-  border: "none",
-  borderRadius: 0,
-  background: "transparent",
-  color: "#E8E9EA",
-  textAlign: "left",
-  cursor: "pointer",
-};
 
 function PickerMenu({
   title,

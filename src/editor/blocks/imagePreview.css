@@ -1,0 +1,203 @@
+/* Discord-like image preview modal */
+
+.discord-image-preview-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  animation: discordImageFadeIn 140ms ease-out forwards;
+}
+
+@keyframes discordImageFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes discordImageScaleIn {
+  from {
+    transform: scale(0.96);
+    opacity: 0.8;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.discord-image-preview-close-wrap {
+  position: absolute;
+  top: 20px;
+  right: 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  z-index: 10;
+}
+
+.discord-image-preview-close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(30, 32, 36, 0.8);
+  color: #e3e5e8;
+  cursor: pointer;
+  padding: 0;
+  transition: all 120ms ease;
+}
+
+.discord-image-preview-close-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  transform: scale(1.06);
+}
+
+.discord-image-preview-esc-badge {
+  font-size: 10px;
+  font-weight: 600;
+  color: #949ba4;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.discord-image-preview-stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 94vw;
+  max-height: calc(88vh - 56px);
+  overflow: hidden;
+  position: relative;
+  transition: all 140ms ease;
+}
+
+.discord-image-preview-stage.is-zoomed {
+  overflow: auto;
+  max-width: 96vw;
+  max-height: calc(90vh - 56px);
+  cursor: zoom-out;
+}
+
+.discord-image-preview-img {
+  display: block;
+  border-radius: 4px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.8);
+  animation: discordImageScaleIn 160ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transition: transform 120ms ease;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.discord-image-preview-stage:not(.is-zoomed) .discord-image-preview-img {
+  max-width: min(92vw, 1300px);
+  max-height: calc(84vh - 60px);
+  object-fit: contain;
+  cursor: zoom-in;
+}
+
+.discord-image-preview-stage.is-zoomed .discord-image-preview-img {
+  max-width: none;
+  max-height: none;
+  cursor: zoom-out;
+}
+
+.discord-image-preview-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 7px 18px;
+  border-radius: 24px;
+  background: rgba(20, 22, 26, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: #e3e5e8;
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+  line-height: 1.4;
+  z-index: 10;
+  max-width: 90vw;
+}
+
+.discord-image-preview-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  color: #f2f3f5;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 260px;
+}
+
+.discord-image-preview-dimensions {
+  color: #949ba4;
+  font-size: 11.5px;
+  font-family: ui-monospace, "SF Mono", monospace;
+  white-space: nowrap;
+}
+
+.discord-image-preview-dot {
+  color: rgba(255, 255, 255, 0.25);
+  font-size: 12px;
+}
+
+.discord-image-preview-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #00a8fc;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-size: 13px;
+  transition: color 120ms ease;
+}
+
+.discord-image-preview-link:hover {
+  color: #38bdf8;
+  text-decoration: underline;
+}
+
+.discord-image-preview-node-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--his-accent, #9d7bff);
+  font-weight: 500;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  font-size: 13px;
+  white-space: nowrap;
+  transition: opacity 120ms ease;
+}
+
+.discord-image-preview-node-btn:hover {
+  opacity: 0.85;
+  text-decoration: underline;
+}
