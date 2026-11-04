@@ -2,6 +2,7 @@ import MentionMenu, { MentionDestinationMenu } from "./MentionMenu";
 import { ImageMentionModeMenu } from "./ImageMentionModeMenu";
 import { MentionHoverCard } from "./MentionHoverCard";
 import { LinkHoverCard } from "./LinkHoverCard";
+import { NodeIcon } from "../nodes/NodeIcon";
 import { BlockFormatMenu, type BlockFormatType } from "./BlockFormatMenu";
 import { BlockMoreMenu } from "./BlockMoreMenu";
 import { ImagePreviewModal } from "./ImagePreviewModal";
@@ -208,6 +209,20 @@ export default function RichTextEditor({
   } | null>(null);
   const [hoveredMention, setHoveredMention] = useState<{ nodeId: string; rect: DOMRect; element: HTMLElement } | null>(null);
   const [hoverClosing, setHoverClosing] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(false);
+  const [backlinksCollapsed, setBacklinksCollapsed] = useState(false);
+  const backlinks = useMemo(() => {
+    if (!node?.id) return [];
+    return nodes.filter((n) => {
+      if (n.id === node.id) return false;
+      const text = n.content || "";
+      return (
+        text.includes(`data-mention-id="${node.id}"`) ||
+        text.includes(`data-id="${node.id}"`) ||
+        Boolean(node.name && node.name.length >= 3 && text.toLowerCase().includes(node.name.toLowerCase()))
+      );
+    });
+  }, [node?.id, node?.name, nodes]);
   const mentionHoverTimerRef = useRef<number | null>(null);
   const mentionCloseTimerRef = useRef<number | null>(null);
   const isOverCardRef = useRef(false);
@@ -1306,6 +1321,30 @@ export default function RichTextEditor({
           </div>
         );
       })()}
+      {controller.lineControl?.block.matches("pre, [data-his-code='true']") && (() => {
+        const rect = controller.lineControl.block.getBoundingClientRect();
+        return (
+          <button
+            type="button"
+            className="editor-code-copy-floating"
+            style={{
+              position: "fixed",
+              top: `${rect.top + 6}px`,
+              right: `${Math.max(12, window.innerWidth - rect.right + 12)}px`,
+              zIndex: 30,
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              const codeText = controller.lineControl?.block.textContent || "";
+              navigator.clipboard.writeText(codeText);
+              setCopiedCode(true);
+              setTimeout(() => setCopiedCode(false), 1500);
+            }}
+          >
+            {copiedCode ? t("editor.code.copied") : t("editor.code.copy")}
+          </button>
+        );
+      })()}
       {controller.isDraggingLine && controller.lineControl && (
         <div
           aria-hidden="true"
@@ -2102,6 +2141,41 @@ export default function RichTextEditor({
           onClose={dismissLinkImmediately}
         />
       )}
+      {backlinks.length > 0 && (
+        <section className="editor-backlinks-section" data-editor-ui="true">
+          <div
+            className="editor-backlinks-header"
+            onClick={() => setBacklinksCollapsed((prev) => !prev)}
+            role="button"
+            tabIndex={0}
+          >
+            <span className={`editor-backlinks-arrow ${backlinksCollapsed ? "is-collapsed" : ""}`}>
+              ▼
+            </span>
+            <span className="editor-backlinks-title">{t("editor.backlinks.title")}</span>
+            <span className="editor-backlinks-count">{backlinks.length}</span>
+          </div>
+          {!backlinksCollapsed && (
+            <div className="editor-backlinks-list">
+              {backlinks.map((targetNode) => (
+                <button
+                  key={targetNode.id}
+                  type="button"
+                  className="editor-backlink-item"
+                  onClick={() => setSelectedId(targetNode.id)}
+                >
+                  <span className="editor-backlink-icon">
+                    <NodeIcon type={getEffectiveNodeType(nodes, targetNode)} />
+                  </span>
+                  <span className="editor-backlink-name">
+                    {targetNode.name || "Sin título"}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
       <WritingMetricsBar
         words={metrics.words}
         chars={metrics.chars}
@@ -2218,6 +2292,7 @@ function getActiveEditorBlock(editor: HTMLElement | null): HTMLElement | null {
 
 function getBlockFormat(block: HTMLElement | null): BlockFormatType {
   if (!block) return "p";
+  if (block.matches("pre") || block.dataset.hisCode === "true") return "code";
   if (block.matches("[data-globe]") || block.closest("[data-globe]")) return "globe";
   const toggleHeading = block.getAttribute("data-his-toggle-heading");
   if (toggleHeading === "1" || (block.hasAttribute("data-his-dropdown") && block.tagName === "H1")) return "toggle-h1";
@@ -2237,6 +2312,7 @@ function getBlockFormat(block: HTMLElement | null): BlockFormatType {
 
 function getFormatButtonBadge(format: BlockFormatType): string {
   switch (format) {
+    case "code": return "</>";
     case "h1": return "H1";
     case "h2": return "H2";
     case "h3": return "H3";
@@ -2282,6 +2358,7 @@ function transformBlockToFormat(
   delete block.dataset.hisTodoChecked;
   delete block.dataset.hisCollapsed;
   delete block.dataset.hisCollapsedChild;
+  delete block.dataset.hisCode;
 
   switch (targetFormat) {
     case "p":

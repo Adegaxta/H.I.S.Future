@@ -138,4 +138,13 @@ export const EN_EDITOR_TRANSLATIONS = {
   "editor.background.purple": "Purple background",
   "editor.background.pink": "Pink background",
   "editor.background.red": "Red background",
+  "editor.format.code": "Inline code",
+  "editor.code.copy": "Copy",
+  "editor.code.copied": "Copied",
+  "editor.backlinks.title": "Backlinks",
+  "editor.backlinks.empty": "No other nodes link here yet.",
+  "editor.quickSwitcher.placeholder": "Search or jump to any node...",
+  "editor.quickSwitcher.recent": "Recent nodes",
+  "editor.quickSwitcher.noResults": "No nodes found.",
+  "editor.quickSwitcher.hint": "↑↓ to navigate · Enter to open · Esc to close",
 } as const;

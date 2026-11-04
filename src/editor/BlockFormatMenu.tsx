@@ -7,6 +7,7 @@ export type BlockFormatType =
   | "h3"
   | "highlighted"
   | "globe"
+  | "code"
   | "todo"
   | "bullets"
   | "numbered"
@@ -92,6 +93,18 @@ const FORMAT_ITEMS: FormatItem[] = [
       <div className="block-format-preview__box" style={{ background: "#1c1f24", borderRadius: "6px", padding: "6px 8px", display: "flex", gap: "6px", alignItems: "center" }}>
         <span style={{ fontSize: "12px" }}>📄</span>
         <span style={{ fontSize: "11px", color: "#e0e4ec" }}>Nota enmarcada con icono.</span>
+      </div>
+    ),
+  },
+  {
+    id: "code",
+    label: "Bloque de código",
+    prefix: "</>",
+    category: "aesthetic",
+    description: "Bloque preformateado monoespaciado para fragmentos de código.",
+    preview: (
+      <div className="block-format-preview__box" style={{ background: "#101315", borderRadius: "6px", padding: "6px 8px" }}>
+        <span style={{ fontSize: "11px", color: "#d8dadd", fontFamily: "monospace" }}>const his = true;</span>
       </div>
     ),
   },

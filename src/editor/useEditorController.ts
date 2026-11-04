@@ -36,6 +36,7 @@ import { getImageResourceInfo } from "../utils/imageResource";
 import { getEffectiveNodeType } from "../utils/nodeTree";
 import { ensureTableRuntime, getTableRootFromNode, insertTableIntoBlock, isTableEditingTarget } from "./table";
 import { useLocale } from "../i18n/LocaleContext";
+import { handleMarkdownAutoFormat } from "./markdownShortcuts";
 
 interface EditorControllerOptions {
   node: NodeItem;
@@ -2298,6 +2299,20 @@ export function useEditorController({
       }
     }
     if (
+      activeBlock &&
+      handleMarkdownAutoFormat(
+        event,
+        activeBlock,
+        editorRef,
+        syncContent,
+        captureStructuralUndo,
+        updatePlaceholder,
+      )
+    ) {
+      return;
+    }
+
+    if (
       event.key === " " &&
       activeBlock &&
       !activeBlock.hasAttribute("data-his-list") &&
@@ -2485,10 +2500,39 @@ export function useEditorController({
       }
       return;
     }
+    if (event.key === "Enter" && event.shiftKey) {
+      const selection = window.getSelection();
+      const block = getEditorBlock(selection?.focusNode || null);
+      if (block?.matches("pre, [data-his-code='true']")) {
+        event.preventDefault();
+        insertLine(block, false);
+        return;
+      }
+    }
     if (event.key === "Enter" && !event.shiftKey) {
       const selection = window.getSelection();
       const focus = selection?.focusNode || null;
       const block = getEditorBlock(focus);
+      if (block?.matches("pre, [data-his-code='true']")) {
+        if (event.ctrlKey) {
+          event.preventDefault();
+          insertLine(block, false);
+          return;
+        }
+        event.preventDefault();
+        if (selection?.rangeCount) {
+          const range = selection.getRangeAt(0);
+          range.deleteContents();
+          const newlineNode = document.createTextNode("\n");
+          range.insertNode(newlineNode);
+          range.setStartAfter(newlineNode);
+          range.collapse(true);
+          selection.removeAllRanges();
+          selection.addRange(range);
+          syncContent();
+        }
+        return;
+      }
       const globeContent = focus?.parentElement?.closest("[data-globe-content]") as HTMLElement | null;
       if (block?.matches("li")) return;
       if (block) {

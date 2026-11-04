@@ -138,4 +138,13 @@ export const ES_EDITOR_TRANSLATIONS = {
   "editor.background.purple": "Fondo morado",
   "editor.background.pink": "Fondo rosa",
   "editor.background.red": "Fondo rojo",
+  "editor.format.code": "Código en línea",
+  "editor.code.copy": "Copiar",
+  "editor.code.copied": "Copiado",
+  "editor.backlinks.title": "Retroenlaces",
+  "editor.backlinks.empty": "Ningún otro nodo enlaza aquí todavía.",
+  "editor.quickSwitcher.placeholder": "Buscar o saltar a cualquier nodo...",
+  "editor.quickSwitcher.recent": "Nodos recientes",
+  "editor.quickSwitcher.noResults": "No se encontraron nodos.",
+  "editor.quickSwitcher.hint": "↑↓ para navegar · Enter para abrir · Esc para cerrar",
 } as const;

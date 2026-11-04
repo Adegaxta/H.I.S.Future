@@ -112,4 +112,6 @@ export const ES_NODES_TRANSLATIONS = {
   "pdf.invalidResource": "Este Nodo PDF no contiene una referencia de archivo válida.",
   "pdf.loadError": "No se pudo abrir el PDF.",
   "pdf.pageLabel": "Página {page}",
+  "video.addTimestamp": "Insertar marca de tiempo",
+  "video.timestampJump": "Saltar a {time}",
 } as const;

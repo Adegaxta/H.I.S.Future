@@ -112,4 +112,6 @@ export const EN_NODES_TRANSLATIONS = {
   "pdf.invalidResource": "This PDF Node does not contain a valid file reference.",
   "pdf.loadError": "The PDF could not be opened.",
   "pdf.pageLabel": "Page {page}",
+  "video.addTimestamp": "Insert timestamp",
+  "video.timestampJump": "Jump to {time}",
 } as const;

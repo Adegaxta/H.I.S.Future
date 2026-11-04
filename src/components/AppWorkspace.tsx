@@ -17,6 +17,7 @@ import { getEffectiveNodeType } from "../utils/nodeTree";
 import { useTreeController } from "../hooks/useTreeController";
 import ContextMenu from "./ContextMenu";
 import NodeOptionsMenu from "./NodeOptionsMenu";
+import { QuickSwitcherModal } from "./QuickSwitcherModal";
 import HisContextMenu, { type HisContextMenuItem } from "./HisContextMenu";
 import DragPreview from "./DragPreview";
 import SidebarTree from "../workspace/navigation/SidebarTree";
@@ -229,6 +230,7 @@ export default function AppWorkspace({
   );
   const locationRestoredRef = useRef(false);
   const [consoleOpen, setConsoleOpen] = useState(false);
+  const [quickSwitcherOpen, setQuickSwitcherOpen] = useState(false);
   const [consoleStatus, setConsoleStatus] = useState<"stable" | "warning" | "error">(() => {
     const events = getDiagnosticEvents();
     if (events.some((e) => e.level === "ERROR")) return "error";
@@ -405,6 +407,17 @@ export default function AppWorkspace({
     window.addEventListener("keydown", handleRenameShortcut);
     return () => window.removeEventListener("keydown", handleRenameShortcut);
   }, [selectedLoreIds, workspace]);
+
+  useEffect(() => {
+    const handleQuickSwitcherShortcut = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && (event.key.toLowerCase() === "k" || event.key.toLowerCase() === "p")) {
+        event.preventDefault();
+        setQuickSwitcherOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener("keydown", handleQuickSwitcherShortcut);
+    return () => window.removeEventListener("keydown", handleQuickSwitcherShortcut);
+  }, []);
 
   useEffect(() => {
     const handleZenModeShortcut = (event: KeyboardEvent) => {
@@ -1074,6 +1087,13 @@ export default function AppWorkspace({
             onClear={() => { clearProjectImage(); setVaultImagePickerOpen(false); }} clearLabel={t("workspace.removeVaultImage")} />
       </ImagePickerDialog>}
       {exportService.printNode && <PrintDocument node={exportService.printNode} host={nodeViewHost} settings={exportService.printSettings} onReady={(printEditor) => exportService.printReadyRef.current?.(printEditor)} onError={(error) => exportService.printReadyRef.current?.(undefined, error)} />}
+      <QuickSwitcherModal
+        isOpen={quickSwitcherOpen}
+        onClose={() => setQuickSwitcherOpen(false)}
+        onSelectNode={openNodeView}
+        nodes={workspace.nodes}
+        recentNodes={workspace.recentNodes}
+      />
       <Suspense fallback={null}>
         <DevelopmentConsole
           nodes={workspace.nodes}

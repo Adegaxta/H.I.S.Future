@@ -1769,3 +1769,200 @@ img {
     transition-duration: 0.01ms !important;
   }
 }
+
+
+/* Quick Switcher (Ctrl+K / Ctrl+P) */
+.quick-switcher-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(4px);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 14vh;
+  animation: his-fade-in var(--his-duration-fast, 120ms) var(--his-ease-out);
+}
+
+.quick-switcher-card {
+  width: min(580px, 92vw);
+  background: var(--his-popover-surface, #1e2227);
+  border: 1px solid var(--his-border, #333a42);
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: his-popover-enter var(--his-duration-modal, 200ms) var(--his-ease-spring);
+}
+
+.quick-switcher-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--his-border, #2a2f36);
+}
+
+.quick-switcher-icon {
+  color: var(--his-text-secondary, #8b949e);
+  flex-shrink: 0;
+}
+
+.quick-switcher-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 15px;
+  color: var(--his-text, #ffffff);
+  font-family: inherit;
+}
+
+.quick-switcher-input::placeholder {
+  color: var(--his-text-secondary, #768390);
+}
+
+.quick-switcher-esc {
+  font-size: 11px;
+  font-weight: 600;
+  color: #768390;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  padding: 2px 6px;
+  cursor: pointer;
+}
+
+.quick-switcher-esc:hover {
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.quick-switcher-section-title {
+  padding: 8px 16px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--his-text-secondary, #8b949e);
+}
+
+.quick-switcher-list {
+  max-height: 340px;
+  overflow-y: auto;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.quick-switcher-empty {
+  padding: 24px 16px;
+  text-align: center;
+  color: var(--his-text-secondary, #768390);
+  font-size: 13px;
+}
+
+.quick-switcher-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  color: var(--his-text, #e2e4e8);
+  font-size: 14px;
+  transition: background 0.1s ease;
+}
+
+.quick-switcher-item:hover,
+.quick-switcher-item.is-selected {
+  background: var(--his-surface-hover, rgba(255, 255, 255, 0.08));
+  color: #ffffff;
+}
+
+.quick-switcher-item.is-selected {
+  border-color: rgba(99, 102, 241, 0.4);
+}
+
+.quick-switcher-item-icon {
+  display: flex;
+  align-items: center;
+  font-size: 16px;
+  opacity: 0.85;
+}
+
+.quick-switcher-item-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quick-switcher-item-type {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #768390;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.quick-switcher-footer {
+  padding: 8px 16px;
+  background: rgba(0, 0, 0, 0.2);
+  border-top: 1px solid var(--his-border, #2a2f36);
+  font-size: 11px;
+  color: #768390;
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Video Timestamps */
+.video-timestamps-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0;
+}
+
+.video-timestamp-pill {
+  padding: 2px 8px;
+  background: var(--his-surface-secondary, rgba(255, 255, 255, 0.06));
+  border: 1px solid var(--his-border, rgba(255, 255, 255, 0.12));
+  border-radius: 12px;
+  color: var(--his-accent, #6366f1);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.video-timestamp-pill:hover {
+  background: color-mix(in srgb, var(--his-accent) 25%, transparent);
+  border-color: var(--his-accent);
+}
+
+.video-timestamp-insert-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  background: transparent;
+  border: 1px solid var(--his-border, #394042);
+  border-radius: 4px;
+  color: var(--his-text-secondary, #9da4aa);
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.video-timestamp-insert-btn:hover {
+  color: var(--his-text, #ffffff);
+  border-color: var(--his-accent);
+}
