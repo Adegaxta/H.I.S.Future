@@ -24,6 +24,7 @@
 .sidebar-icon--image-add { --icon-url: url("../assets/third-party/google-material/icons/create_image_node.svg"); }
 .sidebar-icon--general { --icon-url: url("../assets/third-party/google-material/icons/general.svg"); }
 .sidebar-icon--history { --icon-url: url("../assets/third-party/google-material/icons/deployed_code_history.svg"); }
+.sidebar-icon--features { --icon-url: url("../assets/third-party/google-material/icons/article_shortcut.svg"); }
 .sidebar-icon--trash { --icon-url: url("../assets/third-party/google-material/icons/trash_list.svg"); }
 .sidebar-icon--exit { --icon-url: url("../assets/third-party/google-material/icons/exit.svg"); }
 .sidebar-icon--arrow-open { --icon-url: url("../assets/third-party/google-material/icons/arrow_open.svg"); }

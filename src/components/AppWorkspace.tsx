@@ -43,6 +43,7 @@ import { useProjectCover } from "../workspace/useProjectCover";
 import { useWorkspaceLifecycle } from "../workspace/useWorkspaceLifecycle";
 import { useSidebarResize } from "../workspace/useSidebarResize";
 import { ChangelogPanel } from "../workspace/panels/ChangelogPanel";
+import { FeaturesPanel } from "../workspace/panels/FeaturesPanel";
 import { ProjectSettingsPanel } from "../workspace/panels/ProjectSettingsPanel";
 import { TrashPanel } from "../workspace/panels/TrashPanel";
 import { finishLifecycleFlow } from "../lifecycle/metrics";
@@ -98,7 +99,7 @@ interface WorkspaceLocation {
   selectedId: string | null;
   view: "list" | "graph";
   projectTab: "workspace" | "settings";
-  settingsPanel: "general" | "trash" | "changelog";
+  settingsPanel: "general" | "trash" | "changelog" | "features";
   sidebarPanel: "lore" | "recent" | "types";
   sidebarVisible: boolean;
 }
@@ -108,7 +109,7 @@ function readWorkspaceLocation(key: string): WorkspaceLocation | null {
     const parsed = JSON.parse(localStorage.getItem(key) || "null") as Partial<WorkspaceLocation> | null;
     if (!parsed || (parsed.view !== "list" && parsed.view !== "graph") ||
       (parsed.projectTab !== "workspace" && parsed.projectTab !== "settings") ||
-      !["general", "trash", "changelog"].includes(parsed.settingsPanel || "") ||
+      !["general", "trash", "changelog", "features"].includes(parsed.settingsPanel || "") ||
       !["lore", "recent", "types"].includes(parsed.sidebarPanel || "") ||
       typeof parsed.sidebarVisible !== "boolean") return null;
     return {
@@ -210,7 +211,7 @@ export default function AppWorkspace({
   const [projectTab, setProjectTab] = useState<"workspace" | "settings">(
     () => readWorkspaceLocation(locationStorageKey)?.projectTab ?? "workspace",
   );
-  const [settingsPanel, setSettingsPanel] = useState<"general" | "trash" | "changelog">(
+  const [settingsPanel, setSettingsPanel] = useState<"general" | "trash" | "changelog" | "features">(
     () => readWorkspaceLocation(locationStorageKey)?.settingsPanel ?? "general",
   );
   const [appVersion, setAppVersion] = useState<string | null>(null);
@@ -374,7 +375,9 @@ export default function AppWorkspace({
         ? "trash"
         : settingsPanel === "changelog"
           ? "changelog"
-          : "settings"
+          : settingsPanel === "features"
+            ? "settings"
+            : "settings"
       : view === "graph"
         ? "graph"
         : "workspace";
@@ -839,6 +842,7 @@ export default function AppWorkspace({
                   {([
                     ["general", "general", "sidebar.settings.general"],
                     ["changelog", "history", "sidebar.settings.history"],
+                    ["features", "features", "sidebar.settings.features"],
                     ["trash", "trash", "sidebar.settings.trash"],
                   ] as const).map(([id, icon, labelKey]) => (
                     <button key={id} type="button" className={settingsPanel === id ? "is-active" : ""} onClick={() => { cancelLoreMultiSelection(); setSelectedTrashNodeId(null); setSettingsPanel(id); }}><UiIcon name={icon} /><span>{t(labelKey)}</span></button>
@@ -921,6 +925,8 @@ export default function AppWorkspace({
             />
           ) : settingsPanel === "changelog" ? (
             <ChangelogPanel />
+          ) : settingsPanel === "features" ? (
+            <FeaturesPanel />
           ) : (
             <ProjectSettingsPanel
               projectName={projectName}
