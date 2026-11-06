@@ -783,6 +783,22 @@ fn replace_archive(temporary: &Path, archive_path: &Path) -> Result<(), String> 
         return fs::rename(temporary, archive_path)
             .map_err(|error| format!("No se pudo confirmar el nuevo .his: {error}"));
     }
+
+    if let Ok(meta) = fs::metadata(archive_path) {
+        let mut perms = meta.permissions();
+        if perms.readonly() {
+            perms.set_readonly(false);
+            let _ = fs::set_permissions(archive_path, perms);
+        }
+    }
+    if let Ok(meta) = fs::metadata(temporary) {
+        let mut perms = meta.permissions();
+        if perms.readonly() {
+            perms.set_readonly(false);
+            let _ = fs::set_permissions(temporary, perms);
+        }
+    }
+
     use std::os::windows::ffi::OsStrExt;
     use windows_sys::Win32::Storage::FileSystem::ReplaceFileW;
     let replaced = archive_path
@@ -795,23 +811,55 @@ fn replace_archive(temporary: &Path, archive_path: &Path) -> Result<(), String> 
         .encode_wide()
         .chain(std::iter::once(0))
         .collect::<Vec<_>>();
-    let result = unsafe {
-        ReplaceFileW(
-            replaced.as_ptr(),
-            replacement.as_ptr(),
-            std::ptr::null(),
-            0,
-            std::ptr::null_mut(),
-            std::ptr::null_mut(),
-        )
-    };
-    if result == 0 {
-        Err(format!(
-            "No se pudo reemplazar el .his; se conserva el original: {}",
-            std::io::Error::last_os_error()
-        ))
-    } else {
-        Ok(())
+
+    let mut last_err = std::io::Error::from_raw_os_error(0);
+    for attempt in 0..6 {
+        if attempt > 0 {
+            std::thread::sleep(std::time::Duration::from_millis(50 * attempt as u64));
+        }
+        let result = unsafe {
+            ReplaceFileW(
+                replaced.as_ptr(),
+                replacement.as_ptr(),
+                std::ptr::null(),
+                2, // REPLACEFILE_IGNORE_MERGE_ERRORS
+                std::ptr::null_mut(),
+                std::ptr::null_mut(),
+            )
+        };
+        if result != 0 {
+            return Ok(());
+        }
+        last_err = std::io::Error::last_os_error();
+    }
+
+    // Fallback 1: atomic rename via temporary backup
+    let backup_path = archive_path.with_extension(format!("his-bak-{}", std::process::id()));
+    if backup_path.exists() {
+        let _ = fs::remove_file(&backup_path);
+    }
+    if fs::rename(archive_path, &backup_path).is_ok() {
+        match fs::rename(temporary, archive_path) {
+            Ok(_) => {
+                let _ = fs::remove_file(&backup_path);
+                return Ok(());
+            }
+            Err(_) => {
+                let _ = fs::rename(&backup_path, archive_path);
+            }
+        }
+    }
+
+    // Fallback 2: copy over existing archive directly
+    match fs::copy(temporary, archive_path) {
+        Ok(_) => {
+            let _ = fs::remove_file(temporary);
+            Ok(())
+        }
+        Err(copy_err) => Err(format!(
+            "No se pudo reemplazar el .his; se conserva el original: {} (fallback copia: {})",
+            last_err, copy_err
+        )),
     }
 }
 

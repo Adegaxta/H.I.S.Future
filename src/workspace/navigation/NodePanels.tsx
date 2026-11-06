@@ -124,7 +124,7 @@ export default function NodePanels({ projectKey, panel, nodes, recentNodes, rece
                 <span>{getNodeDisplayLabel(definition.type, t)}</span>
                 <span className="type-group__count">{items.length}</span>
               </button>
-              {definition.creation.available && <button
+              {definition.creation.available ? <button
                 className="type-group__add"
                 type="button"
                 title={t("panels.createType", { type: getNodeDisplayLabel(definition.type, t) })}
@@ -132,7 +132,7 @@ export default function NodePanels({ projectKey, panel, nodes, recentNodes, rece
                 onClick={() => onCreateType(definition.type)}
               >
                 +
-              </button>}
+              </button> : <span className="type-group__add-spacer" aria-hidden="true" />}
               <button className="type-group__chevron-button" type="button" aria-label={t(isCollapsed ? "panels.expand" : "panels.collapse")} onClick={() => setCollapsed((current) => ({ ...current, [definition.type]: !current[definition.type] }))}>
                 <UiIcon name={isCollapsed ? "arrow-close" : "arrow-open"} className="type-group__chevron" />
               </button>

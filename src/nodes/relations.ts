@@ -46,4 +46,35 @@ export function withRelation(nodes: NodeItem[], sourceId: string, role: Relation
 
 export const withoutRelation = (nodes: NodeItem[], sourceId: string, role: RelationRole, targetId: string) => nodes.map((node) => node.id === sourceId ? { ...node, content: setNodalMeta(node.content, { relations: getNodalMeta(node.content).relations.filter((relation) => relation.role !== role || relation.targetId !== targetId) }) } : node);
 export const patchNodal = (nodes: NodeItem[], id: string, patch: Partial<NodalMeta>) => nodes.map((node) => node.id === id ? { ...node, content: setNodalMeta(node.content, patch) } : node);
+
+export function reconcileNodeRelations(nodes: NodeItem[]): { nodes: NodeItem[]; repaired: boolean } {
+  const byId = new Map<string, NodeItem>();
+  for (const node of nodes) {
+    byId.set(node.id, node);
+  }
+
+  let anyRepaired = false;
+  const nextNodes = nodes.map((node) => {
+    const meta = getNodalMeta(node.content);
+    if (!meta.relations || meta.relations.length === 0) return node;
+
+    const validRelations = meta.relations.filter((relation) => {
+      const targetNode = byId.get(relation.targetId) ?? null;
+      const violation = validateNodeRelation(node, relation.role, targetNode);
+      return violation === null;
+    });
+
+    if (validRelations.length !== meta.relations.length) {
+      anyRepaired = true;
+      return {
+        ...node,
+        content: setNodalMeta(node.content, { relations: validRelations }),
+      };
+    }
+    return node;
+  });
+
+  return { nodes: nextNodes, repaired: anyRepaired };
+}
+
 export type { RelationRole } from "./relationTypes";

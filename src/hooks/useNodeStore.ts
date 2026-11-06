@@ -4,6 +4,8 @@ import { useLocale } from "../i18n/LocaleContext";
 import { courseAwareDeletionIds, hasMissingCourseCalendar, reconcileCourseCalendars, synchronizedNodeIds } from "../nodes/course/domain";
 import { applyNodeRename } from "../nodes/runtime";
 import { isVaultPrimaryNode, reconcileVaultPrimary } from "../nodes/project/domain";
+import { reconcileNodeRelations } from "../nodes/relations";
+import { getNodalMeta, setNodalMeta } from "../nodes/metadata";
 import { useDebouncedPersistence } from "./useDebouncedPersistence";
 import { startTransition, useEffect, useRef, useState } from "react";
 import {
@@ -194,18 +196,19 @@ export function useNodeStore(projectKey?: string, projectName = "", defaultNodeT
         loadRequestRef.current = request;
         const { nodes: stored, deletedNodes: trash } = await request;
         if (cancelled) return;
-        reportWorkspaceIntegrity(
-          { nodes: stored, deletedNodes: trash ?? [] },
-          "workspace.load",
-        );
         persistedVersionRef.current = changeVersionRef.current;
         const previousTrash = trash ?? deletedNodesRef.current.filter((node) => !stored.some((active) => active.id === node.id));
         const repaired = reconcileCourseCalendars(stored, previousTrash, t("nodes.calendar.label"));
         const reconciledNodes = reconcileVaultPrimary(repaired.nodes, projectName);
-        setNodes(reconciledNodes);
+        const reconciledRelations = reconcileNodeRelations(reconciledNodes);
+        reportWorkspaceIntegrity(
+          { nodes: reconciledRelations.nodes, deletedNodes: repaired.deletedNodes },
+          "workspace.load",
+        );
+        setNodes(reconciledRelations.nodes);
         setDeletedNodes(repaired.deletedNodes);
         deletedNodesRef.current = repaired.deletedNodes;
-        if (trash === null || reconciledNodes !== stored || repaired.deletedNodes !== previousTrash) markDirty();
+        if (trash === null || reconciledRelations.nodes !== stored || repaired.deletedNodes !== previousTrash || reconciledRelations.repaired) markDirty();
         setHydrated(true);
       } catch (error) {
         console.error(error);
@@ -306,7 +309,8 @@ export function useNodeStore(projectKey?: string, projectName = "", defaultNodeT
       deletedNodesRef.current = repaired.deletedNodes;
       setDeletedNodes(repaired.deletedNodes);
     }
-    return reconcileVaultPrimary(repaired.nodes, projectName);
+    const primary = reconcileVaultPrimary(repaired.nodes, projectName);
+    return reconcileNodeRelations(primary).nodes;
   };
   const mutationActivityPendingRef = useRef(false);
   const previousActivityNodesRef = useRef(nodes);
@@ -429,7 +433,17 @@ export function useNodeStore(projectKey?: string, projectName = "", defaultNodeT
       setSelectedId((selected) =>
         selected && !ids.has(selected) ? selected : null,
       );
-      return current.filter((node) => !ids.has(node.id)).map((node) => node.parentId && ids.has(node.parentId) ? { ...node, parentId: null } : node);
+      return current
+        .filter((node) => !ids.has(node.id))
+        .map((node) => {
+          let updated = node.parentId && ids.has(node.parentId) ? { ...node, parentId: null } : node;
+          const meta = getNodalMeta(updated.content);
+          if (meta.relations && meta.relations.some((r) => ids.has(r.targetId))) {
+            const valid = meta.relations.filter((r) => !ids.has(r.targetId));
+            updated = { ...updated, content: setNodalMeta(updated.content, { relations: valid }) };
+          }
+          return updated;
+        });
     });
     reportNodeOperation(
       "node.deleted",
