@@ -849,6 +849,7 @@ export function useEditorController({
       if (color) {
         document.execCommand("foreColor", false, color);
         applyMentionTextColor(mentions, color);
+        targetBlocks.forEach((b) => { if (b.matches("[data-his-list], li")) b.style.color = color; });
       } else {
         const MARKER_COLOR = "#000001";
         document.execCommand("foreColor", false, MARKER_COLOR);
@@ -915,6 +916,7 @@ export function useEditorController({
           range.selectNodeContents(block);
           const mentions = getIntersectingMentions(range);
           applyMentionTextColor(mentions, color);
+        targetBlocks.forEach((b) => { if (b.matches("[data-his-list], li")) b.style.color = color; });
         }
       });
     }
@@ -1120,8 +1122,8 @@ export function useEditorController({
             return block ? [block] : [];
           })();
     blocks.forEach((block) => {
-      if (color) block.style.backgroundColor = mutedEditorBackground(color);
-      else block.style.removeProperty("background-color");
+      if (color) { block.style.backgroundColor = mutedEditorBackground(color); block.style.borderRadius = "6px"; }
+      else { block.style.removeProperty("background-color"); if (!block.style.border) block.style.removeProperty("border-radius"); }
     });
     window.requestAnimationFrame(() => {
       syncContent();

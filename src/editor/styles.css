@@ -93,6 +93,33 @@
   contain: layout style;
 }
 
+/* Bloques de texto con color de fondo o borde: esquinas redondeadas y espaciado armónico */
+.editor-content :is(p, h1, h2, h3, h4, h5, h6, blockquote, pre):is([style*="background-color"], [style*="background"], [style*="border"]) {
+  border-radius: 6px;
+  padding: 4px 10px;
+  box-sizing: border-box;
+}
+
+/* Listas con color de fondo: esquinas redondeadas y padding que respeta la viñeta / icono */
+.editor-content [data-his-list]:is([style*="background-color"], [style*="background"], [style*="border"]) {
+  border-radius: 6px;
+  padding: 4px 10px 4px 28px;
+  box-sizing: border-box;
+}
+
+.editor-content [data-his-list]:is([style*="background-color"], [style*="background"], [style*="border"])::before {
+  left: 6px;
+  top: 4px;
+}
+
+/* Resaltado de fondo en texto en línea (selección / inline backColor) */
+.editor-content span:is([style*="background-color"], [style*="background"]) {
+  border-radius: 4px;
+  padding: 1px 4px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
 /* Color de seleccion de texto del editor. */
 .editor-content ::selection {
   color: #e8e9ea;

@@ -136,7 +136,7 @@ export function nodeToHtml(
     .his-body [data-his-list="bullets"]::before {
       content: "•";
       font-size: 1.3em;
-      color: ${fg};
+      color: inherit;
       transform: translateY(-0.18em);
     }
     .his-body > :not([data-his-list="numbered"]) {
@@ -153,12 +153,12 @@ export function nodeToHtml(
       padding-right: 4px;
       font-size: 0.95em;
       font-variant-numeric: tabular-nums;
-      color: ${muted};
+      color: inherit;
     }
     .his-body [data-his-list="todo"]::before {
       content: "☐";
       font-size: 1.15em;
-      color: ${muted};
+      color: inherit;
     }
     .his-body [data-his-list="todo"][data-his-todo-checked]::before {
       content: "☑";
@@ -171,12 +171,30 @@ export function nodeToHtml(
     .his-body [data-his-list="tree"]::before {
       content: "├";
       font-size: 1.1em;
-      color: ${muted};
+      color: inherit;
     }
     .his-body [data-his-list="collapsible"]::before {
       content: "▸";
       font-size: 1em;
-      color: ${muted};
+      color: inherit;
+    }
+    .his-body :is(p, h1, h2, h3, h4, h5, h6, blockquote, pre):is([style*="background-color"], [style*="background"], [style*="border"]) {
+      border-radius: 6px;
+      padding: 4px 10px;
+      box-sizing: border-box;
+    }
+    .his-body [data-his-list]:is([style*="background-color"], [style*="background"], [style*="border"]) {
+      border-radius: 6px;
+      padding: 4px 10px 4px 28px;
+      box-sizing: border-box;
+    }
+    .his-body [data-his-list]:is([style*="background-color"], [style*="background"], [style*="border"])::before {
+      left: 6px;
+      top: 4px;
+    }
+    .his-body span:is([style*="background-color"], [style*="background"]) {
+      border-radius: 4px;
+      padding: 1px 4px;
     }
     .his-body pre, .his-body code {
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;

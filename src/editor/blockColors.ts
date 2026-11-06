@@ -10,13 +10,13 @@ export function mutedEditorBackground(color: string): string {
 
 export function applyEditorBlockColor(block: HTMLElement, kind: ColorTarget, color: string): void {
   if (kind === "border") {
-    if (color) block.style.border = `1px solid ${color}`;
-    else block.style.removeProperty("border");
+    if (color) { block.style.border = `1px solid ${color}`; block.style.borderRadius = "6px"; }
+    else { block.style.removeProperty("border"); if (!block.style.backgroundColor) block.style.removeProperty("border-radius"); }
   } else {
     const property = kind === "text" ? "color" : "background-color";
-    if (color) block.style.setProperty(property, kind === "background" ? mutedEditorBackground(color) : color);
+    if (color) { block.style.setProperty(property, kind === "background" ? mutedEditorBackground(color) : color); if (kind === "background") block.style.borderRadius = "6px"; }
     else {
-      block.style.removeProperty(property);
+      block.style.removeProperty(property); if (kind === "background" && !block.style.border) block.style.removeProperty("border-radius");
       if (!block.getAttribute("style")) block.removeAttribute("style");
       if (kind === "text") {
         block.querySelectorAll<HTMLElement>("font[color], span[style*='color']").forEach((el) => {
@@ -42,5 +42,5 @@ export function applyEditorBlockColor(block: HTMLElement, kind: ColorTarget, col
 }
 
 export function resetEditorBlockColors(block: HTMLElement): void {
-  ["color", "background-color", "border"].forEach((property) => block.style.removeProperty(property));
+  ["color", "background-color", "border", "border-radius"].forEach((property) => block.style.removeProperty(property));
 }

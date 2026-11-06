@@ -15,7 +15,7 @@
   justify-content: center;
   width: 18px;
   height: 1.6em;
-  color: #c7c9cc;
+  color: inherit;
   line-height: 1;
   user-select: none;
   pointer-events: none;
@@ -26,7 +26,7 @@
 .editor-content [data-his-list="bullets"]::before {
   content: "•";
   font-size: 1.3em;
-  color: #e8e9ea;
+  color: inherit;
   transform: translateY(-0.18em);
 }
 
@@ -37,7 +37,7 @@
   left: 2px;
   width: 16px;
   height: 16px;
-  background-color: #c7c9cc;
+  background-color: currentColor;
   mask: url("../../assets/third-party/Lucide.dev/icons/chevron-down.svg") center / contain no-repeat;
   -webkit-mask: url("../../assets/third-party/Lucide.dev/icons/chevron-down.svg") center / contain no-repeat;
   cursor: pointer;
@@ -78,14 +78,14 @@
   padding-right: 4px;
   font-size: 0.95em;
   font-variant-numeric: tabular-nums;
-  color: #c7c9cc;
+  color: inherit;
 }
 
 /* Lista tipo arbol */
 .editor-content [data-his-list="tree"]::before {
   content: "├";
   font-size: 1.1em;
-  color: #c7c9cc;
+  color: inherit;
 }
 
 /* Lista de tareas (todo) */
@@ -95,7 +95,7 @@
   left: 2px;
   width: 16px;
   height: 16px;
-  background-color: #c7c9cc;
+  background-color: currentColor;
   mask: url("../../assets/third-party/google-material/icons/check_box_outline_blank_256dp_E3E3E3_FILL0_wght400_GRAD0_opsz48.svg") center / contain no-repeat;
   -webkit-mask: url("../../assets/third-party/google-material/icons/check_box_outline_blank_256dp_E3E3E3_FILL0_wght400_GRAD0_opsz48.svg") center / contain no-repeat;
   cursor: pointer;
@@ -131,4 +131,8 @@
 
 .editor-content li {
   margin: 0.2em 0;
+}
+
+.editor-content li::marker {
+  color: inherit;
 }
