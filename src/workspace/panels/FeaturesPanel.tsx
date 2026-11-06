@@ -26,7 +26,7 @@ export function FeaturesPanel() {
 
   const features: FeatureItem[] = useMemo(() => [
     // ----------------------------------------------------
-    // NODOS
+    // NODOS (11 TIPOS)
     // ----------------------------------------------------
     {
       id: "node-page",
@@ -74,6 +74,92 @@ export function FeaturesPanel() {
         : "Fusion with Graph & Backlinks: every '@' mention placed inside a page knits a synaptic edge in the 2D Concept Graph and triggers a bidirectional backlink in the destination page.",
     },
     {
+      id: "node-course",
+      category: "nodes",
+      title: isEs ? "Curso y Campus Académico" : "Course & Academic Campus",
+      badge: "course",
+      icon: "🎓",
+      summary: isEs
+        ? "El centro neurálgico para estudiantes e investigadores. Centraliza el temario, enlaces a aulas virtuales (Zoom/Meet), clases grabadas con códigos, tareas, exámenes y calendario de horarios."
+        : "The nerve center for students and researchers. Centralizes syllabus, virtual room links (Zoom/Meet), recorded lectures, tasks, exams, and embedded schedule calendar.",
+      capabilities: isEs
+        ? [
+            "Pestaña Syllabus: visor de PDF integrado para consultar el programa académico sin abrir apps externas.",
+            "Pestaña Aula (Room): registro de enlaces a clases en vivo (Meet, Zoom, Teams, portales) con botón de lanzamiento directo con un clic.",
+            "Pestaña Clases: catálogo de vídeos de sesiones grabadas con código automático (T01, T02...), fecha y duración en minutos/horas.",
+            "Pestaña Contenido: doble columna dividida entre 'Material de estudio' (PDFs, apuntes) y 'Tareas del curso'.",
+            "Pestaña Evaluaciones: seguimiento cronológico de exámenes, entregas y pruebas con fechas detectadas automáticamente.",
+            "Horario incrustado: visualización del calendario semanal del curso directamente en la ficha de identidad.",
+            "Portada tecnológica: soporte de portada con estética retro-futurista y esquinas luminosas.",
+          ]
+        : [
+            "Syllabus tab: built-in PDF viewer to review academic programs without external apps.",
+            "Room tab: direct launcher links for live lectures (Meet, Zoom, Teams, portals) with one-click opening.",
+            "Classes tab: catalog of recorded lecture videos with auto-sequencing (T01, T02...), dates, and runtime.",
+            "Content tab: dual columns split between 'Study Material' and 'Course Tasks'.",
+            "Evaluations tab: chronological tracking of exams and milestone deliverables.",
+            "Embedded Schedule: direct weekly calendar view right inside the course identity section.",
+            "Cyberpunk cover: futuristic card cover with corner accents.",
+          ],
+      howToUse: isEs
+        ? [
+            "Crea un Nodo Curso y define su código (ej. MAT-101), nombre y modalidad (Presencial/Virtual).",
+            "En la pestaña 'Syllabus', pulsa '＋ Añadir programa' y selecciona o importa tu PDF.",
+            "En la pestaña 'Aula', añade tus enlaces de Zoom o Meet para entrar a clase en un clic.",
+            "En 'Clases', añade nodos de Vídeo para organizar tus grabaciones con duración y fecha.",
+          ]
+        : [
+            "Create a Course Node and set its code (e.g. MAT-101), title, and modality.",
+            "In 'Syllabus', click '＋ Add syllabus' to link or import your syllabus PDF.",
+            "In 'Room', add your Zoom or Google Meet links for one-click lecture entry.",
+            "In 'Classes', link Video nodes to organize recorded sessions with duration tags.",
+          ],
+      fusionTip: isEs
+        ? "Fusión Total del Estudiante: el Nodo Curso actúa como un 'hub' que integra Nodos PDF (Syllabus), Nodos Video (Clases), Nodos Tarea (Deberes) y Nodos Calendario (Horario) en una sola vista."
+        : "Total Student Hub: Course nodes unify PDF nodes (Syllabus), Video nodes (Lectures), Task nodes (Homework), and Calendar nodes (Schedule) into a singular command deck.",
+    },
+    {
+      id: "node-task",
+      category: "nodes",
+      title: isEs ? "Tarea y Elemento de Acción" : "Task & Action Item",
+      badge: "task",
+      icon: "✅",
+      summary: isEs
+        ? "Nodo atómico de gestión de trabajo con estados de ejecución, vinculación a cursos, materiales de apoyo, trabajo relacionado y programación temporal con Tempo."
+        : "Atomic workflow node featuring lifecycle states, course association, study materials, related work, and Tempo time scheduling.",
+      capabilities: isEs
+        ? [
+            "Estados de progreso: Pendiente (pending), En progreso (progress) y Completado (done).",
+            "Marcador de Evaluación: etiqueta tareas críticas como exámenes, entregas o proyectos puntuables.",
+            "Vinculación a Curso: asocia la tarea directamente a una asignatura o materia para verla en su pestaña de contenidos.",
+            "Columna de Materiales: lista de documentos, páginas o referencias necesarios para realizar la tarea.",
+            "Columna de Trabajo Relacionado: enlaces bidireccionales con proyectos o entregables generados.",
+            "Inspector de Tempo integrado: añade programación diaria, semanal o fija una fecha límite sin fecha previa.",
+          ]
+        : [
+            "Lifecycle progress states: Pending, In Progress, and Completed.",
+            "Evaluation flag: highlight critical exam dates, milestone submissions, or graded work.",
+            "Course linkage: associate the task to an academic course to reflect it in the course content matrix.",
+            "Materials column: reference docs, pages, and cheat-sheets needed to execute.",
+            "Related Work column: bidirectional links to produced deliverables and child artifacts.",
+            "Integrated Tempo Inspector: attach daily/weekly schedules or deadline milestones.",
+          ],
+      howToUse: isEs
+        ? [
+            "Crea una Tarea desde el menú lateral o desde dentro de la pestaña Contenido de un Curso.",
+            "Cambia el selector de estado según avances (Pendiente -> En progreso -> Completado).",
+            "Si tiene fecha límite, pulsa 'Diario' o 'Semanal' para activar el temporizador Tempo.",
+          ]
+        : [
+            "Create a Task from the sidebar or from within a Course's Content tab.",
+            "Update the status selector as you advance (Pending -> In Progress -> Completed).",
+            "If it has a deadline, click 'Daily' or 'Weekly' to attach a Tempo schedule.",
+          ],
+      fusionTip: isEs
+        ? "Fusión con Calendario: cuando una Tarea tiene Tempo programado, aparece automáticamente en el Calendario semanal y en la vista mensual con su color identificativo."
+        : "Fusion with Calendar: tasks with Tempo schedules automatically map onto the weekly and monthly Calendar views with status coloring.",
+    },
+    {
       id: "node-video",
       category: "nodes",
       title: isEs ? "Vídeo con Marcas de Tiempo" : "Video with Interactive Timestamps",
@@ -111,99 +197,127 @@ export function FeaturesPanel() {
             "Click any timestamp [MM:SS] badge in the panel to instantly jump and resume playback.",
           ],
       fusionTip: isEs
-        ? "Fusión con Páginas: puedes mencionar (@) un nodo de vídeo en una página de estudio para tener tus notas en una pestaña y el reproductor en panel dividido lado a lado."
-        : "Fusion with Pages: mention (@) a video node in your study page to keep comprehensive notes on one tab and the video player in a split pane side by side.",
+        ? "Fusión con Clases de Curso: los Nodos Vídeo enlazados en un Curso reciben automáticamente códigos de clase secuenciales (T01, T02...) y cálculo acumulado de duración."
+        : "Fusion with Course Lectures: Video nodes linked in a Course automatically receive sequential codes (T01, T02...) and cumulative runtime calculation.",
     },
     {
       id: "node-image",
       category: "nodes",
-      title: isEs ? "Imagen y Galería Visual" : "Image & Visual Gallery",
+      title: isEs ? "Imagen, Galería e Inspector Técnico" : "Image, Gallery & Technical Inspector",
       badge: "image",
       icon: "🖼️",
       summary: isEs
-        ? "Gestor integral de recursos gráficos, ilustraciones, capturas de pantalla y diagramas con metadatos técnicos y visualización adaptable."
-        : "Comprehensive manager for graphic assets, illustrations, screenshots, and diagrams with technical metadata and adaptive presentation.",
+        ? "Gestor integral de recursos gráficos, capturas y diagramas con visor a pantalla completa, inspector de resolución y metadatos técnicos y selector de portada del proyecto."
+        : "Comprehensive manager for graphics, screenshots, and diagrams with fullscreen viewer, resolution inspector, technical metadata, and project cover selector.",
       capabilities: isEs
         ? [
-            "Soporte de formatos PNG, JPEG, GIF, WebP y SVG con preservación de fidelidad.",
-            "Inspección de resolución nativa, relación de aspecto, peso de archivo y fecha de captura.",
-            "Modo Lightbox a pantalla completa con navegación y zoom.",
-            "Doble comportamiento al incrustar en documentos: mención inline en chip o imagen completa redimensionable.",
-            "Selector de avatar o icono personalizado a partir de imágenes del proyecto.",
+            "Soporte de formatos PNG, JPEG, GIF, WebP y SVG con preservación de fidelidad sin pérdidas.",
+            "Inspector técnico: resolución nativa (ancho x alto), peso en disco, formato MIME y detección de transparencia alfa.",
+            "Botón 'Usar como portada del proyecto': fija la imagen como identidad visual de toda la bóveda.",
+            "Descarga a disco local: exporta la imagen original en cualquier momento con un clic.",
+            "Reemplazo en caliente: actualiza o cambia la imagen sin romper menciones ni enlaces existentes.",
+            "Zoom flotante en documentos: haz clic en cualquier imagen incrustada para verla a pantalla completa estilo Discord.",
           ]
         : [
-            "Full support for PNG, JPEG, GIF, WebP, and SVG with pixel-perfect preservation.",
-            "Inspection of native resolution, aspect ratio, storage size, and capture date.",
-            "Fullscreen lightbox mode with zoom and navigation controls.",
-            "Dual document embed mode: compact inline mention chip or full resizable block.",
-            "Set as vault avatar or node visual representation across the workspace.",
+            "Lossless support for PNG, JPEG, GIF, WebP, and SVG formats.",
+            "Technical Inspector: native resolution (width x height), disk size, MIME type, and alpha transparency check.",
+            "'Use as project cover' button: sets the artwork as the visual brand of the entire vault.",
+            "Export to disk: download the original image file at any time with one click.",
+            "Live replacement: swap image assets without breaking existing mentions or document embeds.",
+            "Discord-style zoom preview: click any embedded image inside a page to open the floating zoom viewer.",
           ],
       howToUse: isEs
         ? [
-            "Arrastra y suelta imágenes directamente dentro del editor o del panel lateral.",
-            "Al hacer clic en una imagen incrustada en una página, se abrirá la vista previa emergente para examinarla en detalle.",
-            "Arrastra los tiradores en los bordes de la imagen para ajustar su ancho al milímetro.",
+            "Arrastra una imagen desde tu explorador de archivos directamente sobre HIS.",
+            "O usa el buscador integrado de Unsplash para encontrar fotos profesionales en alta definición.",
+            "En el visor de imagen, consulta los detalles técnicos o establécela como portada del proyecto.",
           ]
         : [
-            "Drag and drop image files directly into the editor or sidebar tree.",
-            "Click on any embedded image inside a page to open the floating zoom preview.",
-            "Drag horizontal edge handles to adjust presentation width effortlessly.",
+            "Drag an image file from your system explorer directly onto HIS.",
+            "Or use the integrated Unsplash picker to search high-res photography.",
+            "In the image viewer, inspect technical dimensions or set it as vault cover.",
           ],
       fusionTip: isEs
-        ? "Fusión con Bloques Globo: utiliza imágenes como iconos representativos en encabezados o tarjetas visuales temáticas dentro del Lore."
-        : "Fusion with Globe Blocks: set images as distinct visual emblems in custom callout blocks or cards across your Lore.",
+        ? "Fusión con Menciones @: al mencionar una imagen en una página puedes elegir entre 'Insertada' (un chip discreto con hover-card) o 'Completa' (la imagen viva con tiradores de ajuste de ancho)."
+        : "Fusion with @ Mentions: when referencing an image you can choose between 'Inline' (a subtle chip with hover preview) or 'Full' (live resizable image block).",
     },
     {
       id: "node-pdf",
       category: "nodes",
-      title: isEs ? "Lector de PDF Integrado" : "Built-in PDF Reader",
+      title: isEs ? "Lector de PDF Nativo" : "Built-in Native PDF Reader",
       badge: "pdf",
       icon: "📑",
       summary: isEs
-        ? "Visor de documentos PDF nativo de alto rendimiento integrado directamente en el espacio de trabajo sin depender de navegadores externos."
-        : "High-performance native PDF document reader built right into the workspace without relying on external browser plugins.",
+        ? "Visor de documentos PDF nativo de alto rendimiento integrado directamente en el espacio de trabajo con paginación, salto numérico y zoom preciso."
+        : "High-performance native PDF document reader built right into the workspace with pagination, direct jump, and granular zoom controls.",
       capabilities: isEs
         ? [
-            "Navegación fluida por páginas con controles de página anterior, siguiente y salto numérico directo.",
+            "Navegación fluida por páginas con controles de anterior, siguiente y salto numérico directo.",
             "Controles de zoom (acercar, alejar, ajustar al ancho de página y tamaño real).",
-            "Indexación local de documentos para acceso instantáneo dentro de la bóveda.",
+            "Indexación local de documentos para acceso instantáneo dentro de la bóveda sin conexión a internet.",
             "Conservación del progreso de lectura entre sesiones de trabajo.",
+            "Incrustación en cursos: visualización directa como syllabus o material de clase.",
           ]
         : [
             "Smooth page navigation with previous, next, and direct numerical page jump controls.",
             "Precise zoom controls (zoom in, zoom out, fit-to-width, and actual size).",
-            "Local document indexing for instant zero-latency access within the vault.",
+            "Local document indexing for instant zero-latency offline access.",
             "Automatic retention of reading state and page position across sessions.",
+            "Course embeddability: renders directly as a course syllabus or lecture material.",
+          ],
+      howToUse: isEs
+        ? [
+            "Importa cualquier archivo PDF desde el menú lateral o arrastrándolo a la app.",
+            "Utiliza los controles superiores para ajustar el nivel de zoom y navegar entre páginas.",
+            "Ábrelo en panel dividido junto a tus notas para redactar resúmenes con referencia visual constante.",
+          ]
+        : [
+            "Import any PDF file via sidebar creation or simple drag-and-drop.",
+            "Use the top toolbar to adjust zoom level and flip through pages.",
+            "Open in split view alongside your notes to summarize with constant visual reference.",
           ],
       fusionTip: isEs
-        ? "Fusión con Vista Dividida (Split View): abre el PDF en el panel izquierdo y una Página de notas en el panel derecho para extraer citas y diagramas sin alternar entre aplicaciones."
-        : "Fusion with Split View: open the PDF in the left pane and a study Page in the right pane to take notes and extract citations without switching apps.",
+        ? "Fusión con Vista Dividida (Split View): abre el PDF en el panel izquierdo y una Página de notas en el panel derecho para transcribir y sintetizar sin alternar ventanas."
+        : "Fusion with Split View: open the PDF on the left and a study Page on the right to extract quotes and take notes without app switching.",
     },
     {
       id: "node-calendar",
       category: "nodes",
-      title: isEs ? "Calendario y Cronología" : "Calendar & Chronology",
+      title: isEs ? "Calendario y Cronología (Mensual y Semanal)" : "Calendar & Chronology (Monthly & Weekly)",
       badge: "calendar",
       icon: "📅",
       summary: isEs
-        ? "Planificador temporal interactivo para gestionar eventos, fechas clave, plazos de entrega y vincular hitos cronológicos con documentos del Lore."
-        : "Interactive timeline planner to manage events, milestone dates, deadlines, and link chronological records to Lore documents.",
+        ? "Planificador temporal interactivo con doble vista mensual y semanal para organizar eventos, fechas límite de tareas, entregas de cursos y rutinas de estudio."
+        : "Interactive timeline planner with dual monthly and weekly views to organize events, task deadlines, course deliverables, and study schedules.",
       capabilities: isEs
         ? [
-            "Vista de cuadrícula mensual interactiva con navegación rápida por meses y años.",
-            "Asignación de fechas, horas y duraciones a eventos vinculados a nodos.",
-            "Comandos de barra inclinada (/evento) para crear o sincronizar fechas desde el editor.",
-            "Visualización de días con carga de trabajo y plazos inminentes.",
+            "Doble vista: Cuadrícula mensual panorámica y vista semanal con rejilla de horas.",
+            "Asignación de fechas, horas de inicio/fin y duraciones a eventos.",
+            "Sincronización bidireccional con Nodos Tarea: las tareas con fecha aparecen coloreadas según su estado.",
+            "Soporte de horarios de asignaturas integrado con Nodos Curso.",
+            "Navegación rápida por meses y años con botón de retorno a 'Hoy'.",
           ]
         : [
-            "Interactive monthly calendar grid with month and year jumping.",
-            "Assign dates, times, and durations to events linked directly to project nodes.",
-            "Slash commands (/evento) to trigger date stamps and scheduled milestones from text.",
-            "Clear visual workload indicators and upcoming deadline markers.",
+            "Dual layout: Panoramic monthly grid and detailed weekly hourly schedule.",
+            "Event start/end time duration assignment and calendar coloring.",
+            "Bidirectional sync with Task Nodes: scheduled tasks appear color-coded by progress.",
+            "Academic schedule integration directly linked to Course Nodes.",
+            "Quick jumping across months and years with 'Today' instant reset button.",
+          ],
+      howToUse: isEs
+        ? [
+            "Abre el nodo Calendario para revisar tus compromisos del mes.",
+            "Alterna entre la vista mensual y la vista semanal para planificar tu día hora por hora.",
+            "Haz clic en cualquier día o franja horaria para crear un evento o vincular una tarea.",
+          ]
+        : [
+            "Open the Calendar node to review your monthly commitments.",
+            "Toggle between monthly and weekly view to plan your day hour by hour.",
+            "Click any day slot or time range to create an event or bind a task.",
           ],
       fusionTip: isEs
-        ? "Fusión con Tareas: los nodos de tipo Tarea con fecha límite asignada se reflejan visualmente en el calendario para una vista unificada de prioridades."
-        : "Fusion with Tasks: Task nodes with deadlines automatically reflect onto the calendar grid for a unified view of your delivery commitments.",
+        ? "Fusión con Cursos y Tareas: al programar una tarea en un Curso, el Calendario del curso y el Calendario general se actualizan automáticamente en tiempo real."
+        : "Fusion with Courses & Tasks: scheduling a task inside a Course immediately populates both the course calendar and general calendar in real time.",
     },
     {
       id: "node-tempo",
@@ -212,96 +326,72 @@ export function FeaturesPanel() {
       badge: "tempo",
       icon: "⏱️",
       summary: isEs
-        ? "Módulo de gestión de hábitos, rutinas recurrentes y métricas de consistencia personal para monitorizar la ejecución continua de proyectos."
-        : "Habit and recurring routine management module with consistency tracking to ensure continuous project momentum.",
+        ? "Módulo de gestión de hábitos, rutinas recurrentes y métricas de consistencia personal con soporte para frecuencias diarias, semanales, mensuales o anuales."
+        : "Habit and recurring routine management module with consistency tracking supporting daily, weekly, monthly, and annual cadences.",
       capabilities: isEs
         ? [
-            "Registro de frecuencias de ejecución diarias, semanales o personalizadas.",
-            "Métricas visuales de rachas continuas y porcentaje de cumplimiento.",
-            "Historial cronológico de actividad con vista de calor.",
-            "Diseñado para mantener la disciplina en redacción, investigación o aprendizaje.",
+            "Subtipos de recurrencia: diario (daily), semanal (weekly), mensual (monthly) y anual (annual).",
+            "Configuración de formato de hora preferido (12h AM/PM vs 24h internacional).",
+            "Bloc de notas de inspección integrado para registrar bitácoras de cada sesión de hábito.",
+            "Contador visual de rachas continuas y registro histórico de constancia.",
+            "Modo panel lateral o modo vista completa.",
           ]
         : [
-            "Daily, weekly, or custom cadence routine logging.",
-            "Visual streaks counter and percentage-based consistency graphs.",
-            "Heatmap-style chronological activity log.",
-            "Designed to sustain momentum in creative writing, research, or skill acquisition.",
+            "Recurrence cadences: daily, weekly, monthly, and annual tracking.",
+            "Time format customization (12-hour AM/PM vs 24-hour international).",
+            "Built-in inspector notepad to document reflections and logs per session.",
+            "Visual streaks tracker and chronological consistency log.",
+            "Dual presentation: sidebar inspector panel or standalone view.",
           ],
-      fusionTip: isEs
-        ? "Fusión con Cursos: monitoriza tu ritmo de avance diario en un curso o proyecto de investigación para evitar estancamientos."
-        : "Fusion with Courses: track daily study cadence across course modules or research vaults to maintain steady progression.",
-    },
-    {
-      id: "node-task",
-      category: "nodes",
-      title: isEs ? "Tarea y Elemento de Acción" : "Task & Action Item",
-      badge: "task",
-      icon: "✅",
-      summary: isEs
-        ? "Nodo atómico de tarea para registrar acciones pendientes, asignaciones, estados de avance y fechas objetivo dentro de cualquier flujo de trabajo."
-        : "Atomic task node designed to capture actionable todos, assignments, progression states, and target deadlines across any workflow.",
-      capabilities: isEs
+      howToUse: isEs
         ? [
-            "Estados de ciclo de vida: pendiente, en progreso, completado y descartado.",
-            "Campos de fecha de vencimiento y prioridad visual.",
-            "Integrable mediante menciones dentro de actas de reunión o bitácoras de proyecto.",
+            "Los nodos Tempo se generan al programar tareas o al iniciar rutinas de hábito.",
+            "Elige la frecuencia (Diario o Semanal) y asigna la hora de inicio o límite.",
+            "Utiliza el editor inferior para tomar notas de progreso durante tu sesión de trabajo.",
           ]
         : [
-            "Lifecycle states: pending, in-progress, completed, and archived.",
-            "Due date scheduling and visual priority tags.",
-            "Seamlessly embeddable via mentions inside meeting notes or sprint logs.",
+            "Tempo nodes are generated when scheduling tasks or logging routines.",
+            "Choose the cadence (Daily or Weekly) and set the start or target time.",
+            "Use the built-in notepad to log progress notes during your session.",
           ],
       fusionTip: isEs
-        ? "Fusión con Páginas: usa listas to-do interactivas ([] ) en tu página de trabajo para desglosar la tarea en subtareas accionables al instante."
-        : "Fusion with Pages: use interactive markdown checklists ([] ) inside your parent page to break down the task into immediate micro-steps.",
-    },
-    {
-      id: "node-course",
-      category: "nodes",
-      title: isEs ? "Curso y Estructura Educativa" : "Course & Learning Path",
-      badge: "course",
-      icon: "🎓",
-      summary: isEs
-        ? "Estructura pedagógica modular diseñada para articular itinerarios de aprendizaje, lecciones progresivas, materiales didácticos y seguimiento curricular."
-        : "Modular pedagogical structure designed to articulate learning paths, progressive lessons, didactic materials, and curricular tracking.",
-      capabilities: isEs
-        ? [
-            "Organización jerárquica por módulos temáticos y lecciones individuales.",
-            "Seguimiento visual de porcentaje de lecciones completadas.",
-            "Asociación de lecturas PDF, vídeos de clase y apuntes en un único espacio unificado.",
-          ]
-        : [
-            "Hierarchical taxonomy organized into thematic units and individual lessons.",
-            "Visual completion percentage and syllabus progress meters.",
-            "Consolidation of PDF readings, video lectures, and rich notes into one unified hub.",
-          ],
-      fusionTip: isEs
-        ? "Fusión con Vídeos y PDFs: agrupa un nodo de vídeo y un nodo de PDF bajo una lección del curso para tener teoría y práctica sincronizadas."
-        : "Fusion with Videos & PDFs: group video and PDF nodes under a course lesson to keep theory and exercise materials synchronized.",
+        ? "Fusión con Tareas: Tempo actúa como el motor temporal de las Tareas de HIS, permitiendo que una tarea simple tenga fecha, recurrencia y recordatorios."
+        : "Fusion with Tasks: Tempo powers the time dimension of HIS Tasks, transforming a simple to-do into a recurring, deadline-tracked habit.",
     },
     {
       id: "node-category",
       category: "nodes",
-      title: isEs ? "Categoría y Agrupador" : "Category & Classifier",
+      title: isEs ? "Categoría y Agrupador Lore" : "Category & Lore Folder",
       badge: "category",
       icon: "📁",
       summary: isEs
-        ? "Contenedor organizacional puro en el Lore que sirve para categorizar grandes áreas de conocimiento, clasificar universos ficcionales o dividir proyectos."
-        : "Pure organizational container in the Lore used to classify large knowledge domains, fictional universe facets, or project workstreams.",
+        ? "Contenedor organizacional puro en el árbol del Lore para estructurar universos narrativos, proyectos complejos o separar áreas de estudio sin peso innecesario."
+        : "Pure organizational container in the Lore tree used to classify knowledge domains, worldbuilding lore, or complex projects without document bloat.",
       capabilities: isEs
         ? [
-            "Agrupación jerárquica limpia sin sobrecargar el espacio de trabajo con contenido vacío.",
-            "Filtrable al instante en la pestaña 'Tipos' de la barra lateral.",
-            "Reorganizable libremente mediante arrastre en el árbol.",
+            "Agrupación jerárquica limpia sin contenido de texto redundante.",
+            "Reorganizable mediante arrastrar y soltar (Drag & Drop) dentro del árbol.",
+            "Filtrable instantáneamente en la pestaña 'Tipos' del panel de navegación lateral.",
+            "Soporte de menú contextual con clic derecho para añadir elementos hijos directamente.",
           ]
         : [
-            "Clean hierarchical grouping without bloating documents with unnecessary markup.",
-            "Instant categorization and filtering via the sidebar 'Types' view.",
-            "Fully draggable and reorderable in the project tree.",
+            "Clean hierarchical grouping without bloating the project with empty files.",
+            "Smooth drag-and-drop reordering within the sidebar Lore tree.",
+            "Instantly filtered via the 'Types' sidebar panel.",
+            "Right-click context menu to spawn child nodes directly underneath.",
+          ],
+      howToUse: isEs
+        ? [
+            "Crea una Categoría para tus carpetas principales (ej. 'Facultad', 'Novela', 'Trabajo').",
+            "Arrastra Páginas u otros nodos dentro de la Categoría para mantener todo ordenado.",
+          ]
+        : [
+            "Create a Category for top-level folders (e.g. 'University', 'Novel', 'Work').",
+            "Drag Pages or other nodes inside to keep your project tree organized.",
           ],
       fusionTip: isEs
-        ? "Fusión con Árbol del Lore: utiliza Categorías para estructurar tus carpetas raíz (ej. 'Personajes', 'Capítulos', 'Referencias') y anida Páginas dentro."
-        : "Fusion with Lore Tree: use Categories for your top-level structure (e.g. 'Characters', 'Chapters', 'Research') and nest Pages beneath them.",
+        ? "Fusión con Páginas: si necesitas que una carpeta contenga a su vez texto explicativo, puedes crear una Página y anidar otras páginas debajo; HIS la convertirá automáticamente en una 'Carpeta de Páginas'."
+        : "Fusion with Pages: if you need a folder to also contain descriptive text, nest sub-pages under a Page; HIS will automatically treat it as a dual Page-Folder.",
     },
     {
       id: "node-project",
@@ -310,7 +400,7 @@ export function FeaturesPanel() {
       badge: "project",
       icon: "🏛️",
       summary: isEs
-        ? "La identidad central de la bóveda de conocimiento. Gestiona el nombre del proyecto, avatar o icono distintivo, tipo de nodo por defecto y configuración horaria."
+        ? "La identidad central de la bóveda de conocimiento. Gestiona el nombre del proyecto, avatar e icono distintivo, tipo de nodo por defecto y preferencias horarias."
         : "The core identity of the knowledge vault. Configures project branding, avatar emblem, default node type, and chronological preferences.",
       capabilities: isEs
         ? [
@@ -325,13 +415,22 @@ export function FeaturesPanel() {
             "Time format configuration (12-hour AM/PM vs 24-hour international).",
             "Complete local-first storage isolation: all project data resides exclusively on your device.",
           ],
+      howToUse: isEs
+        ? [
+            "Haz clic en el avatar del proyecto en la esquina superior izquierda de la barra lateral para acceder a la configuración de la bóveda.",
+            "Personaliza el avatar, el nombre del proyecto y las opciones de creación rápida.",
+          ]
+        : [
+            "Click the project avatar in the top-left sidebar corner to open project configuration.",
+            "Customize the avatar emblem, project name, and default node options.",
+          ],
       fusionTip: isEs
-        ? "Fusión con Configuración: desde el panel de Configuración General puedes ajustar el avatar del proyecto y cambiar la identidad visual de toda la aplicación."
-        : "Fusion with Settings: customize the project avatar and visual identity directly from General Settings to personalize the app environment.",
+        ? "Fusión con Guardado Seguro: cada cambio en el proyecto se preserva en un contenedor cifrado '.his' de alto rendimiento con transacciones SQLite."
+        : "Fusion with Safe Persistence: every project change is preserved inside a verified local '.his' container powered by atomic SQLite transactions.",
     },
 
     // ----------------------------------------------------
-    // FUSIONES Y SINERGIAS
+    // FUSIONES Y SINERGIAS ÚNICAS
     // ----------------------------------------------------
     {
       id: "fusion-video-notes",
@@ -367,6 +466,31 @@ export function FeaturesPanel() {
             "3. Click '+ Insert current timestamp' whenever a new topic or key insight is shared.",
             "4. Click any '⏱ MM:SS' pill to jump the video directly to that moment.",
           ],
+    },
+    {
+      id: "fusion-course-hub",
+      category: "fusions",
+      title: isEs ? "Fusión: Campus y Centro de Mando del Estudiante" : "Fusion: Student Command Deck Hub",
+      icon: "🏛️",
+      summary: isEs
+        ? "El Nodo Curso articula cinco dimensiones del aprendizaje en una sola pantalla: temario en PDF, enlaces a aulas virtuales, grabaciones de clases, tareas y calendario de horarios."
+        : "Course nodes orchestrate five learning dimensions in one screen: PDF syllabus, live room links, lecture video archives, tasks, and embedded schedules.",
+      capabilities: isEs
+        ? [
+            "Centralización radical: olvídate de tener 10 pestañas abiertas en el navegador; todo lo relativo a la asignatura vive en su ficha.",
+            "Lanzamiento de clases con un clic hacia Zoom, Meet o Teams.",
+            "Cálculo automatizado de tiempo total de vídeos de clase vistos y pendientes.",
+            "Evaluaciones vinculadas con alertas de fechas límite inminentes.",
+          ]
+        : [
+            "Radical consolidation: replace 10 open browser tabs with a single course command deck.",
+            "One-click classroom launcher for Zoom, Google Meet, and Microsoft Teams.",
+            "Automated calculation of total recorded lecture hours completed and pending.",
+            "Evaluation milestones linked with upcoming deadline alerts.",
+          ],
+      fusionTip: isEs
+        ? "Organiza cada semestre creando una Categoría 'Ciclo 2026' y dentro coloca tus Nodos Curso. Todo tu material universitario quedará perfectamente indexado."
+        : "Organize semesters by creating a Category 'Term 2026' and nesting your Course Nodes inside. All academic materials stay perfectly indexed.",
     },
     {
       id: "fusion-transclusion",
@@ -426,7 +550,7 @@ export function FeaturesPanel() {
     {
       id: "fusion-graph-pixi",
       category: "fusions",
-      title: isEs ? "Fusión: Grafo Conceptual 2D con Motor Pixi" : "Fusion: 2D Concept Graph with Pixi Engine",
+      title: isEs ? "Fusión: Grafo Conceptual 2D con Motor Pixi.js" : "Fusion: 2D Concept Graph with Pixi Engine",
       icon: "🕸️",
       summary: isEs
         ? "Tu base de conocimiento visualizada como una constelación de neuronas interconectadas en WebGL. Cada enlace '@' crea una conexión física que agrupa tus ideas en clústeres orgánicos."
@@ -445,9 +569,29 @@ export function FeaturesPanel() {
             "Click any star in the constellation to instantly open and edit that document.",
           ],
     },
+    {
+      id: "fusion-tempo-tasks",
+      category: "fusions",
+      title: isEs ? "Fusión: Planificación Temporal Tarea-Tempo" : "Fusion: Task-Tempo Time Scheduling",
+      icon: "⏱️",
+      summary: isEs
+        ? "Al programar una Tarea como diaria o semanal, HIS genera un nodo Tempo vinculado que proyecta la tarea en el Calendario y registra el tiempo dedicado."
+        : "Scheduling a Task as daily or weekly creates a linked Tempo node, mapping the task directly onto the Calendar and tracking invested focus time.",
+      capabilities: isEs
+        ? [
+            "Programación sin fricción: activa la periodicidad directamente desde la ficha de la Tarea.",
+            "Reflejo automático en la vista semanal del Calendario para visualización de carga de trabajo.",
+            "Anotaciones contextuales durante la sesión de trabajo sin salir del temporizador.",
+          ]
+        : [
+            "Frictionless scheduling: toggle cadence directly from the Task view.",
+            "Automatic reflection in the weekly Calendar view to balance daily workload.",
+            "Contextual focus notes logged inside the session timer.",
+          ],
+    },
 
     // ----------------------------------------------------
-    // EDITOR Y ATAJOS
+    // EDITOR Y ATAJOS DE TECLADO
     // ----------------------------------------------------
     {
       id: "editor-markdown-shortcuts",
@@ -505,7 +649,7 @@ export function FeaturesPanel() {
       capabilities: isEs
         ? [
             "Tipografía monoespaciada Cascadia Code / SF Mono con fondo oscuro de alto contraste.",
-            "Pulsar Enter dentro del bloque inserta saltos de línea (\n) con total naturalidad sin romper el bloque.",
+            "Pulsar Enter dentro del bloque inserta saltos de línea (\\n) con total naturalidad sin romper el bloque.",
             "Pulsar Shift + Enter o Ctrl + Enter sale del bloque de código e inserta un párrafo nuevo debajo.",
             "Botón flotante 'Copiar' en la esquina superior derecha con feedback visual 'Copiado'.",
             "Convertible bidireccionalmente desde el menú de formato de bloque (badge </>).",
@@ -518,6 +662,76 @@ export function FeaturesPanel() {
             "Bidirectionally convertible from the block format menu (badge </>).",
           ],
       shortcuts: ["``` + Enter", "Enter", "Shift + Enter", "Ctrl + Enter"],
+    },
+    {
+      id: "editor-tables",
+      category: "editor",
+      title: isEs ? "Tablas de Datos Interactivas" : "Interactive Data Tables",
+      icon: "📊",
+      summary: isEs
+        ? "Cuadrículas estructuradas para organizar datos, matrices comparativas y registros tabulares directamente dentro de cualquier página."
+        : "Structured grids to organize data, comparative matrices, and tabular records directly inside any page.",
+      capabilities: isEs
+        ? [
+            "Añadir y eliminar filas y columnas desde tiradores intuitivos.",
+            "Reorganización por arrastre de columnas y filas.",
+            "Pegado inteligente desde hojas de cálculo (Excel, Google Sheets o CSV tabulado).",
+            "Aplicación de colores de fondo y bordes por celda o selección de celdas.",
+            "Navegación ágil entre celdas mediante la tecla Tab y Shift + Tab.",
+          ]
+        : [
+            "Add and remove rows and columns via intuitive edge handles.",
+            "Drag-and-drop column and row reordering.",
+            "Intelligent matrix paste directly from spreadsheets (Excel, Google Sheets, or TSV).",
+            "Cell and row custom accent color and border fills.",
+            "Swift keyboard navigation using Tab and Shift + Tab across cells.",
+          ],
+    },
+    {
+      id: "editor-globe-blocks",
+      category: "editor",
+      title: isEs ? "Bloques Globo, Desplegables y Columnas" : "Globe Blocks, Toggles & Column Layouts",
+      icon: "🌐",
+      summary: isEs
+        ? "Estructuras avanzadas de diseño para documentos: cajas destacadas con iconos temáticos, listas desplegables plegables tipo acordeón y distribución en columnas paralelas."
+        : "Advanced layout structures for documents: themed callout boxes with icons, collapsible accordion toggles, and multi-column parallel layouts.",
+      capabilities: isEs
+        ? [
+            "Bloques Globo (Globe): cajas de aviso con icono temático, borde iluminado y fondo contrastado para notas clave y alertas.",
+            "Desplegables (Dropdowns / Toggle lists): encabezados plegables que ocultan contenido extenso para mantener la página limpia.",
+            "Diseño en columnas: organiza ideas o comparativas en bloques lado a lado.",
+            "Paleta cromática de bloque: colorea el texto o el fondo del bloque con los tonos característicos de HIS.",
+          ]
+        : [
+            "Globe blocks: illuminated callouts with custom emblem icons for key insights and alerts.",
+            "Dropdown toggles: collapsible headers that fold long explanations to keep pages uncluttered.",
+            "Multi-column layouts: place complementary notes side-by-side.",
+            "Block color styling: customize text and background accents with the HIS palette.",
+          ],
+      shortcuts: ["#> + Space", "/globo"],
+    },
+    {
+      id: "editor-slash-commands",
+      category: "editor",
+      title: isEs ? "Comandos de Barra Inclinada (/)" : "Slash Commands Menu (/)",
+      icon: "⚡",
+      summary: isEs
+        ? "El centro de control creativo del editor. Escribe '/' para desplegar un catálogo completo de bloques, formatos, divisores y colores."
+        : "The creative command deck of the editor. Type '/' to summon a comprehensive catalog of blocks, formats, dividers, and palettes.",
+      capabilities: isEs
+        ? [
+            "Conversión instantánea de tipo de bloque (párrafo, encabezados, listas, citas, código).",
+            "Inserción directa de tablas, líneas divisorias y bloques Globo.",
+            "Selector de colores de texto y fondos de bloque.",
+            "Acceso directo a menciones y creación de nuevos nodos.",
+          ]
+        : [
+            "Instant block type transformation (paragraph, headings, lists, quotes, code).",
+            "One-click insertion of tables, horizontal dividers, and Globe callouts.",
+            "Typography color palette and block background styling.",
+            "Direct mention trigger and new node creation workflow.",
+          ],
+      shortcuts: ["/"],
     },
     {
       id: "editor-inline-formatting",
@@ -549,60 +763,35 @@ export function FeaturesPanel() {
       shortcuts: ["Ctrl + B", "Ctrl + I", "Ctrl + U", "Ctrl + E", "Ctrl + Shift + S", "Ctrl + Z", "Ctrl + Y"],
     },
     {
-      id: "editor-tables",
+      id: "editor-image-preview",
       category: "editor",
-      title: isEs ? "Tablas de Datos Interactivas" : "Interactive Data Tables",
-      icon: "📊",
+      title: isEs ? "Previsualización Ampliada e Interacción con Imágenes" : "Image Zoom Preview & Interactive Handles",
+      icon: "🔍",
       summary: isEs
-        ? "Cuadrículas estructuradas para organizar datos, matrices comparativas y registros tabulares directamente dentro de cualquier página."
-        : "Structured grids to organize data, comparative matrices, and tabular records directly inside any page.",
+        ? "Control milimétrico sobre las imágenes incrustadas: ajuste de ancho mediante tiradores táctiles y visor flotante ampliado con fondo desenfocado estilo Discord."
+        : "Precise control over embedded images: horizontal drag-to-resize handles and a Discord-style floating modal zoom with backdrop blur.",
       capabilities: isEs
         ? [
-            "Añadir y eliminar filas y columnas desde tiradores intuitivos.",
-            "Reorganización por arrastre de columnas y filas.",
-            "Pegado inteligente desde hojas de cálculo (Excel, Google Sheets o CSV tabulado).",
-            "Aplicación de colores de fondo y bordes por celda o selección de celdas.",
-            "Navegación ágil entre celdas mediante la tecla Tab y Shift + Tab.",
+            "Clic sobre cualquier imagen incrustada abre el visor emergente de alta resolución.",
+            "Tiradores en los bordes laterales para ajustar el ancho exacto del bloque visual.",
+            "Botón de descarga directa desde la vista previa.",
+            "Alternancia fluida entre chip de mención compacto o bloque completo.",
           ]
         : [
-            "Add and remove rows and columns via intuitive edge handles.",
-            "Drag-and-drop column and row reordering.",
-            "Intelligent matrix paste directly from spreadsheets (Excel, Google Sheets, or TSV).",
-            "Cell and row custom accent color and border fills.",
-            "Swift keyboard navigation using Tab and Shift + Tab across cells.",
+            "Clicking any embedded image launches the high-resolution zoom lightbox.",
+            "Horizontal edge handles for fine-tuned width resizing directly in the editor.",
+            "Direct download button inside the zoom preview.",
+            "Seamless toggle between inline mention chip and full visual block.",
           ],
-    },
-    {
-      id: "editor-slash-commands",
-      category: "editor",
-      title: isEs ? "Comandos de Barra Inclinada (/)" : "Slash Commands Menu (/)",
-      icon: "⚡",
-      summary: isEs
-        ? "El centro de control creativo del editor. Escribe '/' para desplegar un catálogo completo de bloques, formatos, divisores y colores."
-        : "The creative command deck of the editor. Type '/' to summon a comprehensive catalog of blocks, formats, dividers, and palettes.",
-      capabilities: isEs
-        ? [
-            "Conversión instantánea de tipo de bloque (párrafo, encabezados, listas, citas, código).",
-            "Inserción directa de tablas, líneas divisorias y bloques Globo.",
-            "Selector de colores de texto y fondos de bloque.",
-            "Acceso directo a menciones y creación de nuevos nodos.",
-          ]
-        : [
-            "Instant block type transformation (paragraph, headings, lists, quotes, code).",
-            "One-click insertion of tables, horizontal dividers, and Globe callouts.",
-            "Typography color palette and block background styling.",
-            "Direct mention trigger and new node creation workflow.",
-          ],
-      shortcuts: ["/"],
     },
 
     // ----------------------------------------------------
-    // NAVEGACIÓN Y GRAFO
+    // NAVEGACIÓN Y ESPACIO DE TRABAJO
     // ----------------------------------------------------
     {
       id: "nav-quick-switcher",
       category: "navigation",
-      title: isEs ? "Quick Switcher / Command Palette (Ctrl+K)" : "Quick Switcher / Command Palette (Ctrl+K)",
+      title: isEs ? "Quick Switcher / Paleta Universal (Ctrl+K)" : "Quick Switcher / Spotlight (Ctrl+K)",
       icon: "🔍",
       summary: isEs
         ? "El buscador flotante universal de HIS. Encuentra y salta a cualquier nodo del proyecto en milisegundos con navegación total por teclado."
@@ -623,6 +812,26 @@ export function FeaturesPanel() {
             "Displays node type glyph and label for instant recognition.",
           ],
       shortcuts: ["Ctrl + K", "Ctrl + P", "↑ / ↓", "Enter", "ESC"],
+    },
+    {
+      id: "nav-history-controls",
+      category: "navigation",
+      title: isEs ? "Historial de Navegación (← y →)" : "Navigation History Controls (← & →)",
+      icon: "🧭",
+      summary: isEs
+        ? "Viaja hacia atrás y hacia adelante por los nodos que has visitado exactamente igual que en un navegador web, siempre accesible en la esquina superior del workspace."
+        : "Travel backward and forward across your visited nodes just like a web browser, permanently accessible in the top workspace corner.",
+      capabilities: isEs
+        ? [
+            "Botones Atrás (←) y Adelante (→) integrados en la cabecera del espacio de trabajo.",
+            "Pila de navegación cronológica que recuerda cada documento que has abierto.",
+            "Permite explorar referencias cruzadas y regresar a tu página de origen sin perder el contexto.",
+          ]
+        : [
+            "Back (←) and Forward (→) buttons docked in the top workspace controls.",
+            "Chronological stack remembering every node visited in sequence.",
+            "Explore deep reference chains and effortlessly return to your origin page.",
+          ],
     },
     {
       id: "nav-split-view",
@@ -670,7 +879,7 @@ export function FeaturesPanel() {
     {
       id: "nav-lore-sidebar",
       category: "navigation",
-      title: isEs ? "Árbol del Lore y Organización Jerárquica" : "Lore Tree & Hierarchical Organization",
+      title: isEs ? "Árbol del Lore y Gestión Jerárquica" : "Lore Tree & Hierarchical Organization",
       icon: "🌲",
       summary: isEs
         ? "La estructura vertebral de tus proyectos. Organiza páginas, carpetas y recursos con drag & drop intuitivo y selección múltiple."
@@ -681,20 +890,130 @@ export function FeaturesPanel() {
             "Arrastrar y soltar (Drag & Drop) para reorganizar el orden o mover nodos entre carpetas.",
             "Selección múltiple de nodos para mover o eliminar por lotes.",
             "Menú contextual con clic derecho: renombrar, duplicar, abrir en pestaña, exportar o eliminar.",
-            "Tres pestañas en la barra lateral: 'Lore' (árbol), 'Recientes' (historial) y 'Tipos' (filtro por tipo).",
+            "Tres pestañas en la barra lateral: 'Lore' (árbol), 'Recientes' (historial) y 'Tipos' (filtro por tipo con contadores).",
           ]
         : [
             "Infinite hierarchical nesting: embed pages inside pages or under categories.",
             "Intuitive drag-and-drop to reorder sibling positions or re-parent nodes.",
             "Multi-selection support for batch moves and cleanup operations.",
             "Right-click context menu: rename, duplicate, open in tab, export, or send to trash.",
-            "Three dedicated sidebar tabs: 'Lore' (tree), 'Recent' (history), and 'Types' (by category).",
+            "Three dedicated sidebar tabs: 'Lore' (tree), 'Recent' (history), and 'Types' (by category with counters).",
           ],
     },
 
     // ----------------------------------------------------
     // UTILIDADES Y SISTEMA
     // ----------------------------------------------------
+    {
+      id: "util-export-multiformat",
+      category: "utilities",
+      title: isEs ? "Exportación Multi-formato (Markdown, HTML y PDF)" : "Multi-Format Export (Markdown, HTML & PDF)",
+      icon: "📤",
+      summary: isEs
+        ? "Exporta tus documentos a formatos estándar universales en cualquier momento: Markdown limpio (.md), páginas web HTML independientes con estilos integrados, o impresión directa a PDF."
+        : "Export your documents to universal standard formats anytime: clean Markdown (.md), self-contained styled HTML pages, or direct print-to-PDF.",
+      capabilities: isEs
+        ? [
+            "Exportación a Markdown (.md): preserva encabezados, listas to-do, tablas y enlaces limpios compatibles con Obsidian, GitHub o VS Code.",
+            "Exportación a HTML (.html): genera un archivo autocontenido con los estilos cyberpunk oscuros de HIS listo para ver en cualquier navegador.",
+            "Impresión / PDF (.pdf): hoja de estilos tipográfica limpia optimizada para hojas A4 o Carta sin botones de interfaz.",
+            "Acceso directo desde el menú de opciones del nodo (tres puntos) o menú contextual.",
+          ]
+        : [
+            "Markdown (.md) export: preserves headings, task checklists, tables, and clean links compatible with Obsidian and GitHub.",
+            "HTML (.html) export: builds a self-contained web page with HIS styling viewable in any browser.",
+            "Print / PDF (.pdf): clean print stylesheet optimized for standard A4 and Letter pages without UI controls.",
+            "Direct access via the node action menu (three dots) or right-click context menu.",
+          ],
+    },
+    {
+      id: "util-tags-system",
+      category: "utilities",
+      title: isEs ? "Sistema de Etiquetas y Colores de Tags" : "Multidimensional Tags System & Color Palettes",
+      icon: "🏷️",
+      summary: isEs
+        ? "Organización transversal flexible. Asigna múltiples etiquetas a cualquier nodo con colores personalizados de la paleta HIS para filtrar y clasificar conceptos entre carpetas."
+        : "Flexible cross-cutting organization. Assign multiple tags to any node with custom color pills from the HIS palette to classify and filter concepts.",
+      capabilities: isEs
+        ? [
+            "Selector de etiquetas rápido con búsqueda y creación instantánea de nuevos tags.",
+            "Paleta cromática de tags: asigna colores diferenciados a cada etiqueta para identificación visual inmediata.",
+            "Píldoras de etiquetas (Tag Chips) visibles en la cabecera de los nodos y diálogos de creación.",
+            "Permite relacionar notas que pertenecen a diferentes carpetas bajo un mismo tópico temático.",
+          ]
+        : [
+            "Quick tag picker with instant search and on-the-fly tag spawning.",
+            "Tag color palette: assign distinct accents to tags for rapid visual scanning.",
+            "Tag Chips displayed prominently across node headers and creation panels.",
+            "Cross-references notes living in disparate folders under shared thematic topics.",
+          ],
+    },
+    {
+      id: "util-unsplash",
+      category: "utilities",
+      title: isEs ? "Banco de Imágenes Unsplash Integrado" : "Built-in Unsplash Image Hub",
+      icon: "📷",
+      summary: isEs
+        ? "Buscador fotográfico directo sin salir de la app. Explora millones de fotografías de alta resolución libres de derechos de Unsplash e impórtalas con un clic."
+        : "Direct photographic search without leaving the app. Browse millions of high-resolution royalty-free photos from Unsplash and import them with one click.",
+      capabilities: isEs
+        ? [
+            "Búsqueda por palabras clave en tiempo real con rejilla de miniaturas fluidas.",
+            "Descarga e indexación local automática en tu bóveda con atribución al fotógrafo.",
+            "Uso directo como portadas de curso, portadas de proyecto o imágenes ilustrativas de página.",
+            "Cero fricción: no necesitas descargar archivos al escritorio ni abrir el navegador web.",
+          ]
+        : [
+            "Real-time keyword search with responsive high-density thumbnail masonry.",
+            "Automatic local download and indexing with photographer attribution metadata.",
+            "Instant assignment as course covers, project covers, or page illustrations.",
+            "Zero friction: eliminates manual browser downloads and desktop file dragging.",
+          ],
+    },
+    {
+      id: "util-discord-presence",
+      category: "utilities",
+      title: isEs ? "Discord Rich Presence" : "Discord Rich Presence",
+      icon: "🎮",
+      summary: isEs
+        ? "Conexión nativa con tu perfil de Discord. Muestra en tiempo real qué proyecto estás editando, en qué nodo trabajas y cuánto tiempo llevas concentrado."
+        : "Native link with your Discord profile. Displays real-time status showing your active project, edited node, and elapsed focus duration.",
+      capabilities: isEs
+        ? [
+            "Actualización automática de estado al abrir y editar proyectos.",
+            "Icono oficial de H.I.S. Future y badge de la aplicación en tu perfil de Discord.",
+            "Muestra el nombre del nodo activo y contador de tiempo transcurrido.",
+            "Se limpia y desactiva limpiamente al cerrar el proyecto o salir de la aplicación.",
+          ]
+        : [
+            "Automatic status publication on project load and editing activity.",
+            "Official H.I.S. Future artwork emblem displayed in your Discord profile.",
+            "Surfaces active node title and elapsed focus timer.",
+            "Cleans up and disconnects gracefully on project close or app exit.",
+          ],
+    },
+    {
+      id: "util-icon-picker",
+      category: "utilities",
+      title: isEs ? "Selector de Iconos y Emojis Vectoriales" : "Vector Icon & Emoji Picker System",
+      icon: "🎨",
+      summary: isEs
+        ? "Personalización visual extrema. Miles de iconos vectoriales Google Material Symbols Rounded, Lucide Icons, Twemoji y Noto Color Emoji con buscador semántico."
+        : "Extreme visual customization. Thousands of vector Google Material Symbols Rounded, Lucide Icons, Twemoji, and Noto Color Emoji with semantic search.",
+      capabilities: isEs
+        ? [
+            "Catálogo integrado de iconos Lucide y Google Material Symbols con renderizado nítido a cualquier resolución.",
+            "Buscador semántico inteligente: encuentra iconos escribiendo conceptos en español o inglés.",
+            "Selector de emojis nativos de alta fidelidad Twemoji y Noto Color Emoji.",
+            "Asignación visual por nodo para transformar el árbol lateral en un mapa visual intuitivo.",
+          ]
+        : [
+            "Comprehensive catalog of Lucide and Material Symbols with pixel-sharp vector rendering.",
+            "Semantic search engine: queries icons by concept in both Spanish and English.",
+            "High-fidelity Twemoji and Noto Color Emoji integration.",
+            "Per-node icon assignment turning your project tree into an intuitive visual map.",
+          ],
+    },
     {
       id: "util-metrics",
       category: "utilities",
@@ -705,7 +1024,7 @@ export function FeaturesPanel() {
         : "Keep track of your writing cadence and volume. Dynamic word, character, and reading time counter docked discreetly on every page.",
       capabilities: isEs
         ? [
-            "Conteo total de palabras y caracteres del documento.",
+            "Conteo total de palabras y caracteres del documento actualizado en cada pulsación.",
             "Cálculo automático de tiempo estimado de lectura en minutos.",
             "Métricas en selección: al seleccionar un fragmento de texto, muestra cuántas palabras y caracteres abarca.",
           ]
@@ -758,23 +1077,47 @@ export function FeaturesPanel() {
           ],
     },
     {
-      id: "util-export",
+      id: "util-dev-console",
       category: "utilities",
-      title: isEs ? "Exportación e Impresión Limpia" : "Clean Print & Document Export",
-      icon: "🖨️",
+      title: isEs ? "Consola Técnica y Auto-reparación de Integridad" : "Technical Diagnostics Console & Self-Healing",
+      icon: "🛠️",
       summary: isEs
-        ? "Genera salidas listas para compartir o archivar en papel o PDF sin marcas de interfaz ni botones de edición."
-        : "Generate clean outputs ready for sharing, printing, or PDF archiving without interface chrome or editor controls.",
+        ? "Monitor de salud y diagnóstico en tiempo real de HIS. Supervisa transacciones SQLite, eventos de integridad estructural y auto-repara relaciones rotas al vuelo."
+        : "Real-time health monitor and diagnostics deck. Supervises SQLite transactions, structural integrity checks, and heals broken node relations on the fly.",
       capabilities: isEs
         ? [
-            "Diseño tipográfico limpio adaptado para hojas de papel A4 o Carta.",
-            "Ocultamiento automático de tiradores de bloque, menús de interfaz y barras flotantes.",
-            "Compatible con la función 'Guardar como PDF' de cualquier sistema operativo.",
+            "Trazado en vivo de eventos de base de datos, persistencia incremental y Discord RPC.",
+            "Comprobación automática de integridad (Workspace Integrity Checker) en cada carga y guardado.",
+            "Auto-reparación inteligente: purga referencias huérfanas hacia nodos eliminados sin corromper tu información.",
+            "Inspección de tiempos de serialización y rendimiento milimétrico.",
           ]
         : [
-            "Clean typographic stylesheet tailored for standard A4 and Letter paper prints.",
-            "Automatic stripping of block drag handles, transient selection UI, and buttons.",
-            "Compatible with native operating system 'Save to PDF' printer drivers.",
+            "Live streaming of SQLite operations, incremental saves, and Discord RPC activity.",
+            "Automated Workspace Integrity Checker executing on project load and save phases.",
+            "Intelligent self-healing: automatically reconciles orphaned relation references.",
+            "Deep timing inspection measuring serialization and SQLite disk commit milliseconds.",
+          ],
+    },
+    {
+      id: "util-local-first",
+      category: "utilities",
+      title: isEs ? "Bóveda Local-First '.his' y Privacidad Absoluta" : "Local-First '.his' Vault & Total Privacy",
+      icon: "🔒",
+      summary: isEs
+        ? "Tus datos son 100% tuyos. Cada proyecto reside en un archivo contenedor único '.his' empaquetado con SQLite local, sin servidores remotos ni telemetría invasiva."
+        : "Your data belongs exclusively to you. Every project lives inside a single verified '.his' container file backed by local SQLite with zero cloud dependencies or telemetry.",
+      capabilities: isEs
+        ? [
+            "Formato contenedor '.his': transporta tu bóveda completa (notas, imágenes, vídeos, PDFs y relaciones) en un solo archivo.",
+            "Persistencia desacoplada en caliente (Debounced Persistence): guarda en milisegundos sin congelar la interfaz.",
+            "Sustitución atómica protegida contra caídas de tensión o bloqueos de disco de Windows.",
+            "Funciona 100% sin conexión a internet.",
+          ]
+        : [
+            "Unified '.his' container: carry your entire vault (notes, images, videos, PDFs, and graph) in one portable file.",
+            "Debounced hot persistence: streams saves in milliseconds without ever freezing the UI.",
+            "Multi-stage atomic replacement resilient against power loss or Windows antivirus locks.",
+            "Operates 100% offline with zero cloud latency.",
           ],
     },
   ], [isEs]);
